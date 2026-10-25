@@ -217,6 +217,60 @@ internal class AppointmentRequestDataSourceImplTest {
     }
 
     @Test
+    fun `should not detect overlap with an approved request in the same slot`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val userId = Uuid.random()
+        val baseDate = Clock.System.now()
+        val approved = suspendTransaction { fixture.sut.create(fixture.buildRequest(userId = userId, date = baseDate)) }
+        suspendTransaction { fixture.sut.approve(approved) }
+
+        whenn()
+        val sameSlot = fixture.buildRequest(userId = userId, date = baseDate)
+        val hasOverlap = suspendTransaction { fixture.sut.hasOverlapsWith(sameSlot) }
+
+        then()
+        assertFalse(hasOverlap)
+    }
+
+    @Test
+    fun `should not detect overlap with a declined request in the same slot`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val userId = Uuid.random()
+        val baseDate = Clock.System.now()
+        val declined = suspendTransaction { fixture.sut.create(fixture.buildRequest(userId = userId, date = baseDate)) }
+        suspendTransaction { fixture.sut.decline(declined.id, "Cancelled by client") }
+
+        whenn()
+        val sameSlot = fixture.buildRequest(userId = userId, date = baseDate)
+        val hasOverlap = suspendTransaction { fixture.sut.hasOverlapsWith(sameSlot) }
+
+        then()
+        assertFalse(hasOverlap)
+    }
+
+    @Test
+    fun `should not detect overlap with a cancelled request in the same slot`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val userId = Uuid.random()
+        val outdatedSlot = Instant.fromEpochMilliseconds(0)
+        suspendTransaction { fixture.sut.create(fixture.buildRequest(userId = userId, date = outdatedSlot)) }
+        suspendTransaction { fixture.sut.cancelOutdated(Clock.System.now()) }
+
+        whenn()
+        val sameSlot = fixture.buildRequest(userId = userId, date = outdatedSlot)
+        val hasOverlap = suspendTransaction { fixture.sut.hasOverlapsWith(sameSlot) }
+
+        then()
+        assertFalse(hasOverlap)
+    }
+
+    @Test
     fun `should update request`() = runUnitTest {
         given()
         val fixture = SutFixture()

@@ -3,7 +3,6 @@ package com.bookk.core.data.eventstreaming.di
 import com.bookk.core.AppLevelConstants
 import com.bookk.core.data.eventstreaming.EventStreaming
 import com.bookk.core.data.eventstreaming.StandardEventConsumer
-import com.bookk.core.data.eventstreaming.StandardEventProducer
 import com.bookk.core.data.eventstreaming.impl.embedded.EmbeddedEventConsumer
 import com.bookk.core.data.eventstreaming.impl.embedded.EmbeddedEventProducer
 import com.bookk.core.data.eventstreaming.impl.embedded.TopicQueueHolder
@@ -28,13 +27,6 @@ fun eventStreamingTransportModule(qualifier: Qualifier, serviceName: String) = m
     }
 }
 
-fun eventStreamingModule(qualifier: Qualifier, serviceName: String) = module {
-    includes(eventStreamingTransportModule(qualifier, serviceName))
-    scope(qualifier) {
-        scoped<StandardEventProducer> { get<KafkaEventProducer>() }
-    }
-}
-
 fun topicQueueHolderModule() = module {
     single { TopicQueueHolder<String>() }
 }
@@ -44,14 +36,7 @@ fun embeddedEventStreamingTransportModule(qualifier: Qualifier, serviceName: Str
         scoped<StandardEventConsumer> {
             EmbeddedEventConsumer(get(), ProtoBuf { encodeDefaults = true }, get(), get(), consumerGroup(serviceName))
         }
-        scoped { EmbeddedEventProducer(get(), ProtoBuf { encodeDefaults = true }) } bind EventStreaming.RawProducer::class
-    }
-}
-
-fun embeddedEventStreamingModule(qualifier: Qualifier, serviceName: String) = module {
-    includes(embeddedEventStreamingTransportModule(qualifier, serviceName))
-    scope(qualifier) {
-        scoped<StandardEventProducer> { get<EmbeddedEventProducer>() }
+        scoped { EmbeddedEventProducer(get()) } bind EventStreaming.RawProducer::class
     }
 }
 

@@ -135,7 +135,7 @@ Every event that crosses a service boundary, who fires it, and who reacts.
 react to a single account deletion, independently and in no guaranteed
 order.
 
-Business events are delivered through the transactional outbox: the
+Every event is delivered through the transactional outbox: the
 `eventProducer.send` node in each producer diagram stores the event in the
 service's `outbox_event` table inside the operation's transaction, and
 `OutboxRelay` publishes it after commit. An event therefore exists only if

@@ -51,8 +51,10 @@ internal class FinishRegistrationImpl(
             eventProducer.send(AuthEvent.DeviceCreated(owner.id, userId, deviceUuid, language))
             generateAuthToken(Source.InitialAuthentication(owner.id, deviceUuid)).getOrThrow()
         }.onFailure {
-            eventProducer.send(AuthEvent.UserDeleted(userId))
-            eventProducer.send(AuthEvent.DeviceDeleted(deviceUuid))
+            transactionManager.transaction {
+                eventProducer.send(AuthEvent.UserDeleted(userId))
+                eventProducer.send(AuthEvent.DeviceDeleted(deviceUuid))
+            }
         }
     }
 

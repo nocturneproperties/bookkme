@@ -3,6 +3,7 @@ package com.bookk.core.data.repository
 import com.bookk.core.data.cache.CacheClient
 import com.bookk.core.data.cache.get
 import com.bookk.core.data.cache.set
+import com.bookk.core.data.cache.setIfAbsent
 import kotlinx.serialization.Serializable
 import library.idempotency.IdempotencyKey
 import library.idempotency.IdempotencyResponse
@@ -35,18 +36,18 @@ class CacheIdempotentResponseRepository(
         idempotencyKey: IdempotencyKey
     ): IdempotencyResponse? {
         val key = "$resource:$idempotencyKey"
-        val response: SerializableIdempotencyResponse? = cacheClient.get(key)
-        if (response == null) {
-            val lock = SerializableIdempotencyResponse(isInProgress = true, response = ByteArray(0))
-            cacheClient.set(key, lock, 10.minutes)
-        }
-        return response?.let {
-            IdempotencyResponse(
-                isInProgress = it.isInProgress,
-                response = it.response
+        repeat(LOCK_ATTEMPTS) {
+            if (cacheClient.setIfAbsent(key, inProgressLock(), 10.minutes)) return null
+            val response: SerializableIdempotencyResponse = cacheClient.get(key) ?: return@repeat
+            return IdempotencyResponse(
+                isInProgress = response.isInProgress,
+                response = response.response
             )
         }
+        return IdempotencyResponse(isInProgress = true, response = ByteArray(0))
     }
+
+    private fun inProgressLock() = SerializableIdempotencyResponse(isInProgress = true, response = ByteArray(0))
 
     override suspend fun release(resource: String, idempotencyKey: IdempotencyKey) {
         val key = "$resource:$idempotencyKey"
@@ -55,5 +56,9 @@ class CacheIdempotentResponseRepository(
 
     override suspend fun deleteExpiredResponses(lastValidDate: OffsetDateTime) {
         //Responses are deleted automatically
+    }
+
+    private companion object {
+        const val LOCK_ATTEMPTS = 3
     }
 }

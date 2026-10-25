@@ -8,10 +8,10 @@ import com.bookk.core.data.eventstreaming.StandardEventProducer
 import com.bookk.core.data.eventstreaming.impl.InMemoryExhaustedEventDataSource
 import com.bookk.core.data.eventstreaming.impl.embedded.EmbeddedEventConsumer
 import com.bookk.core.data.eventstreaming.impl.embedded.EmbeddedEventProducer
+import com.bookk.core.data.eventstreaming.impl.embedded.publishEncoded
 import com.bookk.core.data.eventstreaming.impl.inMemoryEventIdempotencyStorage
 import com.bookk.core.data.eventstreaming.impl.kafka.KeyedTestEvent
 import com.bookk.core.data.eventstreaming.registerReceiver
-import com.bookk.core.data.eventstreaming.send
 import com.bookk.core.test.given
 import com.bookk.core.test.runUnitTest
 import com.bookk.core.test.then
@@ -19,7 +19,6 @@ import com.bookk.core.test.whenn
 import kotlinx.coroutines.test.runCurrent
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
-import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.koin.core.module.Module
@@ -50,7 +49,7 @@ internal class EmbeddedEventStreamingModuleTest {
         fun scopesOf(vararg services: Pair<Qualifier, String>): List<Scope> {
             val koin = koinApplication {
                 modules(listOf(topicQueueHolderModule(), sharedModule) + services.flatMap { (qualifier, serviceName) ->
-                    listOf(serviceModule(qualifier), embeddedEventStreamingModule(qualifier, serviceName))
+                    listOf(serviceModule(qualifier), embeddedEventStreamingTransportModule(qualifier, serviceName))
                 })
             }.koin
             return services.map { (qualifier, serviceName) -> koin.createScope("$serviceName-scope", qualifier) }
@@ -86,19 +85,6 @@ internal class EmbeddedEventStreamingModuleTest {
     }
 
     @Test
-    fun `should send events straight to the transport when the direct module is included`() = runUnitTest {
-        given()
-        val fixture = SutFixture()
-        val scope = fixture.scopeWith(embeddedEventStreamingModule(fixture.qualifier, "embedded-test"))
-
-        whenn()
-        val producer = scope.get<StandardEventProducer>()
-
-        then()
-        assertSame(scope.get<EventStreaming.RawProducer<String>>(), producer)
-    }
-
-    @Test
     fun `should let every service in one process handle the same event once`() = runUnitTest {
         given()
         val fixture = SutFixture()
@@ -113,8 +99,10 @@ internal class EmbeddedEventStreamingModuleTest {
             .registerReceiver<KeyedTestEvent, String>(topic) { event -> businessReceived += event }
             .start(backgroundScope)
 
+        val event = KeyedTestEvent(entityId = "entity-1", sequence = 0, topic = topic)
+
         whenn()
-        userScope.get<StandardEventProducer>().send(KeyedTestEvent(entityId = "entity-1", sequence = 0, topic = topic))
+        userScope.get<EventStreaming.RawProducer<String>>().publishEncoded(event)
         runCurrent()
 
         then()

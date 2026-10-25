@@ -117,9 +117,9 @@ flowchart TD
     WorkdayCheck -- No --> R422d([422 DATE_NOT_ALLOWED 300003])
     WorkdayCheck -- Yes --> WorktimeCheck{slot within worktime?}
     WorktimeCheck -- No --> R422e([422 TIME_NOT_ALLOWED 300002])
-    WorktimeCheck -- Yes --> OverlapRequests{overlaps existing request?}
+    WorktimeCheck -- Yes --> OverlapRequests{AppointmentRequestDataSource.hasOverlapsWith<br/>overlaps a PENDING request of the client?}
     OverlapRequests -- Yes --> R422f([422 REQUEST_EXISTS 300001])
-    OverlapRequests -- No --> OverlapAppointments{overlaps existing appointment?}
+    OverlapRequests -- No --> OverlapAppointments{AppointmentDataSource.hasOverlapsWith<br/>overlaps a SCHEDULED appointment of the client?}
     OverlapAppointments -- Yes --> R422f
     OverlapAppointments -- No --> Create[AppointmentRequestDataSource.create request]
     Create --> Snapshot[AppointmentSubscriptionDataSource.getBusinessSnapshot businessId]
