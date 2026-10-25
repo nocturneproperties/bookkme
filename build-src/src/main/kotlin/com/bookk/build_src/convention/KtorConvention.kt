@@ -25,12 +25,12 @@ fun KtorExtension.applyConvention(project: Project) {
     }
     (this as ExtensionAware).extensions.getByType<DockerExtension>().apply {
         jreVersion.set(JavaVersion.VERSION_21)
-        localImageName.set(project.provider { project.group.toString() })
+        localImageName.set(project.provider { project.dockerImageName() })
         imageTag.set(project.provider { project.version.toString() })
         externalRegistry.set(
             DockerImageRegistry.externalRegistry(
-                project = project.provider { project.group.toString() },
-                namespace = project.provider { "an22" },
+                project = project.provider { project.dockerImageName() },
+                namespace = project.provider { "nocturneprops" },
                 hostname = project.provider { "ghcr.io" },
                 username = project.provider {
                     System.getenv("DOCKER_USERNAME").orEmpty().ifBlank {
@@ -46,3 +46,6 @@ fun KtorExtension.applyConvention(project: Project) {
         )
     }
 }
+
+private fun Project.dockerImageName(): String =
+    if (this == rootProject) "bookkme-server" else "bookkme-${requireNotNull(parent).name}"

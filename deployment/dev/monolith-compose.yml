@@ -6,7 +6,7 @@ secrets:
 
 services:
   monolith:
-    image: com.bookk.server:latest
+    image: bookkme-server:latest
     hostname: monolith.service
     ports:
       - '8085:80'

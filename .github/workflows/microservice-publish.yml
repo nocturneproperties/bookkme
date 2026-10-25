@@ -15,7 +15,7 @@ on:
 jobs:
   publish:
     name: Publish ${{ github.ref_name }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -65,4 +65,4 @@ jobs:
 
       - name: Summary
         shell: bash
-        run: echo "Published \`ghcr.io/an22/com.bookk.server.microservice.${{ steps.service.outputs.module }}:${{ steps.service.outputs.version }}\` (not deployed, prod runs the monolith)" >> "$GITHUB_STEP_SUMMARY"
+        run: echo "Published \`ghcr.io/nocturneprops/bookkme-${{ steps.service.outputs.module }}:${{ steps.service.outputs.version }}\` (not deployed, prod runs the monolith)" >> "$GITHUB_STEP_SUMMARY"
