@@ -182,36 +182,4 @@ internal class KafkaDltRetryTest {
         assertTrue(exhaustedEventDataSource.findByOriginalTopic(healthyTopic).isEmpty())
         job?.cancel()
     }
-
-    @Test
-    fun `should replay a persisted exhausted event back onto its original topic`() = runIntegrationTest {
-        given()
-        val topic = "dlt.retry.replay.${Uuid.random()}"
-        prepareTopics(topic)
-        val shouldFail = AtomicInteger(1)
-        val received = ConcurrentLinkedQueue<KeyedTestEvent>()
-        val exhaustedEventDataSource = InMemoryExhaustedEventDataSource()
-        val sut = consumer(topic, exhaustedEventDataSource)
-        sut.registerReceiver<KeyedTestEvent, String>(topic) { event ->
-            if (shouldFail.get() == 1) throw RuntimeException("boom") else received += event
-        }
-        var job: Job? = null
-        withContext(Dispatchers.IO) {
-            producer().send(KeyedTestEvent(entityId = "entity-1", sequence = 0, topic = topic))
-            job = sut.start(CoroutineScope(SupervisorJob() + Dispatchers.IO))
-            awaitUntil { exhaustedEventDataSource.findByOriginalTopic(topic).isNotEmpty() }
-        }
-        shouldFail.set(0)
-
-        whenn()
-        withContext(Dispatchers.IO) {
-            producer().replay(exhaustedEventDataSource.findByOriginalTopic(topic).single())
-            awaitUntil { received.isNotEmpty() }
-        }
-
-        then()
-        assertEquals(1, received.size)
-        assertEquals("entity-1", received.single().entityId)
-        job?.cancel()
-    }
 }

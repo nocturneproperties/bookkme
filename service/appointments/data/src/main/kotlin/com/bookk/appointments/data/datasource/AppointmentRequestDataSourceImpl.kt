@@ -15,7 +15,6 @@ import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.greater
 import org.jetbrains.exposed.v1.core.less
-import org.jetbrains.exposed.v1.core.neq
 import org.jetbrains.exposed.v1.core.or
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.select
@@ -109,7 +108,7 @@ internal class AppointmentRequestDataSourceImpl(
                         .and(AppointmentRequestTable.userId eq request.userId)
                         .and(AppointmentRequestTable.dateStart.less(request.dateEnd))
                         .and(AppointmentRequestTable.dateEnd.greater(request.date))
-                        .and(AppointmentRequestTable.status neq AppointmentRequestStatus.DECLINED)
+                        .and(AppointmentRequestTable.status eq AppointmentRequestStatus.PENDING)
                 }
                 .limit(1)
                 .empty()

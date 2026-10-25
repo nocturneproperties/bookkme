@@ -7,7 +7,6 @@ import com.bookk.core.data.eventstreaming.impl.InMemoryExhaustedEventDataSource
 import com.bookk.core.data.eventstreaming.impl.inMemoryEventIdempotencyStorage
 import com.bookk.core.data.eventstreaming.impl.kafka.KeyedTestEvent
 import com.bookk.core.data.eventstreaming.registerReceiver
-import com.bookk.core.data.eventstreaming.send
 import com.bookk.core.test.given
 import com.bookk.core.test.runUnitTest
 import com.bookk.core.test.then
@@ -40,7 +39,7 @@ internal class EmbeddedEventIdempotencyTest {
         val topicQueueHolder = TopicQueueHolder<String>()
         val protoBuf = ProtoBuf { encodeDefaults = true }
         val exhaustedEventDataSource = InMemoryExhaustedEventDataSource()
-        val producer = EmbeddedEventProducer(topicQueueHolder, protoBuf)
+        val producer = EmbeddedEventProducer(topicQueueHolder)
 
         fun newConsumer(consumerGroup: String = "business_group") = EmbeddedEventConsumer(
             topicQueueHolder = topicQueueHolder,
@@ -91,8 +90,8 @@ internal class EmbeddedEventIdempotencyTest {
         val event = KeyedTestEvent(entityId = "entity-1", sequence = 0, topic = topic)
 
         whenn()
-        fixture.producer.send(event)
-        fixture.producer.send(event)
+        fixture.producer.publishEncoded(event)
+        fixture.producer.publishEncoded(event)
         runCurrent()
 
         then()
@@ -114,7 +113,7 @@ internal class EmbeddedEventIdempotencyTest {
         businessConsumer.start(backgroundScope)
 
         whenn()
-        fixture.producer.send(KeyedTestEvent(entityId = "entity-1", sequence = 0, topic = topic))
+        fixture.producer.publishEncoded(KeyedTestEvent(entityId = "entity-1", sequence = 0, topic = topic))
         runCurrent()
 
         then()
@@ -137,7 +136,7 @@ internal class EmbeddedEventIdempotencyTest {
         businessConsumer.start(backgroundScope)
 
         whenn()
-        fixture.producer.send(KeyedTestEvent(entityId = "entity-1", sequence = 0, topic = topic))
+        fixture.producer.publishEncoded(KeyedTestEvent(entityId = "entity-1", sequence = 0, topic = topic))
         advanceThroughRetries()
 
         then()
@@ -159,11 +158,11 @@ internal class EmbeddedEventIdempotencyTest {
         }
         consumer.start(backgroundScope)
         val event = KeyedTestEvent(entityId = "entity-1", sequence = 0, topic = topic)
-        fixture.producer.send(event)
+        fixture.producer.publishEncoded(event)
         advanceThroughRetries()
 
         whenn()
-        fixture.producer.send(event)
+        fixture.producer.publishEncoded(event)
         advanceThroughRetries()
 
         then()
@@ -184,7 +183,7 @@ internal class EmbeddedEventIdempotencyTest {
         fixture.eventIdempotencyStorage.claim("business_group", topic, event.idempotencyKey, Uuid.random().toString())
 
         whenn()
-        fixture.producer.send(event)
+        fixture.producer.publishEncoded(event)
         advanceThroughRetries()
 
         then()
@@ -203,7 +202,7 @@ internal class EmbeddedEventIdempotencyTest {
         val event = KeyedTestEvent(entityId = "entity-1", sequence = 0, topic = topic)
 
         whenn()
-        fixture.producer.send(event)
+        fixture.producer.publishEncoded(event)
         runCurrent()
 
         then()
@@ -225,7 +224,7 @@ internal class EmbeddedEventIdempotencyTest {
         consumer.start(backgroundScope)
 
         whenn()
-        fixture.producer.send(KeyedTestEvent(entityId = "entity-1", sequence = 0, topic = topic))
+        fixture.producer.publishEncoded(KeyedTestEvent(entityId = "entity-1", sequence = 0, topic = topic))
         advanceThroughRetries()
 
         then()
@@ -249,7 +248,7 @@ internal class EmbeddedEventIdempotencyTest {
         consumer.start(backgroundScope)
 
         whenn()
-        fixture.producer.send(KeyedTestEvent(entityId = "entity-1", sequence = 0, topic = topic))
+        fixture.producer.publishEncoded(KeyedTestEvent(entityId = "entity-1", sequence = 0, topic = topic))
         advanceThroughRetries()
 
         then()

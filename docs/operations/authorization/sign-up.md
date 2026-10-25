@@ -8,7 +8,10 @@ service), the local `Authentication` record, the passkey credential, the
 first device, and the initial token pair — all inside one transaction. If
 anything inside the transaction fails, the already-created remote user and
 device are rolled back via compensating `UserDeleted`/`DeviceDeleted`
-events rather than a distributed transaction.
+events rather than a distributed transaction. Events go through the
+[transactional outbox](../../transactional-outbox.md), which only accepts a
+send inside a transaction, so the compensating events are stored in a
+transaction of their own, opened after the failed one has rolled back.
 
 ```mermaid
 flowchart TD
@@ -26,8 +29,11 @@ flowchart TD
     DeviceEvent --> GenToken[GenerateAuthToken InitialAuthentication ownerId deviceUuid]
     GenToken --> TxEnd[[Commit transaction]]
     TxEnd --> R200([200 AuthTokens])
-    Fail1 --> Compensate[Send AuthEvent.UserDeleted + AuthEvent.DeviceDeleted]
-    Compensate --> R422d([422 ACCOUNT_CREATION_FAILED 200004])
+    Fail1 --> Rollback[[Rollback transaction - DeviceCreated outbox row discarded]]
+    Rollback --> CompTx[[Begin compensation transaction]]
+    CompTx --> Compensate[eventProducer.send AuthEvent.UserDeleted + AuthEvent.DeviceDeleted]
+    Compensate --> CompEnd[[Commit compensation transaction]]
+    CompEnd --> R422d([422 ACCOUNT_CREATION_FAILED 200004])
 ```
 
 **Consumed by:** `AuthEvent.DeviceCreated` → [notifications: mirror the new

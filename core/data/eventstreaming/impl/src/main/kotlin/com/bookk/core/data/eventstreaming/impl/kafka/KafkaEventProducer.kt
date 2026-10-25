@@ -1,6 +1,5 @@
 package com.bookk.core.data.eventstreaming.impl.kafka
 
-import com.bookk.core.data.eventstreaming.DltEvent
 import com.bookk.core.data.eventstreaming.EventStreaming
 import com.bookk.core.data.eventstreaming.EventStreaming.RawRecord
 import kotlinx.coroutines.CompletableDeferred
@@ -39,10 +38,6 @@ class KafkaEventProducer internal constructor(
     override suspend fun <T : EventStreaming.Event<String>> send(data: T, kType: KType) {
         val encodedData = protoBuf.encodeToByteArray(protoBuf.serializersModule.serializer(kType), data)
         publish(data.topic, data.partitionKey, encodedData)
-    }
-
-    suspend fun replay(dltEvent: DltEvent) {
-        publish(dltEvent.originalTopic, null, dltEvent.payload)
     }
 
     override suspend fun publish(topic: String, partitionKey: String?, payload: ByteArray) {

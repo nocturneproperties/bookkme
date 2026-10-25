@@ -53,7 +53,7 @@ A business rule lives in exactly one place: an **operation** — a single-method
 Shared infrastructure lives outside the services:
 
 ```
-core/       Result/Error types, Ktor server bootstrap, auth, Exposed helpers, Kafka event streaming, Redis cache, i18n
+core/       Result/Error types, Ktor server bootstrap, auth, Exposed helpers, Kafka event streaming, Valkey (Redis-compatible) cache, i18n
 library/    money, idempotency, permissions, schedule, scheduler, request signing
 build-src/  Gradle convention plugins (bookk.microservice, bookk.data, bookk.domain.api, …)
 ```
@@ -77,13 +77,13 @@ build-src/  Gradle convention plugins (bookk.microservice, bookk.data, bookk.dom
 | DI | Koin 4 |
 | Persistence | Exposed 1.0 (DAO + DSL) on MySQL/MariaDB, Flyway migrations |
 | Messaging | Apache Kafka (KRaft) |
-| Cache | Redis via Lettuce |
+| Cache | Valkey (Redis-compatible) via Lettuce |
 | Serialization | kotlinx.serialization (ProtoBuf) |
 | Auth | Yubico WebAuthn (passkeys), Auth0 java-jwt |
 | Push | Firebase Admin SDK |
-| Testing | JUnit 5, MockK, H2 for datasource tests |
+| Testing | JUnit 5, MockK, H2 for datasource tests, Testcontainers (MariaDB, Valkey, Kafka) for integration tests |
 | Build & ship | Gradle (convention plugins, configuration cache), Jib → Docker, Docker Swarm |
-| Observability | Micrometer/Prometheus, Grafana, Alertmanager |
+| Observability | Micrometer/Prometheus, Grafana, Alertmanager, Loki + Alloy for logs |
 
 ---
 
@@ -122,7 +122,7 @@ cd deployment/dev
 
 That script does three things, which you can also run separately:
 
-1. `docker compose -f environment-compose.yml up -d` — MariaDB, Kafka, Redis, Keycloak, nginx
+1. `docker compose -f environment-compose.yml up -d` — MariaDB (plus a second, empty one on `127.0.0.1:3308` for trying out migrations), Kafka with Kafka UI, Valkey with RedisInsight, nginx
 2. `./gradlew :service:<svc>:microservice:publishImageToLocalRegistry` for each service
 3. `docker compose -f microservices-compose.yml up -d` — the five services
 
@@ -153,11 +153,12 @@ Secrets that are not environment variables are mounted as Docker secrets: `signi
 
 ## Testing
 
-The suite is fast and hermetic — no Testcontainers, no shared fixtures between tests.
+Tests share no state: every test builds its own subject and mocks.
 
 - **Operation tests** (`domain/impl`) mock datasources with MockK and run under `runUnitTest { }`.
 - **Route tests** (`microservice`) spin up a Ktor test application via `routeTest { }` and assert status codes and error payloads.
 - **Datasource tests** (`data`) run against a per-test in-memory H2 database in MySQL compatibility mode.
+- **Integration tests** cover what H2 and mocks can't reproduce: row locking and write conflicts (`BusinessRowLockMariaDbTest`), the outbox relay (`OutboxRelayMariaDbTest`), the real Flyway migrations (`MigrationMariaDbTest`), the Redis client against Valkey (`RedisCacheClientTest`) and the Kafka consumers and producer. They start MariaDB 11.8, Valkey and Kafka with Testcontainers, so `./gradlew test` needs a running Docker.
 
 Two conventions the fixtures enforce at runtime:
 
@@ -170,9 +171,11 @@ Two conventions the fixtures enforce at runtime:
 
 ## Database migrations
 
-Each service has a `<Svc>Migration.kt` that diffs the Exposed table definitions against a reference schema and generates a Flyway SQL script.
+Migrations are plain Flyway SQL scripts, **written by hand**: `service/<svc>/data/src/main/resources/db/migration/<schema>/V<n>__migration_script.sql`, where `<n>` is one past the highest existing version in that directory. Each service applies its own scripts at startup (`createDatabase`).
 
-**Migrations are generated deliberately, never automatically.** Changing a table definition does not produce a migration — a maintainer runs the generator and reviews the SQL before it lands. New tables must be added to the service's `tables()` array or they will be silently excluded.
+There is no generator. An earlier one diffed the Exposed table definitions, and it silently produced broken scripts for composite indexes, so it was removed. When a table definition changes, write the matching SQL yourself: column adds, drops and type changes, index and constraint changes. Drop a named composite index before dropping a column it covers; MariaDB won't do that for you.
+
+Before a migration lands, run Flyway through every script of that schema, the new one included, against a real MariaDB. The dev stack's second MariaDB on `127.0.0.1:3308` is there for that.
 
 ---
 
@@ -180,7 +183,7 @@ Each service has a `<Svc>Migration.kt` that diffs the Exposed table definitions 
 
 Production runs the **monolith** on **Docker Swarm**, next to separate infrastructure stacks (`deployment/prod/`): VPN (WireGuard), nginx, orchestrator (Dozzle), monitoring (Prometheus + Grafana + Alertmanager) and the admin panel. CI runs on GitHub-hosted runners, nothing of it lives in the swarm. Everything is deployed with Ansible (`deployment/ansible/`, see its README): `make bootstrap` / `make infra` for hosts, swarm and infrastructure, `make deploy v=<version>` for the monolith.
 
-GitHub Actions only builds and publishes: `push-build-and-test.yml` builds and tests every push and pull request, and pushing a `monolith/<version>` tag runs `monolith-publish.yml`, which publishes `ghcr.io/nocturneprops/bookkme-server:<version>` with Jib and then deploys it through `deploy.yml` (the same Ansible playbook, gated by the `production` environment). The microservice images are still published for when the services are split out again: a `auth/`, `user/`, `business/`, `appointment/` or `notification/<version>` tag runs `microservice-publish.yml`, which publishes `ghcr.io/nocturneprops/bookkme-<service>:<version>` and deploys nothing.
+GitHub Actions only builds and publishes: `push-build-and-test.yml` builds and tests every push and pull request, and pushing a `monolith/<version>` tag runs `monolith-publish.yml`, which publishes `ghcr.io/nocturneproperties/bookkme-server:<version>` with Jib and then deploys it through `deploy.yml` (the same Ansible playbook, gated by the `production` environment). The microservice images are still published for when the services are split out again: a `auth/`, `user/`, `business/`, `appointment/` or `notification/<version>` tag runs `microservice-publish.yml`, which publishes `ghcr.io/nocturneproperties/bookkme-<service>:<version>` and deploys nothing.
 
 ---
 
