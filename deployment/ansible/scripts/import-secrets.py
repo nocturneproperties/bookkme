@@ -25,13 +25,28 @@ def generated_secrets():
         "vault_monolith_db_password": secrets.token_urlsafe(32),
         "vault_monolith_db_root_password": secrets.token_urlsafe(32),
         "vault_monolith_db_exporter_password": secrets.token_urlsafe(32),
+        "vault_monolith_db_nocodb_password": secrets.token_urlsafe(32),
         "vault_monolith_redis_password": secrets.token_urlsafe(32),
+        "vault_dozzle_session_secret": base64.b64encode(secrets.token_bytes(32)).decode(),
         "vault_swarm_secrets": {
             "mariadb_encryption_key": f"1;{secrets.token_hex(32)}\n",
             "signing_key_encryption_key": base64.b64encode(secrets.token_bytes(32)).decode(),
             "firebase_key": None,
         },
     }
+
+
+def nocodb_admin_password():
+    while True:
+        password = secrets.token_urlsafe(24)
+        if any(c.isupper() for c in password) and any(c.isdigit() for c in password) and any(c in "_-" for c in password):
+            return password
+
+
+def add_nocodb_admin(stack_env):
+    stack_env.setdefault("NOCODB_ADMIN_EMAIL", None)
+    if stack_env.get("NOCODB_ADMIN_PASSWORD") in (None, PLACEHOLDER):
+        stack_env["NOCODB_ADMIN_PASSWORD"] = nocodb_admin_password()
 
 
 def prometheus_web_config(password):
@@ -93,7 +108,9 @@ def normalize(vault):
     for host in inventory_hosts():
         hosts.setdefault(host, None)
     vault["vault_hosts"] = hosts
-    vault["vault_stack_env"] = {name: value for name, value in (vault.get("vault_stack_env") or {}).items() if not is_retired_stack_env(name)}
+    stack_env = {name: value for name, value in (vault.get("vault_stack_env") or {}).items() if not is_retired_stack_env(name)}
+    add_nocodb_admin(stack_env)
+    vault["vault_stack_env"] = stack_env
     swarm_secrets = {name: value for name, value in (vault.get("vault_swarm_secrets") or {}).items() if name not in RETIRED_SWARM_SECRETS}
     for name, value in generated_secrets().items():
         if isinstance(value, dict):

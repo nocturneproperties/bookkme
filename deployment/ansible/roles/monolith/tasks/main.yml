@@ -6,10 +6,10 @@
     fail_msg: "Pass -e version=<image tag of {{ monolith.image }}>"
     quiet: true
 
-- name: Render the monolith environment and database exporter init files
+- name: Render the monolith environment and database users init files
   ansible.builtin.set_fact:
     monolith_env_file: "{{ lookup('ansible.builtin.template', 'monolith.env.j2') }}"
-    monolith_exporter_init: "{{ lookup('ansible.builtin.template', 'exporter-init.sql.j2') }}"
+    monolith_users_init: "{{ lookup('ansible.builtin.template', 'users-init.sql.j2') }}"
   no_log: true
 
 - name: "Deploy the monolith {{ version }} with registry credentials"
@@ -28,7 +28,7 @@
         stack: "{{ monolith.stack }}"
         stack_files:
           monolith.env: "{{ monolith_env_file }}"
-          db/exporter-init.sql: "{{ monolith_exporter_init }}"
+          db/users-init.sql: "{{ monolith_users_init }}"
         stack_env: "{{ monolith_env }}"
         stack_extra_env:
           APPLICATION_SERVICE_IMAGE: "{{ monolith.image }}"
