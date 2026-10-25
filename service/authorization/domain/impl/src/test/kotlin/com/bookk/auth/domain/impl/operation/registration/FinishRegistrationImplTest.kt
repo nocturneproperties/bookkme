@@ -132,6 +132,32 @@ internal class FinishRegistrationImplTest {
     }
 
     @Test
+    fun `should emit cleanup events inside a transaction when registration fails`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val request = makeRequest()
+        val passkey = makePasskeyCredential()
+        val eventsSentOutsideTransaction = mutableListOf<Any>()
+        with(fixture) {
+            transactionManager.mockTransaction()
+            coEvery { finishPasskeyRegistration.verifyRequest(request) } returns Result.success(passkey)
+            coEvery { userClient.createUser(any()) } returns Result.success(Uuid.random())
+            coEvery { accountDataSource.createAuthorization(any()) } throws RuntimeException("db failure")
+            coEvery { eventProducer.send(any<AuthEvent>(), any()) } coAnswers {
+                if (!transactionManager.isInTransaction()) eventsSentOutsideTransaction += firstArg<AuthEvent>()
+            }
+        }
+
+        whenn()
+        fixture.sut.invoke(request, Language.EN)
+
+        then()
+        coVerify(exactly = 1) { fixture.eventProducer.send(any<AuthEvent.UserDeleted>(), any()) }
+        coVerify(exactly = 1) { fixture.eventProducer.send(any<AuthEvent.DeviceDeleted>(), any()) }
+        assertEquals(emptyList<Any>(), eventsSentOutsideTransaction)
+    }
+
+    @Test
     fun `should return AccountCreationFailed when device insert returns null`() = runUnitTest {
         given()
         val fixture = SutFixture()
