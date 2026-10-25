@@ -22,8 +22,9 @@ Code: `core/data/eventstreaming/data` (`OutboxEventProducer`, `OutboxRelay`,
 [appointments](database/appointments.md).
 
 **Rollout status:** business, authorization, user and appointments send
-through the outbox. Notifications sends no events and still uses
-`eventStreamingModule` / `embeddedEventStreamingModule` for its consumer.
+through the outbox. Notifications sends no events, so it has no outbox:
+it wires only the transport (`eventStreamingTransportModule` /
+`embeddedEventStreamingTransportModule`) for its consumer.
 
 ## Overview
 
