@@ -1,0 +1,63 @@
+name: Publish monolith
+permissions:
+  contents: read
+  packages: write
+
+on:
+  push:
+    tags:
+      - 'monolith/*'
+
+jobs:
+  publish:
+    name: Publish monolith image
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Check the tag matches the project version
+        id: version
+        shell: bash
+        run: |
+          tag_version="${GITHUB_REF_NAME#monolith/}"
+          project_version=$(sed -n 's/^version = "\(.*\)"$/\1/p' build.gradle.kts)
+          if [ "$tag_version" != "$project_version" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match version = \"$project_version\" in build.gradle.kts, the image would be published as $project_version"
+            exit 1
+          fi
+          echo "version=$project_version" >> "$GITHUB_OUTPUT"
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v6
+        with:
+          java-version: '21.0.6'
+          distribution: 'corretto'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v5
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/main' && github.ref != 'refs/heads/develop' }}
+          cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
+          cache-overwrite-existing: true
+
+      - name: Publish image
+        shell: bash
+        run: ./gradlew :publishImage --no-configuration-cache
+        env:
+          DOCKER_USERNAME: ${{ github.actor }}
+          DOCKER_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Summary
+        shell: bash
+        run: echo "Published \`ghcr.io/nocturneprops/bookkme-server:${{ steps.version.outputs.version }}\`" >> "$GITHUB_STEP_SUMMARY"
+
+  deploy:
+    name: Deploy
+    needs: publish
+    uses: ./.github/workflows/deploy.yml
+    with:
+      version: ${{ needs.publish.outputs.version }}
+    secrets: inherit

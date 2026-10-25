@@ -1,2 +1,0 @@
-- pipeline.id: normal-beats
-  path.config: "/usr/share/logstash/config/logstash.conf"

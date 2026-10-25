@@ -1,25 +1,27 @@
 [versions]
-apache-codec = "1.17.1"
 apache-common-pool = "2.4.3"
-bookkPlugins = "1.0"
-boringssl = "2.0.65.Final"
-coroutines = "1.9.0-RC"
-flyway = "10.17.1"
+h2 = "2.3.232"
+testcontainers = "1.21.4"
+coroutines = "1.10.2"
+flyway = "13.1.0"
 hikari = "5.1.0"
-kafka = "3.8.0"
-koin-bom = "4.1.0-Beta1"
-kotlin = "2.0.0"
-kotlin-datetime = "0.6.0"
-ktor = "3.0.0"
-ktor-doc = "4.0.3"
-logback = "1.5.6"
-mariadb = "3.4.1"
+kafka = "4.3.0"
+koin-bom = "4.1.0"
+kotlin = "2.3.21"
+kotlin-datetime = "0.7.1"
+ktor = "3.5.0"
+logback = "1.5.13"
+mariadb-jdbc = "3.4.1"
 redis = "6.4.0.RELEASE"
-totp = "2.4.1"
-passkey = "2.5.4"
-exposed = "0.57.0"
-idempotency = "0.2.0"
-mockk = "1.13.6"
+passkey = "2.7.0"
+exposed = "1.3.1"
+jwks-rsa = "0.22.1"
+jwt = "4.5.2"
+mockk = "1.14.11"
+money = "2.0.2"
+firebase = "9.10.0"
+inmemcache = "3.2.4"
+icu4j = "78.3"
 
 [libraries]
 flyway-core = { module = "org.flywaydb:flyway-core", version.ref = "flyway" }
@@ -31,32 +33,37 @@ koin-core = { module = "io.insert-koin:koin-core" }
 koin-ktor = { module = "io.insert-koin:koin-ktor" }
 kotlin-coroutines = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
 kotlin-coroutines-reactive = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-reactive", version.ref = "coroutines" }
+kotlin-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines" }
 kotlin-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlin-datetime" }
+kotlin-std = { module = "org.jetbrains.kotlin:kotlin-stdlib", version.ref = "kotlin" }
 kotlin-plugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
+kotlin-serialization-core = { module = "org.jetbrains.kotlinx:kotlinx-serialization-core", version = "1.9.0" }
 ktor-auth = { module = "io.ktor:ktor-server-auth", version.ref = "ktor" }
 ktor-certificates = { module = "io.ktor:ktor-network-tls-certificates", version.ref = "ktor" }
 ktor-core = { module = "io.ktor:ktor-server-core", version.ref = "ktor" }
 ktor-client-log = { module = "io.ktor:ktor-client-logging", version.ref = "ktor" }
 ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
 ktor-client-cio = { module = "io.ktor:ktor-client-cio", version.ref = "ktor" }
-ktor-documentation-generation = { module = "io.bkbn:kompendium-core", version.ref = "ktor-doc" }
-ktor-documentation-generation-resources = { module = "io.bkbn:kompendium-resources", version.ref = "ktor-doc" }
+ktor-client-mock = { module = "io.ktor:ktor-client-mock", version.ref = "ktor" }
+ktor-swagger = { module = "io.ktor:ktor-server-swagger", version.ref = "ktor" }
+ktor-openapi = { module = "io.ktor:ktor-server-openapi", version.ref = "ktor" }
+ktor-metrics = { module = "io.ktor:ktor-server-metrics-micrometer", version.ref = "ktor" }
+ktor-metrics-prometheus = { module = "io.micrometer:micrometer-registry-prometheus", version = "1.16.1" }
 ktor-json = { module = "io.ktor:ktor-serialization-kotlinx-json", version.ref = "ktor" }
 ktor-jwt = { module = "io.ktor:ktor-server-auth-jwt", version.ref = "ktor" }
 ktor-logging = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
 ktor-logging-call = { module = "io.ktor:ktor-server-call-logging", version.ref = "logback" }
 ktor-server-negotiation = { module = "io.ktor:ktor-server-content-negotiation", version.ref = "ktor" }
 ktor-client-negotiation = { module = "io.ktor:ktor-client-content-negotiation", version.ref = "ktor" }
-ktor-netty = { module = "io.ktor:ktor-server-netty", version.ref = "ktor" }
+ktor-cio = { module = "io.ktor:ktor-server-cio", version.ref = "ktor" }
 ktor-plugin = { module = "io.ktor.plugin:io.ktor.plugin.gradle.plugin", version.ref = "ktor" }
 ktor-protobuf = { module = "io.ktor:ktor-serialization-kotlinx-protobuf", version.ref = "ktor" }
 ktor-server-resources = { module = "io.ktor:ktor-server-resources", version.ref = "ktor" }
 ktor-client-resources = { module = "io.ktor:ktor-client-resources", version.ref = "ktor" }
 ktor-test = { module = "io.ktor:ktor-server-test-host", version.ref = "ktor" }
-ktor-idempotency = { module = "com.wolt:ktor-idempotency", version.ref = "idempotency" }
-mariadb = { module = "org.mariadb.jdbc:mariadb-java-client", version.ref = "mariadb" }
-netty-boringssl = { module = "io.netty:netty-tcnative-boringssl-static", version.ref = "boringssl" }
+ktor-status = { module = "io.ktor:ktor-server-status-pages", version.ref = "ktor" }
+mariadb-jdbc = { module = "org.mariadb.jdbc:mariadb-java-client", version.ref = "mariadb-jdbc" }
 redis-client = { module = "io.lettuce:lettuce-core", version.ref = "redis" }
 redis-pool = { module = "org.apache.commons:commons-pool2", version.ref = "apache-common-pool" }
 passkey = { module = "com.yubico:webauthn-server-core", version.ref = "passkey" }
@@ -64,16 +71,25 @@ exposed-core = { module = "org.jetbrains.exposed:exposed-core", version.ref = "e
 exposed-dao = { module = "org.jetbrains.exposed:exposed-dao", version.ref = "exposed" }
 exposed-jdbc = { module = "org.jetbrains.exposed:exposed-jdbc", version.ref = "exposed" }
 exposed-kotlin-datetime = { module = "org.jetbrains.exposed:exposed-kotlin-datetime", version.ref = "exposed" }
-exposed-migration = { module = "org.jetbrains.exposed:exposed-migration", version.ref = "exposed" }
+exposed-migration = { module = "org.jetbrains.exposed:exposed-migration-core", version.ref = "exposed" }
+exposed-migration-jdbc = { module = "org.jetbrains.exposed:exposed-migration-jdbc", version.ref = "exposed" }
 mockk = { module = "io.mockk:mockk", version.ref = "mockk" }
-
+joda-money = { module = "org.joda:joda-money", version.ref = "money" }
+auth0-jwks = { module = "com.auth0:jwks-rsa", version.ref = "jwks-rsa" }
+auth0-jwt = { module = "com.auth0:java-jwt", version.ref = "jwt" }
+firebase-admin = { module = "com.google.firebase:firebase-admin", version.ref = "firebase" }
+h2 = { module = "com.h2database:h2", version.ref = "h2" }
+testcontainers-kafka = { module = "org.testcontainers:kafka", version.ref = "testcontainers" }
+testcontainers-junit = { module = "org.testcontainers:junit-jupiter", version.ref = "testcontainers" }
+memcache = {module = "com.github.ben-manes.caffeine:caffeine", version.ref = "inmemcache"}
+icu4j = { module = "com.ibm.icu:icu4j", version.ref = "icu4j" }
 
 [plugins]
-bookk-data = { id = "com.bookk.data", version.ref = "bookkPlugins" }
-bookk-domain-api = { id = "com.bookk.domain.api", version.ref = "bookkPlugins" }
-bookk-domain-impl = { id = "com.bookk.domain.impl", version.ref = "bookkPlugins" }
-bookk-microservice = { id = "com.bookk.microservice", version.ref = "bookkPlugins" }
-bookk-client = { id = "com.bookk.client", version.ref = "bookkPlugins" }
+bookk-data = { id = "com.bookk.data" }
+bookk-domain-api = { id = "com.bookk.domain.api" }
+bookk-domain-impl = { id = "com.bookk.domain.impl" }
+bookk-microservice = { id = "com.bookk.microservice" }
+bookk-client = { id = "com.bookk.client" }
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 kotlin-fixtures = { id = "java-test-fixtures" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }

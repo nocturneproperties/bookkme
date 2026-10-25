@@ -1,7 +1,7 @@
 version: "3.9"
 
 networks:
-  bookk-me:
+  operational:
     external: true
 
 volumes:
@@ -12,11 +12,15 @@ services:
   nocodb:
     image: nocodb/nocodb:latest
     networks:
-      bookk-me:
+      operational:
         aliases:
-          - admin.bookk.me
+          - admin
     volumes:
       - admin_panel:/usr/app/data/
+    logging:
+      options:
+        max-size: 20m
+        max-file: 5
     deploy:
       mode: replicated
       replicas: 1

@@ -1,0 +1,2 @@
+CREATE INDEX employee_invitation_business_id_createdAt ON employee_invitation (business_id, createdAt);
+DROP INDEX employee_invitation_business_id ON employee_invitation;

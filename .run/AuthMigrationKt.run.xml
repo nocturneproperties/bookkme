@@ -2,7 +2,7 @@
   <configuration default="false" name="AuthMigrationKt" type="JetRunConfigurationType" nameIsGenerated="true">
     <option name="ALTERNATIVE_JRE_PATH" value="corretto-21" />
     <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="true" />
-    <option name="MAIN_CLASS_NAME" value="com.book.auth.data.orm.AuthMigrationKt" />
+    <option name="MAIN_CLASS_NAME" value="com.bookk.auth.data.orm.AuthMigrationKt" />
     <module name="bookk-server.service.authorization.data.main" />
     <shortenClasspath name="NONE" />
     <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/service/authorization/data" />

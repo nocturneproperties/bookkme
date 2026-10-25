@@ -1,0 +1,17 @@
+all:
+  vars:
+    ansible_user: root
+  children:
+    managers:
+      hosts:
+        manager-1:
+          ansible_host: "{{ vault_hosts['manager-1'] }}"
+          swarm_labels:
+            monitoring: "true"
+    workers:
+      hosts:
+        worker-1:
+          ansible_host: "{{ vault_hosts['worker-1'] }}"
+          swarm_labels:
+            database: "true"
+            kafka: "true"

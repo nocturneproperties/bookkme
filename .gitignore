@@ -44,7 +44,12 @@ bin/
 .DS_Store
 
 ### Application ###
-deployment/elastic-stack/elasticsearch/certs/*
-!deployment/elastic-stack/elasticsearch/certs/instances.yml
+deployment/prod/keys
+deployment/dev/db/encryption.key
+deployment/prod/microservice/db/*.key
 local.properties
-!deployment/local-testing-environment/security/*
+!deployment/dev/security/*
+!deployment/orchestrator/dozzle/users.actual.yaml
+deployment/dev/security/firebase-private-key.json
+deployment/prod/monolith/monolith.env
+deployment/prod/monolith/db/exporter-init.sql

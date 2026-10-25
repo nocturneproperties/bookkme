@@ -1,0 +1,85 @@
+- name: Initialize the swarm on the manager
+  community.docker.docker_swarm:
+    state: present
+    advertise_addr: "{{ swarm_advertise_addr }}"
+  when: inventory_hostname == swarm_manager
+
+- name: Read the worker join token from the manager
+  community.docker.docker_swarm_info:
+  register: swarm_info
+  delegate_to: "{{ swarm_manager }}"
+  run_once: true
+  no_log: true
+  when: groups['workers'] | intersect(ansible_play_hosts) | length > 0
+
+- name: Join workers to the swarm
+  community.docker.docker_swarm:
+    state: join
+    advertise_addr: "{{ ansible_host }}"
+    remote_addrs: ["{{ swarm_advertise_addr }}:2377"]
+    join_token: "{{ swarm_info['swarm_facts']['JoinTokens']['Worker'] }}"
+  no_log: true
+  when: inventory_hostname in groups['workers']
+
+- name: Require quoted swarm label values
+  ansible.builtin.assert:
+    that: swarm_labels.values() | reject('string') | list | length == 0
+    fail_msg: "Quote every swarm_labels value on {{ inventory_hostname }} (kafka: \"true\"), unquoted true reaches Docker as 'True'"
+    quiet: true
+  when: swarm_labels is defined
+
+- name: Read this node's swarm id
+  ansible.builtin.command: docker info --format '{{ "{{" }}.Swarm.NodeID{{ "}}" }}'
+  register: swarm_node_id
+  changed_when: false
+  check_mode: false
+  when: swarm_labels is defined
+
+- name: Apply this node's swarm labels
+  community.docker.docker_node:
+    hostname: "{{ swarm_node_id.stdout }}"
+    labels: "{{ swarm_labels }}"
+    labels_state: merge
+  delegate_to: "{{ swarm_manager }}"
+  when: swarm_labels is defined
+
+- name: Create the encrypted overlay networks
+  community.docker.docker_network:
+    name: "{{ item }}"
+    driver: overlay
+    driver_options:
+      encrypted: ""
+  loop: "{{ swarm_networks }}"
+  when: inventory_hostname == swarm_manager
+
+- name: Read the existing swarm secrets
+  ansible.builtin.command: docker secret ls --format '{{ "{{" }}.Name{{ "}}" }}'
+  register: existing_secrets
+  changed_when: false
+  check_mode: false
+  when: inventory_hostname == swarm_manager
+
+- name: Refuse to create a secret that still holds the placeholder value
+  ansible.builtin.assert:
+    that: item.value != 'CHANGE_ME'
+    fail_msg: "Secret {{ item.key }} is missing on the swarm and still CHANGE_ME in the vault"
+    quiet: true
+  loop: "{{ swarm_secrets | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+  when:
+    - inventory_hostname == swarm_manager
+    - item.key not in existing_secrets.stdout_lines
+
+- name: Create missing swarm secrets
+  community.docker.docker_secret:
+    name: "{{ item.key }}"
+    data: "{{ item.value }}"
+    state: present
+  loop: "{{ swarm_secrets | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}"
+  no_log: true
+  when:
+    - inventory_hostname == swarm_manager
+    - item.key not in existing_secrets.stdout_lines

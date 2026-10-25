@@ -1,0 +1,11 @@
+CREATE TABLE IF NOT EXISTS device (id BINARY(16) PRIMARY KEY, createdAt TIMESTAMP(6) NOT NULL, updatedAt TIMESTAMP(6) NULL, auth_id BINARY(16) NOT NULL, device_uuid BINARY(16) NOT NULL, user_id BINARY(16) NOT NULL, notification_token text NULL, `language` INT NOT NULL);
+ALTER TABLE device ADD CONSTRAINT device_device_uuid_unique UNIQUE (device_uuid);
+ALTER TABLE device ADD CONSTRAINT device_auth_id_device_uuid_user_id_unique UNIQUE (auth_id, device_uuid, user_id);
+CREATE TABLE IF NOT EXISTS notification_settings (id BINARY(16) PRIMARY KEY, createdAt TIMESTAMP(6) NOT NULL, updatedAt TIMESTAMP(6) NULL, user_id BINARY(16) NOT NULL, appointment_enabled BOOLEAN NOT NULL);
+ALTER TABLE notification_settings ADD CONSTRAINT notification_settings_user_id_unique UNIQUE (user_id);
+CREATE TABLE IF NOT EXISTS notification_channels (id BINARY(16) PRIMARY KEY, createdAt TIMESTAMP(6) NOT NULL, updatedAt TIMESTAMP(6) NULL, settings_id BINARY(16) NOT NULL, channel INT NOT NULL, enabled BOOLEAN NOT NULL, available_to_clients BOOLEAN NOT NULL, CONSTRAINT fk_notification_channels_settings_id__id FOREIGN KEY (settings_id) REFERENCES notification_settings(id) ON DELETE CASCADE ON UPDATE RESTRICT);
+ALTER TABLE notification_channels ADD CONSTRAINT notification_channels_settings_id_channel_unique UNIQUE (settings_id, channel);
+CREATE TABLE IF NOT EXISTS notification_email_targets (id BINARY(16) PRIMARY KEY, createdAt TIMESTAMP(6) NOT NULL, updatedAt TIMESTAMP(6) NULL, user_id BINARY(16) NOT NULL, email text NOT NULL, source_updated_at TIMESTAMP(6) NULL);
+ALTER TABLE notification_email_targets ADD CONSTRAINT notification_email_targets_user_id_unique UNIQUE (user_id);
+CREATE TABLE IF NOT EXISTS notification_telegram_targets (id BINARY(16) PRIMARY KEY, createdAt TIMESTAMP(6) NOT NULL, updatedAt TIMESTAMP(6) NULL, user_id BINARY(16) NOT NULL, telegram_tag text NOT NULL);
+ALTER TABLE notification_telegram_targets ADD CONSTRAINT notification_telegram_targets_user_id_unique UNIQUE (user_id);

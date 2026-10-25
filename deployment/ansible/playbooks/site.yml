@@ -1,0 +1,78 @@
+- name: Prepare the docker hosts
+  hosts: managers:workers
+  tags: [hosts]
+  roles:
+    - docker_host
+    - role: ssh_hardening
+      tags: [ssh]
+
+- name: Set up the swarm, networks and secrets
+  hosts: managers:workers
+  gather_facts: false
+  tags: [swarm]
+  roles:
+    - swarm
+
+- name: Deploy the infrastructure stacks
+  hosts: "{{ groups['managers'] | first }}"
+  gather_facts: false
+  tasks:
+    - name: Deploy the vpn stack
+      ansible.builtin.include_role:
+        name: stack
+        apply:
+          tags: [vpn]
+      vars:
+        stack: "{{ infra_stacks.vpn }}"
+      tags: [vpn]
+
+    - name: Create the default VPN clients
+      ansible.builtin.include_role:
+        name: vpn_clients
+        apply:
+          tags: [vpn]
+      tags: [vpn]
+
+    - name: Connect the manager to the VPN
+      ansible.builtin.include_role:
+        name: vpn_host
+        apply:
+          tags: [vpn]
+      when: not ansible_check_mode
+      tags: [vpn]
+
+    - name: Deploy the nginx stack
+      ansible.builtin.include_role:
+        name: stack
+        apply:
+          tags: [nginx]
+      vars:
+        stack: "{{ infra_stacks.nginx }}"
+      tags: [nginx]
+
+    - name: Deploy the orchestrator stack
+      ansible.builtin.include_role:
+        name: stack
+        apply:
+          tags: [orchestrator]
+      vars:
+        stack: "{{ infra_stacks.orchestrator }}"
+      tags: [orchestrator]
+
+    - name: Deploy the monitoring stack
+      ansible.builtin.include_role:
+        name: stack
+        apply:
+          tags: [monitoring]
+      vars:
+        stack: "{{ infra_stacks.monitoring }}"
+      tags: [monitoring]
+
+    - name: Deploy the admin stack
+      ansible.builtin.include_role:
+        name: stack
+        apply:
+          tags: [admin]
+      vars:
+        stack: "{{ infra_stacks.admin }}"
+      tags: [admin]

@@ -1,0 +1,36 @@
+version: '3.2'
+
+secrets:
+  dozzle-auth:
+    file: dozzle/users.actual.yaml
+
+services:
+  dozzle:
+    image: amir20/dozzle:latest
+    secrets:
+      - source: dozzle-auth
+        target: /data/users.yml
+    environment:
+      DOZZLE_ENABLE_ACTIONS: "true"
+      DOZZLE_NO_ANALYTICS: "true"
+      DOZZLE_ENABLE_SHELL: "true"
+      DOZZLE_MODE: "swarm"
+      DOZZLE_AUTH_PROVIDER: "simple"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/lib/docker/volumes:/var/lib/docker/volumes
+    networks:
+      agent_network:
+        aliases:
+          - dozzle
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 128M
+      mode: global
+
+networks:
+  agent_network:
+    external: true

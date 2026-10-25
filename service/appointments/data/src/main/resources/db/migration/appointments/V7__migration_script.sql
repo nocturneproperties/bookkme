@@ -1,0 +1,4 @@
+CREATE INDEX appointment_user_id_business_id_date_start ON appointment (user_id, business_id, date_start);
+ALTER TABLE appointment DROP INDEX appointment_user_id_business_id_date_start_unique;
+CREATE INDEX appointment_request_user_id_business_id_date_start ON appointment_request (user_id, business_id, date_start);
+ALTER TABLE appointment_request DROP INDEX appointment_request_user_id_business_id_date_start_unique;

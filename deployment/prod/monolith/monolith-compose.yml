@@ -1,0 +1,216 @@
+networks:
+  operational:
+    external: true
+
+volumes:
+  database_volume:
+    driver: local
+  redis_data:
+    driver: local
+
+secrets:
+  mariadb_encryption_key:
+    external: true
+  signing_key_encryption_key:
+    external: true
+  firebase_key:
+    external: true
+  mariadb_exporter_init:
+    name: monolith-mariadb-exporter-init-v1
+    file: ./db/exporter-init.sql
+
+configs:
+  mariadb_encryption_config:
+    name: monolith-mariadb-encryption-v1
+    file: ./db/my.cnf
+  mariadb_tuning_config:
+    name: monolith-mariadb-tuning-v1
+    file: ./db/tuning.cnf
+  mariadb_init_schemas:
+    name: monolith-mariadb-init-schemas-v1
+    file: ./db/init-schemas.sh
+
+x-templates:
+  replicated-deploy: &replicated
+    placement:
+      constraints: [ node.role == worker ]
+    replicas: 1
+    update_config:
+      parallelism: 1
+      order: start-first
+      failure_action: rollback
+      delay: 10s
+    rollback_config:
+      parallelism: 1
+      order: stop-first
+    restart_policy:
+      condition: any
+      delay: 5s
+      max_attempts: 3
+      window: 120s
+
+services:
+  database:
+    image: mariadb:11.8.3-ubi9
+    command:
+      - --init-file=/run/secrets/mariadb_exporter_init
+    networks:
+      operational:
+        aliases:
+          - monolith.database
+    environment:
+      MARIADB_ROOT_PASSWORD: ${MONOLITH_DB_ROOT_PASSWORD}
+      MARIADB_ROOT_HOST: localhost
+      MARIADB_USER: ${APPLICATION_DB_USER}
+      MARIADB_PASSWORD: ${APPLICATION_DB_PASSWORD}
+    secrets:
+      - source: mariadb_encryption_key
+        target: /etc/mysql/encryption/encryption.key
+        mode: 0444
+      - source: mariadb_exporter_init
+        mode: 0444
+    configs:
+      - source: mariadb_encryption_config
+        target: /etc/mysql/conf.d/encryption.cnf
+        mode: 0444
+      - source: mariadb_tuning_config
+        target: /etc/mysql/conf.d/tuning.cnf
+        mode: 0444
+      - source: mariadb_init_schemas
+        target: /docker-entrypoint-initdb.d/init-schemas.sh
+        mode: 0444
+    volumes:
+      - database_volume:/var/lib/mysql
+    healthcheck:
+      test: [ "CMD", "healthcheck.sh", "--connect", "--innodb_initialized" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    logging:
+      options:
+        max-size: 20m
+        max-file: 5
+    deploy:
+      <<: *replicated
+      placement:
+        constraints: [ node.labels.database == true ]
+      update_config:
+        parallelism: 1
+        order: stop-first
+        failure_action: rollback
+        delay: 10s
+      resources:
+        limits:
+          memory: 3G
+
+  redis:
+    image: valkey/valkey:8.1-alpine
+    command:
+      - valkey-server
+      - --requirepass
+      - ${APPLICATION_REDIS_PASSWORD}
+      - --appendonly
+      - "yes"
+      - --maxmemory
+      - 512mb
+      - --maxmemory-policy
+      - noeviction
+      - --rename-command
+      - FLUSHDB
+      - ""
+      - --rename-command
+      - FLUSHALL
+      - ""
+      - --rename-command
+      - CONFIG
+      - ""
+    networks:
+      operational:
+        aliases:
+          - monolith.redis
+    volumes:
+      - redis_data:/data
+    logging:
+      options:
+        max-size: 20m
+        max-file: 5
+    deploy:
+      <<: *replicated
+      placement:
+        constraints: [ node.labels.database == true ]
+      update_config:
+        parallelism: 1
+        order: stop-first
+        failure_action: rollback
+        delay: 10s
+      resources:
+        limits:
+          memory: 768M
+
+  database-exporter:
+    image: prom/mysqld-exporter:v0.20.0
+    command:
+      - --mysqld.address=monolith.database:3306
+      - --mysqld.username=exporter
+      - --no-collect.slave_status
+    environment:
+      MYSQLD_EXPORTER_PASSWORD: ${MONOLITH_DB_EXPORTER_PASSWORD}
+    networks:
+      - operational
+    logging:
+      options:
+        max-size: 5m
+        max-file: 5
+    deploy:
+      <<: *replicated
+      resources:
+        limits:
+          memory: 64M
+
+  redis-exporter:
+    image: oliver006/redis_exporter:v1.93.0
+    environment:
+      REDIS_ADDR: redis://monolith.redis:6379
+      REDIS_PASSWORD: ${APPLICATION_REDIS_PASSWORD}
+      REDIS_EXPORTER_CONFIG_COMMAND: "-"
+    networks:
+      - operational
+    logging:
+      options:
+        max-size: 5m
+        max-file: 5
+    deploy:
+      <<: *replicated
+      resources:
+        limits:
+          memory: 64M
+
+  monolith:
+    image: ${APPLICATION_SERVICE_IMAGE}:${APPLICATION_SERVICE_VERSION}
+    networks:
+      operational:
+        aliases:
+          - monolith.service
+          - authorization.service
+          - user.service
+          - business.service
+          - appointments.service
+          - notifications.service
+    env_file: monolith.env
+    environment:
+      APPLICATION_SERVICE_VERSION: ${APPLICATION_SERVICE_VERSION}
+      JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=70 -XX:+ExitOnOutOfMemoryError
+      TZ: UTC
+    secrets:
+      - signing_key_encryption_key
+      - firebase_key
+    logging:
+      options:
+        max-size: 100m
+        max-file: 5
+    deploy:
+      <<: *replicated
+      resources:
+        limits:
+          memory: 1536M

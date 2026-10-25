@@ -1,0 +1,43 @@
+- name: Validate the requested version
+  ansible.builtin.assert:
+    that:
+      - version is defined
+      - version | string | length > 0
+    fail_msg: "Pass -e version=<image tag of {{ monolith.image }}>"
+    quiet: true
+
+- name: Render the monolith environment and database exporter init files
+  ansible.builtin.set_fact:
+    monolith_env_file: "{{ lookup('ansible.builtin.template', 'monolith.env.j2') }}"
+    monolith_exporter_init: "{{ lookup('ansible.builtin.template', 'exporter-init.sql.j2') }}"
+  no_log: true
+
+- name: "Deploy the monolith {{ version }} with registry credentials"
+  block:
+    - name: Log the manager in to the image registry
+      community.docker.docker_login:
+        registry_url: "{{ registry }}"
+        username: "{{ registry_username }}"
+        password: "{{ registry_password }}"
+      no_log: true
+
+    - name: "Deploy the monolith {{ version }}"
+      ansible.builtin.include_role:
+        name: stack
+      vars:
+        stack: "{{ monolith.stack }}"
+        stack_files:
+          monolith.env: "{{ monolith_env_file }}"
+          db/exporter-init.sql: "{{ monolith_exporter_init }}"
+        stack_env: "{{ monolith_env }}"
+        stack_extra_env:
+          APPLICATION_SERVICE_IMAGE: "{{ monolith.image }}"
+          APPLICATION_SERVICE_VERSION: "{{ version | string }}"
+          MONOLITH_DB_ROOT_PASSWORD: "{{ vault_monolith_db_root_password }}"
+          MONOLITH_DB_EXPORTER_PASSWORD: "{{ vault_monolith_db_exporter_password }}"
+        stack_prune: true
+  always:
+    - name: Log the manager out of the image registry
+      community.docker.docker_login:
+        registry_url: "{{ registry }}"
+        state: absent

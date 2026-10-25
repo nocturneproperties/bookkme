@@ -1,0 +1,25 @@
+secrets:
+  signing_key_encryption_key:
+    file: security/signing_key_encryption_key
+  firebase_key:
+    file: security/firebase-private-key.json
+
+services:
+  monolith:
+    image: bookkme-server:latest
+    hostname: monolith.service
+    ports:
+      - '8085:80'
+      - '8005:8000'
+    env_file:
+      - service/monolith.env
+    environment:
+      JAVA_TOOL_OPTIONS: "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:8000 -ea"
+      TZ: "UTC"
+    secrets:
+      - signing_key_encryption_key
+      - firebase_key
+    deploy:
+      resources:
+        limits:
+          memory: 1024M

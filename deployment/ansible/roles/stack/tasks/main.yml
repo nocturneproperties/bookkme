@@ -1,0 +1,86 @@
+- name: Read the deployed stacks
+  ansible.builtin.command: docker stack ls --format '{{ "{{" }}.Name{{ "}}" }}'
+  register: deployed_stacks
+  changed_when: false
+  check_mode: false
+
+- name: "Refuse to create stack {{ stack.name }} unless allow_new_stacks is set"
+  ansible.builtin.assert:
+    that: stack.name in deployed_stacks.stdout_lines or allow_new_stacks | bool
+    fail_msg: >-
+      Stack '{{ stack.name }}' is not deployed on this swarm (deployed: {{ deployed_stacks.stdout_lines | join(', ') }}).
+      If it runs under another name, fix the name in inventory/group_vars/all/main.yml; otherwise rerun with -e allow_new_stacks=true.
+    quiet: true
+
+- name: "Create the directory for stack {{ stack.name }}"
+  ansible.builtin.file:
+    path: "{{ remote_stacks_dir }}/{{ stack.name }}"
+    state: directory
+    mode: "0700"
+
+- name: "List the files deployed with stack {{ stack.name }}"
+  ansible.builtin.find:
+    paths: "{{ remote_stacks_dir }}/{{ stack.name }}"
+    recurse: true
+    hidden: true
+    file_type: any
+  register: remote_stack_files
+
+- name: "Remove the files no longer in stack {{ stack.name }}"
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop: "{{ remote_stack_files.files | map(attribute='path') | reject('in', stack_source_paths) | list }}"
+  vars:
+    stack_source_paths: >-
+      {{ query('community.general.filetree', deployment_dir ~ '/' ~ stack.source)
+         | map(attribute='path')
+         | map('regex_replace', '^', remote_stacks_dir ~ '/' ~ stack.name ~ '/')
+         | list }}
+
+- name: "Copy the files of stack {{ stack.name }}"
+  ansible.builtin.copy:
+    src: "{{ deployment_dir }}/{{ stack.source }}/"
+    dest: "{{ remote_stacks_dir }}/{{ stack.name }}/"
+    mode: preserve
+  diff: false
+
+- name: "Deploy stack {{ stack.name }} with its secret files"
+  vars:
+    stack_secret_files: "{{ (stack.files | default({})) | combine(stack_files) }}"
+  block:
+    - name: "Write the secret files of stack {{ stack.name }}"
+      ansible.builtin.copy:
+        content: "{{ item.value }}"
+        dest: "{{ remote_stacks_dir }}/{{ stack.name }}/{{ item.key }}"
+        mode: "0600"
+      diff: false
+      loop: "{{ stack_secret_files | dict2items }}"
+      loop_control:
+        label: "{{ item.key }}"
+      no_log: true
+
+    - name: "Deploy stack {{ stack.name }}"
+      community.docker.docker_stack:
+        name: "{{ stack.name }}"
+        compose: "{{ stack.compose | map('regex_replace', '^', remote_stacks_dir ~ '/' ~ stack.name ~ '/') | list }}"
+        with_registry_auth: true
+        resolve_image: "{{ stack_resolve_image }}"
+        prune: "{{ stack_prune }}"
+        state: present
+      environment: "{{ stack_env | combine(stack_extra_env) }}"
+      register: stack_deploy
+      failed_when: false
+      no_log: true
+
+    - name: "Require stack {{ stack.name }} to be deployed"
+      ansible.builtin.assert:
+        that: stack_deploy is skipped or stack_deploy.rc | default(1) == 0
+        fail_msg: "Deploying stack {{ stack.name }} failed: {{ stack_deploy.msg | default('') }} {{ stack_deploy.stderr | default('') }}"
+        quiet: true
+  always:
+    - name: "Remove the secret files of stack {{ stack.name }} once Docker has read them"
+      ansible.builtin.file:
+        path: "{{ remote_stacks_dir }}/{{ stack.name }}/{{ item }}"
+        state: absent
+      loop: "{{ stack_secret_files.keys() | list }}"

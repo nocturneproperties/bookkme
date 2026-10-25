@@ -3,10 +3,9 @@ plugins {
 }
 
 group = "com.bookk.server.microservice.authorization"
-version = "0.0.1"
 
 application {
-    mainClass.set("com.book.auth.AuthMicroserviceKt")
+    mainClass.set("com.bookk.auth.AuthMicroserviceKt")
 }
 
 dependencies {
@@ -17,9 +16,13 @@ dependencies {
     implementation(projects.core.data.eventstreaming.impl)
     implementation(projects.core.data.cache.api)
     implementation(projects.core.data.cache.impl)
+    implementation(projects.library.scheduler)
+    implementation(projects.library.signing.api)
+    implementation(projects.library.signing.route)
     implementation(projects.service.authorization.data)
     implementation(projects.service.authorization.domain.api)
     implementation(projects.service.authorization.domain.impl)
     testImplementation(testFixtures(projects.core))
     testImplementation(testFixtures(projects.core.service))
+    testImplementation(testFixtures(projects.library.scheduler))
 }

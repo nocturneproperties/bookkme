@@ -1,8 +1,8 @@
 package com.bookk.core.service.test
 
-import com.book.core.service.installDocumentationPlugin
-import com.book.core.service.installNegotiation
-import com.bookk.core.test.runTest
+import com.bookk.core.service.installNegotiation
+import com.bookk.core.test.TestHolder
+import com.bookk.core.test.runUnitTest
 import io.ktor.server.application.Application
 import io.ktor.server.application.install
 import io.ktor.server.resources.Resources
@@ -14,7 +14,6 @@ import org.koin.core.module.Module
 import org.koin.ktor.plugin.Koin
 
 fun Application.installTestPlugins() {
-    installDocumentationPlugin()
     install(Resources)
 }
 
@@ -37,8 +36,9 @@ fun ApplicationTestBuilder.setupApplication(
 }
 
 fun routeTest(body: suspend ApplicationTestBuilder.() -> Unit) {
-    runTest {
-        testApplication {
+    val context = TestHolder()
+    runUnitTest(context) {
+        testApplication(context) {
             body(this)
         }
     }

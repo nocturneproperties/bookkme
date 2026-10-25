@@ -1,0 +1,88 @@
+- name: Require the VPN panel password
+  ansible.builtin.assert:
+    that: vault_vpn_password | default('CHANGE_ME') not in ['', 'CHANGE_ME']
+    fail_msg: "Set vault_vpn_password with 'make vault-edit': the plain panel password that VPN_PASSWORD_HASH was made from"
+    quiet: true
+
+- name: Require the manager's VPN client to be one of the default clients
+  ansible.builtin.assert:
+    that: vpn_host_client in vpn_clients
+    fail_msg: "vpn_host_client '{{ vpn_host_client }}' is not in vpn_clients"
+    quiet: true
+
+- name: Wait for the wg-easy container
+  ansible.builtin.command: >-
+    docker ps --quiet
+    --filter label=com.docker.swarm.service.name={{ infra_stacks.vpn.name }}_wg-easy
+    --filter status=running
+  register: wg_easy_container
+  until: wg_easy_container.stdout | length > 0
+  retries: 30
+  delay: 5
+  changed_when: false
+  check_mode: false
+
+- name: Create the missing default VPN clients
+  ansible.builtin.shell: >-
+    docker exec --interactive
+    "$(docker ps --quiet
+    --filter label=com.docker.swarm.service.name={{ infra_stacks.vpn.name }}_wg-easy
+    --filter status=running | head -n 1)"
+    node --eval "$ENSURE_CLIENTS_SCRIPT"
+  environment:
+    ENSURE_CLIENTS_SCRIPT: "{{ lookup('ansible.builtin.file', 'ensure-clients.js') }}"
+  args:
+    stdin: "{{ {'password': vault_vpn_password, 'clients': vpn_clients, 'addresses': {vpn_host_client: vpn_host_address}, 'addressTemplate': vpn_address_template} | to_json }}"
+  register: vpn_clients_result
+  until: vpn_clients_result.rc in [0, vpn_login_rejected_exit_code]
+  retries: 12
+  delay: 5
+  failed_when: false
+  changed_when: >-
+    vpn_clients_result.rc == 0 and (
+      (vpn_clients_result.stdout | from_json).renumbered or
+      ((vpn_clients_result.stdout | from_json).created + (vpn_clients_result.stdout | from_json).moved) | length > 0
+    )
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Require the panel to accept vault_vpn_password
+  ansible.builtin.assert:
+    that: vpn_clients_result.rc != vpn_login_rejected_exit_code
+    fail_msg: "The wg-easy panel rejected vault_vpn_password: it must be the plain password VPN_PASSWORD_HASH was made from"
+    quiet: true
+  when: not ansible_check_mode
+
+- name: Require the default VPN clients to be created
+  ansible.builtin.assert:
+    that: vpn_clients_result.rc == 0
+    fail_msg: "Creating the VPN clients failed: {{ vpn_clients_result.stderr | default('no output', true) }}"
+    quiet: true
+  when: not ansible_check_mode
+
+- name: Keep the VPN client configs for the manager's interface
+  ansible.builtin.set_fact:
+    vpn_client_configurations: "{{ (vpn_clients_result.stdout | from_json).configurations }}"
+  no_log: true
+  when: not ansible_check_mode
+
+- name: Create the local directory for VPN client configs
+  ansible.builtin.file:
+    path: "{{ vpn_client_config_dir }}"
+    state: directory
+    mode: "0700"
+  delegate_to: localhost
+  when: not ansible_check_mode
+
+- name: Save the VPN client configs locally
+  ansible.builtin.copy:
+    content: "{{ item.value }}"
+    dest: "{{ vpn_client_config_dir }}/{{ item.key }}.conf"
+    mode: "0600"
+  loop: "{{ vpn_client_configurations | dict2items | rejectattr('key', 'equalto', vpn_host_client) }}"
+  loop_control:
+    label: "{{ item.key }}"
+  delegate_to: localhost
+  diff: false
+  no_log: true
+  when: not ansible_check_mode

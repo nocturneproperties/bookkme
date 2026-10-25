@@ -1,0 +1,281 @@
+version: "3.9"
+
+volumes:
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+  loki_data:
+    driver: local
+  alloy_data:
+    driver: local
+
+networks:
+  operational:
+    external: true
+  monitoring:
+    external: true
+
+secrets:
+  prometheus_password:
+    external: true
+  prometheus_web_config:
+    external: true
+
+configs:
+  prometheus_cfg:
+    name: prometheus_cfg-v2
+    file: prometheus/prometheus.yml
+  prometheus_alerts_cfg:
+    name: prometheus_alerts_cfg-v5
+    file: prometheus/node_alerts.yml
+  alertmanager_cfg:
+    name: alertmanager_cfg-v2
+    file: alertmanager/config.yml
+  grafana_datasources:
+    name: grafana_datasources-v2
+    file: grafana/datasources.yml
+  grafana_dashboards:
+    name: grafana_dashboards-v1
+    file: grafana/dashboards.yml
+  grafana_dashboard_application:
+    name: grafana_dashboard_application-v1
+    file: grafana/dashboards/application.json
+  grafana_dashboard_infrastructure:
+    name: grafana_dashboard_infrastructure-v1
+    file: grafana/dashboards/infrastructure.json
+  grafana_dashboard_logs:
+    name: grafana_dashboard_logs-v1
+    file: grafana/dashboards/logs.json
+  loki_cfg:
+    name: loki_cfg-v1
+    file: loki/loki.yml
+  alloy_cfg:
+    name: alloy_cfg-v1
+    file: alloy/config.alloy
+
+x-templates:
+  replicated-deploy: &replicated
+    logging:
+      options:
+        max-size: 5m
+        max-file: 5
+    deploy: &replicated-deploy
+      mode: replicated
+      replicas: 1
+      update_config:
+        parallelism: 1
+        order: start-first
+        failure_action: rollback
+        delay: 10s
+      rollback_config:
+        parallelism: 0
+        order: stop-first
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 5
+        window: 120s
+
+services:
+  prometheus:
+    <<: *replicated
+    image: prom/prometheus:v3.8.0
+    configs:
+      - source: prometheus_cfg
+        target: /etc/prometheus/prometheus.yml
+      - source: prometheus_alerts_cfg
+        target: /etc/prometheus/rules/node_alerts.yml
+    secrets:
+      - prometheus_password
+      - prometheus_web_config
+    volumes:
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--web.config.file=/run/secrets/prometheus_web_config'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=30d'
+      - '--storage.tsdb.retention.size=5GB'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    networks:
+      monitoring:
+        aliases:
+          - prometheus
+      operational:
+        aliases:
+          - prometheus
+    deploy:
+      <<: *replicated-deploy
+      placement:
+        constraints: [ node.labels.monitoring == true ]
+      update_config:
+        parallelism: 1
+        order: stop-first
+        failure_action: rollback
+        delay: 10s
+      resources:
+        limits:
+          memory: 768M
+
+  alertmanager:
+    <<: *replicated
+    image: prom/alertmanager:v0.30.0
+    command:
+      - '--config.file=/etc/alertmanager/config.yml'
+      - '--storage.path=/alertmanager'
+    configs:
+      - source: alertmanager_cfg
+        target: /etc/alertmanager/config.yml
+    networks:
+      monitoring:
+        aliases:
+          - alertmanager
+    deploy:
+      <<: *replicated-deploy
+      resources:
+        limits:
+          memory: 128M
+
+  node-exporter:
+    image: prom/node-exporter:v1.12.1
+    hostname: "{{.Node.Hostname}}"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--path.rootfs=/rootfs'
+    networks:
+      - monitoring
+    logging:
+      options:
+        max-size: 5m
+        max-file: 5
+    deploy:
+      mode: global
+      resources:
+        limits:
+          memory: 64M
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.52.0
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:rw
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - monitoring
+    deploy:
+      mode: global
+      resources:
+        limits:
+          memory: 256M
+
+  loki:
+    <<: *replicated
+    image: grafana/loki:3.7.8
+    command:
+      - '-config.file=/etc/loki/loki.yml'
+    configs:
+      - source: loki_cfg
+        target: /etc/loki/loki.yml
+    volumes:
+      - loki_data:/loki
+    networks:
+      monitoring:
+        aliases:
+          - loki
+    deploy:
+      <<: *replicated-deploy
+      placement:
+        constraints: [ node.labels.monitoring == true ]
+      update_config:
+        parallelism: 1
+        order: stop-first
+        failure_action: rollback
+        delay: 10s
+      resources:
+        limits:
+          memory: 512M
+
+  alloy:
+    image: grafana/alloy:v1.20.1
+    hostname: "{{.Node.Hostname}}"
+    command:
+      - 'run'
+      - '--storage.path=/var/lib/alloy/data'
+      - '/etc/alloy/config.alloy'
+    configs:
+      - source: alloy_cfg
+        target: /etc/alloy/config.alloy
+    volumes:
+      - alloy_data:/var/lib/alloy/data
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - monitoring
+    logging:
+      options:
+        max-size: 5m
+        max-file: 5
+    deploy:
+      mode: global
+      resources:
+        limits:
+          memory: 256M
+
+  grafana:
+    image: grafana/grafana:12.4.0-20151846001
+    user: "472"
+    secrets:
+      - prometheus_password
+    volumes:
+      - grafana_data:/var/lib/grafana
+    configs:
+      - source: grafana_dashboards
+        target: /etc/grafana/provisioning/dashboards/dashboards.yml
+      - source: grafana_datasources
+        target: /etc/grafana/provisioning/datasources/datasources.yml
+      - source: grafana_dashboard_application
+        target: /var/lib/grafana/dashboards/application.json
+      - source: grafana_dashboard_infrastructure
+        target: /var/lib/grafana/dashboards/infrastructure.json
+      - source: grafana_dashboard_logs
+        target: /var/lib/grafana/dashboards/logs.json
+    environment:
+      GF_SECURITY_ADMIN_USER: "${GRAFANA_USER}"
+      GF_SECURITY_ADMIN_PASSWORD: "${GRAFANA_PASSWORD}"
+      GF_SECURITY_CSRF_TRUSTED_ORIGINS: "${DOMAIN_NAME}"
+      GF_SERVER_DOMAIN: "grafana.${DOMAIN_NAME}"
+      GF_SERVER_ROOT_URL: "https://grafana.${DOMAIN_NAME}/"
+      GF_SMTP_ENABLED: "true"
+      GF_SMTP_HOST: smtp.gmail.com:587
+      GF_SMTP_USER: "${GRAFANA_SMTP_USER}"
+      GF_SMTP_PASSWORD: "${GRAFANA_SMTP_PASS}"
+      GF_SMTP_FROM_ADDRESS: no-reply@bookkme.app
+      GF_SMTP_FROM_NAME: System Admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/application.json
+      GF_LOG_LEVEL: warn
+    networks:
+      monitoring:
+        aliases:
+          - grafana
+      operational:
+        aliases:
+          - grafana
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints: [ node.labels.monitoring == true ]
+      resources:
+        limits:
+          memory: 512M

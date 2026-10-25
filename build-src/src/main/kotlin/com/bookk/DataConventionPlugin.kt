@@ -29,6 +29,7 @@ class DataConventionPlugin : Plugin<Project> {
                 add("implementation", libs.exposed.core)
                 add("implementation", libs.exposed.dao)
                 add("implementation", libs.exposed.migration)
+                add("implementation", libs.exposed.migration.jdbc)
                 add("implementation", libs.exposed.jdbc)
                 add("implementation", libs.exposed.kotlin.datetime)
                 add("implementation", libs.hikari.cp)
@@ -36,11 +37,14 @@ class DataConventionPlugin : Plugin<Project> {
                 add("implementation", libs.flyway.core)
                 add("implementation", libs.flyway.mysql)
                 add("implementation", platform(libs.koin.bom))
-                add("implementation", libs.mariadb)
+                add("implementation", libs.mariadb.jdbc)
                 add("implementation", libs.kotlin.coroutines)
                 add("implementation", libs.ktor.protobuf)
+                add("implementation", libs.ktor.logging)
                 add("testImplementation", libs.kotlin.test)
                 add("testImplementation", libs.mockk)
+                add("testImplementation", libs.h2)
+                add("testImplementation", libs.kotlin.coroutines.test)
             }
         }
     }

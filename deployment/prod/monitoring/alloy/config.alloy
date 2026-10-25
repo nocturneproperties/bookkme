@@ -1,0 +1,73 @@
+discovery.docker "containers" {
+  host             = "unix:///var/run/docker.sock"
+  refresh_interval = "15s"
+}
+
+discovery.relabel "containers" {
+  targets = []
+
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_swarm_service_name"]
+    regex         = ".+"
+    action        = "keep"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_stack_namespace"]
+    target_label  = "stack"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_swarm_service_name"]
+    regex         = "[^_]+_(.+)"
+    target_label  = "service"
+  }
+
+  rule {
+    target_label = "node"
+    replacement  = constants.hostname
+  }
+}
+
+loki.source.docker "containers" {
+  host          = "unix:///var/run/docker.sock"
+  targets       = discovery.docker.containers.targets
+  relabel_rules = discovery.relabel.containers.rules
+  forward_to    = [loki.process.containers.receiver]
+}
+
+loki.process "containers" {
+  stage.match {
+    selector = "{stack=\"monolith\", service=\"monolith\"}"
+
+    stage.multiline {
+      firstline     = "^\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}"
+      max_wait_time = "3s"
+    }
+
+    stage.drop {
+      expression = "\\], GET /metrics$"
+    }
+
+    stage.regex {
+      expression = "^\\S+ \\S+ \\[(?P<level>[A-Z]+)\\s*\\]"
+    }
+
+    stage.template {
+      source   = "level"
+      template = "{{ ToLower .Value }}"
+    }
+
+    stage.structured_metadata {
+      values = { level = "" }
+    }
+  }
+
+  forward_to = [loki.write.default.receiver]
+}
+
+loki.write "default" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}

@@ -1,0 +1,4 @@
+stack_files: {}
+stack_extra_env: {}
+stack_resolve_image: always
+stack_prune: false

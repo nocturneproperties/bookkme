@@ -1,0 +1,135 @@
+version: "3.9"
+
+networks:
+  agent_network:
+    external: true
+  operational:
+    external: true
+
+volumes:
+  nginx-cert:
+    name: nginx-cert-${DOMAIN_NAME}
+    driver: local
+  acmesh-data:
+    driver: local
+configs:
+  acme_sh_hostinger_script:
+    name: acme_sh_hostinger_dns-v1
+    file: certificates/dns_hostinger.sh
+
+  nginx_config:
+    name: nginx-v47
+    file: nginx.conf.template
+
+  nginx_cert_wait_script:
+    name: nginx-cert-wait-v2
+    file: certificates/wait_for_cert.sh
+
+  android_well_known:
+    name: android_well_known-v2
+    file: android_well_known.json
+
+  ios_well_known:
+    name: ios_well_known-v4
+    file: ios_well_known.json
+
+services:
+  acme-sh:
+    image: neilpang/acme.sh:3.1.2
+    command: >
+      sh -c "acme.sh --server letsencrypt --register-account -m "antufeevmichaeloperational@gmail.com" &&
+             acme.sh --server letsencrypt --issue --dns dns_hostinger -d \"${DOMAIN_NAME}\" -d \"*.${DOMAIN_NAME}\" --dnssleep 60 &&
+             acme.sh --deploy -d ${DOMAIN_NAME} --deploy-hook docker &&
+             crond -n -s -m off"
+    configs:
+      - source: acme_sh_hostinger_script
+        target: '/acmebin/dnsapi/dns_hostinger.sh'
+    volumes:
+      - acmesh-data:/acmesh/${DOMAIN_NAME}_ecc
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - operational
+    depends_on:
+      - nginx
+    environment:
+      DOMAIN_NAME: ${DOMAIN_NAME}
+      HOSTINGER_Key: ${HOSTINGER_API_KEY}
+      DEPLOY_DOCKER_CONTAINER_LABEL: sh.acme.autoload.domain=${DOMAIN_NAME}
+      DEPLOY_DOCKER_CONTAINER_KEY_FILE: /etc/nginx/ssl/${DOMAIN_NAME}/key.pem
+      DEPLOY_DOCKER_CONTAINER_CERT_FILE: "/etc/nginx/ssl/${DOMAIN_NAME}/cert.pem"
+      DEPLOY_DOCKER_CONTAINER_CA_FILE: "/etc/nginx/ssl/${DOMAIN_NAME}/ca.pem"
+      DEPLOY_DOCKER_CONTAINER_FULLCHAIN_FILE: "/etc/nginx/ssl/${DOMAIN_NAME}/fullchain.pem"
+      DEPLOY_DOCKER_CONTAINER_RELOAD_CMD: "service nginx force-reload"
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+        reservations:
+          memory: 64M
+      placement:
+        constraints: [ node.role == manager ]
+      replicas: 1
+      update_config:
+        parallelism: 1
+        failure_action: rollback
+        delay: 10s
+      rollback_config:
+        parallelism: 1
+        order: stop-first
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 5
+        window: 120s
+  nginx:
+    image: nginx:1.29.4
+    labels:
+      sh.acme.autoload.domain: "${DOMAIN_NAME}"
+    networks:
+      - operational
+      - agent_network
+    ports:
+      - target: 443
+        published: 443
+        protocol: tcp
+        mode: host
+    volumes:
+      - nginx-cert:/etc/nginx/ssl/${DOMAIN_NAME}
+    configs:
+      - source: nginx_config
+        target: '/etc/nginx/templates/services.conf.template'
+      - source: android_well_known
+        target: '/srv/static/android_well_known.json'
+      - source: ios_well_known
+        target: '/srv/static/ios_well_known.json'
+      - source: nginx_cert_wait_script
+        target: '/docker-entrypoint.d/wait_for_cert.sh'
+        mode: 0744
+    environment:
+      DOMAIN_NAME: ${DOMAIN_NAME}
+      VPN_SUBNET: ${VPN_SUBNET}
+    logging:
+      options:
+        max-size: 20m
+        max-file: 5
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 128M
+      placement:
+        constraints: [node.role == manager]
+      replicas: 1
+      update_config:
+        parallelism: 1
+        failure_action: rollback
+        delay: 10s
+      rollback_config:
+        parallelism: 1
+        order: stop-first
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 5
+        window: 120s

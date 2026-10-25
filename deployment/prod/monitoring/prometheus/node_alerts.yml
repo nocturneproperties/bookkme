@@ -1,0 +1,150 @@
+groups:
+  - name: recording_rules
+    interval: 1m
+    rules:
+      - record: node:cpu_usage:avg5m
+        expr: (100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)) * on(instance) group_left(nodename) node_uname_info
+
+      - record: node:memory_usage:percent
+        expr: ((node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes * 100) * on(instance) group_left(nodename) node_uname_info
+
+      - record: container:cpu_usage:avg5m
+        expr: sum by(name) (rate(container_cpu_usage_seconds_total{name!=""}[5m])) * 100
+
+      - record: node:disk_usage
+        expr: ((node_filesystem_size_bytes{fstype=~"ext4|xfs"} - node_filesystem_free_bytes{fstype=~"ext4|xfs"}) / node_filesystem_size_bytes{fstype=~"ext4|xfs"} * 100) * on(instance) group_left(nodename) node_uname_info
+
+      - record: node:memory_consumption
+        expr: deriv(node_memory_MemAvailable_bytes[30m]) * on(instance) group_left(nodename) node_uname_info
+
+      - record: container:memory_usage
+        expr: sum by(name) (container_memory_usage_bytes{name!=""})
+
+      - record: service:containers_stopped_after_start:15m
+        expr: count by (container_label_com_docker_swarm_service_name) ((max_over_time(container_start_time_seconds{container_label_com_docker_swarm_service_name!=""}[15m]) > time() - 900) unless on (id) (container_last_seen{container_label_com_docker_swarm_service_name!=""} > time() - 30))
+
+  - name: node_alerts
+    rules:
+      - alert: HighCPULoad
+        expr: node:cpu_usage:avg5m > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU load (node {{ $labels.nodename }})"
+          description: "CPU load is > 80%\n  VALUE = {{ $value }}%\n  LABELS: {{ $labels }}"
+
+      - alert: HighMemoryLoad
+        expr: node:memory_usage:percent > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory load (node {{ $labels.nodename }})"
+          description: "Memory load is > 80%\n  VALUE = {{ $value }}%\n  LABELS: {{ $labels }}"
+
+      - alert: HighDiskUsage
+        expr: node:disk_usage > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High disk usage (node {{ $labels.nodename }})"
+          description: "Disk usage is > 85%\n  VALUE = {{ $value }}%\n  LABELS: {{ $labels }}"
+
+      - alert: UnusualMemoryGrowth
+        expr: node:memory_consumption < -10 * 1024 * 1024
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Unusual memory consumption rate (node {{ $labels.nodename }})"
+          description: "Memory is being consumed at a rate of more than 10MB/min\n  VALUE = {{ $value | humanize }}B/s"
+
+  - name: container_alerts
+    rules:
+      - alert: ContainerRestarting
+        expr: service:containers_stopped_after_start:15m > 0
+        labels:
+          severity: warning
+        annotations:
+          summary: "Service restarting ({{ $labels.container_label_com_docker_swarm_service_name }})"
+          description: "{{ $value }} container(s) of {{ $labels.container_label_com_docker_swarm_service_name }} started in the last 15 minutes and stopped again: a crash, an OOM kill or a failed deploy. Two deploys within 15 minutes also count the replaced one. See 'docker service ps --no-trunc {{ $labels.container_label_com_docker_swarm_service_name }}'."
+
+      - alert: ContainerHighMemoryUsage
+        expr: (container_memory_usage_bytes{name!=""} / container_spec_memory_limit_bytes{name!=""} * 100) > 80 AND container_spec_memory_limit_bytes > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Container high memory usage ({{ $labels.name }})"
+          description: "Container {{ $labels.name }} memory usage is {{ $value }}%"
+
+      - alert: ContainerCPUThrottling
+        expr: rate(container_cpu_cfs_throttled_periods_total{name!=""}[5m]) / rate(container_cpu_cfs_periods_total{name!=""}[5m]) > 0.25
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Container CPU throttling ({{ $labels.name }})"
+          description: "Container {{ $labels.name }} is being throttled {{ $value | humanizePercentage }}"
+
+  - name: target_alerts
+    rules:
+      - alert: TargetDown
+        expr: up == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Prometheus cannot scrape {{ $labels.job }} ({{ $labels.instance }})"
+          description: "The {{ $labels.job }} target at {{ $labels.instance }} has not answered for 2 minutes."
+
+  - name: datastore_alerts
+    rules:
+      - alert: MariaDBDown
+        expr: mysql_up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "MariaDB is not answering"
+          description: "The database exporter cannot connect to monolith.database: every request that touches the database fails."
+
+      - alert: MariaDBConnectionsHigh
+        expr: mysql_global_status_threads_connected / mysql_global_variables_max_connections > 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "MariaDB connections above 80% of max_connections"
+          description: "{{ $value | humanizePercentage }} of max_connections in use. The monolith holds 5 x APPLICATION_DB_POOL_SIZE connections, plus two during a deploy."
+
+      - alert: ValkeyDown
+        expr: redis_up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Valkey is not answering"
+          description: "The Valkey exporter cannot connect to monolith.redis: idempotent requests and event deliveries fail."
+
+      - alert: ValkeyMemoryHigh
+        expr: redis_memory_used_bytes / redis_memory_max_bytes > 0.8 and redis_memory_max_bytes > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Valkey memory above 80% of maxmemory"
+          description: "{{ $value | humanizePercentage }} of maxmemory used. Valkey runs with noeviction: once full it rejects every write, so every idempotent request and event delivery fails. Raise --maxmemory and the container limit together."
+
+  - name: log_alerts
+    rules:
+      - alert: LogStorageGrowing
+        expr: sum(increase(loki_ingester_chunk_size_bytes_sum[1d])) * 14 > 5e9
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: "Logs would take more than 5GB over Loki's 14-day retention"
+          description: "Loki stored {{ $value | humanize1024 }}B projected over 14 days at the last day's rate. Loki deletes only by age: lower retention_period in loki.yml, or find the service that logs too much on the Logs dashboard."

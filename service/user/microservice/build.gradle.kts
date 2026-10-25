@@ -3,10 +3,9 @@ plugins {
 }
 
 group = "com.bookk.server.microservice.user"
-version = "0.0.1"
 
 application {
-    mainClass.set("com.book.user.UserMicroserviceKt")
+    mainClass.set("com.bookk.user.UserMicroserviceKt")
 }
 
 dependencies {
@@ -20,4 +19,6 @@ dependencies {
     implementation(projects.service.user.data)
     implementation(projects.service.user.domain.api)
     implementation(projects.service.user.domain.impl)
+    testImplementation(testFixtures(projects.core))
+    testImplementation(testFixtures(projects.core.service))
 }

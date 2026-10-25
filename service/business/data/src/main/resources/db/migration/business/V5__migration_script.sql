@@ -1,0 +1,1 @@
+ALTER TABLE client ADD description VARCHAR(1024) NULL;

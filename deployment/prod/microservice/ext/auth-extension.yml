@@ -1,0 +1,9 @@
+secrets:
+  jwt_master_key:
+    external: true
+
+services:
+  microservice:
+    image: ${APPLICATION_SERVICE_IMAGE}:${APPLICATION_SERVICE_VERSION}
+    secrets:
+      - jwt_master_key

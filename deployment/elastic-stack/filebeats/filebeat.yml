@@ -1,8 +1,0 @@
-filebeat.inputs:
-  - type: log
-    enabled: true
-    paths:
-      - /var/log/bookk_me_logs/*.log
-
-output.logstash:
-  hosts: ["logstash.elastic.bookk.me:5045"]

@@ -1,0 +1,139 @@
+version: "3.9"
+
+networks:
+  operational:
+    external: true
+
+volumes:
+  database_volume:
+    driver: local
+  redis_data:
+    driver: local
+
+secrets:
+  mariadb_encryption_key:
+    external: true
+
+configs:
+  mariadb_encryption_config:
+    file: ./db/my.cnf
+
+services:
+  database:
+    image: mariadb:11.5.2-ubi9
+    networks:
+      operational:
+        aliases:
+          - ${APPLICATION_SERVICE_NAME}.database
+    environment:
+      MARIADB_ROOT_PASSWORD: ${APPLICATION_DB_PASSWORD}
+      MARIADB_DATABASE: ${APPLICATION_SERVICE_NAME}
+      MARIADB_USER: ${APPLICATION_DB_USER}
+      MARIADB_PASSWORD: ${APPLICATION_DB_PASSWORD}
+      MYSQL_TCP_PORT: ${APPLICATION_DB_PORT}
+    secrets:
+      - source: mariadb_encryption_key
+        target: /etc/mysql/encryption/encryption.key
+        mode: 0444
+    configs:
+      - source: mariadb_encryption_config
+        target: /etc/mysql/conf.d/encryption.cnf
+        mode: 0444
+    volumes:
+      - database_volume:/var/lib/mysql
+    logging:
+      options:
+        max-size: 20m
+        max-file: 5
+    deploy:
+      placement:
+        constraints: [ node.role == worker ]
+      replicas: 1
+      update_config:
+        parallelism: 1
+        order: start-first
+        failure_action: rollback
+        delay: 10s
+      rollback_config:
+        parallelism: 1
+        order: stop-first
+      restart_policy:
+        condition: any
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+
+  redis:
+    image: valkey/valkey:8.1-alpine
+    command:
+      - valkey-server
+      - --requirepass
+      - ${APPLICATION_REDIS_PASSWORD}
+      - --appendonly
+      - "yes"
+      - --rename-command
+      - FLUSHDB
+      - ""
+      - --rename-command
+      - FLUSHALL
+      - ""
+      - --rename-command
+      - CONFIG
+      - ""
+    volumes:
+      - redis_data:/data
+
+    networks:
+      operational:
+        aliases:
+          - ${APPLICATION_SERVICE_NAME}.redis
+
+    deploy:
+      placement:
+        constraints: [ node.role == worker ]
+      replicas: 1
+      update_config:
+        parallelism: 1
+        order: start-first
+        failure_action: rollback
+        delay: 10s
+      rollback_config:
+        parallelism: 1
+        order: stop-first
+      restart_policy:
+        condition: any
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+
+  microservice:
+    image: ${APPLICATION_SERVICE_IMAGE}:${APPLICATION_SERVICE_VERSION}
+    networks:
+      operational:
+        aliases:
+          - ${APPLICATION_SERVICE_NAME}.service
+
+    env_file: "microservice.env"
+    environment:
+      APPLICATION_SERVICE_VERSION: ${APPLICATION_SERVICE_VERSION}
+    logging:
+      options:
+        max-size: 100m
+        max-file: 5
+    deploy:
+      placement:
+        constraints: [ node.role == worker ]
+      replicas: 1
+      update_config:
+        parallelism: 1
+        order: start-first
+        failure_action: rollback
+        delay: 10s
+      rollback_config:
+        parallelism: 1
+        order: stop-first
+      restart_policy:
+        condition: any
+        delay: 5s
+        max_attempts: 3
+        window: 120s

@@ -1,39 +1,33 @@
 <configuration>
-    <!-- Properties -->
-    <property name="LOG_DIR" value="/var/log/bookk_me_logs" />
 
-    <!-- Appender config -->
-    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>${LOG_DIR}/${BOOKK_ME_SERVICE_NAME}.log</file>
-        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-            <!-- daily rollover -->
-            <fileNamePattern>${LOG_DIR}/${BOOKK_ME_SERVICE_NAME}.%d{yyyy-MM-dd}.gz</fileNamePattern>
-
-            <!-- keep 10 days worth of history capped at 256MB total size -->
-            <maxHistory>10</maxHistory>
-            <totalSizeCap>256MB</totalSizeCap>
-        </rollingPolicy>
-        <encoder>
-            <pattern>%d{ISO8601} [%level] [${BOOKK_ME_SERVICE_NAME}: ${BOOKK_ME_SERVICE_VERSION}] [%logger{35}]: %msg%n</pattern>
-        </encoder>
-    </appender>
+    <!-- Rolling and compressing are done on the Dockers side-->
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
-            <pattern>%d{ISO8601} [%level] [${BOOKK_ME_SERVICE_NAME}: ${BOOKK_ME_SERVICE_VERSION}] [%logger{35}]: %msg%n</pattern>
+            <pattern>%d{ISO8601} [%-5level] [${APPLICATION_SERVICE_NAME}:${APPLICATION_SERVICE_VERSION}] [%logger{35}]: %msg%n</pattern>
         </encoder>
     </appender>
 
     <!-- Root -->
-    <root level="info">
-        <appender-ref ref="STDOUT"/>
-        <appender-ref ref="FILE"/>
-    </root>
-    <root level="debug">
+    <root level="${APPLICATION_LOG_LEVEL:-info}">
         <appender-ref ref="STDOUT"/>
     </root>
 
     <!-- Logger levels -->
-    <logger name="com.zaxxer.hikari" level="info" />
-    <logger name="org.apache.kafka" level="info" />
-    <logger name="io.netty" level="info" />
+    <logger name="com.zaxxer.hikari" level="warn"/>
+    <logger name="org.apache.kafka" level="warn"/>
+    <logger name="org.mariadb.jdbc" level="warn"/>
+    <logger name="reactor.netty" level="warn"/>
+    <logger name="com.yubico.webauthn" level="warn"/>
+    <logger name="org.flywaydb" level="warn"/>
+    <logger name="io.lettuce.core" level="warn"/>
+    <logger name="io.netty" level="info"/>
+    <logger name="com.wolt" level="warn"/>
+    <logger name="Exposed" level="warn"/>
+    <logger name="com.github.jknack.handlebars.internal" level="info"/>
+    <logger name="reactor.util" level="warn"/>
+    <logger name="io.swagger.codegen" level="error"/>
+    <logger name="ch.qos.logback.core" level="warn"/>
+    <logger name="io.micrometer" level="warn"/>
+    <logger name="io.ktor.auth.jwt" level="warn"/>
+    <logger name="IdempotencyPlugin" level="warn"/>
 </configuration>

@@ -2,7 +2,6 @@ package com.bookk
 
 import com.bookk.build_src.convention.applyConvention
 import com.bookk.build_src.tools.libs
-import com.bookk.build_src.tools.nativeClassifier
 import io.ktor.plugin.features.KtorExtension
 import org.gradle.api.Plugin
 import org.gradle.api.Project
@@ -33,15 +32,13 @@ class MicroserviceConventionPlugin : Plugin<Project> {
 
             target.dependencies {
                 add("implementation", libs.ktor.core)
-                add("implementation", libs.ktor.netty)
+                add("implementation", libs.ktor.cio)
                 add("implementation", libs.ktor.logging)
                 add("implementation", libs.ktor.certificates)
                 add("implementation", libs.ktor.server.negotiation)
                 add("implementation", libs.ktor.protobuf)
                 add("implementation", libs.ktor.server.resources)
                 add("implementation", libs.ktor.json)
-                add("implementation", libs.ktor.documentation.generation)
-                add("implementation", libs.ktor.documentation.generation.resources)
                 add("implementation", libs.ktor.auth)
                 add("implementation", libs.ktor.jwt)
                 add("implementation", libs.kotlin.coroutines)
@@ -50,13 +47,10 @@ class MicroserviceConventionPlugin : Plugin<Project> {
                 add("implementation", libs.koin.ktor)
                 add("implementation", libs.koin.ktor)
                 add("implementation", platform(libs.koin.bom))
-                add("implementation", variantOf(libs.netty.boringssl) { classifier(nativeClassifier.orEmpty()) })
                 add("testImplementation", libs.kotlin.test)
                 add("testImplementation", libs.ktor.test)
                 add("testImplementation", libs.ktor.client.resources)
                 add("testImplementation", libs.ktor.client.negotiation)
-                add("testImplementation", libs.ktor.documentation.generation)
-                add("testImplementation", libs.ktor.documentation.generation.resources)
                 add("testImplementation", libs.mockk)
                 add("testFixturesImplementation", libs.ktor.client.resources)
                 add("testFixturesImplementation", libs.ktor.client.negotiation)
