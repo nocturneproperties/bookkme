@@ -180,7 +180,7 @@ Each service has a `<Svc>Migration.kt` that diffs the Exposed table definitions 
 
 Production runs the **monolith** on **Docker Swarm**, next to separate infrastructure stacks (`deployment/prod/`): VPN (WireGuard), nginx, orchestrator (Dozzle), monitoring (Prometheus + Grafana + Alertmanager) and the admin panel. CI runs on GitHub-hosted runners, nothing of it lives in the swarm. Everything is deployed with Ansible (`deployment/ansible/`, see its README): `make bootstrap` / `make infra` for hosts, swarm and infrastructure, `make deploy v=<version>` for the monolith.
 
-GitHub Actions only builds and publishes: `push-build-and-test.yml` builds and tests every push and pull request, and pushing a `monolith/<version>` tag runs `monolith-publish.yml`, which publishes `ghcr.io/an22/com.bookk.server:<version>` with Jib and then deploys it through `deploy.yml` (the same Ansible playbook, gated by the `production` environment). The microservice images are still published for when the services are split out again: a `auth/`, `user/`, `business/`, `appointment/` or `notification/<version>` tag runs `microservice-publish.yml`, which publishes `ghcr.io/an22/com.bookk.server.microservice.<service>:<version>` and deploys nothing.
+GitHub Actions only builds and publishes: `push-build-and-test.yml` builds and tests every push and pull request, and pushing a `monolith/<version>` tag runs `monolith-publish.yml`, which publishes `ghcr.io/nocturneprops/com.bookk.server:<version>` with Jib and then deploys it through `deploy.yml` (the same Ansible playbook, gated by the `production` environment). The microservice images are still published for when the services are split out again: a `auth/`, `user/`, `business/`, `appointment/` or `notification/<version>` tag runs `microservice-publish.yml`, which publishes `ghcr.io/nocturneprops/com.bookk.server.microservice.<service>:<version>` and deploys nothing.
 
 ---
 
@@ -197,6 +197,9 @@ GitHub Actions only builds and publishes: `push-build-and-test.yml` builds and t
 
 ## License
 
-Licensed under the **Apache License, Version 2.0** — see [`LICENSE`](LICENSE) and [`NOTICE`](NOTICE).
+Bookk is **source-available** under the **Functional Source License, Version 1.1, ALv2 Future License** (`FSL-1.1-ALv2`) — see [`LICENSE`](LICENSE) — plus an [additional permission for self-hosting](LICENSE-SELF-HOSTING.md).
 
-You are free to use, modify, distribute, and self-host Bookk, including commercially and in closed-source products, provided you retain the license and attribution notices. The license also includes an express patent grant from contributors. Contributions are accepted under the same terms.
+- **Allowed:** reading, modifying and running the code for any purpose other than a competing product — internal use, non-commercial education and research, contributing, and self-hosting Bookk to take bookings for your own business, with your own clients booking through it.
+- **Not allowed:** offering Bookk, or a product built from it, to other businesses — as a hosted service, as software you sell, or as part of a booking platform.
+- **Becomes Apache 2.0 after two years:** each version is also licensed under the Apache License, Version 2.0 from the second anniversary of its release.
+- **Earlier versions stay Apache 2.0:** versions published before the switch to FSL — every commit whose `LICENSE` file is the Apache License — were released under the Apache License, Version 2.0 and remain available under it.

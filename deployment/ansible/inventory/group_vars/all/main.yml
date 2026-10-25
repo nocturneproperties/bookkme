@@ -65,7 +65,7 @@ monolith:
     name: monolith
     source: prod/monolith
     compose: [monolith-compose.yml]
-  image: ghcr.io/an22/com.bookk.server
+  image: ghcr.io/nocturneprops/com.bookk.server
 
 monolith_env:
   APPLICATION_DOMAIN_NAME: "{{ vault_stack_env.DOMAIN_NAME }}"

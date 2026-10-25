@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: Image tag of ghcr.io/an22/com.bookk.server to deploy, e.g. 0.15.2
+        description: Image tag of ghcr.io/nocturneprops/com.bookk.server to deploy, e.g. 0.15.2
         required: true
         type: string
   workflow_call:

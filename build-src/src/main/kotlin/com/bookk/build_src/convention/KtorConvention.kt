@@ -30,7 +30,7 @@ fun KtorExtension.applyConvention(project: Project) {
         externalRegistry.set(
             DockerImageRegistry.externalRegistry(
                 project = project.provider { project.group.toString() },
-                namespace = project.provider { "an22" },
+                namespace = project.provider { "nocturneprops" },
                 hostname = project.provider { "ghcr.io" },
                 username = project.provider {
                     System.getenv("DOCKER_USERNAME").orEmpty().ifBlank {
