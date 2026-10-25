@@ -36,7 +36,7 @@ fun embeddedEventStreamingTransportModule(qualifier: Qualifier, serviceName: Str
         scoped<StandardEventConsumer> {
             EmbeddedEventConsumer(get(), ProtoBuf { encodeDefaults = true }, get(), get(), consumerGroup(serviceName))
         }
-        scoped { EmbeddedEventProducer(get(), ProtoBuf { encodeDefaults = true }) } bind EventStreaming.RawProducer::class
+        scoped { EmbeddedEventProducer(get()) } bind EventStreaming.RawProducer::class
     }
 }
 

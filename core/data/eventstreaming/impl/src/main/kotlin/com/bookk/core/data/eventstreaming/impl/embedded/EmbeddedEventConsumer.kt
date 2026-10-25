@@ -42,8 +42,6 @@ class EmbeddedEventConsumer(
     private val receivers = ConcurrentMap<String, Receiver>()
     private val types = ConcurrentMap<String, KType>()
 
-    fun typeFor(originalTopic: String): KType? = types[originalTopic]
-
     @Suppress("UNCHECKED_CAST")
     override fun <T : Event<String>> registerReceiver(
         topic: String,

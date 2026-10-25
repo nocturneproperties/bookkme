@@ -20,7 +20,7 @@ internal class EmbeddedEventStreamingTest {
     private class SutFixture {
         val topicQueueHolder = TopicQueueHolder<String>()
         val protoBuf = ProtoBuf { encodeDefaults = true }
-        val producer = EmbeddedEventProducer(topicQueueHolder, protoBuf)
+        val producer = EmbeddedEventProducer(topicQueueHolder)
         val eventIdempotencyStorage = inMemoryEventIdempotencyStorage()
 
         fun encode(event: KeyedTestEvent) = protoBuf.encodeToByteArray(KeyedTestEvent.serializer(), event)

@@ -31,7 +31,7 @@ internal class EmbeddedDltRetryTest {
     ) {
         val topicQueueHolder = TopicQueueHolder<String>()
         val protoBuf = ProtoBuf { encodeDefaults = true }
-        val producer = EmbeddedEventProducer(topicQueueHolder, protoBuf)
+        val producer = EmbeddedEventProducer(topicQueueHolder)
         val consumer = EmbeddedEventConsumer(
             topicQueueHolder = topicQueueHolder,
             protoBuf = protoBuf,
@@ -146,31 +146,6 @@ internal class EmbeddedDltRetryTest {
         then()
         assertEquals(DltRetry.DEFAULT_MAX_ATTEMPTS, attempts.get())
         assertEquals(1, fixture.exhaustedEventDataSource.findByOriginalTopic(topic).size)
-    }
-
-    @Test
-    fun `should replay a persisted exhausted event back onto its original topic`() = runUnitTest {
-        given()
-        val fixture = SutFixture()
-        val topic = "embedded.dlt.retry.replay"
-        val shouldFail = AtomicInteger(1)
-        val received = ConcurrentLinkedQueue<KeyedTestEvent>()
-        fixture.consumer.registerReceiver<KeyedTestEvent, String>(topic) { event ->
-            if (shouldFail.get() == 1) throw RuntimeException("boom") else received += event
-        }
-        fixture.consumer.start(backgroundScope)
-        fixture.producer.publishEncoded(KeyedTestEvent(entityId = "entity-1", sequence = 0, topic = topic))
-        advanceThroughRetries()
-        shouldFail.set(0)
-
-        whenn()
-        val dltEvent = fixture.exhaustedEventDataSource.findByOriginalTopic(topic).single()
-        fixture.producer.replay(dltEvent, fixture.consumer.typeFor(topic)!!)
-        runCurrent()
-
-        then()
-        assertEquals(1, received.size)
-        assertEquals("entity-1", received.single().entityId)
     }
 
     @Test

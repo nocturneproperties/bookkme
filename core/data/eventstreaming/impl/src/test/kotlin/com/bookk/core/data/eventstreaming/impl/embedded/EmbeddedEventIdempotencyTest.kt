@@ -39,7 +39,7 @@ internal class EmbeddedEventIdempotencyTest {
         val topicQueueHolder = TopicQueueHolder<String>()
         val protoBuf = ProtoBuf { encodeDefaults = true }
         val exhaustedEventDataSource = InMemoryExhaustedEventDataSource()
-        val producer = EmbeddedEventProducer(topicQueueHolder, protoBuf)
+        val producer = EmbeddedEventProducer(topicQueueHolder)
 
         fun newConsumer(consumerGroup: String = "business_group") = EmbeddedEventConsumer(
             topicQueueHolder = topicQueueHolder,
