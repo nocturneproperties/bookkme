@@ -15,16 +15,16 @@ secrets:
     external: true
   firebase_key:
     external: true
-  mariadb_exporter_init:
-    name: monolith-mariadb-exporter-init-v1
-    file: ./db/exporter-init.sql
+  mariadb_users_init:
+    name: monolith-mariadb-users-init-v1
+    file: ./db/users-init.sql
 
 configs:
   mariadb_encryption_config:
     name: monolith-mariadb-encryption-v1
     file: ./db/my.cnf
   mariadb_tuning_config:
-    name: monolith-mariadb-tuning-v1
+    name: monolith-mariadb-tuning-v2
     file: ./db/tuning.cnf
   mariadb_init_schemas:
     name: monolith-mariadb-init-schemas-v1
@@ -53,7 +53,7 @@ services:
   database:
     image: mariadb:11.8.3-ubi9
     command:
-      - --init-file=/run/secrets/mariadb_exporter_init
+      - --init-file=/run/secrets/mariadb_users_init
     networks:
       operational:
         aliases:
@@ -67,7 +67,7 @@ services:
       - source: mariadb_encryption_key
         target: /etc/mysql/encryption/encryption.key
         mode: 0444
-      - source: mariadb_exporter_init
+      - source: mariadb_users_init
         mode: 0444
     configs:
       - source: mariadb_encryption_config
@@ -93,6 +93,7 @@ services:
         max-file: 5
     deploy:
       <<: *replicated
+      endpoint_mode: dnsrr
       placement:
         constraints: [ node.labels.database == true ]
       update_config:

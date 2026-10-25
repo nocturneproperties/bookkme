@@ -34,6 +34,7 @@ infra_stacks:
     compose: [orchestrator-compose.yml]
     files:
       dozzle/users.actual.yaml: "{{ vault_dozzle_users }}"
+      dozzle/session_secret: "{{ vault_dozzle_session_secret }}"
   monitoring:
     name: monitoring
     source: prod/monitoring
