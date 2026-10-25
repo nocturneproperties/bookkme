@@ -18,12 +18,12 @@ Code: `core/data/eventstreaming/data` (`OutboxEventProducer`, `OutboxRelay`,
 `OutboxEventDataSourceImpl`, `OutboxEventTable`, `outboxModule`) and
 `core/data/eventstreaming/impl` (transports). Schema: `OUTBOX_EVENT` in
 [business](database/business.md),
-[authorization](database/authorization.md) and [user](database/user.md).
+[authorization](database/authorization.md), [user](database/user.md) and
+[appointments](database/appointments.md).
 
-**Rollout status:** business, authorization and user send through the
-outbox. Appointments still sends to the transport directly
-(`eventStreamingModule` / `embeddedEventStreamingModule`); notifications
-sends no events and still uses those modules for its consumer.
+**Rollout status:** business, authorization, user and appointments send
+through the outbox. Notifications sends no events and still uses
+`eventStreamingModule` / `embeddedEventStreamingModule` for its consumer.
 
 ## Overview
 

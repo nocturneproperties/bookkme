@@ -23,6 +23,7 @@ dependencies {
     implementation(projects.core.domain)
     implementation(projects.core.data.eventstreaming.api)
     implementation(projects.core.data.eventstreaming.impl)
+    implementation(projects.core.data.eventstreaming.data)
     implementation(projects.core.data.cache.api)
     implementation(projects.core.data.cache.impl)
     implementation(projects.library.signing.api)
@@ -32,6 +33,7 @@ dependencies {
     implementation(projects.library.scheduler)
     testImplementation(libs.joda.money)
     testImplementation(testFixtures(projects.core))
+    testImplementation(testFixtures(projects.core.data.eventstreaming.data))
     testImplementation(testFixtures(projects.core.service))
     testImplementation(testFixtures(projects.library.scheduler))
 }
