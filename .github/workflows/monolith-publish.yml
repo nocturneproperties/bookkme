@@ -11,7 +11,7 @@ on:
 jobs:
   publish:
     name: Publish monolith image
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       version: ${{ steps.version.outputs.version }}
     steps:
@@ -52,7 +52,7 @@ jobs:
 
       - name: Summary
         shell: bash
-        run: echo "Published \`ghcr.io/nocturneprops/com.bookk.server:${{ steps.version.outputs.version }}\`" >> "$GITHUB_STEP_SUMMARY"
+        run: echo "Published \`ghcr.io/nocturneprops/bookkme-server:${{ steps.version.outputs.version }}\`" >> "$GITHUB_STEP_SUMMARY"
 
   deploy:
     name: Deploy

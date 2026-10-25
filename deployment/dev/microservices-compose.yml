@@ -6,7 +6,7 @@ secrets:
 
 services:
   service-auth:
-    image: com.bookk.server.microservice.authorization:latest
+    image: bookkme-authorization:latest
     hostname: auth.service
     ports:
       - '8000:8000'
@@ -23,7 +23,7 @@ services:
           memory: 512M
 
   service-user:
-    image: com.bookk.server.microservice.user:latest
+    image: bookkme-user:latest
     hostname: user.service
     ports:
       - '8001:8000'
@@ -38,7 +38,7 @@ services:
           memory: 512M
 
   service-business:
-    image: com.bookk.server.microservice.business:latest
+    image: bookkme-business:latest
     hostname: business.service
     ports:
       - '8002:8000'
@@ -55,7 +55,7 @@ services:
           memory: 512M
 
   service-appointments:
-    image: com.bookk.server.microservice.appointments:latest
+    image: bookkme-appointments:latest
     hostname: appointments.service
     ports:
       - '8003:8000'
@@ -70,7 +70,7 @@ services:
           memory: 512M
 
   service-notifications:
-    image: com.bookk.server.microservice.notifications:latest
+    image: bookkme-notifications:latest
     hostname: notifications.service
     ports:
       - '8004:8000'

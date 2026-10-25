@@ -39,7 +39,7 @@ Edit the vault with an editor that keeps no history of the decrypted temp file: 
 
 ## First deployment
 
-Publish the image first: bump `version` in the root `build.gradle.kts`, then push a matching tag (`git tag monolith/0.15.2 && git push origin monolith/0.15.2`). `.github/workflows/monolith-publish.yml` pushes `ghcr.io/nocturneprops/com.bookk.server:<version>` and refuses a tag that differs from the project version.
+Publish the image first: bump `version` in the root `build.gradle.kts`, then push a matching tag (`git tag monolith/0.15.2 && git push origin monolith/0.15.2`). `.github/workflows/monolith-publish.yml` pushes `ghcr.io/nocturneprops/bookkme-server:<version>` and refuses a tag that differs from the project version.
 
 ```sh
 make check                     # what would change, connects but changes nothing
@@ -108,11 +108,11 @@ Stacks that mount a config or secret from a file (nginx, vpn, monitoring, orches
 
 GitHub Actions only publishes images and calls this playbook; it never runs `docker` against the swarm itself.
 
-- `.github/workflows/monolith-publish.yml` runs on a `monolith/<version>` tag: it checks the tag equals `version` in the root `build.gradle.kts`, pushes `ghcr.io/nocturneprops/com.bookk.server:<version>`, then calls the deploy workflow.
-- `.github/workflows/microservice-publish.yml` runs on an `auth/`, `user/`, `business/`, `appointment/` or `notification/<version>` tag and only publishes `ghcr.io/nocturneprops/com.bookk.server.microservice.<service>:<version>` (same version check); nothing deploys microservices while prod runs the monolith.
+- `.github/workflows/monolith-publish.yml` runs on a `monolith/<version>` tag: it checks the tag equals `version` in the root `build.gradle.kts`, pushes `ghcr.io/nocturneprops/bookkme-server:<version>`, then calls the deploy workflow.
+- `.github/workflows/microservice-publish.yml` runs on an `auth/`, `user/`, `business/`, `appointment/` or `notification/<version>` tag and only publishes `ghcr.io/nocturneprops/bookkme-<service>:<version>` (same version check); nothing deploys microservices while prod runs the monolith.
 - `.github/workflows/deploy.yml` runs `ansible-playbook playbooks/deploy.yml -e version=<version>` on a GitHub-hosted runner. Run it by hand (**Actions → Deploy monolith → Run workflow**) to redeploy or roll back to any published version.
 
-Every workflow runs on GitHub-hosted `ubuntu-latest` runners; nothing runs inside the swarm. The deploy job therefore reaches the manager over SSH from GitHub's address ranges, which change, so the manager's SSH port must accept connections from the internet (key-only root login) at the `vault_hosts['manager-1']` address. The job installs Ansible with `uv`, pinned to the same versions as a local Homebrew install: ansible-core 2.21.5, community.docker 5.4.0, community.general 13.5.0. It pulls with the registry token from the vault, not `GITHUB_TOKEN`: the deploy passes `--with-registry-auth`, which stores the credentials in the swarm service for later pulls, and `GITHUB_TOKEN` expires when the job ends.
+Every workflow runs on GitHub-hosted runners pinned to `ubuntu-24.04` (`ubuntu-latest` moves to a new Ubuntu on GitHub's schedule); nothing runs inside the swarm. The deploy job therefore reaches the manager over SSH from GitHub's address ranges, which change, so the manager's SSH port must accept connections from the internet (key-only root login) at the `vault_hosts['manager-1']` address. The job installs Ansible with `uv`, pinned to the same versions as a local Homebrew install: ansible-core 2.21.5, community.docker 5.4.0, community.general 13.5.0. It pulls with the registry token from the vault, not `GITHUB_TOKEN`: the deploy passes `--with-registry-auth`, which stores the credentials in the swarm service for later pulls, and `GITHUB_TOKEN` expires when the job ends.
 
 GitHub setup the workflows need:
 - Secrets `ANSIBLE_VAULT_PASSWORD` (new), `SSH_PRIVATE_KEY`, `SSH_KNOWN_HOSTS` and `GRADLE_ENCRYPTION_KEY` (already used by the old workflows).
