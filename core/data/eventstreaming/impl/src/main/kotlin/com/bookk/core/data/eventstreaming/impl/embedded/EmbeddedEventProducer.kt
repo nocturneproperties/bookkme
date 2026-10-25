@@ -9,11 +9,7 @@ import kotlin.reflect.KType
 class EmbeddedEventProducer(
     private val topicQueueHolder: TopicQueueHolder<String>,
     private val protoBuf: ProtoBuf,
-) : EventStreaming.Producer<String>, EventStreaming.RawProducer<String> {
-
-    override suspend fun <T : EventStreaming.Event<String>> send(data: T, kType: KType) {
-        topicQueueHolder.publish(data)
-    }
+) : EventStreaming.RawProducer<String> {
 
     override suspend fun publish(topic: String, partitionKey: String?, payload: ByteArray) {
         topicQueueHolder.publish(EmbeddedEncodedEvent(topic = topic, partitionKey = partitionKey, payload = payload))

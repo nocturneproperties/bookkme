@@ -7,7 +7,6 @@ import com.bookk.core.data.eventstreaming.impl.InMemoryExhaustedEventDataSource
 import com.bookk.core.data.eventstreaming.impl.inMemoryEventIdempotencyStorage
 import com.bookk.core.data.eventstreaming.impl.kafka.KeyedTestEvent
 import com.bookk.core.data.eventstreaming.registerReceiver
-import com.bookk.core.data.eventstreaming.send
 import com.bookk.core.test.given
 import com.bookk.core.test.runUnitTest
 import com.bookk.core.test.then
@@ -68,7 +67,7 @@ internal class EmbeddedDltRetryTest {
         fixture.consumer.start(backgroundScope)
 
         whenn()
-        fixture.producer.send(KeyedTestEvent(entityId = "entity-1", sequence = 0, topic = topic))
+        fixture.producer.publishEncoded(KeyedTestEvent(entityId = "entity-1", sequence = 0, topic = topic))
         advanceThroughRetries()
 
         then()
@@ -90,7 +89,7 @@ internal class EmbeddedDltRetryTest {
         fixture.consumer.start(backgroundScope)
 
         whenn()
-        fixture.producer.send(KeyedTestEvent(entityId = "entity-1", sequence = 0, topic = topic))
+        fixture.producer.publishEncoded(KeyedTestEvent(entityId = "entity-1", sequence = 0, topic = topic))
         runCurrent()
 
         then()
@@ -118,7 +117,7 @@ internal class EmbeddedDltRetryTest {
         fixture.consumer.start(backgroundScope)
 
         whenn()
-        fixture.producer.send(KeyedTestEvent(entityId = "entity-1", sequence = 0, topic = topic))
+        fixture.producer.publishEncoded(KeyedTestEvent(entityId = "entity-1", sequence = 0, topic = topic))
         advanceThroughRetries()
 
         then()
@@ -141,7 +140,7 @@ internal class EmbeddedDltRetryTest {
         fixture.consumer.start(backgroundScope)
 
         whenn()
-        fixture.producer.send(KeyedTestEvent(entityId = "entity-1", sequence = 0, topic = topic))
+        fixture.producer.publishEncoded(KeyedTestEvent(entityId = "entity-1", sequence = 0, topic = topic))
         advanceThroughRetries()
 
         then()
@@ -160,7 +159,7 @@ internal class EmbeddedDltRetryTest {
             if (shouldFail.get() == 1) throw RuntimeException("boom") else received += event
         }
         fixture.consumer.start(backgroundScope)
-        fixture.producer.send(KeyedTestEvent(entityId = "entity-1", sequence = 0, topic = topic))
+        fixture.producer.publishEncoded(KeyedTestEvent(entityId = "entity-1", sequence = 0, topic = topic))
         advanceThroughRetries()
         shouldFail.set(0)
 
@@ -190,8 +189,8 @@ internal class EmbeddedDltRetryTest {
         fixture.consumer.start(backgroundScope)
 
         whenn()
-        fixture.producer.send(KeyedTestEvent(entityId = "entity-flaky", sequence = 0, topic = flakyTopic))
-        fixture.producer.send(KeyedTestEvent(entityId = "entity-healthy", sequence = 0, topic = healthyTopic))
+        fixture.producer.publishEncoded(KeyedTestEvent(entityId = "entity-flaky", sequence = 0, topic = flakyTopic))
+        fixture.producer.publishEncoded(KeyedTestEvent(entityId = "entity-healthy", sequence = 0, topic = healthyTopic))
         advanceThroughRetries()
 
         then()
@@ -215,7 +214,7 @@ internal class EmbeddedDltRetryTest {
         fixture.consumer.start(backgroundScope)
 
         whenn()
-        fixture.producer.send(KeyedTestEvent(entityId = "entity-1", sequence = 0, topic = topic))
+        fixture.producer.publishEncoded(KeyedTestEvent(entityId = "entity-1", sequence = 0, topic = topic))
         advanceThroughRetries()
 
         then()

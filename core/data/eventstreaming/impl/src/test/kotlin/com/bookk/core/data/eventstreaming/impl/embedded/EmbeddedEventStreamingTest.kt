@@ -4,7 +4,6 @@ import com.bookk.core.data.eventstreaming.impl.InMemoryExhaustedEventDataSource
 import com.bookk.core.data.eventstreaming.impl.inMemoryEventIdempotencyStorage
 import com.bookk.core.data.eventstreaming.impl.kafka.KeyedTestEvent
 import com.bookk.core.data.eventstreaming.registerReceiver
-import com.bookk.core.data.eventstreaming.send
 import com.bookk.core.test.given
 import com.bookk.core.test.runUnitTest
 import com.bookk.core.test.then
@@ -46,7 +45,7 @@ internal class EmbeddedEventStreamingTest {
         consumer.start(backgroundScope)
 
         whenn()
-        fixture.producer.send(KeyedTestEvent(entityId = "entity-1", sequence = 0, topic = topic))
+        fixture.producer.publishEncoded(KeyedTestEvent(entityId = "entity-1", sequence = 0, topic = topic))
         runCurrent()
 
         then()
@@ -68,7 +67,7 @@ internal class EmbeddedEventStreamingTest {
         secondServiceConsumer.start(backgroundScope)
 
         whenn()
-        fixture.producer.send(KeyedTestEvent(entityId = "entity-1", sequence = 0, topic = topic))
+        fixture.producer.publishEncoded(KeyedTestEvent(entityId = "entity-1", sequence = 0, topic = topic))
         runCurrent()
 
         then()
@@ -86,7 +85,7 @@ internal class EmbeddedEventStreamingTest {
         consumer.start(backgroundScope)
 
         whenn()
-        fixture.producer.send(KeyedTestEvent(entityId = "entity-1", sequence = 0, topic = "topic.other"))
+        fixture.producer.publishEncoded(KeyedTestEvent(entityId = "entity-1", sequence = 0, topic = "topic.other"))
         runCurrent()
 
         then()
