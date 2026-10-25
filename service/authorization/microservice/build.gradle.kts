@@ -23,7 +23,7 @@ dependencies {
     implementation(projects.service.authorization.data)
     implementation(projects.service.authorization.domain.api)
     implementation(projects.service.authorization.domain.impl)
-    testImplementation(projects.core.domain.datasource)
+    testImplementation(testFixtures(projects.core.data.eventstreaming.data))
     testImplementation(testFixtures(projects.core))
     testImplementation(testFixtures(projects.core.service))
     testImplementation(testFixtures(projects.library.scheduler))

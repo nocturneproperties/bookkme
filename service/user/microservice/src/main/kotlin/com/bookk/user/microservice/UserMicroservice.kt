@@ -1,8 +1,9 @@
 package com.bookk.user.microservice
 
 import com.bookk.core.data.cache.impl.di.cacheModule
-import com.bookk.core.data.eventstreaming.di.embeddedEventStreamingModule
-import com.bookk.core.data.eventstreaming.di.eventStreamingModule
+import com.bookk.core.data.eventstreaming.data.di.outboxModule
+import com.bookk.core.data.eventstreaming.di.embeddedEventStreamingTransportModule
+import com.bookk.core.data.eventstreaming.di.eventStreamingTransportModule
 import com.bookk.core.data.eventstreaming.startEventHandling
 import com.bookk.core.service.di.installServiceScope
 import com.bookk.core.service.installNegotiation
@@ -20,7 +21,8 @@ fun userModule() = module {
         userDomainModule(),
         userDataModule(),
         cacheModule(),
-        eventStreamingModule(UserScope, USER_SERVICE_NAME)
+        eventStreamingTransportModule(UserScope, USER_SERVICE_NAME),
+        outboxModule(UserScope)
     )
 }
 
@@ -29,7 +31,8 @@ fun userEmbeddedModule() = module {
         userDomainModule(),
         userDataModule(),
         cacheModule(),
-        embeddedEventStreamingModule(UserScope, USER_SERVICE_NAME)
+        embeddedEventStreamingTransportModule(UserScope, USER_SERVICE_NAME),
+        outboxModule(UserScope)
     )
 }
 

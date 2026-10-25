@@ -17,11 +17,11 @@ and a background `OutboxRelay` publishes committed rows afterwards.
 Code: `core/data/eventstreaming/data` (`OutboxEventProducer`, `OutboxRelay`,
 `OutboxEventDataSourceImpl`, `OutboxEventTable`, `outboxModule`) and
 `core/data/eventstreaming/impl` (transports). Schema: `OUTBOX_EVENT` in
-[business](database/business.md) and
-[authorization](database/authorization.md).
+[business](database/business.md),
+[authorization](database/authorization.md) and [user](database/user.md).
 
-**Rollout status:** business and authorization send through the outbox.
-User and appointments still send to the transport directly
+**Rollout status:** business, authorization and user send through the
+outbox. Appointments still sends to the transport directly
 (`eventStreamingModule` / `embeddedEventStreamingModule`); notifications
 sends no events and still uses those modules for its consumer.
 

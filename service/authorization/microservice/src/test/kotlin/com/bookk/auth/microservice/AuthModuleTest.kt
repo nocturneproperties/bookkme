@@ -2,35 +2,23 @@ package com.bookk.auth.microservice
 
 import com.bookk.auth.domain.impl.di.AuthScope
 import com.bookk.core.data.eventstreaming.EventHandler
-import com.bookk.core.data.eventstreaming.EventStreaming
 import com.bookk.core.data.eventstreaming.StandardEventProducer
 import com.bookk.core.data.eventstreaming.data.outbox.OutboxEventProducer
 import com.bookk.core.data.eventstreaming.data.outbox.OutboxRelay
-import com.bookk.core.domain.datasource.transaction.TransactionManager
+import com.bookk.core.data.eventstreaming.data.test.serviceScopeWithMockedInfrastructure
 import com.bookk.core.test.given
 import com.bookk.core.test.runUnitTest
 import com.bookk.core.test.then
 import com.bookk.core.test.whenn
-import io.mockk.mockk
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.koin.core.module.Module
 import org.koin.core.scope.Scope
-import org.koin.dsl.koinApplication
-import org.koin.dsl.module
 
 internal class AuthModuleTest {
 
     private class SutFixture(serviceModule: Module) {
-        private val infrastructure = module {
-            scope(AuthScope) {
-                scoped<TransactionManager> { mockk() }
-                scoped<EventStreaming.RawProducer<String>> { mockk() }
-            }
-        }
-        val scope: Scope = koinApplication { modules(serviceModule, infrastructure) }
-            .koin
-            .createScope("auth-module-test", AuthScope)
+        val scope: Scope = serviceScopeWithMockedInfrastructure(AuthScope, serviceModule)
     }
 
     @Test

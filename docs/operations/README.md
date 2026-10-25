@@ -135,11 +135,10 @@ Every event that crosses a service boundary, who fires it, and who reacts.
 react to a single account deletion, independently and in no guaranteed
 order.
 
-Business and authorization events are delivered through the transactional
-outbox: the `eventProducer.send` node in each producer diagram stores the
-event in the
-service's `outbox_event` table inside the operation's transaction, and
-`OutboxRelay` publishes it after commit. An event therefore exists only if
+Business, authorization and user events are delivered through the
+transactional outbox: the `eventProducer.send` node in each producer
+diagram stores the event in the service's `outbox_event` table inside the
+operation's transaction, and `OutboxRelay` publishes it after commit. An event therefore exists only if
 the operation committed, and reaches its consumers at least once. See
 [Transactional outbox](../transactional-outbox.md) for the full flow.
 
