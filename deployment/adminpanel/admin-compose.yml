@@ -11,6 +11,11 @@ volumes:
 services:
   nocodb:
     image: nocodb/nocodb:latest
+    environment:
+      NC_ADMIN_EMAIL: "${NOCODB_ADMIN_EMAIL}"
+      NC_ADMIN_PASSWORD: "${NOCODB_ADMIN_PASSWORD}"
+      NC_DISABLE_TELE: "true"
+      NC_ALLOW_LOCAL_EXTERNAL_DBS: "true"
     networks:
       operational:
         aliases:

@@ -52,4 +52,4 @@ local.properties
 !deployment/orchestrator/dozzle/users.actual.yaml
 deployment/dev/security/firebase-private-key.json
 deployment/prod/monolith/monolith.env
-deployment/prod/monolith/db/exporter-init.sql
+deployment/prod/monolith/db/users-init.sql

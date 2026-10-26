@@ -6,6 +6,7 @@ import com.zaxxer.hikari.HikariDataSource
 import org.flywaydb.core.Flyway
 import org.flywaydb.core.api.Location
 import org.jetbrains.exposed.v1.jdbc.Database
+import kotlin.time.Duration.Companion.minutes
 
 fun createDatabase(
     schemaName: String,
@@ -29,14 +30,25 @@ fun createDatabase(
         .load()
         .migrate()
 
-    val pool = HikariConfig().apply {
-        poolName = schemaName
-        jdbcUrl = "jdbc:$dbUrl:$dbPort/$schemaName?rewriteBatchedStatements=true"
-        username = dbUsername
-        password = dbPassword
-        maximumPoolSize = maxPoolSize
-        isAutoCommit = false
-        transactionIsolation = "TRANSACTION_REPEATABLE_READ"
-    }
-    return Database.connect(HikariDataSource(pool))
+    return Database.connect(HikariDataSource(poolConfig(schemaName, dbUrl, dbPort, dbUsername, dbPassword, maxPoolSize)))
 }
+
+internal fun poolConfig(
+    schemaName: String,
+    dbUrl: String,
+    dbPort: String,
+    dbUsername: String,
+    dbPassword: String,
+    maxPoolSize: Int
+): HikariConfig = HikariConfig().apply {
+    poolName = schemaName
+    jdbcUrl = "jdbc:$dbUrl:$dbPort/$schemaName?rewriteBatchedStatements=true"
+    username = dbUsername
+    password = dbPassword
+    maximumPoolSize = maxPoolSize
+    keepaliveTime = IDLE_CONNECTION_KEEPALIVE.inWholeMilliseconds
+    isAutoCommit = false
+    transactionIsolation = "TRANSACTION_REPEATABLE_READ"
+}
+
+private val IDLE_CONNECTION_KEEPALIVE = 5.minutes
