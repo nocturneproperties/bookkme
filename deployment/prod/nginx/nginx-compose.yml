@@ -26,7 +26,7 @@ configs:
     file: certificates/wait_for_cert.sh
 
   android_well_known:
-    name: android_well_known-v2
+    name: android_well_known-v3
     file: android_well_known.json
 
   ios_well_known:

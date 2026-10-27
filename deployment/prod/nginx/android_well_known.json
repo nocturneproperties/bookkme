@@ -8,8 +8,8 @@
       "namespace" : "android_app",
       "package_name" : "me.bookk.android",
       "sha256_cert_fingerprints" : [
-        "56:2F:9A:81:B3:1A:D3:2F:3B:10:AB:1C:D3:74:90:92:45:FD:02:E9:00:5B:76:16:67:E6:F5:8B:C6:DA:EC:2B",
-        "58:09:D8:9A:C8:B2:F5:91:E0:FE:3B:20:EF:5C:BA:19:BF:65:75:56:98:9D:01:AC:28:75:E8:C3:0C:32:A9:F6"
+        "97:AD:F3:D9:4A:18:98:29:A8:27:65:7C:67:D0:9F:03:13:E4:6E:17:7B:22:36:6F:52:B8:A1:BA:C5:DD:B7:5D",
+        "38:22:17:05:94:BF:35:B5:63:ED:1A:FC:4D:27:2D:6E:B3:06:97:1A:0C:C9:9D:30:97:A6:A3:55:AE:D8:AF:2E"
       ]
     }
   },
@@ -22,22 +22,8 @@
       "namespace" : "android_app",
       "package_name" : "me.bookk.android.dev",
       "sha256_cert_fingerprints" : [
-        "56:2F:9A:81:B3:1A:D3:2F:3B:10:AB:1C:D3:74:90:92:45:FD:02:E9:00:5B:76:16:67:E6:F5:8B:C6:DA:EC:2B",
-        "58:09:D8:9A:C8:B2:F5:91:E0:FE:3B:20:EF:5C:BA:19:BF:65:75:56:98:9D:01:AC:28:75:E8:C3:0C:32:A9:F6"
-      ]
-    }
-  },
-  {
-    "relation" : [
-      "delegate_permission/common.handle_all_urls",
-      "delegate_permission/common.get_login_creds"
-    ],
-    "target" : {
-      "namespace" : "android_app",
-      "package_name" : "me.bookk.android.stage",
-      "sha256_cert_fingerprints" : [
-        "56:2F:9A:81:B3:1A:D3:2F:3B:10:AB:1C:D3:74:90:92:45:FD:02:E9:00:5B:76:16:67:E6:F5:8B:C6:DA:EC:2B",
-        "58:09:D8:9A:C8:B2:F5:91:E0:FE:3B:20:EF:5C:BA:19:BF:65:75:56:98:9D:01:AC:28:75:E8:C3:0C:32:A9:F6"
+        "97:AD:F3:D9:4A:18:98:29:A8:27:65:7C:67:D0:9F:03:13:E4:6E:17:7B:22:36:6F:52:B8:A1:BA:C5:DD:B7:5D",
+        "38:22:17:05:94:BF:35:B5:63:ED:1A:FC:4D:27:2D:6E:B3:06:97:1A:0C:C9:9D:30:97:A6:A3:55:AE:D8:AF:2E"
       ]
     }
   }
