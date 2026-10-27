@@ -15,8 +15,8 @@ internal fun createRelyingParty(credentialRepository: CredentialRepository) = Re
     .credentialRepository(credentialRepository)
     .origins(
         setOf(
-            "android:apk-key-hash:Vi-agbMa0y87EKsc03SQkkX9AukAW3YWZ-b1i8ba7Cs",
-            "android:apk-key-hash:WAnYmsiy9ZHg_jsg71y6Gb9ldVaYnQGsKHXowwwyqfY",
+            "android:apk-key-hash:l63z2UoYmCmoJ2V8Z9CfAxPkbhd7IjZvUrihusXdt10",
+            "android:apk-key-hash:OCIXBZS_NbVj7Rr8TSctbrMGlxoMyZ0wl6ajVa7Yry4",
             "https://bookkme.app"
         )
     )
