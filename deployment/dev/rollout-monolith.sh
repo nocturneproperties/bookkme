@@ -1,4 +1,5 @@
 #!/usr/bin/env sh
+export NGINX_CONF=nginx-monolith.conf
 docker compose -f environment-compose.yml up -d
 cd ../..
 #Sometimes gradle daemon cannot resolve docker from ENV, daemon restart helps
