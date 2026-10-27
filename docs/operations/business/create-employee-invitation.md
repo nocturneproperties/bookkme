@@ -27,7 +27,7 @@ is nullable and cleared the moment an invitation leaves
 `PENDING` (redeemed, revoked, or expired — see [Join
 business](join-business.md), [Revoke employee
 invitation](revoke-employee-invitation.md) and the
-`expireEmployeeInvitations` job in [Scheduled (recurring)
+`business-expireEmployeeInvitations` job in [Scheduled (recurring)
 jobs](../scheduled-jobs.md)), so its unique index only ever has to stay
 collision-free across invitations that are still `PENDING`, not every
 invitation ever issued.
@@ -55,7 +55,7 @@ that window regardless of status
 (`EmployeeInvitationDataSource.countInvitationsCreatedSince`, backed by the
 composite `(business_id, createdAt)` index), so revoking returns no quota.
 Processed invitations are hard-deleted 30 days after their last update by the
-`deleteProcessedEmployeeInvitations` job in [Scheduled (recurring)
+`business-deleteProcessedEmployeeInvitations` job in [Scheduled (recurring)
 jobs](../scheduled-jobs.md), which keeps the table bounded; that retention is
 longer than the quota window, so the rows the quota counts are never deleted
 early.

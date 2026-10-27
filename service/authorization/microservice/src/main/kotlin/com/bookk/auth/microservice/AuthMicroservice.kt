@@ -60,10 +60,10 @@ fun main() {
 
 fun Application.registerAuthJobs(scheduler: SchedulerConfiguration) {
     val scope = requireNotNull(serviceScope(AuthScope))
-    scheduler.job("rotateSigningKeys", interval = 1.days) {
+    scheduler.job("$AUTH_SERVICE_NAME-rotateSigningKeys", interval = 1.days) {
         scope.get<RotateSigningKeys>().invoke(retireInterval = 7.days).getOrThrow()
     }
-    scheduler.job("deleteInactiveDevices", interval = 1.days) {
+    scheduler.job("$AUTH_SERVICE_NAME-deleteInactiveDevices", interval = 1.days) {
         scope.get<DeleteInactiveDevices>().invoke().getOrThrow()
     }
 }

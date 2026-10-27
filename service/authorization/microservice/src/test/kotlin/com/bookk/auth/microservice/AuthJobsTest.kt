@@ -47,8 +47,8 @@ internal class AuthJobsTest {
         then()
         assertEquals(
             mapOf(
-                "rotateSigningKeys" to 1.days,
-                "deleteInactiveDevices" to 1.days
+                "auth-rotateSigningKeys" to 1.days,
+                "auth-deleteInactiveDevices" to 1.days
             ),
             fixture.scheduler.registeredJobs()
         )
@@ -62,7 +62,7 @@ internal class AuthJobsTest {
         fixture.registerJobs(this)
 
         whenn()
-        fixture.scheduler.runJob("rotateSigningKeys")
+        fixture.scheduler.runJob("auth-rotateSigningKeys")
 
         then()
         coVerify(exactly = 1) { fixture.rotateSigningKeys.invoke(retireInterval = 7.days) }
@@ -77,7 +77,7 @@ internal class AuthJobsTest {
         fixture.registerJobs(this)
 
         whenn()
-        val result = runCatching { fixture.scheduler.runJob("rotateSigningKeys") }
+        val result = runCatching { fixture.scheduler.runJob("auth-rotateSigningKeys") }
 
         then()
         assertSame(error, result.exceptionOrNull())
@@ -91,7 +91,7 @@ internal class AuthJobsTest {
         fixture.registerJobs(this)
 
         whenn()
-        fixture.scheduler.runJob("deleteInactiveDevices")
+        fixture.scheduler.runJob("auth-deleteInactiveDevices")
 
         then()
         coVerify(exactly = 1) { fixture.deleteInactiveDevices.invoke() }
@@ -106,7 +106,7 @@ internal class AuthJobsTest {
         fixture.registerJobs(this)
 
         whenn()
-        val result = runCatching { fixture.scheduler.runJob("deleteInactiveDevices") }
+        val result = runCatching { fixture.scheduler.runJob("auth-deleteInactiveDevices") }
 
         then()
         assertSame(error, result.exceptionOrNull())

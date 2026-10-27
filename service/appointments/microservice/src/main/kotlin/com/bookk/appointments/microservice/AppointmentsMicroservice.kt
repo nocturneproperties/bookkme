@@ -66,10 +66,10 @@ fun main() {
 
 fun Application.registerAppointmentsJobs(scheduler: SchedulerConfiguration) {
     val scope = requireNotNull(serviceScope(AppointmentsScope))
-    scheduler.job("markAppointmentsAsCompleted", interval = 5.minutes) {
+    scheduler.job("$APPOINTMENTS_SERVICE_NAME-markAppointmentsAsCompleted", interval = 5.minutes) {
         scope.get<MarkAppointmentsCompleted>().invoke().getOrThrow()
     }
-    scheduler.job("deleteOutdatedRequests", interval = 1.hours) {
+    scheduler.job("$APPOINTMENTS_SERVICE_NAME-deleteOutdatedRequests", interval = 1.hours) {
         scope.get<DeleteOutdatedRequests>().invoke().getOrThrow()
     }
 }
