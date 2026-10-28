@@ -14,7 +14,7 @@ plugins {
 }
 
 group = "com.bookk.server"
-version = "0.15.10"
+version = "0.15.11"
 
 application {
     mainClass.set("com.bookk.server.MonolithServerKt")
@@ -49,6 +49,9 @@ dependencies {
     implementation(projects.service.notifications.microservice)
     implementation(projects.service.notifications.domain.impl)
     testImplementation(projects.library.signing.api)
+    testImplementation(projects.service.authorization.domain.api)
+    testImplementation(projects.service.business.domain.api)
+    testImplementation(projects.service.appointments.domain.api)
     testImplementation(testFixtures(projects.core))
     testImplementation(testFixtures(projects.core.service))
     testImplementation(testFixtures(projects.library.scheduler))

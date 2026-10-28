@@ -5,7 +5,7 @@
 Only a caller holding `EMPLOYEES.update` can revoke an invitation, and
 only while it is still `PENDING` — this lets an owner (or another
 authorized user) invalidate a shared invite code before it is redeemed (or
-before it expires on its own via the `expireEmployeeInvitations` scheduled
+before it expires on its own via the `business-expireEmployeeInvitations` scheduled
 job, see [Scheduled (recurring) jobs](../scheduled-jobs.md)). Revocation
 flips the invitation's status and clears its `code_hash` column (nullable,
 see [Invite employee](create-employee-invitation.md)) so the code is freed

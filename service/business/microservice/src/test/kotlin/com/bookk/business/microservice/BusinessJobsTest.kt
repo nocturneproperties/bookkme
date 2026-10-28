@@ -54,9 +54,9 @@ internal class BusinessJobsTest {
         assertEquals(
             mapOf(
                 "business-rotateSigningKeys" to 7.days,
-                "deleteDayOffsInThePast" to 1.days,
-                "expireEmployeeInvitations" to 1.days,
-                "deleteProcessedEmployeeInvitations" to 1.days
+                "business-deleteDayOffsInThePast" to 1.days,
+                "business-expireEmployeeInvitations" to 1.days,
+                "business-deleteProcessedEmployeeInvitations" to 1.days
             ),
             fixture.scheduler.registeredJobs()
         )
@@ -99,7 +99,7 @@ internal class BusinessJobsTest {
         fixture.registerJobs(this)
 
         whenn()
-        fixture.scheduler.runJob("deleteDayOffsInThePast")
+        fixture.scheduler.runJob("business-deleteDayOffsInThePast")
 
         then()
         coVerify(exactly = 1) { fixture.deleteDayOffsInThePast.invoke() }
@@ -114,7 +114,7 @@ internal class BusinessJobsTest {
         fixture.registerJobs(this)
 
         whenn()
-        val result = runCatching { fixture.scheduler.runJob("deleteDayOffsInThePast") }
+        val result = runCatching { fixture.scheduler.runJob("business-deleteDayOffsInThePast") }
 
         then()
         assertSame(error, result.exceptionOrNull())
@@ -128,7 +128,7 @@ internal class BusinessJobsTest {
         fixture.registerJobs(this)
 
         whenn()
-        fixture.scheduler.runJob("expireEmployeeInvitations")
+        fixture.scheduler.runJob("business-expireEmployeeInvitations")
 
         then()
         coVerify(exactly = 1) { fixture.expireEmployeeInvitations.invoke() }
@@ -143,7 +143,7 @@ internal class BusinessJobsTest {
         fixture.registerJobs(this)
 
         whenn()
-        val result = runCatching { fixture.scheduler.runJob("expireEmployeeInvitations") }
+        val result = runCatching { fixture.scheduler.runJob("business-expireEmployeeInvitations") }
 
         then()
         assertSame(error, result.exceptionOrNull())
@@ -157,7 +157,7 @@ internal class BusinessJobsTest {
         fixture.registerJobs(this)
 
         whenn()
-        fixture.scheduler.runJob("deleteProcessedEmployeeInvitations")
+        fixture.scheduler.runJob("business-deleteProcessedEmployeeInvitations")
 
         then()
         coVerify(exactly = 1) { fixture.deleteProcessedEmployeeInvitations.invoke() }
@@ -172,7 +172,7 @@ internal class BusinessJobsTest {
         fixture.registerJobs(this)
 
         whenn()
-        val result = runCatching { fixture.scheduler.runJob("deleteProcessedEmployeeInvitations") }
+        val result = runCatching { fixture.scheduler.runJob("business-deleteProcessedEmployeeInvitations") }
 
         then()
         assertSame(error, result.exceptionOrNull())
