@@ -1,9 +1,12 @@
 package com.bookk.server
 
+import com.bookk.appointments.domain.api.APPOINTMENTS_SERVICE_NAME
 import com.bookk.appointments.domain.impl.di.AppointmentsScope
 import com.bookk.appointments.microservice.registerAppointmentsJobs
+import com.bookk.auth.domain.api.AUTH_SERVICE_NAME
 import com.bookk.auth.domain.impl.di.AuthScope
 import com.bookk.auth.microservice.registerAuthJobs
+import com.bookk.business.domain.api.BUSINESS_SERVICE_NAME
 import com.bookk.business.domain.impl.di.BusinessScope
 import com.bookk.business.microservice.registerBusinessJobs
 import com.bookk.core.service.test.routeTest
@@ -21,6 +24,7 @@ import library.scheduler.test.registeredJobs
 import library.scheduler.test.runJob
 import library.signing.RotateSigningKeys
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 internal class MonolithJobsTest {
@@ -57,6 +61,26 @@ internal class MonolithJobsTest {
     }
 
     @Test
+    fun `should prefix every job name with the name of the service that registers it`() = routeTest {
+        given()
+        val fixture = SutFixture()
+        val application = fixture.start(this)
+
+        whenn()
+        val jobNamesByService = mapOf(
+            AUTH_SERVICE_NAME to application.jobsRegisteredBy { registerAuthJobs(it) }.keys,
+            BUSINESS_SERVICE_NAME to application.jobsRegisteredBy { registerBusinessJobs(it) }.keys,
+            APPOINTMENTS_SERVICE_NAME to application.jobsRegisteredBy { registerAppointmentsJobs(it) }.keys
+        )
+
+        then()
+        jobNamesByService.forEach { (serviceName, jobNames) ->
+            val unprefixedJobNames = jobNames.filterNot { it.startsWith("$serviceName-") }
+            assertTrue(unprefixedJobNames.isEmpty()) { "$serviceName jobs without the '$serviceName-' prefix: $unprefixedJobNames" }
+        }
+    }
+
+    @Test
     fun `should rotate auth signing keys through the auth scope only`() = routeTest {
         given()
         val fixture = SutFixture()
@@ -64,7 +88,7 @@ internal class MonolithJobsTest {
         fixture.start(this).registerMonolithJobs(fixture.scheduler)
 
         whenn()
-        fixture.scheduler.runJob("rotateSigningKeys")
+        fixture.scheduler.runJob("auth-rotateSigningKeys")
 
         then()
         coVerify(exactly = 1) { fixture.authRotateSigningKeys.invoke(any()) }

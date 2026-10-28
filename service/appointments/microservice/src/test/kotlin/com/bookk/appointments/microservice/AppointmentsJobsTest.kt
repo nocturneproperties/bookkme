@@ -48,8 +48,8 @@ internal class AppointmentsJobsTest {
         then()
         assertEquals(
             mapOf(
-                "markAppointmentsAsCompleted" to 5.minutes,
-                "deleteOutdatedRequests" to 1.hours
+                "appointments-markAppointmentsAsCompleted" to 5.minutes,
+                "appointments-deleteOutdatedRequests" to 1.hours
             ),
             fixture.scheduler.registeredJobs()
         )
@@ -63,7 +63,7 @@ internal class AppointmentsJobsTest {
         fixture.registerJobs(this)
 
         whenn()
-        fixture.scheduler.runJob("markAppointmentsAsCompleted")
+        fixture.scheduler.runJob("appointments-markAppointmentsAsCompleted")
 
         then()
         coVerify(exactly = 1) { fixture.markAppointmentsCompleted.invoke() }
@@ -78,7 +78,7 @@ internal class AppointmentsJobsTest {
         fixture.registerJobs(this)
 
         whenn()
-        val result = runCatching { fixture.scheduler.runJob("markAppointmentsAsCompleted") }
+        val result = runCatching { fixture.scheduler.runJob("appointments-markAppointmentsAsCompleted") }
 
         then()
         assertSame(error, result.exceptionOrNull())
@@ -92,7 +92,7 @@ internal class AppointmentsJobsTest {
         fixture.registerJobs(this)
 
         whenn()
-        fixture.scheduler.runJob("deleteOutdatedRequests")
+        fixture.scheduler.runJob("appointments-deleteOutdatedRequests")
 
         then()
         coVerify(exactly = 1) { fixture.deleteOutdatedRequests.invoke() }
@@ -107,7 +107,7 @@ internal class AppointmentsJobsTest {
         fixture.registerJobs(this)
 
         whenn()
-        val result = runCatching { fixture.scheduler.runJob("deleteOutdatedRequests") }
+        val result = runCatching { fixture.scheduler.runJob("appointments-deleteOutdatedRequests") }
 
         then()
         assertSame(error, result.exceptionOrNull())

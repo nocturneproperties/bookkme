@@ -1,0 +1,115 @@
+name: Mark Released Issues
+on:
+  workflow_run:
+    workflows: ["Publish monolith"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      release:
+        description: Release tag to mention in issue comments (e.g. monolith/0.15.9)
+        required: true
+        type: string
+
+jobs:
+  move-done-to-released:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-24.04
+    concurrency:
+      group: project-mark-released
+      cancel-in-progress: false
+    timeout-minutes: 10
+
+    permissions:
+      issues: write
+
+    defaults:
+      run:
+        shell: bash
+
+    env:
+      GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+      OWNER: nocturneproperties
+      PROJECT_NUMBER: 1
+      REPO: ${{ github.repository }}
+      FROM_STATUS: Done
+      TO_STATUS: Released
+      RELEASE_TAG: ${{ github.event.workflow_run.head_branch || inputs.release }}
+      RELEASE_RUN_URL: ${{ github.event.workflow_run.html_url }}
+
+    steps:
+      - name: Resolve project Status field
+        id: project
+        run: |
+          project_id=$(
+            gh project view "$PROJECT_NUMBER" --owner "$OWNER" --format json |
+              jq -r '.id'
+          )
+
+          status_field=$(
+            gh project field-list "$PROJECT_NUMBER" --owner "$OWNER" --format json |
+              jq '.fields[] | select(.name == "Status")'
+          )
+
+          field_id=$(jq -r '.id' <<< "$status_field")
+
+          option_id=$(
+            jq -r --arg name "$TO_STATUS" \
+              '.options[] | select(.name == $name) | .id' <<< "$status_field"
+          )
+
+          if [ -z "$option_id" ]; then
+            echo "::error::Status field has no '$TO_STATUS' option"
+            exit 1
+          fi
+
+          {
+            echo "project_id=$project_id"
+            echo "field_id=$field_id"
+            echo "option_id=$option_id"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Find issues in Done
+        run: |
+          gh project item-list "$PROJECT_NUMBER" --owner "$OWNER" --limit 1000 --format json |
+            jq -r --arg status "$FROM_STATUS" --arg repo "$REPO" '
+              .items[]
+              | select(.status == $status)
+              | select(.content.type == "Issue")
+              | select(.content.repository == $repo)
+              | [.id, .content.number, .content.title]
+              | @tsv
+            ' > issues.tsv
+
+          echo "Found $(wc -l < issues.tsv | tr -d ' ') issue(s) in '$FROM_STATUS'"
+
+      - name: Compose release comment
+        run: |
+          comment="🚀 Released in \`$RELEASE_TAG\`"
+
+          if [ -n "$RELEASE_RUN_URL" ]; then
+            comment+=" · [release build]($RELEASE_RUN_URL)"
+          fi
+
+          echo "$comment" > comment.md
+          cat comment.md
+
+      - name: Move issues to Released
+        env:
+          PROJECT_ID: ${{ steps.project.outputs.project_id }}
+          FIELD_ID: ${{ steps.project.outputs.field_id }}
+          OPTION_ID: ${{ steps.project.outputs.option_id }}
+          ISSUES_TOKEN: ${{ github.token }}
+        run: |
+          while IFS=$'\t' read -r item_id number title; do
+            echo "#$number $title → $TO_STATUS"
+
+            gh project item-edit \
+              --project-id "$PROJECT_ID" \
+              --id "$item_id" \
+              --field-id "$FIELD_ID" \
+              --single-select-option-id "$OPTION_ID"
+
+            GH_TOKEN="$ISSUES_TOKEN" gh issue comment "$number" \
+              --repo "$REPO" \
+              --body-file comment.md
+          done < issues.tsv

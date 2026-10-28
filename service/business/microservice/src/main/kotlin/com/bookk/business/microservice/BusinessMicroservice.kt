@@ -65,16 +65,16 @@ fun main() {
 
 fun Application.registerBusinessJobs(scheduler: SchedulerConfiguration) {
     val scope = requireNotNull(serviceScope(BusinessScope))
-    scheduler.job("business-rotateSigningKeys", interval = 7.days) {
+    scheduler.job("$BUSINESS_SERVICE_NAME-rotateSigningKeys", interval = 7.days) {
         scope.get<RotateSigningKeys>().invoke(retireInterval = 7.days).getOrThrow()
     }
-    scheduler.job("deleteDayOffsInThePast", interval = 1.days) {
+    scheduler.job("$BUSINESS_SERVICE_NAME-deleteDayOffsInThePast", interval = 1.days) {
         scope.get<DeleteDayOffsInThePast>().invoke().getOrThrow()
     }
-    scheduler.job("expireEmployeeInvitations", interval = 1.days) {
+    scheduler.job("$BUSINESS_SERVICE_NAME-expireEmployeeInvitations", interval = 1.days) {
         scope.get<ExpireEmployeeInvitations>().invoke().getOrThrow()
     }
-    scheduler.job("deleteProcessedEmployeeInvitations", interval = 1.days) {
+    scheduler.job("$BUSINESS_SERVICE_NAME-deleteProcessedEmployeeInvitations", interval = 1.days) {
         scope.get<DeleteProcessedEmployeeInvitations>().invoke().getOrThrow()
     }
 }

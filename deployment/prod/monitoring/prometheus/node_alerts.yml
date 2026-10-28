@@ -72,7 +72,7 @@ groups:
           description: "{{ $value }} container(s) of {{ $labels.container_label_com_docker_swarm_service_name }} started in the last 15 minutes and stopped again: a crash, an OOM kill or a failed deploy. Two deploys within 15 minutes also count the replaced one. See 'docker service ps --no-trunc {{ $labels.container_label_com_docker_swarm_service_name }}'."
 
       - alert: ContainerHighMemoryUsage
-        expr: (container_memory_usage_bytes{name!=""} / container_spec_memory_limit_bytes{name!=""} * 100) > 80 AND container_spec_memory_limit_bytes > 0
+        expr: (container_memory_working_set_bytes{name!=""} / container_spec_memory_limit_bytes{name!=""} * 100) > 80 and container_spec_memory_limit_bytes{name!=""} > 0
         for: 5m
         labels:
           severity: warning
