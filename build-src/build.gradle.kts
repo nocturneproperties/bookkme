@@ -21,6 +21,11 @@ dependencies {
 
 gradlePlugin {
     plugins {
+        register("kotlin") {
+            id = "com.bookk.kotlin"
+            implementationClass = "com.bookk.KotlinConventionPlugin"
+            version = "1.0"
+        }
         register("microservice") {
             id = "com.bookk.microservice"
             implementationClass = "com.bookk.MicroserviceConventionPlugin"

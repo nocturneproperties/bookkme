@@ -19,7 +19,7 @@ class DomainApiConventionPlugin : Plugin<Project> {
             }
 
             extensions.getByType<JavaPluginExtension>().applyConvention()
-            extensions.getByType<KotlinJvmProjectExtension>().applyConvention()
+            extensions.getByType<KotlinJvmProjectExtension>().applyConvention(target)
             target.tasks.withType(Test::class.java) {
                 useJUnitPlatform()
             }

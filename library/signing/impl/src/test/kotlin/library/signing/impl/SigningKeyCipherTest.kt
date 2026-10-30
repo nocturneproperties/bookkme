@@ -1,5 +1,3 @@
-@file:OptIn(kotlin.io.encoding.ExperimentalEncodingApi::class)
-
 package library.signing.impl
 
 import library.signing.impl.key.SigningKeyCipher

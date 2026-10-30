@@ -1,13 +1,10 @@
 package com.bookk.core
 
 import java.util.Locale.getDefault
-import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
-@OptIn(ExperimentalUuidApi::class)
 fun ByteArray.toUUID(): Uuid = Uuid.fromByteArray(this)
 
-@OptIn(ExperimentalUuidApi::class)
 fun String.toUUID(): Uuid = Uuid.parse(this)
 
 fun String.safeCapitalize(): String {

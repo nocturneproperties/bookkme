@@ -1,7 +1,7 @@
 import com.bookk.build_src.tools.libs
 
 plugins {
-    alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.bookk.kotlin)
     id(libs.plugins.kotlin.fixtures.get().pluginId)
 }
 

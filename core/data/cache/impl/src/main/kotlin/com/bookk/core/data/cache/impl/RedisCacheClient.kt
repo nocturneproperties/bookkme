@@ -2,7 +2,6 @@ package com.bookk.core.data.cache.impl
 
 import com.bookk.core.data.cache.CacheClient
 import com.bookk.core.data.cache.impl.codec.ProtobufRedisCodec
-import io.lettuce.core.ExperimentalLettuceCoroutinesApi
 import io.lettuce.core.RedisClient
 import io.lettuce.core.RedisURI
 import io.lettuce.core.ScriptOutputType
@@ -22,7 +21,6 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.toJavaDuration
 
-@OptIn(ExperimentalLettuceCoroutinesApi::class)
 class RedisCacheClient(
     host: String,
     port: Int,
