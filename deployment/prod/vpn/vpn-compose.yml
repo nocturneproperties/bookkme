@@ -70,7 +70,7 @@ services:
         constraints: [ node.role == manager ]
 
   dns:
-    image: strm/dnsmasq:latest
+    image: strm/dnsmasq:latest@sha256:dcf4c0aeb69ea6b9bca81314449d732ecd2ea021588d8a34d4be7c2304f89a39
     entrypoint: ["./entrypoint.sh"]
     configs:
       - source: dns-config

@@ -3,7 +3,8 @@
     "details": [
       {
         "appIDs": [
-          "HP9WP2QQG8.me.bookk.ios"
+          "HP9WP2QQG8.me.bookk.ios",
+          "HP9WP2QQG8.me.bookk.ios.dev"
         ],
         "paths": [
           "*"
@@ -18,7 +19,8 @@
   },
   "webcredentials": {
     "apps": [
-      "HP9WP2QQG8.me.bookk.ios"
+      "HP9WP2QQG8.me.bookk.ios",
+      "HP9WP2QQG8.me.bookk.ios.dev"
     ]
   }
 }

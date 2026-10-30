@@ -52,19 +52,25 @@ internal class MigrationMariaDbTest {
         val password = "$schemaName-password"
         val warnings = ListAppender<ILoggingEvent>()
 
-        fun grantOnlyOwnSchema(createSchema: Boolean) = asRoot {
+        fun grantOnlyOwnSchema(createSchema: Boolean, requireTls: Boolean = false) = asRoot {
             if (createSchema) execute("CREATE DATABASE `$schemaName`")
-            execute("CREATE USER '$username'@'%' IDENTIFIED BY '$password'")
+            execute("CREATE USER '$username'@'%' IDENTIFIED BY '$password'${if (requireTls) " REQUIRE SSL" else ""}")
             execute("GRANT ALL PRIVILEGES ON `$schemaName`.* TO '$username'@'%'")
         }
 
-        fun migrate(maxPoolSize: Int = DEFAULT_POOL_SIZE): Database = capturingWarnings {
+        fun grantOnlyOwnSchemaWithoutPassword() = asRoot {
+            execute("CREATE DATABASE `$schemaName`")
+            execute("CREATE USER '$username'@'%'")
+            execute("GRANT ALL PRIVILEGES ON `$schemaName`.* TO '$username'@'%'")
+        }
+
+        fun migrate(maxPoolSize: Int = DEFAULT_POOL_SIZE, dbPassword: String = password): Database = capturingWarnings {
             createDatabase(
                 schemaName = schemaName,
                 dbUrl = "mariadb://${container.host}",
                 dbPort = container.getMappedPort(PORT).toString(),
                 dbUsername = username,
-                dbPassword = password,
+                dbPassword = dbPassword,
                 maxPoolSize = maxPoolSize
             )
         }
@@ -123,6 +129,32 @@ internal class MigrationMariaDbTest {
 
         then()
         assertEquals(listOf("migration_marker"), database.tableNames())
+    }
+
+    @Test
+    fun `should migrate and connect over tls as a user that requires it`() = runIntegrationTest {
+        given()
+        val fixture = SutFixture(schemaName = "migration_tls")
+        fixture.grantOnlyOwnSchema(createSchema = true, requireTls = true)
+
+        whenn()
+        val database = fixture.migrate()
+
+        then()
+        assertTrue(database.sslCipher().isNotEmpty())
+    }
+
+    @Test
+    fun `should refuse a server certificate it cannot verify`() = runIntegrationTest {
+        given()
+        val fixture = SutFixture(schemaName = "migration_tls_unverifiable")
+        fixture.grantOnlyOwnSchemaWithoutPassword()
+
+        whenn()
+        val result = runCatching { fixture.migrate(dbPassword = "") }
+
+        then()
+        assertTrue(result.isFailure)
     }
 
     @Test
@@ -186,6 +218,13 @@ internal class MigrationMariaDbTest {
             result.next()
             result.getLong(1)
         } ?: error("CONNECTION_ID() returned no row")
+    }
+
+    private fun Database.sslCipher(): String = transaction(this) {
+        exec("SHOW SESSION STATUS LIKE 'Ssl_cipher'") { result ->
+            result.next()
+            result.getString(2)
+        } ?: error("Ssl_cipher returned no row")
     }
 
     private fun Database.tableNames(): List<String> = transaction(this) {
