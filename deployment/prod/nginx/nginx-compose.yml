@@ -30,7 +30,7 @@ configs:
     file: android_well_known.json
 
   ios_well_known:
-    name: ios_well_known-v4
+    name: ios_well_known-v5
     file: ios_well_known.json
 
 services:

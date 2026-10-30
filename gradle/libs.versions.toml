@@ -85,6 +85,7 @@ memcache = {module = "com.github.ben-manes.caffeine:caffeine", version.ref = "in
 icu4j = { module = "com.ibm.icu:icu4j", version.ref = "icu4j" }
 
 [plugins]
+bookk-kotlin = { id = "com.bookk.kotlin" }
 bookk-data = { id = "com.bookk.data" }
 bookk-domain-api = { id = "com.bookk.domain.api" }
 bookk-domain-impl = { id = "com.bookk.domain.impl" }

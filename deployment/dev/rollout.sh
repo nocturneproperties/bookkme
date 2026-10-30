@@ -2,7 +2,7 @@
 docker context use default || exit
 IMAGE_PLATFORM="linux/$(docker version --format '{{.Server.Arch}}')" || exit
 export NGINX_CONF=nginx.conf
-docker compose -f environment-compose.yml up -d
+docker compose --profile kafka -f environment-compose.yml up -d
 cd ../..
 #Sometimes gradle daemon cannot resolve docker from ENV, daemon restart helps
 ./gradlew --stop

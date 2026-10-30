@@ -1,6 +1,8 @@
 networks:
   operational:
     external: true
+  storage:
+    external: true
 
 volumes:
   database_volume:
@@ -21,7 +23,7 @@ secrets:
 
 configs:
   mariadb_encryption_config:
-    name: monolith-mariadb-encryption-v1
+    name: monolith-mariadb-encryption-v2
     file: ./db/my.cnf
   mariadb_tuning_config:
     name: monolith-mariadb-tuning-v2
@@ -55,7 +57,7 @@ services:
     command:
       - --init-file=/run/secrets/mariadb_users_init
     networks:
-      operational:
+      storage:
         aliases:
           - monolith.database
     environment:
@@ -106,7 +108,7 @@ services:
           memory: 3G
 
   redis:
-    image: valkey/valkey:8.1-alpine
+    image: valkey/valkey:8.1.11-alpine
     command:
       - valkey-server
       - --requirepass
@@ -127,7 +129,7 @@ services:
       - CONFIG
       - ""
     networks:
-      operational:
+      storage:
         aliases:
           - monolith.redis
     volumes:
@@ -155,10 +157,12 @@ services:
       - --mysqld.address=monolith.database:3306
       - --mysqld.username=exporter
       - --no-collect.slave_status
+      - --tls.insecure-skip-verify
     environment:
       MYSQLD_EXPORTER_PASSWORD: ${MONOLITH_DB_EXPORTER_PASSWORD}
     networks:
       - operational
+      - storage
     logging:
       options:
         max-size: 5m
@@ -177,6 +181,7 @@ services:
       REDIS_EXPORTER_CONFIG_COMMAND: "-"
     networks:
       - operational
+      - storage
     logging:
       options:
         max-size: 5m
@@ -198,6 +203,7 @@ services:
           - business.service
           - appointments.service
           - notifications.service
+      storage:
     env_file: monolith.env
     environment:
       APPLICATION_SERVICE_VERSION: ${APPLICATION_SERVICE_VERSION}

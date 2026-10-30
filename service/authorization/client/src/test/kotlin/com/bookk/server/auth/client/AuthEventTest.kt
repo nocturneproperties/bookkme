@@ -5,7 +5,6 @@ import com.bookk.core.test.given
 import com.bookk.core.test.runUnitTest
 import com.bookk.core.test.then
 import com.bookk.core.test.whenn
-import kotlinx.serialization.ExperimentalSerializationApi
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Test
@@ -56,7 +55,6 @@ internal class AuthEventTest {
         assertEquals(2, keys.size)
     }
 
-    @OptIn(ExperimentalSerializationApi::class)
     @Test
     fun `should keep the partition key out of the serialized form`() = runUnitTest {
         given()

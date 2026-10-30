@@ -10,6 +10,7 @@ swarm_networks:
   - operational
   - agent_network
   - monitoring
+  - storage
 
 swarm_secrets: "{{ vault_swarm_secrets }}"
 

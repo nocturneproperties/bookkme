@@ -24,7 +24,7 @@ class MicroserviceConventionPlugin : Plugin<Project> {
             }
 
             extensions.getByType<JavaPluginExtension>().applyConvention()
-            extensions.getByType<KotlinJvmProjectExtension>().applyConvention()
+            extensions.getByType<KotlinJvmProjectExtension>().applyConvention(target)
             extensions.getByType<KtorExtension>().applyConvention(target)
             target.tasks.withType(Test::class.java) {
                 useJUnitPlatform()
