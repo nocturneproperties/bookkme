@@ -13,7 +13,7 @@ erDiagram
         string name
         string last_name
         string email UK
-        string phone
+        string phone UK "nullable; blank stored as NULL"
         timestamp created_at
         timestamp updated_at
     }

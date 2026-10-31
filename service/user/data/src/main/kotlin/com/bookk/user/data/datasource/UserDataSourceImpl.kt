@@ -24,14 +24,15 @@ internal class UserDataSourceImpl(
 ) : DataSource(), UserDataSource {
 
     override suspend fun insertNewUser(user: User) = dbQuery {
+        val phoneOrNull = user.phone?.trim()?.ifBlank { null }
         UserTable.insertAndGetId {
             it[name] = user.name
             it[lastName] = user.lastName
             it[email] = user.email
-            it[phone] = user.phone
+            it[phone] = phoneOrNull
             it[updatedAt] = Clock.System.now()
         }.let {
-            user.copy(id = it.value)
+            user.copy(id = it.value, phone = phoneOrNull)
         }.also {
             runSuspendCatching { cacheClient.save(it) }
         }

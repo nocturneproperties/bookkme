@@ -254,7 +254,7 @@ internal class BusinessPermissionDataSourceImplTest {
         val employee = fixture.employee(Uuid.random())
         val client = suspendTransaction {
             fixture.employeeDataSource.setSuspendedAt(employee.id, Instant.fromEpochMilliseconds(1))
-            fixture.clientDataSource.createIntegratedClient(employee.businessId, Client.Integrated.stub(userId = employee.userId))
+            fixture.clientDataSource.getOrCreateIntegratedClient(employee.businessId, Client.Integrated.stub(userId = employee.userId))
         }
 
         whenn()
@@ -285,7 +285,7 @@ internal class BusinessPermissionDataSourceImplTest {
         val fixture = SutFixture()
         val userId = Uuid.random()
         val business = suspendTransaction { fixture.businessDataSource.createBusiness(Uuid.random(), "Salon", "USD", TimeZone.UTC) }
-        val client = suspendTransaction { fixture.clientDataSource.createIntegratedClient(business.id, Client.Integrated.stub(userId = userId)) }
+        val client = suspendTransaction { fixture.clientDataSource.getOrCreateIntegratedClient(business.id, Client.Integrated.stub(userId = userId)) }
 
         whenn()
         val viewer = suspendTransaction { fixture.sut.getViewer(userId, business.id) }
@@ -319,7 +319,7 @@ internal class BusinessPermissionDataSourceImplTest {
             fixture.sut.setPermissions(employedAt, mapOf(BusinessResource.CLIENTS to ResourcePermission.FULL))
             fixture.sut.setPermissions(suspendedAt, mapOf(BusinessResource.CLIENTS to ResourcePermission.FULL))
             fixture.employeeDataSource.setSuspendedAt(suspendedAt.id, Instant.fromEpochMilliseconds(1))
-            fixture.clientDataSource.createIntegratedClient(employedAt.businessId, Client.Integrated.stub(userId = userId))
+            fixture.clientDataSource.getOrCreateIntegratedClient(employedAt.businessId, Client.Integrated.stub(userId = userId))
         }
 
         whenn()

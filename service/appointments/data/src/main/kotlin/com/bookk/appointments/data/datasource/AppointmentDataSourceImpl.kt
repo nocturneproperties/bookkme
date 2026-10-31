@@ -224,4 +224,10 @@ internal class AppointmentDataSourceImpl : DataSource(), AppointmentDataSource {
             it[employeeName] = "Deleted User"
         }
     }
+
+    override suspend fun reassignClient(businessId: Uuid, fromClientId: Uuid, toClientId: Uuid) = dbQuery<Unit> {
+        AppointmentTable.update(where = { (AppointmentTable.businessId eq businessId) and (AppointmentTable.clientId eq fromClientId) }) {
+            it[clientId] = toClientId
+        }
+    }
 }

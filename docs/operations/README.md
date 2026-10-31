@@ -48,6 +48,7 @@ Reactions to cross-service events:
 | `BusinessEvent.Updated` | [React to business update](appointments/on-business-updated.md) |
 | `AuthEvent.UserDeleted` | [React to user deletion](appointments/on-user-deleted.md) |
 | `BusinessEvent.EmployeePermissionsChanged` | [React to an employee permissions change](appointments/on-employee-permissions-changed.md) |
+| `BusinessEvent.ClientMerged` | [React to a client merge](appointments/on-client-merged.md) |
 
 ## Authorization service
 
@@ -70,6 +71,7 @@ Reactions to cross-service events:
 | `PUT /api/business/{id}` | [Update business](business/update-business.md) |
 | `PUT /api/business/{id}/dashboard` | [Set dashboard business](business/set-dashboard-business.md) |
 | `POST /api/business/{businessId}/clients` | [Create client](business/create-client.md) |
+| `POST /api/business/{businessId}/clients/import` | [Import clients](business/import-clients.md) |
 | `DELETE /api/business/{businessId}/clients/{id}` | [Delete client](business/delete-client.md) |
 | `PUT /api/business/{businessId}/clients/{id}` | [Update client](business/update-client.md) |
 | `PUT /api/business/{businessId}/employee/{id}` | [Update employee](business/update-employee.md) |
@@ -83,6 +85,7 @@ Reactions to cross-service events:
 | `DELETE /api/business/{businessId}/service/{id}` | [Delete service](business/delete-service.md) |
 | `POST /api/business/{businessId}/service_group` | [Create service group](business/create-service-group.md) |
 | `DELETE /api/business/{businessId}/service_group/{id}` | [Delete service group](business/delete-service-group.md) |
+| `POST /api/internal/business/{id}/appointment-booking-context` | [Get appointment booking context (internal)](business/get-appointment-booking-context.md) |
 
 Reactions to cross-service events:
 
@@ -152,6 +155,7 @@ the operation committed, and reaches its consumers at least once. See
 | `BusinessEvent.Deleted` | [React to user deletion (business)](business/on-user-deleted.md) | [appointments](appointments/on-business-deleted.md) |
 | `BusinessEvent.EmployeeInvitationRedeemed` | [Join business](business/join-business.md) | [notifications](notifications/on-employee-invitation-redeemed.md) |
 | `BusinessEvent.EmployeePermissionsChanged` | [Join business](business/join-business.md), [Set employee permissions](business/set-employee-permissions.md), [Set employee suspension](business/set-employee-suspension.md) | [appointments](appointments/on-employee-permissions-changed.md) |
+| `BusinessEvent.ClientMerged` | [Get appointment booking context (internal)](business/get-appointment-booking-context.md), [React to user profile update (business)](business/on-user-updated.md) | [appointments](appointments/on-client-merged.md) |
 | `UserEvent.Updated` | [Update user](user/update-user.md) | [business](business/on-user-updated.md), [notifications](notifications/on-user-updated.md) |
 | `AppointmentEvent.RequestCreated` | [Create appointment request](appointments/create-appointment-request.md) | [notifications](notifications/on-appointment-request-created.md) |
 | `AppointmentEvent.RequestApproved` | [Create appointment from a pending request](appointments/create-appointment-from-request.md), [Create appointment request](appointments/create-appointment-request.md) (auto-approval) | [notifications](notifications/on-appointment-request-approved.md) |

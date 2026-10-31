@@ -1,20 +1,42 @@
 # Release notes
 
-## 0.15.12
+## 0.16.0
 
-Changes since `monolith/0.15.11`. A patch release: there are no API, wire-format or schema changes, so clients need no update.
+Changes since `monolith/0.15.11`. A minor release: a new route, new rejection rules and a schema change. Existing requests keep working, but some writes that used to succeed are now rejected (see **Changed**), so clients should handle the new errors.
+
+### Added
+
+- **Clients can be imported in bulk.** `POST /api/business/{businessId}/clients/import` creates up to 500 detached clients at once, for example from the phone book; a larger list goes in several requests. Valid entries are created, and the others come back in `rejected` with their position in the request and the error code a single create would return (`BUSINESS_CLIENT_NAME_VALIDATION_ERROR` 200005, `BUSINESS_CLIENT_MISSING_CONTACT_INFO` 200025, `BUSINESS_CLIENT_EXISTS` 200004). A request with more than 500 entries is rejected with `BUSINESS_CLIENT_IMPORT_TOO_LARGE` (200039). The body has no `userId`, so an import only creates detached clients.
+
+### Changed
+
+- **A phone or email belongs to at most one client per business.** Before, only the phone was checked, and only by a lookup, so two requests at the same time could both pass. Unique indexes now cover phone and email, across detached and integrated clients. Creating or updating a client with an email another client of the business already has is now rejected with `BUSINESS_CLIENT_EXISTS` (200004), whose message is now "Client with this phone or email already exists". Emails compare ignoring case.
+- **A business contact becomes the app user's client record.** A detached client is a placeholder until that person uses the app. On a user's first booking with a business, the detached client holding their email, or else their phone, is taken over: it keeps its id, its booking history and the business's notes, and gets the user's account and profile details. Any other detached client holding their phone or email is the same person twice: it is deleted and its appointments and requests move to the kept client (new event `BusinessEvent.ClientMerged`). A profile change to a phone or email that a detached client of the business already has is merged the same way. Phones and emails are not verified yet, so whoever puts a contact's phone or email in their profile takes that contact over.
+- **A business can only create detached clients.** `POST /api/business/{businessId}/clients` ignores `userId` in the body; before, a business could link a client to any account it named, with whatever name and contacts it typed. A client is linked to an app user only by that user's own first booking with the business. Creating a client never looks the phone or email up among app users, so it reveals nothing about who has an account.
+- **A phone belongs to at most one user.** Updating the profile with a phone or email another account already uses is rejected with the new `USER_CONTACT_TAKEN` (100002); a duplicate email used to fail with a 500. A blank phone now clears it.
 
 ### Deployment
 
 - **The database and the cache have their own network.** MariaDB and Valkey moved from `operational` to a new encrypted overlay, `storage`, which only the app, the two exporters and NocoDB join. Before, every container on `operational` could reach them, including nginx and the VPN stack, and needed only a password.
 - **The app connects to MariaDB over verified TLS.** Flyway and the connection pool connect with `sslMode=verify-full`. MariaDB 11.8 generates its own certificate, and the driver verifies it against the login password, so there are no certificates to manage. MariaDB now refuses unencrypted connections (`require_secure_transport`, config `monolith-mariadb-encryption-v2`), and `database-exporter` connects with `--tls.insecure-skip-verify`.
 
+- **Migrations.** Business `V16` turns blank client phones and emails into `NULL` and adds the unique indexes `client_business_id_phone_unique` and `client_business_id_email_unique`. User `V4` turns blank phones into `NULL`, trims the rest and adds `profile_phone_unique`. Both run when the monolith starts and fail on existing duplicates, which stops the deploy.
+- **Dev only:** IntelliJ no longer flags every opt-in after a Gradle sync. The build derived the opt-ins from built jars, which sync never produces, so the IDE imported none; it now reads them from the resolved dependency graph. Gradle builds are unchanged.
+
 ### Upgrade
 
-1. `make infra tags=swarm` creates the `storage` network. The monolith deploy fails until it exists.
-2. Deploy the monolith. The new config restarts the database once, so expect a few seconds without the database.
-3. `make infra tags=admin` moves NocoDB onto `storage`.
-4. In NocoDB, turn on SSL for each MariaDB source. Until then the admin panel can't read the database, since plaintext connections are refused.
+1. Before deploying, check for duplicates that would stop the migrations. Each query must return no rows:
+
+   ```sql
+   SELECT business_id, phone, COUNT(*) FROM business.client WHERE TRIM(phone) <> '' GROUP BY business_id, phone HAVING COUNT(*) > 1;
+   SELECT business_id, email, COUNT(*) FROM business.client WHERE TRIM(email) <> '' GROUP BY business_id, email HAVING COUNT(*) > 1;
+   SELECT TRIM(phone), COUNT(*) FROM user.profile WHERE TRIM(phone) <> '' GROUP BY TRIM(phone) HAVING COUNT(*) > 1;
+   ```
+
+2. `make infra tags=swarm` creates the `storage` network. The monolith deploy fails until it exists.
+3. Deploy the monolith. The new config restarts the database once, so expect a few seconds without the database. The migrations run as it starts.
+4. `make infra tags=admin` moves NocoDB onto `storage`.
+5. In NocoDB, turn on SSL for each MariaDB source. Until then the admin panel can't read the database, since plaintext connections are refused.
 
 ## 0.15.11
 

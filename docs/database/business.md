@@ -86,8 +86,8 @@ erDiagram
         uuid business_id FK
         string name
         string lastname
-        string phone "nullable"
-        string email "nullable; at least one of phone/email required on create"
+        string phone "nullable; UK with business_id"
+        string email "nullable; UK with business_id; at least one of phone/email required on create"
         uuid user_id "logical FK -> user.profile.id, nullable; UK with business_id"
         string description "nullable; business owner's notes about the client"
         timestamp source_updated_at

@@ -2,7 +2,8 @@ package com.bookk.build_src.convention
 
 import org.gradle.api.Project
 import org.gradle.api.artifacts.component.ModuleComponentIdentifier
-import org.gradle.api.artifacts.result.ResolvedArtifactResult
+import org.gradle.api.artifacts.result.ResolvedComponentResult
+import org.gradle.api.artifacts.result.ResolvedDependencyResult
 import org.jetbrains.kotlin.gradle.dsl.KotlinJvmProjectExtension
 
 private val stdlibOptInMarkers = listOf(
@@ -21,18 +22,30 @@ internal fun KotlinJvmProjectExtension.applyConvention(project: Project) {
     jvmToolchain(21)
     target.compilations.configureEach {
         val compileClasspath = project.configurations.named(compileDependencyConfigurationName)
-        val resolvedArtifacts = compileClasspath.flatMap { it.incoming.artifacts.resolvedArtifacts }
+        val dependencyGraph = compileClasspath.flatMap { it.incoming.resolutionResult.rootComponent }
         compileTaskProvider.configure {
             compilerOptions.optIn.addAll(stdlibOptInMarkers)
-            compilerOptions.optIn.addAll(resolvedArtifacts.map(::optInMarkersResolvableFrom))
+            compilerOptions.optIn.addAll(dependencyGraph.map(::optInMarkersResolvableFrom))
         }
     }
 }
 
-private fun optInMarkersResolvableFrom(artifacts: Set<ResolvedArtifactResult>): List<String> {
-    val modules = artifacts
-        .mapNotNull { it.id.componentIdentifier as? ModuleComponentIdentifier }
+private fun optInMarkersResolvableFrom(root: ResolvedComponentResult): List<String> {
+    val modules = modulesReachableFrom(root)
         .map { "${it.group}:${it.module.removeSuffix("-jvm")}" }
         .toSet()
     return libraryOptInMarkers.filterKeys(modules::contains).values.toList()
+}
+
+private fun modulesReachableFrom(root: ResolvedComponentResult): Set<ModuleComponentIdentifier> {
+    val visited = mutableSetOf(root)
+    val pending = ArrayDeque(listOf(root))
+    while (pending.isNotEmpty()) {
+        pending.removeFirst().dependencies
+            .filterIsInstance<ResolvedDependencyResult>()
+            .map { it.selected }
+            .filter(visited::add)
+            .forEach(pending::addLast)
+    }
+    return visited.mapNotNull { it.id as? ModuleComponentIdentifier }.toSet()
 }

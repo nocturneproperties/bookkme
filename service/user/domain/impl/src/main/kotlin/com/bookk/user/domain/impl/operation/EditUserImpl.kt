@@ -3,6 +3,7 @@ package com.bookk.user.domain.impl.operation
 import com.bookk.core.data.eventstreaming.StandardEventProducer
 import com.bookk.core.data.eventstreaming.send
 import com.bookk.core.domain.datasource.transaction.TransactionManager
+import com.bookk.core.domain.entity.onConstraintFailure
 import com.bookk.server.user.client.api.event.UserEvent
 import com.bookk.user.domain.api.entity.UserEditModel
 import com.bookk.user.domain.api.operation.EditUser
@@ -29,5 +30,5 @@ internal class EditUserImpl(
                 updatedAt = updatedAt
             )
         )
-    }
+    }.onConstraintFailure { throw Error.ContactTaken() }
 }

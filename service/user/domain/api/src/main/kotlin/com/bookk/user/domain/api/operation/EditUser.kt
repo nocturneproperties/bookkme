@@ -15,5 +15,11 @@ interface EditUser {
             code = UserErrorCodes.USER_NOT_EXIST,
             message = "User not found"
         ), Error
+
+        class ContactTaken : BusinessError(
+            statusCode = HttpStatusCode.UnprocessableEntity.value,
+            code = UserErrorCodes.USER_CONTACT_TAKEN,
+            message = "Phone or email is already used by another account"
+        ), Error
     }
 }
