@@ -466,4 +466,29 @@ internal class AppointmentRequestDataSourceImplTest {
         assertEquals(AppointmentRequestStatus.DECLINED, declined.status)
         assertEquals(AppointmentRequestStatus.DECLINED, suspendTransaction { fixture.sut.get(created.id) }?.status)
     }
+
+    @Test
+    fun `should move the merged client's requests in the business to the remaining client`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val otherBusiness = BusinessSnapshot.stub()
+        suspendTransaction { fixture.subscriptionSut.attachBusiness(otherBusiness) }
+        val fromClientId = Uuid.random()
+        val toClientId = Uuid.random()
+        val request = fixture.buildRequest()
+        val merged = suspendTransaction { fixture.sut.create(request.copy(client = request.client.copy(id = fromClientId))) }
+        val unrelated = suspendTransaction { fixture.sut.create(fixture.buildRequest()) }
+        val inOtherBusiness = suspendTransaction {
+            fixture.sut.create(fixture.buildRequest().copy(businessId = otherBusiness.id, client = request.client.copy(id = fromClientId)))
+        }
+
+        whenn()
+        suspendTransaction { fixture.sut.reassignClient(fixture.businessId, fromClientId, toClientId) }
+
+        then()
+        assertEquals(toClientId, suspendTransaction { fixture.sut.get(merged.id) }?.client?.id)
+        assertEquals(unrelated.client.id, suspendTransaction { fixture.sut.get(unrelated.id) }?.client?.id)
+        assertEquals(fromClientId, suspendTransaction { fixture.sut.get(inOtherBusiness.id) }?.client?.id)
+    }
 }

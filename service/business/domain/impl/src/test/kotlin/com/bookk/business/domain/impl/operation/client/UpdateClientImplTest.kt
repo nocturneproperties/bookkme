@@ -62,7 +62,6 @@ internal class UpdateClientImplTest {
         with(fixture) {
             transactionManager.mockTransaction()
             coEvery { clientDataSource.getClientById(businessId, clientId) } returns existing
-            coEvery { clientDataSource.getClient(businessId, requested.phone!!) } returns null
             coEvery { clientDataSource.updateClient(businessId, requested) } returns updated
         }
 
@@ -248,17 +247,35 @@ internal class UpdateClientImplTest {
     }
 
     @Test
-    fun `should return error when updated phone belongs to a different client`() = runUnitTest {
+    fun `should allow keeping the client's own email unchanged`() = runUnitTest {
         given()
         val fixture = SutFixture()
         val existing = Client.Detached.stub(id = clientId)
-        val conflictingPhone = "654321"
-        val other = Client.Detached.stub(phone = conflictingPhone)
-        val requested = updateModel(phone = conflictingPhone)
+        val requested = updateModel(email = existing.email, description = "notes")
         with(fixture) {
             transactionManager.mockTransaction()
             coEvery { clientDataSource.getClientById(businessId, clientId) } returns existing
-            coEvery { clientDataSource.getClient(businessId, conflictingPhone) } returns other
+            coEvery { clientDataSource.updateClient(businessId, requested) } returns existing.copy(description = "notes")
+        }
+
+        whenn()
+        val result = fixture.sut(requestUserId, businessId, requested)
+
+        then()
+        assertTrue(result.isSuccess)
+    }
+
+    @Test
+    fun `should return error when the phone or email belongs to a different client`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val existing = Client.Detached.stub(id = clientId)
+        val requested = updateModel(email = "new@client.com")
+        with(fixture) {
+            transactionManager.mockTransaction()
+            coEvery { clientDataSource.getClientById(businessId, clientId) } returns existing
+            coEvery { clientDataSource.updateClient(businessId, requested) } throws
+                Error.UniqueConstraintFailed("duplicate", IllegalStateException())
         }
 
         whenn()
@@ -266,7 +283,6 @@ internal class UpdateClientImplTest {
 
         then()
         assertTrue(result.exceptionOrNull() is UpdateClient.Error.ClientExist)
-        coVerify(exactly = 0) { fixture.clientDataSource.updateClient(any(), any()) }
     }
 
     @Test
@@ -279,7 +295,6 @@ internal class UpdateClientImplTest {
         with(fixture) {
             transactionManager.mockTransaction()
             coEvery { clientDataSource.getClientById(businessId, clientId) } returns existing
-            coEvery { clientDataSource.getClient(businessId, existing.phone!!) } returns existing
             coEvery { clientDataSource.updateClient(businessId, requested) } returns updated
         }
 

@@ -9,7 +9,10 @@ import com.bookk.business.domain.datasource.ClientDataSource
 import com.bookk.business.domain.datasource.EmployeeDataSource
 import com.bookk.business.domain.datasource.ServiceDataSource
 import com.bookk.business.domain.impl.operation.getServicesExpanded
+import com.bookk.core.data.eventstreaming.StandardEventProducer
+import com.bookk.core.data.eventstreaming.send
 import com.bookk.core.domain.datasource.transaction.TransactionManager
+import com.bookk.server.business.client.api.event.BusinessEvent
 import com.bookk.server.user.client.UserClient
 import kotlin.uuid.Uuid
 
@@ -18,7 +21,8 @@ internal class GetAppointmentBookingContextImpl(
     private val clientDataSource: ClientDataSource,
     private val serviceDataSource: ServiceDataSource,
     private val userClient: UserClient,
-    private val transactionManager: TransactionManager
+    private val transactionManager: TransactionManager,
+    private val eventProducer: StandardEventProducer
 ) : GetAppointmentBookingContext {
     override suspend fun invoke(
         businessId: Uuid,
@@ -39,16 +43,29 @@ internal class GetAppointmentBookingContextImpl(
 
     private suspend fun createAndAttachClientToBusiness(businessId: Uuid, userId: Uuid): Client {
         val personalInformation = userClient.getUserById(userId).getOrThrow()
-        return clientDataSource.getOrCreateIntegratedClient(
-            businessId,
-            Client.Integrated(
-                id = Uuid.random(),
-                name = personalInformation.name,
-                lastName = personalInformation.lastName,
-                phone = personalInformation.phone,
-                email = personalInformation.email,
-                userId = userId
-            )
+        val profile = Client.Integrated(
+            id = Uuid.random(),
+            name = personalInformation.name,
+            lastName = personalInformation.lastName,
+            phone = personalInformation.phone,
+            email = personalInformation.email,
+            userId = userId
         )
+        val sameContactClients = clientDataSource.getClientsByContacts(
+            businessId,
+            phones = listOfNotNull(profile.phone),
+            emails = listOf(personalInformation.email)
+        )
+            .filterIsInstance<Client.Detached>()
+            .sortedByDescending { it.email.equals(personalInformation.email, ignoreCase = true) }
+        val replaced = sameContactClients.firstOrNull()
+            ?: return clientDataSource.getOrCreateIntegratedClient(businessId, profile)
+
+        sameContactClients.drop(1).forEach { duplicate ->
+            clientDataSource.deleteClient(businessId, duplicate.id)
+            eventProducer.send(BusinessEvent.ClientMerged(businessId, fromClientId = duplicate.id, toClientId = replaced.id))
+        }
+        return clientDataSource.takeOverClient(businessId, replaced.id, profile)
+            ?: clientDataSource.getOrCreateIntegratedClient(businessId, profile)
     }
 }

@@ -45,12 +45,14 @@ services:
         limits:
           memory: 50M
   kafka-volume-init:
-    image: busybox
+    profiles: [kafka]
+    image: busybox:1.37.0
     user: root
     command: sh -c "chown -R 1000:1000 /var/lib/kafka/data"
     volumes:
       - kafka_volume:/var/lib/kafka/data
   kafka:
+    profiles: [kafka]
     image: apache/kafka-native:4.2.1
     hostname: kafka_local
     depends_on:
@@ -84,7 +86,8 @@ services:
       KAFKA_HEAP_OPTS: "-Xmx256M -Xms128M"
 
   kafka-ui:
-    image: provectuslabs/kafka-ui:latest
+    profiles: [kafka]
+    image: provectuslabs/kafka-ui:v0.7.2
     depends_on:
       - kafka
     ports:
@@ -95,7 +98,7 @@ services:
       KAFKA_CLUSTERS_0_NAME: "R6YjCd49YUUaN6hC4tFH4Ljy"
 
   redis:
-    image: valkey/valkey:8.1-alpine
+    image: valkey/valkey:8.1.11-alpine
     hostname: redis_local
     command:
       - valkey-server

@@ -9,6 +9,7 @@ import com.bookk.business.domain.api.client.operation.UpdateClient
 import com.bookk.business.domain.datasource.BusinessPermissionDataSource
 import com.bookk.business.domain.datasource.ClientDataSource
 import com.bookk.core.domain.datasource.transaction.TransactionManager
+import com.bookk.core.domain.entity.onConstraintFailure
 import library.permissions.PermissionAction
 import library.permissions.assert
 import library.validation.EmailValidator
@@ -38,19 +39,17 @@ internal class UpdateClientImpl(
             }
 
             val name = model.name?.also { name ->
-                if (!NameValidator.isValid(name, minLength = 0, maxLength = MAX_NAME_LENGTH)) {
+                if (!NameValidator.isValid(name, minLength = 0, maxLength = MAX_CLIENT_NAME_LENGTH)) {
                     throw UpdateClient.Error.ClientValidationError()
                 }
             }
             val lastName = model.lastName?.also { lastName ->
-                if (!NameValidator.isValid(lastName, minLength = 0, maxLength = MAX_NAME_LENGTH)) {
+                if (!NameValidator.isValid(lastName, minLength = 0, maxLength = MAX_CLIENT_NAME_LENGTH)) {
                     throw UpdateClient.Error.ClientValidationError()
                 }
             }
             val phone = model.phone?.takeIf { it.isNotBlank() }?.also { phone ->
                 if (!PhoneValidator.isValid(phone)) throw UpdateClient.Error.ClientValidationError()
-                val conflict = clientDataSource.getClient(businessId, phone)
-                if (conflict != null && conflict.id != model.id) throw UpdateClient.Error.ClientExist()
             }
             val email = model.email?.takeIf { it.isNotBlank() }?.also { email ->
                 if (!EmailValidator.isValid(email)) throw UpdateClient.Error.ClientValidationError()
@@ -65,9 +64,5 @@ internal class UpdateClientImpl(
             )
 
             (clientDataSource.updateClient(businessId, trimmedModel) ?: throw UpdateClient.Error.NotFound()).toRemote()
-        }
-
-    companion object {
-        const val MAX_NAME_LENGTH = 512
-    }
+        }.onConstraintFailure { throw UpdateClient.Error.ClientExist() }
 }

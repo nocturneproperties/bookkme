@@ -84,7 +84,7 @@ services:
 
   kafka-ui:
     <<: *replicated
-    image: provectuslabs/kafka-ui:latest
+    image: provectuslabs/kafka-ui:v0.7.2
     networks:
       operational:
         aliases:

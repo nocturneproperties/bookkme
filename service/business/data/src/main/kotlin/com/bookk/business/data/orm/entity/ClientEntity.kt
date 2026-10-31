@@ -14,7 +14,7 @@ internal class ClientEntity(id: EntityID<Uuid>) : UuidEntity(id) {
     var lastName by ClientTable.lastName
     var phone by ClientTable.phone
     var email by ClientTable.email
-    val userId by ClientTable.userId
+    var userId by ClientTable.userId
     var description by ClientTable.description
 
     companion object : DecoratorUuidEntityClass<ClientEntity>(ClientTable) {
@@ -28,6 +28,17 @@ internal class ClientEntity(id: EntityID<Uuid>) : UuidEntity(id) {
                     model.description?.let { description -> it.description = description }
                 }
             }?.takeIf { it.businessId.value == businessId }
+
+        fun takeOver(businessId: Uuid, detachedClientId: Uuid, profile: Client.Integrated): ClientEntity? =
+            findById(detachedClientId)
+                ?.takeIf { it.businessId.value == businessId && it.userId == null }
+                ?.apply {
+                    userId = profile.userId
+                    name = profile.name.trim()
+                    lastName = profile.lastName.trim()
+                    profile.phone?.let { phone = it.trim() }
+                    profile.email?.let { email = it.trim() }
+                }
     }
 
     fun toDomain(): Client {

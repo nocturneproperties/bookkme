@@ -32,7 +32,7 @@ class UserEntity(id: EntityID<Uuid>) : UuidEntity(id) {
                 model.firstName?.let { firstName -> it.name = firstName }
                 model.lastName?.let { lastName -> it.lastName = lastName }
                 model.email?.let { email -> it.email = email }
-                model.phone?.let { phone -> it.phone = phone }
+                model.phone?.let { phone -> it.phone = phone.trim().ifBlank { null } }
                 it.updatedAt = updatedAt
             }
     }

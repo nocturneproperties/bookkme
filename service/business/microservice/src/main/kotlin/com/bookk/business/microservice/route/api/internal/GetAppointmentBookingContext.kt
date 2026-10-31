@@ -14,12 +14,13 @@ import io.ktor.server.routing.application
 internal fun Route.getAppointmentBookingContext() {
     /**
      * Summary: Get appointment booking context
-     * Description: Resolve the employee, services and the calling user's client record for a booking, creating an integrated client from the user's profile on their first booking with this business. Used by other services to build a verified appointment snapshot
+     * Description: Resolve the employee, services and the calling user's client record for a booking, attaching the user as an integrated client on their first booking with this business, by taking over a detached client holding their email or phone (other detached duplicates are merged into it) or creating one from their profile. Used by other services to build a verified appointment snapshot
      * Tag: internal
      * Body: application/x-protobuf [com.bookk.business.domain.api.appointment.entity.AppointmentBookingContextRequest]
      * Response: 200 application/x-protobuf [com.bookk.business.domain.api.appointment.entity.AppointmentBookingContext] Resolved employee, client and services
      * Response: 404 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Get appointment booking context errors<br>BUSINESS_EMPLOYEE_NOT_EXISTS (200024) Employee with this id is missing
      * Response: 422 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Get appointment booking context errors<br>BUSINESS_QUOTE_SERVICE_NOT_FOUND (200013) One or more services not found<br>BUSINESS_QUOTE_EMPTY_SERVICE_LIST (200014) Service list must not be empty<br>BUSINESS_EMPLOYEE_SUSPENDED (200033) Employee is suspended and cannot be booked
+     * See: docs/operations/business/get-appointment-booking-context.md
      */
     post<Api.Internal.Business.Id.AppointmentBookingContext> { resource ->
         val body = call.receive<AppointmentBookingContextRequest>()

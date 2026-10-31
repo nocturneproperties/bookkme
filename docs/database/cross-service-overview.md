@@ -20,7 +20,7 @@ erDiagram
     BUSINESS ||--|| BUSINESS_HAS_APPOINTMENTS : "id (replicated via events)"
     EMPLOYEE ||--o{ APPOINTMENT : "employee_id"
     PROFILE ||--o{ APPOINTMENT : "employee_user_id"
-    CLIENT ||--o{ APPOINTMENT : "client_id"
+    CLIENT ||--o{ APPOINTMENT : "client_id, moved by BusinessEvent.ClientMerged"
     SERVICE ||--o{ APPOINTMENT_SERVICES : "service_id"
     SERVICE_GROUP ||--o{ APPOINTMENT_SERVICES : "service_group_id"
     SERVICE ||--o{ APPOINTMENT_PRICE_ADJUSTMENT_SERVICES : "service_id"

@@ -1,7 +1,9 @@
 package com.bookk.user.data.datasource
 
 import com.bookk.core.data.cache.test.InMemoryCacheClient
+import com.bookk.core.data.map.toDomain
 import com.bookk.core.data.test.createTestDatabase
+import com.bookk.core.domain.entity.Error
 import com.bookk.core.test.given
 import com.bookk.core.test.runUnitTest
 import com.bookk.core.test.then
@@ -13,6 +15,7 @@ import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import kotlin.time.Clock
 import kotlin.uuid.Uuid
@@ -136,6 +139,72 @@ internal class UserDataSourceImplTest {
         then()
         assertEquals("+19999999999", updated!!.phone)
         assertEquals("Alice", updated.name)
+    }
+
+    @Test
+    fun `should store a blank phone as null on insert`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+
+        whenn()
+        val created = suspendTransaction { fixture.sut.insertNewUser(User.stub(phone = " ")) }
+
+        then()
+        val found = suspendTransaction { fixture.sut.getUserById(created.id) }
+        assertNull(found!!.phone)
+    }
+
+    @Test
+    fun `should clear the phone when a blank one is supplied`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val created = suspendTransaction { fixture.sut.insertNewUser(User.stub(phone = "+19999999999")) }
+
+        whenn()
+        val updated = suspendTransaction {
+            fixture.sut.updateUser(created.id, UserEditModel(id = null, firstName = null, lastName = null, email = null, phone = "  "), Clock.System.now())
+        }
+
+        then()
+        assertNull(updated!!.phone)
+    }
+
+    @Test
+    fun `should allow several users without a phone after clearing it`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val first = suspendTransaction { fixture.sut.insertNewUser(User.stub(email = "first@example.com", phone = "+11111111111")) }
+        val second = suspendTransaction { fixture.sut.insertNewUser(User.stub(email = "second@example.com", phone = "+12222222222")) }
+        val clearPhone = UserEditModel(id = null, firstName = null, lastName = null, email = null, phone = "")
+
+        whenn()
+        val result = runCatching {
+            suspendTransaction {
+                fixture.sut.updateUser(first.id, clearPhone, Clock.System.now())
+                fixture.sut.updateUser(second.id, clearPhone, Clock.System.now())
+            }
+        }
+
+        then()
+        assertTrue(result.isSuccess)
+    }
+
+    @Test
+    fun `should reject a phone already used by another user`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        suspendTransaction { fixture.sut.insertNewUser(User.stub(email = "owner@example.com", phone = "+19999999999")) }
+        val other = suspendTransaction { fixture.sut.insertNewUser(User.stub(email = "other@example.com")) }
+
+        whenn()
+        val result = runCatching {
+            suspendTransaction {
+                fixture.sut.updateUser(other.id, UserEditModel(id = null, firstName = null, lastName = null, email = null, phone = "+19999999999"), Clock.System.now())
+            }
+        }
+
+        then()
+        assertTrue(result.exceptionOrNull()?.toDomain() is Error.UniqueConstraintFailed)
     }
 
     @Test

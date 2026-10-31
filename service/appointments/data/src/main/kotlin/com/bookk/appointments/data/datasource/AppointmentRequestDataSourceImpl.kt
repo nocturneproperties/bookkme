@@ -141,4 +141,10 @@ internal class AppointmentRequestDataSourceImpl(
     override suspend fun releaseOfferToken(token: String) = mapExceptions {
         cacheClient.delete(token)
     }
+
+    override suspend fun reassignClient(businessId: Uuid, fromClientId: Uuid, toClientId: Uuid) = dbQuery<Unit> {
+        AppointmentRequestTable.update(where = { (AppointmentRequestTable.businessId eq businessId) and (AppointmentRequestTable.clientId eq fromClientId) }) {
+            it[clientId] = toClientId
+        }
+    }
 }

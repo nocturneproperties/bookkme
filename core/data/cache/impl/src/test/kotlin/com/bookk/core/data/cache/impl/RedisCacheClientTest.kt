@@ -30,7 +30,7 @@ internal class RedisCacheClientTest {
     companion object {
         private const val PASSWORD = "test-password"
 
-        private val container = GenericContainer(DockerImageName.parse("valkey/valkey:8.1-alpine"))
+        private val container = GenericContainer(DockerImageName.parse("valkey/valkey:8.1.11-alpine"))
             .withCommand("valkey-server", "--requirepass", PASSWORD)
             .withExposedPorts(6379)
 

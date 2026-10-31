@@ -3,6 +3,7 @@ package com.bookk.user.domain.impl.operation
 import com.bookk.core.data.eventstreaming.StandardEventProducer
 import com.bookk.core.domain.datasource.transaction.TransactionManager
 import com.bookk.core.domain.datasource.transaction.mockTransaction
+import com.bookk.core.domain.entity.Error
 import com.bookk.core.test.given
 import com.bookk.core.test.runUnitTest
 import com.bookk.core.test.then
@@ -70,6 +71,25 @@ internal class EditUserImplTest {
         then()
         assertTrue(result.isFailure)
         assertTrue(result.exceptionOrNull() is EditUser.Error.UserNotFound)
+    }
+
+    @Test
+    fun `should return ContactTaken when another user already has the phone or email`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val editModel = editModel(phone = "+10000000000")
+        with(fixture) {
+            transactionManager.mockTransaction()
+            coEvery { userDataSource.updateUser(userId, editModel, any()) } throws
+                Error.UniqueConstraintFailed("duplicate", IllegalStateException())
+        }
+
+        whenn()
+        val result = fixture.sut.invoke(userId, editModel)
+
+        then()
+        assertTrue(result.exceptionOrNull() is EditUser.Error.ContactTaken)
+        coVerify(exactly = 0) { fixture.eventProducer.send(any<UserEvent.Updated>(), any()) }
     }
 
     @Test

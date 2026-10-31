@@ -7,7 +7,6 @@ import com.bookk.core.test.then
 import com.bookk.core.test.whenn
 import com.bookk.server.business.client.api.BusinessDTO
 import kotlinx.datetime.TimeZone
-import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.protobuf.ProtoBuf
 import library.schedule.Schedule
@@ -91,7 +90,6 @@ internal class BusinessEventTest {
         assertEquals(2, keys.size)
     }
 
-    @OptIn(ExperimentalSerializationApi::class)
     @Test
     fun `should keep the partition key out of the serialized form`() = runUnitTest {
         given()
@@ -105,7 +103,6 @@ internal class BusinessEventTest {
         assertEquals(listOf("business", "updatedAt", "idempotencyKey", "topic"), serializedFields)
     }
 
-    @OptIn(ExperimentalSerializationApi::class)
     @Test
     fun `should decode an employee permissions changed event produced before the suspended flag existed as not suspended`() = runUnitTest {
         given()
@@ -123,7 +120,6 @@ internal class BusinessEventTest {
         assertEquals(BusinessEvent.EmployeePermissionsChanged.TOPIC, decoded.topic)
     }
 
-    @OptIn(ExperimentalSerializationApi::class)
     @Test
     fun `should let a consumer without the suspended flag decode a new employee permissions changed event`() = runUnitTest {
         given()
@@ -138,7 +134,6 @@ internal class BusinessEventTest {
         assertEquals(BusinessEvent.EmployeePermissionsChanged.TOPIC, decoded.topic)
     }
 
-    @OptIn(ExperimentalSerializationApi::class)
     @Test
     fun `should round trip the suspended flag`() = runUnitTest {
         given()
@@ -152,5 +147,33 @@ internal class BusinessEventTest {
 
         then()
         assertEquals(event, decoded)
+    }
+
+    @Test
+    fun `should key the client merged event by business id`() = runUnitTest {
+        given()
+        val event = BusinessEvent.ClientMerged(businessId, fromClientId = Uuid.random(), toClientId = Uuid.random())
+
+        whenn()
+        val partitionKey = event.partitionKey
+
+        then()
+        assertEquals(businessId.toString(), partitionKey)
+    }
+
+    @Test
+    fun `should round trip the client merged event through protobuf`() = runUnitTest {
+        given()
+        val event = BusinessEvent.ClientMerged(businessId, fromClientId = Uuid.random(), toClientId = Uuid.random())
+
+        whenn()
+        val decoded = protoBuf.decodeFromByteArray(
+            BusinessEvent.ClientMerged.serializer(),
+            protoBuf.encodeToByteArray(BusinessEvent.ClientMerged.serializer(), event)
+        )
+
+        then()
+        assertEquals(event, decoded)
+        assertEquals(BusinessEvent.ClientMerged.TOPIC, decoded.topic)
     }
 }

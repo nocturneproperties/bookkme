@@ -18,6 +18,7 @@ import com.bookk.business.domain.api.client.operation.CreateClient
 import com.bookk.business.domain.api.client.operation.DeleteClient
 import com.bookk.business.domain.api.client.operation.GetClientBusinessIds
 import com.bookk.business.domain.api.client.operation.GetClients
+import com.bookk.business.domain.api.client.operation.ImportClients
 import com.bookk.business.domain.api.client.operation.UpdateClient
 import com.bookk.business.domain.api.employee.operation.CreateEmployeeInvitation
 import com.bookk.business.domain.api.employee.operation.DeleteProcessedEmployeeInvitations
@@ -57,6 +58,7 @@ import com.bookk.business.domain.impl.operation.client.CreateClientImpl
 import com.bookk.business.domain.impl.operation.client.DeleteClientImpl
 import com.bookk.business.domain.impl.operation.client.GetClientBusinessIdsImpl
 import com.bookk.business.domain.impl.operation.client.GetClientsImpl
+import com.bookk.business.domain.impl.operation.client.ImportClientsImpl
 import com.bookk.business.domain.impl.operation.client.UpdateClientImpl
 import com.bookk.business.domain.impl.operation.employee.CreateEmployeeInvitationImpl
 import com.bookk.business.domain.impl.operation.employee.DeleteProcessedEmployeeInvitationsImpl
@@ -104,6 +106,7 @@ fun businessDomainModule() = module {
         scopedOf(::DeleteDayOffsInThePastImpl) bind DeleteDayOffsInThePast::class
         scopedOf(::BusinessEventHandlerImpl) bind EventHandler::class
         scopedOf(::CreateClientImpl) bind CreateClient::class
+        scopedOf(::ImportClientsImpl) bind ImportClients::class
         scopedOf(::GetClientsImpl) bind GetClients::class
         scopedOf(::GetClientBusinessIdsImpl) bind GetClientBusinessIds::class
         scopedOf(::DeleteClientImpl) bind DeleteClient::class

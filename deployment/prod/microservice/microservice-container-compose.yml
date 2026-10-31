@@ -64,7 +64,7 @@ services:
         window: 120s
 
   redis:
-    image: valkey/valkey:8.1-alpine
+    image: valkey/valkey:8.1.11-alpine
     command:
       - valkey-server
       - --requirepass

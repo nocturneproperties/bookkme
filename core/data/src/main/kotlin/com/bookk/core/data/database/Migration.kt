@@ -18,7 +18,7 @@ fun createDatabase(
 ): Database {
     Flyway.configure()
         .dataSource(
-            "jdbc:$dbUrl:$dbPort/$schemaName?createDatabaseIfNotExist=true",
+            "jdbc:$dbUrl:$dbPort/$schemaName?createDatabaseIfNotExist=true&$VERIFIED_TLS",
             dbUsername,
             dbPassword
         )
@@ -42,7 +42,7 @@ internal fun poolConfig(
     maxPoolSize: Int
 ): HikariConfig = HikariConfig().apply {
     poolName = schemaName
-    jdbcUrl = "jdbc:$dbUrl:$dbPort/$schemaName?rewriteBatchedStatements=true"
+    jdbcUrl = "jdbc:$dbUrl:$dbPort/$schemaName?rewriteBatchedStatements=true&$VERIFIED_TLS"
     username = dbUsername
     password = dbPassword
     maximumPoolSize = maxPoolSize
@@ -50,5 +50,7 @@ internal fun poolConfig(
     isAutoCommit = false
     transactionIsolation = "TRANSACTION_REPEATABLE_READ"
 }
+
+private const val VERIFIED_TLS = "sslMode=verify-full"
 
 private val IDLE_CONNECTION_KEEPALIVE = 5.minutes

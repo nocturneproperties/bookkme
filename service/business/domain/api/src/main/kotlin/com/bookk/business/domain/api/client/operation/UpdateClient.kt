@@ -20,7 +20,7 @@ interface UpdateClient {
         class ClientExist : BusinessError(
             statusCode = HttpStatusCode.UnprocessableEntity.value,
             code = BusinessErrorCodes.BUSINESS_CLIENT_EXISTS,
-            message = "Client with this phone already exists"
+            message = "Client with this phone or email already exists"
         ), Error
 
         class ClientValidationError : BusinessError(
