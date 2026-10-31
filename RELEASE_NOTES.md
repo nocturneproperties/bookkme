@@ -1,5 +1,21 @@
 # Release notes
 
+## 0.16.1
+
+Changes since `monolith/0.16.0`. A patch release: the app survives a database restart. No API changes and no migrations.
+
+### Fixed
+
+- **The app waits for the database instead of crashing at startup.** When MariaDB restarts, its name `monolith.database` doesn't resolve until it is back, because the database service uses `endpoint_mode: dnsrr`. An app that started in that window exited at once with `UnknownHostException`, and Swarm stopped restarting it after three quick failures. Now `createDatabase` retries while the database can't be reached: unknown host, refused, reset or timed-out connection. It waits 1 s, 2 s, 4 s, 8 s, then every 10 s, about 3 minutes in total, and logs `Database unreachable (…), retrying in …` on each attempt. A rejected login or an unverifiable certificate still fails immediately.
+
+### Deployment
+
+- **The app's restart policy no longer gives up during a database outage.** `monolith` now restarts after 10 s and stops only after 5 restarts within 10 minutes (it was 3 within 120 s). Since each start waits up to about 3 minutes for the database, an outage of any length causes at most 3 restarts in 10 minutes, so Swarm keeps trying. An app that crashes right away for another reason (bad configuration, a failed migration) still stops after 5 quick restarts. The other services in the stack keep their policy.
+
+### Upgrade
+
+1. Deploy the monolith. If a failed update left `monolith_monolith` rolled back (`docker service inspect monolith_monolith --format '{{.UpdateStatus.State}}'` shows `rollback_…`), its spec may still be on `operational` only. A forced update or restart can't reach the database from there; the deploy replaces the whole spec.
+
 ## 0.16.0
 
 Changes since `monolith/0.15.11`. A minor release: a new route, new rejection rules and a schema change. Existing requests keep working, but some writes that used to succeed are now rejected (see **Changed**), so clients should handle the new errors.

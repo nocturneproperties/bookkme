@@ -16,7 +16,7 @@ fun createDatabase(
     dbPassword: String = AppLevelConstants.dbPassword,
     maxPoolSize: Int = AppLevelConstants.dbPoolSize
 ): Database {
-    Flyway.configure()
+    val migration = Flyway.configure()
         .dataSource(
             "jdbc:$dbUrl:$dbPort/$schemaName?createDatabaseIfNotExist=true&$VERIFIED_TLS",
             dbUsername,
@@ -28,7 +28,7 @@ fun createDatabase(
         .executeInTransaction(true)
         .locations(Location("db/migration/$schemaName"))
         .load()
-        .migrate()
+    retryWhileDatabaseUnreachable { migration.migrate() }
 
     return Database.connect(HikariDataSource(poolConfig(schemaName, dbUrl, dbPort, dbUsername, dbPassword, maxPoolSize)))
 }
