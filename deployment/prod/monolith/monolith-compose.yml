@@ -218,6 +218,11 @@ services:
         max-file: 5
     deploy:
       <<: *replicated
+      restart_policy:
+        condition: any
+        delay: 10s
+        max_attempts: 5
+        window: 10m
       resources:
         limits:
           memory: 1536M

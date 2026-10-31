@@ -13,6 +13,7 @@ import com.bookk.core.test.whenn
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
@@ -24,9 +25,13 @@ import org.slf4j.LoggerFactory
 import org.testcontainers.containers.GenericContainer
 import org.testcontainers.containers.wait.strategy.Wait
 import org.testcontainers.utility.DockerImageName
+import java.net.ServerSocket
+import java.net.Socket
 import java.sql.Connection
 import java.sql.DriverManager
 import java.sql.Statement
+import kotlin.concurrent.thread
+import kotlin.time.Duration.Companion.seconds
 
 internal class MigrationMariaDbTest {
 
@@ -34,6 +39,7 @@ internal class MigrationMariaDbTest {
         private const val ROOT_PASSWORD = "test-password"
         private const val PORT = 3306
         private const val DEFAULT_POOL_SIZE = 10
+        private val DATABASE_UNREACHABLE_FOR = 2.seconds
 
         private val container = GenericContainer(DockerImageName.parse("mariadb:11.8.3-ubi9"))
             .withEnv("MARIADB_ROOT_PASSWORD", ROOT_PASSWORD)
@@ -64,11 +70,15 @@ internal class MigrationMariaDbTest {
             execute("GRANT ALL PRIVILEGES ON `$schemaName`.* TO '$username'@'%'")
         }
 
-        fun migrate(maxPoolSize: Int = DEFAULT_POOL_SIZE, dbPassword: String = password): Database = capturingWarnings {
+        fun migrate(
+            maxPoolSize: Int = DEFAULT_POOL_SIZE,
+            dbPassword: String = password,
+            dbPort: Int = container.getMappedPort(PORT)
+        ): Database = capturingWarnings {
             createDatabase(
                 schemaName = schemaName,
                 dbUrl = "mariadb://${container.host}",
-                dbPort = container.getMappedPort(PORT).toString(),
+                dbPort = dbPort.toString(),
                 dbUsername = username,
                 dbPassword = dbPassword,
                 maxPoolSize = maxPoolSize
@@ -96,6 +106,33 @@ internal class MigrationMariaDbTest {
                 "root",
                 ROOT_PASSWORD
             ).use { connection -> connection.createStatement().use(statements) }
+        }
+    }
+
+    private class LateProxy(private val target: Int) : AutoCloseable {
+        val port: Int = ServerSocket(0).use { it.localPort }
+        private var server: ServerSocket? = null
+
+        fun open() {
+            val listening = ServerSocket(port).also { server = it }
+            thread(isDaemon = true) {
+                while (!listening.isClosed) {
+                    val client = runCatching { listening.accept() }.getOrNull() ?: break
+                    val upstream = Socket(container.host, target)
+                    pipe(client, upstream)
+                    pipe(upstream, client)
+                }
+            }
+        }
+
+        private fun pipe(from: Socket, to: Socket) = thread(isDaemon = true) {
+            runCatching { from.getInputStream().copyTo(to.getOutputStream()) }
+            runCatching { from.close() }
+            runCatching { to.close() }
+        }
+
+        override fun close() {
+            server?.close()
         }
     }
 
@@ -132,6 +169,28 @@ internal class MigrationMariaDbTest {
     }
 
     @Test
+    fun `should wait for a database that becomes reachable only after startup began`() = runIntegrationTest {
+        given()
+        val fixture = SutFixture(schemaName = "migration_late_database")
+        fixture.grantOnlyOwnSchema(createSchema = true)
+        val proxy = LateProxy(target = container.getMappedPort(PORT))
+
+        proxy.use {
+            whenn()
+            val database = withContext(Dispatchers.IO) {
+                val migration = async { fixture.migrate(dbPort = proxy.port) }
+                delay(DATABASE_UNREACHABLE_FOR)
+                proxy.open()
+                migration.await()
+            }
+
+            then()
+            assertEquals(listOf("migration_marker"), database.tableNames())
+            assertTrue(fixture.warningMessages().any { it.startsWith("Database unreachable") })
+        }
+    }
+
+    @Test
     fun `should migrate and connect over tls as a user that requires it`() = runIntegrationTest {
         given()
         val fixture = SutFixture(schemaName = "migration_tls")
@@ -155,6 +214,7 @@ internal class MigrationMariaDbTest {
 
         then()
         assertTrue(result.isFailure)
+        assertTrue(fixture.warningMessages().none { it.startsWith("Database unreachable") })
     }
 
     @Test
