@@ -7,7 +7,12 @@ unchanged. Personal info (`name`, `lastName`, `phone`, `email`) can only be
 changed for a `Detached` client — an `Integrated` client's personal info is
 synced from its linked user profile (see `SyncUserProfile`), so any of
 those fields present on the request for an `Integrated` client is
-rejected; only its `description` can be edited either way.
+rejected; only its `description` can be edited either way. A phone or email
+already held by another client of the business, detached or integrated,
+is rejected by the unique indexes on `(business_id, phone)` and
+`(business_id, email)`; the violation surfaces when the update is written
+at commit and is mapped to `BUSINESS_CLIENT_EXISTS`. Re-sending the
+client's own phone or email touches only its own row, so it passes.
 
 ```mermaid
 flowchart TD
@@ -29,11 +34,10 @@ flowchart TD
     NameCheck -- No --> R422a([422 BUSINESS_CLIENT_NAME_VALIDATION_ERROR 200005])
     NameCheck -- Yes --> PhoneCheck{phone valid, if present?}
     PhoneCheck -- No --> R422a
-    PhoneCheck -- Yes --> Dup{phone present and ClientDataSource.getClient businessId phone belongs to another client?}
-    Dup -- Yes --> R422b([422 BUSINESS_CLIENT_EXISTS 200004])
-    Dup -- No --> EmailCheck{email valid, if present?}
+    PhoneCheck -- Yes --> EmailCheck{email valid, if present?}
     EmailCheck -- No --> R422a
     EmailCheck -- Yes --> Update[ClientDataSource.updateClient businessId model]
+    Update -- phone or email unique index violated --> R422b([422 BUSINESS_CLIENT_EXISTS 200004])
     Update --> Updated{row updated?}
     Updated -- No --> R404b
     Updated -- Yes --> R200([200 Updated ClientRemote])

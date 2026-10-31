@@ -1,8 +1,9 @@
 package com.bookk.business.microservice.route.api
 
+import com.bookk.business.domain.api.client.entity.Client
 import com.bookk.business.domain.api.client.entity.ClientRemote
 import com.bookk.business.domain.api.client.entity.ClientUpdateModel
-import com.bookk.business.domain.api.client.entity.toDomain
+import com.bookk.business.domain.api.client.entity.toDetachedClient
 import com.bookk.business.domain.api.client.operation.CreateClient
 import com.bookk.business.domain.api.client.operation.DeleteClient
 import com.bookk.business.domain.api.client.operation.GetClients
@@ -29,6 +30,7 @@ import io.ktor.server.application.install
 import io.ktor.server.auth.Authentication
 import io.ktor.server.auth.bearer
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.mockk
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
@@ -45,7 +47,7 @@ internal class ClientCrudTest {
         given()
         val useCase: CreateClient = mockk()
         val clientRemote = ClientRemote.stub()
-        val client = clientRemote.toDomain()
+        val client = clientRemote.toDetachedClient()
         
         coEvery { useCase.invoke(userId, businessId, client) } returns Result.success(clientRemote)
         
@@ -71,6 +73,51 @@ internal class ClientCrudTest {
         
         then()
         assertEquals(HttpStatusCode.OK, response.status)
+    }
+
+    @Test
+    fun `should ignore the user id and create a detached client`() = routeTest {
+        given()
+        val useCase: CreateClient = mockk()
+        val clientRemote = ClientRemote.stub(userId = Uuid.random())
+        coEvery { useCase.invoke(userId, businessId, any()) } returns Result.success(ClientRemote.stub(id = clientRemote.id))
+
+        setupApplication(
+            extension = {
+                install(Authentication) {
+                    provider {
+                        authenticate { it.principal(AppPrincipal(Uuid.random(), userId, Uuid.random())) }
+                    }
+                }
+            },
+            diModule = module {
+                single { useCase }
+            },
+            routeUnderTest = { clientCrud() }
+        )
+
+        whenn()
+        val httpClient = createTestClient()
+        val response = httpClient.post(BusinessRouting.Api.Clients(businessId = businessId)) {
+            setBody(clientRemote)
+        }
+
+        then()
+        assertEquals(HttpStatusCode.OK, response.status)
+        coVerify(exactly = 1) {
+            useCase.invoke(
+                userId,
+                businessId,
+                Client.Detached(
+                    id = clientRemote.id,
+                    name = clientRemote.name,
+                    lastName = clientRemote.lastName,
+                    phone = clientRemote.phone,
+                    email = clientRemote.email,
+                    description = clientRemote.description
+                )
+            )
+        }
     }
 
     @Test
@@ -385,7 +432,7 @@ internal class ClientCrudTest {
         given()
         val useCase: CreateClient = mockk()
         val clientRemote = ClientRemote.stub()
-        coEvery { useCase.invoke(userId, businessId, clientRemote.toDomain()) } returns Result.failure(CreateClient.Error.ClientExist())
+        coEvery { useCase.invoke(userId, businessId, clientRemote.toDetachedClient()) } returns Result.failure(CreateClient.Error.ClientExist())
 
         setupApplication(
             extension = {
@@ -415,7 +462,7 @@ internal class ClientCrudTest {
         given()
         val useCase: CreateClient = mockk()
         val clientRemote = ClientRemote.stub()
-        coEvery { useCase.invoke(userId, businessId, clientRemote.toDomain()) } returns Result.failure(CreateClient.Error.ClientValidationError())
+        coEvery { useCase.invoke(userId, businessId, clientRemote.toDetachedClient()) } returns Result.failure(CreateClient.Error.ClientValidationError())
 
         setupApplication(
             extension = {
@@ -445,7 +492,7 @@ internal class ClientCrudTest {
         given()
         val useCase: CreateClient = mockk()
         val clientRemote = ClientRemote.stub()
-        coEvery { useCase.invoke(userId, businessId, clientRemote.toDomain()) } returns Result.failure(CreateClient.Error.MissingContactInfo())
+        coEvery { useCase.invoke(userId, businessId, clientRemote.toDetachedClient()) } returns Result.failure(CreateClient.Error.MissingContactInfo())
 
         setupApplication(
             extension = {
@@ -530,7 +577,7 @@ internal class ClientCrudTest {
         val useCase: CreateClient = mockk()
         val clientRemote = ClientRemote.stub()
         coEvery {
-            useCase.invoke(userId, businessId, clientRemote.toDomain())
+            useCase.invoke(userId, businessId, clientRemote.toDetachedClient())
         } returns Result.failure(Error.OperationNotAllowed())
 
         setupApplication(

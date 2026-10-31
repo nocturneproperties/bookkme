@@ -148,4 +148,32 @@ internal class BusinessEventTest {
         then()
         assertEquals(event, decoded)
     }
+
+    @Test
+    fun `should key the client merged event by business id`() = runUnitTest {
+        given()
+        val event = BusinessEvent.ClientMerged(businessId, fromClientId = Uuid.random(), toClientId = Uuid.random())
+
+        whenn()
+        val partitionKey = event.partitionKey
+
+        then()
+        assertEquals(businessId.toString(), partitionKey)
+    }
+
+    @Test
+    fun `should round trip the client merged event through protobuf`() = runUnitTest {
+        given()
+        val event = BusinessEvent.ClientMerged(businessId, fromClientId = Uuid.random(), toClientId = Uuid.random())
+
+        whenn()
+        val decoded = protoBuf.decodeFromByteArray(
+            BusinessEvent.ClientMerged.serializer(),
+            protoBuf.encodeToByteArray(BusinessEvent.ClientMerged.serializer(), event)
+        )
+
+        then()
+        assertEquals(event, decoded)
+        assertEquals(BusinessEvent.ClientMerged.TOPIC, decoded.topic)
+    }
 }

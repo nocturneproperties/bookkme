@@ -929,4 +929,28 @@ internal class AppointmentDataSourceImplTest {
         read()
         statementCount - before
     }
+
+    @Test
+    fun `should move the merged client's appointments in the business to the remaining client`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val otherBusinessId = fixture.attachBusiness(automaticCompletion = true)
+        val fromClientId = Uuid.random()
+        val toClientId = Uuid.random()
+        val request = fixture.buildRequest()
+        val merged = suspendTransaction { fixture.sut.create(request.copy(client = request.client.copy(id = fromClientId))) }
+        val unrelated = suspendTransaction { fixture.sut.create(fixture.buildRequest()) }
+        val otherBusiness = suspendTransaction {
+            fixture.sut.create(request.copy(id = Uuid.random(), businessId = otherBusinessId, client = request.client.copy(id = fromClientId)))
+        }
+
+        whenn()
+        suspendTransaction { fixture.sut.reassignClient(fixture.businessId, fromClientId, toClientId) }
+
+        then()
+        assertEquals(toClientId, suspendTransaction { fixture.sut.get(merged.id) }.client.id)
+        assertEquals(unrelated.client.id, suspendTransaction { fixture.sut.get(unrelated.id) }.client.id)
+        assertEquals(fromClientId, suspendTransaction { fixture.sut.get(otherBusiness.id) }.client.id)
+    }
 }

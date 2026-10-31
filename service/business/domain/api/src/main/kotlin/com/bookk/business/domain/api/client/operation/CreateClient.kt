@@ -8,13 +8,13 @@ import io.ktor.http.HttpStatusCode
 import kotlin.uuid.Uuid
 
 interface CreateClient {
-    suspend operator fun invoke(requestUserId: Uuid, businessId: Uuid, client: Client): Result<ClientRemote>
+    suspend operator fun invoke(requestUserId: Uuid, businessId: Uuid, client: Client.Detached): Result<ClientRemote>
 
     sealed interface Error {
         class ClientExist : BusinessError(
             statusCode = HttpStatusCode.UnprocessableEntity.value,
             code = BusinessErrorCodes.BUSINESS_CLIENT_EXISTS,
-            message = "Client with this phone already exists"
+            message = "Client with this phone or email already exists"
         )
 
         class ClientValidationError : BusinessError(

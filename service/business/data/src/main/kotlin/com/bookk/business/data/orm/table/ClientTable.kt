@@ -16,5 +16,7 @@ internal object ClientTable: UuidTable("client") {
 
     init {
         uniqueIndex(businessId, userId)
+        uniqueIndex(businessId, phone)
+        uniqueIndex(businessId, email)
     }
 }

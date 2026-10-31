@@ -72,4 +72,20 @@ interface BusinessEvent : EventStreaming.Event<String> {
             const val TOPIC = "business.employee_permissions_changed"
         }
     }
+
+    @Serializable
+    data class ClientMerged(
+        @ProtoNumber(1) val businessId: Uuid,
+        @ProtoNumber(2) val fromClientId: Uuid,
+        @ProtoNumber(3) val toClientId: Uuid,
+        @ProtoNumber(4) override val idempotencyKey: String = Uuid.random().toString()
+    ) : BusinessEvent {
+        @ProtoNumber(5)
+        override val topic: String = TOPIC
+        override val partitionKey: String get() = businessId.toString()
+
+        companion object {
+            const val TOPIC = "business.client_merged"
+        }
+    }
 }

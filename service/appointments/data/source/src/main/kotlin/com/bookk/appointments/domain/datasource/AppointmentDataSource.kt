@@ -30,4 +30,5 @@ interface AppointmentDataSource {
     suspend fun adjustPrice(id: Uuid, adjustment: PriceAdjustment): Appointment
     suspend fun markNoShow(id: Uuid): Appointment
     suspend fun anonymizeForUser(userId: Uuid)
+    suspend fun reassignClient(businessId: Uuid, fromClientId: Uuid, toClientId: Uuid)
 }

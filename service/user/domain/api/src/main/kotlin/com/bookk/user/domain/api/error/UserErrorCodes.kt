@@ -4,4 +4,5 @@ object UserErrorCodes {
     private const val BASE = 100000
 
     const val USER_NOT_EXIST = BASE + 1
+    const val USER_CONTACT_TAKEN = BASE + 2
 }

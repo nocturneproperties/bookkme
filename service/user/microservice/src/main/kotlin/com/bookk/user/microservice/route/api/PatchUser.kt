@@ -21,9 +21,10 @@ internal fun Route.patchUser() {
          * Description: Update current user from authentication token.
          * Tag: user
          * Security: jwt
-         * Body: application/x-protobuf [com.bookk.user.domain.api.entity.UserEditModel] Fields that needs to be updated
+         * Body: application/x-protobuf [com.bookk.user.domain.api.entity.UserEditModel] Fields that needs to be updated, a blank phone clears it
          * Response: 200 application/x-protobuf User successfully updated
          * Response: 404 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] User errors<br>USER_NOT_EXIST (100001) User not found
+         * Response: 422 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Update user errors<br>USER_CONTACT_TAKEN (100002) Phone or email is already used by another account
          * See: docs/operations/user/update-user.md
          */
         patch<Api.User.Me> {
