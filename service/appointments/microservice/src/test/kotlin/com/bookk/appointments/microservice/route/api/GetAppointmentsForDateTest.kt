@@ -33,7 +33,7 @@ internal class GetAppointmentsForDateTest {
         val businessId = Uuid.random()
         val userId = Uuid.random()
         val date = LocalDate(2024, 1, 15)
-        val appointments = listOf(Appointment.stub(userId = userId, businessId = businessId))
+        val appointments = listOf(Appointment.stub(initiatorUserId = userId, businessId = businessId))
 
         coEvery { useCase.invoke(userId, businessId, date, null) } returns Result.success(appointments)
 

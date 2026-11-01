@@ -25,7 +25,7 @@ internal val AppointmentEvent.RequestCreated.notification: NotificationParameter
             val whenText = from.formatLocalized(timeZone, language)
             EmailNotification(
                 subject = message(language, "$KEY_PREFIX.email.subject", clientName),
-                body = message(language, "$KEY_PREFIX.email.body", clientName, businessName, whenText, address, price)
+                body = message(language, "$KEY_PREFIX.email.body", clientName, businessName, whenText, price)
             )
         },
         text = { language ->

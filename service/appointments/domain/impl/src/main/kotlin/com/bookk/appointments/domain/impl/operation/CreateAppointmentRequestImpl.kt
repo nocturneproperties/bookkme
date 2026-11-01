@@ -21,6 +21,7 @@ import com.bookk.appointments.domain.datasource.AppointmentDataSource
 import com.bookk.appointments.domain.datasource.AppointmentRequestDataSource
 import com.bookk.appointments.domain.datasource.AppointmentSettingsDataSource
 import com.bookk.appointments.domain.datasource.AppointmentSubscriptionDataSource
+import com.bookk.appointments.domain.datasource.DeletedUserDataSource
 import com.bookk.business.domain.api.appointment.entity.AppointmentBookingContext
 import com.bookk.core.data.eventstreaming.StandardEventProducer
 import com.bookk.core.data.eventstreaming.send
@@ -60,7 +61,8 @@ internal class CreateAppointmentRequestImpl(
     private val createAppointment: CreateAppointment,
     private val transactionManager: TransactionManager,
     private val tokenValidatorFactory: TokenValidatorFactory,
-    private val businessClient: BusinessClient
+    private val businessClient: BusinessClient,
+    private val deletedUserDataSource: DeletedUserDataSource
 ) : CreateAppointmentRequest {
 
     override suspend fun invoke(userId: Uuid, draft: AppointmentRequestDraft): Result<Unit> = runSuspendCatching {
@@ -121,7 +123,7 @@ internal class CreateAppointmentRequestImpl(
 
         return AppointmentRequest(
             id = Uuid.random(),
-            userId = userId,
+            initiatorUserId = userId,
             businessId = draft.businessId,
             employee = EmployeeSnapshot(
                 id = context.employee.id,
@@ -132,7 +134,8 @@ internal class CreateAppointmentRequestImpl(
                 id = context.client.id,
                 fullName = "${context.client.name} ${context.client.lastName}".trim(),
                 phone = context.client.phone,
-                email = context.client.email
+                email = context.client.email,
+                userId = context.client.userId
             ),
             services = expandedServices.map {
                 ServiceSnapshot(id = it.id, name = it.name, groupId = it.group.id, price = it.price, duration = it.duration)
@@ -152,6 +155,7 @@ internal class CreateAppointmentRequestImpl(
 
     private suspend fun createOrRequestAppointment(userId: Uuid, request: AppointmentRequest): Result<Unit> =
         transactionManager.transaction<Unit> {
+            if (deletedUserDataSource.isDeletedForShare(userId)) throw Error.OperationNotAllowed()
             val settings = settingsDataSource.getForUpdate(request.businessId) ?: throw Error.NotFound()
 
             if (settings.automaticApproval) {
@@ -187,7 +191,7 @@ internal class CreateAppointmentRequestImpl(
         }
         eventProducer.send(
             AppointmentEvent.RequestCreated(
-                clientUserId = request.client.id,
+                clientUserId = request.client.userId,
                 clientName = request.client.fullName,
                 employeeUserId = request.employee.userId,
                 employeeName = request.employee.fullName,

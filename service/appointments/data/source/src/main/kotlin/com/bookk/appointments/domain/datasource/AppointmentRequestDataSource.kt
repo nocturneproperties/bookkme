@@ -20,6 +20,7 @@ interface AppointmentRequestDataSource {
     suspend fun cancelOutdated(before: Instant)
     suspend fun deleteForUser(userId: Uuid)
     suspend fun reassignClient(businessId: Uuid, fromClientId: Uuid, toClientId: Uuid)
+    suspend fun linkClientUser(businessId: Uuid, clientId: Uuid, userId: Uuid)
 
     suspend fun reserveOfferToken(token: String): Boolean
     suspend fun releaseOfferToken(token: String)

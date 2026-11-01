@@ -43,12 +43,13 @@ erDiagram
 
     APPOINTMENT {
         uuid id PK
-        uuid user_id "logical FK -> user.profile.id; non-unique index with business_id, date_start (overlap checks)"
+        uuid initiator_user_id "logical FK -> user.profile.id of whoever booked; non-unique index with business_id, date_start (overlap checks)"
         uuid business_id FK
         uuid employee_id "logical FK -> business.employee.id"
         uuid employee_user_id "logical FK -> user.profile.id (employee's own userId)"
         string employee_name
         uuid client_id "logical FK -> business.client.id"
+        uuid client_user_id "nullable, indexed; logical FK -> user.profile.id of the client's own account, empty for a client without one or once erased; who client notifications go to, and what account deletion erases by"
         string client_name
         string client_phone
         string client_email
@@ -103,12 +104,13 @@ erDiagram
 
     APPOINTMENT_REQUEST {
         uuid id PK
-        uuid user_id "logical FK -> user.profile.id; non-unique index with business_id, date_start (overlap checks)"
+        uuid initiator_user_id "logical FK -> user.profile.id of whoever booked; non-unique index with business_id, date_start (overlap checks)"
         uuid business_id FK
         uuid employee_id "logical FK -> business.employee.id"
         uuid employee_user_id "logical FK -> user.profile.id (employee's own userId)"
         string employee_name
         uuid client_id "logical FK -> business.client.id"
+        uuid client_user_id "nullable, indexed; logical FK -> user.profile.id of the client's own account, empty for a client without one or once erased; who client notifications go to, and what account deletion erases by"
         string client_name
         string client_phone
         string client_email
@@ -194,7 +196,14 @@ erDiagram
         blob payload "ProtoBuf-encoded event, idempotency key included"
         timestamp createdAt
     }
+
+    DELETED_USER {
+        uuid user_id PK "logical FK -> user.profile.id of a deleted account"
+        timestamp deleted_at
+    }
 ```
+
+`DELETED_USER` records every account whose deletion appointments has handled, the user id and the time only. `AuthEvent.UserDeleted` erases by `client_user_id`, but `BusinessEvent.ClientLinked`, which fills `client_user_id` in after the fact, can arrive after the deletion on its own topic. It reads this table first with a shared lock and erases the rows it links when the account is already gone (see [React to a client getting an account](../operations/appointments/on-client-linked.md)). Both booking paths read it the same way and reject a deleted account. A row is inserted once (`INSERT IGNORE`) and keeps the first deletion time.
 
 `EXHAUSTED_EVENT` is not part of the appointments domain model — it's the shared DLT landing table (`core/data/eventstreaming/data`, one instance per service schema) that `KafkaEventConsumer`/`EmbeddedEventConsumer` write to when an event exhausts its retry budget, so a failed event survives a process restart or crash instead of being lost. See `AGENTS.md`'s event-streaming retry design notes.
 

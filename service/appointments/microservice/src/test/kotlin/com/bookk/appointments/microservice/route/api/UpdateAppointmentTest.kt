@@ -40,10 +40,10 @@ internal class UpdateAppointmentTest {
 
     private val testAppointment = Appointment(
         id = Uuid.random(),
-        userId = Uuid.random(),
+        initiatorUserId = Uuid.random(),
         businessId = Uuid.random(),
         employee = EmployeeSnapshot.stub(),
-        client = ClientSnapshot(Uuid.random(), "Name", "123", "a@b.com"),
+        client = ClientSnapshot(Uuid.random(), "Name", "123", "a@b.com", Uuid.random()),
         services = listOf(ServiceSnapshot(Uuid.random(), "Svc", Uuid.random(), Money.parse("USD 100"), 30.minutes)),
         date = Instant.fromEpochMilliseconds(0),
         note = "Note",

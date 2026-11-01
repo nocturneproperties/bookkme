@@ -40,10 +40,10 @@ internal class GetAppointmentRequestsTest {
         val requests = listOf(
             AppointmentRequest(
                 id = Uuid.random(),
-                userId = userId,
+                initiatorUserId = userId,
                 businessId = businessId,
                 employee = EmployeeSnapshot.stub(),
-                client = ClientSnapshot(Uuid.random(), "Full Name", "123456789", "test@example.com"),
+                client = ClientSnapshot(Uuid.random(), "Full Name", "123456789", "test@example.com", Uuid.random()),
                 services = listOf(ServiceSnapshot(
                     Uuid.random(),
                     "Service Name",

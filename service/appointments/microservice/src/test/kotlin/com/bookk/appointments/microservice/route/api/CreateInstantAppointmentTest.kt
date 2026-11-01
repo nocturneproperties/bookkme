@@ -37,10 +37,10 @@ internal class CreateInstantAppointmentTest {
 
     private fun buildAppointment(userId: Uuid): Appointment = Appointment(
         id = Uuid.random(),
-        userId = userId,
+        initiatorUserId = userId,
         businessId = Uuid.random(),
         employee = EmployeeSnapshot.stub(),
-        client = ClientSnapshot(Uuid.random(), "Full Name", "123456789", "test@example.com"),
+        client = ClientSnapshot(Uuid.random(), "Full Name", "123456789", "test@example.com", Uuid.random()),
         services = listOf(
             ServiceSnapshot(
                 Uuid.random(),
@@ -132,6 +132,43 @@ internal class CreateInstantAppointmentTest {
         assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
         val body = response.body<SimpleServerError>()
         assertEquals(AppointmentErrorCodes.APPOINTMENT_EXISTS, body.errorCode)
+    }
+
+    @Test
+    fun `should return not found when the account booking was deleted`() = routeTest {
+        given()
+        val useCase: CreateAppointment = mockk()
+        val userId = Uuid.random()
+        val appointment = buildAppointment(userId)
+
+        coEvery { useCase.invoke(userId, appointment, true) } returns Result.failure(com.bookk.core.domain.entity.Error.OperationNotAllowed())
+
+        setupApplication(
+            extension = {
+                install(Authentication) {
+                    provider {
+                        authenticate { context ->
+                            context.principal(AppPrincipal(Uuid.random(), userId, Uuid.random()))
+                        }
+                    }
+                }
+            },
+            diModule = module {
+                single { useCase }
+            },
+            routeUnderTest = {
+                appointment()
+            }
+        )
+
+        whenn()
+        val client = createTestClient()
+        val response = client.post(AppointmentsRouting.Api.Appointment.Instant()) {
+            setBody(appointment)
+        }
+
+        then()
+        assertEquals(HttpStatusCode.NotFound, response.status)
     }
 
     @Test

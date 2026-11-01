@@ -35,7 +35,7 @@ internal class GetAppointmentHistoryImplTest {
         val fixture = SutFixture()
         val userId = Uuid.random()
         val businessId = Uuid.random()
-        val appointments = listOf(Appointment.stub(userId = userId, businessId = businessId))
+        val appointments = listOf(Appointment.stub(initiatorUserId = userId, businessId = businessId))
         val pagination = AppointmentPagination(
             data = appointments,
             metadata = PaginationMetadata(total = 1L, page = 0L, pageSize = 50)
@@ -61,7 +61,7 @@ internal class GetAppointmentHistoryImplTest {
         val fixture = SutFixture()
         val userId = Uuid.random()
         val businessId = Uuid.random()
-        val appointments = listOf(Appointment.stub(userId = userId, businessId = businessId))
+        val appointments = listOf(Appointment.stub(initiatorUserId = userId, businessId = businessId))
         val pagination = AppointmentPagination(
             data = appointments,
             metadata = PaginationMetadata(total = 1L, page = 0L, pageSize = 50)

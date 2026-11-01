@@ -57,6 +57,7 @@ internal class NotificationEventHandlerEventTest {
             KafkaTestBroker.createTopic(AppointmentEvent.RequestApproved.TOPIC, partitions = 3)
             KafkaTestBroker.createTopic(AppointmentEvent.RequestRejected.TOPIC, partitions = 3)
             KafkaTestBroker.createTopic(AppointmentEvent.Cancelled.TOPIC, partitions = 3)
+            KafkaTestBroker.createTopic(AppointmentEvent.CancelledForDeletedClient.TOPIC, partitions = 3)
             KafkaTestBroker.createTopic(BusinessEvent.EmployeeInvitationRedeemed.TOPIC, partitions = 3)
         }
     }
@@ -316,6 +317,27 @@ internal class NotificationEventHandlerEventTest {
         then()
         coVerify(exactly = 1) { fixture.sendNotification(clientUserId, any()) }
         coVerify(exactly = 0) { fixture.sendNotification(employeeUserId, any()) }
+    }
+
+    @Test
+    fun `should notify the employee when a deleted client's appointment is cancelled`() = runIntegrationTest {
+        given()
+        val fixture = SutFixture()
+        val employeeUserId = Uuid.random()
+        val arrived = fixture.awaitNotificationTo(employeeUserId)
+
+        whenn()
+        publishAndAwait(
+            fixture, arrived,
+            AppointmentEvent.CancelledForDeletedClient(
+                employeeUserId = employeeUserId, from = from, to = to, timeZone = TimeZone.UTC,
+                businessName = "Salon"
+            ),
+            typeOf<AppointmentEvent.CancelledForDeletedClient>()
+        )
+
+        then()
+        coVerify(exactly = 1) { fixture.sendNotification(employeeUserId, any()) }
     }
 
     @Test

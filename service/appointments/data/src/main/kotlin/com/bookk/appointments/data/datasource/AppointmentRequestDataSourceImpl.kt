@@ -51,7 +51,7 @@ internal class AppointmentRequestDataSourceImpl(
     override suspend fun getPendingByUser(userId: Uuid, businessId: Uuid): List<AppointmentRequest> = dbQuery {
         AppointmentRequestEntity
             .find {
-                AppointmentRequestTable.userId.eq(userId)
+                AppointmentRequestTable.initiatorUserId.eq(userId)
                     .and(AppointmentRequestTable.businessId.eq(businessId))
                     .and(AppointmentRequestTable.status.eq(AppointmentRequestStatus.PENDING))
             }
@@ -105,7 +105,7 @@ internal class AppointmentRequestDataSourceImpl(
             AppointmentRequestTable.select(AppointmentRequestTable.id)
                 .where {
                     (AppointmentRequestTable.businessId eq request.businessId)
-                        .and(AppointmentRequestTable.userId eq request.userId)
+                        .and(AppointmentRequestTable.initiatorUserId eq request.initiatorUserId)
                         .and(AppointmentRequestTable.dateStart.less(request.dateEnd))
                         .and(AppointmentRequestTable.dateEnd.greater(request.date))
                         .and(AppointmentRequestTable.status eq AppointmentRequestStatus.PENDING)
@@ -130,7 +130,9 @@ internal class AppointmentRequestDataSourceImpl(
 
     override suspend fun deleteForUser(userId: Uuid) = dbQuery<Unit> {
         AppointmentRequestTable.deleteWhere {
-            (AppointmentRequestTable.clientId eq userId) or (AppointmentRequestTable.employeeUserId eq userId)
+            (AppointmentRequestTable.initiatorUserId eq userId) or
+                (AppointmentRequestTable.clientUserId eq userId) or
+                (AppointmentRequestTable.employeeUserId eq userId)
         }
     }
 
@@ -145,6 +147,12 @@ internal class AppointmentRequestDataSourceImpl(
     override suspend fun reassignClient(businessId: Uuid, fromClientId: Uuid, toClientId: Uuid) = dbQuery<Unit> {
         AppointmentRequestTable.update(where = { (AppointmentRequestTable.businessId eq businessId) and (AppointmentRequestTable.clientId eq fromClientId) }) {
             it[clientId] = toClientId
+        }
+    }
+
+    override suspend fun linkClientUser(businessId: Uuid, clientId: Uuid, userId: Uuid) = dbQuery<Unit> {
+        AppointmentRequestTable.update(where = { (AppointmentRequestTable.businessId eq businessId) and (AppointmentRequestTable.clientId eq clientId) }) {
+            it[clientUserId] = userId
         }
     }
 }

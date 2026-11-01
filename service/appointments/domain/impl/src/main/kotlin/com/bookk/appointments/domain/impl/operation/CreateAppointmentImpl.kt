@@ -9,6 +9,7 @@ import com.bookk.appointments.domain.datasource.AppointmentPermissionDataSource
 import com.bookk.appointments.domain.datasource.AppointmentRequestDataSource
 import com.bookk.appointments.domain.datasource.AppointmentSettingsDataSource
 import com.bookk.appointments.domain.datasource.AppointmentSubscriptionDataSource
+import com.bookk.appointments.domain.datasource.DeletedUserDataSource
 import com.bookk.core.data.eventstreaming.StandardEventProducer
 import com.bookk.core.data.eventstreaming.send
 import com.bookk.core.domain.datasource.transaction.TransactionManager
@@ -30,7 +31,8 @@ internal class CreateAppointmentImpl(
     private val appointmentPermissionDataSource: AppointmentPermissionDataSource,
     private val subscriptionDataSource: AppointmentSubscriptionDataSource,
     private val transactionManager: TransactionManager,
-    private val eventProducer: StandardEventProducer
+    private val eventProducer: StandardEventProducer,
+    private val deletedUserDataSource: DeletedUserDataSource
 ) : CreateAppointment {
 
     override suspend fun invoke(
@@ -51,9 +53,11 @@ internal class CreateAppointmentImpl(
     }
 
     override suspend fun invoke(userId: Uuid, appointment: Appointment, isInstant: Boolean): Result<Appointment> {
-        if (isInstant && userId != appointment.userId) return Result.failure(CreateAppointment.Error.InstantAppointmentOnlySelfAllowed())
+        if (isInstant && userId != appointment.initiatorUserId) return Result.failure(CreateAppointment.Error.InstantAppointmentOnlySelfAllowed())
+        val stored = if (isInstant) appointment.copy(client = appointment.client.copy(userId = userId)) else appointment
         return transactionManager.transaction {
-            createAppointment(appointment)
+            if (isInstant && deletedUserDataSource.isDeletedForShare(userId)) throw Error.OperationNotAllowed()
+            createAppointment(stored)
         }
     }
 
@@ -85,7 +89,7 @@ internal class CreateAppointmentImpl(
         }
         eventProducer.send(
             AppointmentEvent.RequestApproved(
-                clientUserId = request.client.id,
+                clientUserId = request.client.userId,
                 clientName = request.client.fullName,
                 employeeUserId = request.employee.userId,
                 employeeName = request.employee.fullName,

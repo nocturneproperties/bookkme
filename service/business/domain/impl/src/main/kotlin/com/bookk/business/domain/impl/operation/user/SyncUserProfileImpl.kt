@@ -24,10 +24,17 @@ internal class SyncUserProfileImpl(
         phone: String?,
         updatedAt: Instant
     ): Result<Unit> = transactionManager.transaction {
-        clientDataSource.findClientMergesForUser(userId, phone, email, updatedAt).forEach { merge ->
-            clientDataSource.deleteClient(merge.businessId, merge.fromClientId)
+        val merges = clientDataSource.findClientMergesForUser(userId, phone, email, updatedAt)
+        merges.forEach { merge -> clientDataSource.deleteClient(merge.businessId, merge.fromClientId) }
+        merges.groupBy { it.businessId to it.toClientId }.forEach { (kept, mergedInto) ->
+            val (businessId, keptClientId) = kept
             eventProducer.send(
-                BusinessEvent.ClientMerged(merge.businessId, fromClientId = merge.fromClientId, toClientId = merge.toClientId)
+                BusinessEvent.ClientLinked(
+                    businessId,
+                    clientId = keptClientId,
+                    userId = userId,
+                    mergedClientIds = mergedInto.map { it.fromClientId }
+                )
             )
         }
         clientDataSource.updateIntegratedClients(userId, name, lastName, email, phone, updatedAt)

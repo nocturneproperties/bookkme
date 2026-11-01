@@ -74,18 +74,19 @@ interface BusinessEvent : EventStreaming.Event<String> {
     }
 
     @Serializable
-    data class ClientMerged(
+    data class ClientLinked(
         @ProtoNumber(1) val businessId: Uuid,
-        @ProtoNumber(2) val fromClientId: Uuid,
-        @ProtoNumber(3) val toClientId: Uuid,
-        @ProtoNumber(4) override val idempotencyKey: String = Uuid.random().toString()
+        @ProtoNumber(2) val clientId: Uuid,
+        @ProtoNumber(3) val userId: Uuid,
+        @ProtoNumber(4) val mergedClientIds: List<Uuid> = emptyList(),
+        @ProtoNumber(5) override val idempotencyKey: String = Uuid.random().toString()
     ) : BusinessEvent {
-        @ProtoNumber(5)
+        @ProtoNumber(6)
         override val topic: String = TOPIC
         override val partitionKey: String get() = businessId.toString()
 
         companion object {
-            const val TOPIC = "business.client_merged"
+            const val TOPIC = "business.client_linked"
         }
     }
 }

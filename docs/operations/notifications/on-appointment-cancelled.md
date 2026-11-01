@@ -9,7 +9,9 @@ Notifies the client their appointment was cancelled.
 flowchart TD
     Start([Consume AppointmentEvent.Cancelled]) --> Dedup{idempotencyKey already processed?}
     Dedup -- Yes --> Skip([Skip - already handled])
-    Dedup -- No --> Send[SendNotification to=clientUserId]
+    Dedup -- No --> HasAccount{clientUserId set?}
+    HasAccount -- "No, the client has no account" --> NoOne([Marked processed - nobody to notify])
+    HasAccount -- Yes --> Send[SendNotification to=clientUserId]
     Send --> GetSettings[transaction - NotificationSettingsDataSource.getByUserId clientUserId]
     GetSettings -- not found --> Dlt([Sent to AppointmentEvent.Cancelled_dlt topic, logged - no auto-retry])
     GetSettings -- found --> TypeAllowed{settings.appointmentEnabled?}

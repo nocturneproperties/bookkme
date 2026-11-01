@@ -66,7 +66,7 @@ internal class AppointmentDataSourceImplTest {
             userId: Uuid = Uuid.random(),
             date: Instant = Instant.fromEpochMilliseconds(0),
             employee: EmployeeSnapshot = EmployeeSnapshot.stub()
-        ) = AppointmentRequest.stub(userId = userId, businessId = businessId, date = date, employee = employee)
+        ) = AppointmentRequest.stub(initiatorUserId = userId, businessId = businessId, date = date, employee = employee)
     }
 
     @Test
@@ -683,24 +683,187 @@ internal class AppointmentDataSourceImplTest {
     }
 
     @Test
-    fun `should anonymize client PII on appointments booked with the deleted user as client`() = runUnitTest {
+    fun `should keep the client's user id on an appointment created from a request`() = runUnitTest {
         given()
         val fixture = SutFixture()
         fixture.setup()
-        val userId = Uuid.random()
+        val clientUserId = Uuid.random()
+        val request = fixture.buildRequest().let { it.copy(client = it.client.copy(userId = clientUserId)) }
+
+        whenn()
+        val created = suspendTransaction { fixture.sut.create(request) }
+        val found = suspendTransaction { fixture.sut.get(created.id) }
+
+        then()
+        assertEquals(clientUserId, found.client.userId)
+    }
+
+    @Test
+    fun `should keep no client user id for a client without an account`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val request = fixture.buildRequest().let { it.copy(client = it.client.copy(userId = null)) }
+
+        whenn()
+        val created = suspendTransaction { fixture.sut.create(request) }
+        val found = suspendTransaction { fixture.sut.get(created.id) }
+
+        then()
+        assertNull(found.client.userId)
+    }
+
+    @Test
+    fun `should clear the client's user id when anonymizing the client's account`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val clientUserId = Uuid.random()
+        val request = fixture.buildRequest().let { it.copy(client = it.client.copy(userId = clientUserId)) }
+        val created = suspendTransaction { fixture.sut.create(request) }
+
+        whenn()
+        suspendTransaction { fixture.sut.anonymizeClientUser(clientUserId) }
+        val found = suspendTransaction { fixture.sut.get(created.id) }
+
+        then()
+        assertNull(found.client.userId)
+    }
+
+    @Test
+    fun `should anonymize client PII on appointments of the deleted client's account`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val clientUserId = Uuid.random()
         val request = fixture.buildRequest().let {
-            it.copy(client = it.client.copy(id = userId, fullName = "Alice", phone = "+123", email = "alice@test.com"))
+            it.copy(client = it.client.copy(userId = clientUserId, fullName = "Alice", phone = "+123", email = "alice@test.com"))
         }
         val created = suspendTransaction { fixture.sut.create(request) }
 
         whenn()
-        suspendTransaction { fixture.sut.anonymizeForUser(userId) }
+        suspendTransaction { fixture.sut.anonymizeClientUser(clientUserId) }
         val found = suspendTransaction { fixture.sut.get(created.id) }
 
         then()
         assertEquals("Deleted User", found.client.fullName)
         assertNull(found.client.phone)
         assertNull(found.client.email)
+        assertEquals(created.client.id, found.client.id)
+    }
+
+    @Test
+    fun `should keep client PII on appointments of other clients when anonymizing a client's account`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val request = fixture.buildRequest().let {
+            it.copy(client = it.client.copy(fullName = "Carol", phone = "+456", email = "carol@test.com"))
+        }
+        val untouched = suspendTransaction { fixture.sut.create(request) }
+
+        whenn()
+        suspendTransaction { fixture.sut.anonymizeClientUser(Uuid.random()) }
+        val found = suspendTransaction { fixture.sut.get(untouched.id) }
+
+        then()
+        assertEquals("Carol", found.client.fullName)
+        assertEquals("+456", found.client.phone)
+        assertEquals("carol@test.com", found.client.email)
+    }
+
+    @Test
+    fun `should leave client details alone when anonymizing an employee user`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val userId = Uuid.random()
+        val request = fixture.buildRequest().let {
+            it.copy(client = it.client.copy(userId = userId, fullName = "Dave"))
+        }
+        val created = suspendTransaction { fixture.sut.create(request) }
+
+        whenn()
+        suspendTransaction { fixture.sut.anonymizeEmployee(userId) }
+        val found = suspendTransaction { fixture.sut.get(created.id) }
+
+        then()
+        assertEquals("Dave", found.client.fullName)
+    }
+
+    @Test
+    fun `should cancel the client's scheduled appointments that start after the given time`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val clientUserId = Uuid.random()
+        val now = Clock.System.now()
+        val request = fixture.buildRequest(date = now + 24.hours).let { it.copy(client = it.client.copy(userId = clientUserId)) }
+        val upcoming = suspendTransaction { fixture.sut.create(request) }
+
+        whenn()
+        val cancelled = suspendTransaction { fixture.sut.cancelUpcomingForClientUser(clientUserId, now, "User deleted their account") }
+        val found = suspendTransaction { fixture.sut.get(upcoming.id) }
+
+        then()
+        assertEquals(AppointmentStatus.CANCELLED, found.status)
+        assertEquals("User deleted their account", found.cancellationReason)
+        assertEquals(listOf(found), cancelled)
+    }
+
+    @Test
+    fun `should keep the client's appointments that started before the given time`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val clientUserId = Uuid.random()
+        val now = Clock.System.now()
+        val request = fixture.buildRequest(date = now - 24.hours).let { it.copy(client = it.client.copy(userId = clientUserId)) }
+        val past = suspendTransaction { fixture.sut.create(request) }
+
+        whenn()
+        val cancelled = suspendTransaction { fixture.sut.cancelUpcomingForClientUser(clientUserId, now, "User deleted their account") }
+        val found = suspendTransaction { fixture.sut.get(past.id) }
+
+        then()
+        assertEquals(AppointmentStatus.SCHEDULED, found.status)
+        assertTrue(cancelled.isEmpty())
+    }
+
+    @Test
+    fun `should keep the client's upcoming appointments that are no longer scheduled`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val clientUserId = Uuid.random()
+        val now = Clock.System.now()
+        val request = fixture.buildRequest(date = now + 24.hours).let { it.copy(client = it.client.copy(userId = clientUserId)) }
+        val created = suspendTransaction { fixture.sut.create(request) }
+        suspendTransaction { fixture.sut.cancel(created.id, "Business closed") }
+
+        whenn()
+        val cancelled = suspendTransaction { fixture.sut.cancelUpcomingForClientUser(clientUserId, now, "User deleted their account") }
+        val found = suspendTransaction { fixture.sut.get(created.id) }
+
+        then()
+        assertEquals("Business closed", found.cancellationReason)
+        assertTrue(cancelled.isEmpty())
+    }
+
+    @Test
+    fun `should keep upcoming appointments of other clients when cancelling a client's`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val now = Clock.System.now()
+        val other = suspendTransaction { fixture.sut.create(fixture.buildRequest(date = now + 24.hours)) }
+
+        whenn()
+        suspendTransaction { fixture.sut.cancelUpcomingForClientUser(Uuid.random(), now, "User deleted their account") }
+        val found = suspendTransaction { fixture.sut.get(other.id) }
+
+        then()
+        assertEquals(AppointmentStatus.SCHEDULED, found.status)
     }
 
     @Test
@@ -715,7 +878,7 @@ internal class AppointmentDataSourceImplTest {
         val created = suspendTransaction { fixture.sut.create(request) }
 
         whenn()
-        suspendTransaction { fixture.sut.anonymizeForUser(userId) }
+        suspendTransaction { fixture.sut.anonymizeEmployee(userId) }
         val found = suspendTransaction { fixture.sut.get(created.id) }
 
         then()
@@ -723,13 +886,13 @@ internal class AppointmentDataSourceImplTest {
     }
 
     @Test
-    fun `should not fail anonymizing appointments for a user with none`() = runUnitTest {
+    fun `should not fail anonymizing appointments for an employee user with none`() = runUnitTest {
         given()
         val fixture = SutFixture()
         fixture.setup()
 
         whenn()
-        val result = runCatching { suspendTransaction { fixture.sut.anonymizeForUser(Uuid.random()) } }
+        val result = runCatching { suspendTransaction { fixture.sut.anonymizeEmployee(Uuid.random()) } }
 
         then()
         assertTrue(result.isSuccess)
@@ -928,6 +1091,44 @@ internal class AppointmentDataSourceImplTest {
         val before = statementCount
         read()
         statementCount - before
+    }
+
+    @Test
+    fun `should give the client's appointments in the business the linked account`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val clientId = Uuid.random()
+        val userId = Uuid.random()
+        val request = fixture.buildRequest().let { it.copy(client = it.client.copy(id = clientId, userId = null)) }
+        val created = suspendTransaction { fixture.sut.create(request) }
+
+        whenn()
+        suspendTransaction { fixture.sut.linkClientUser(fixture.businessId, clientId, userId) }
+
+        then()
+        assertEquals(userId, suspendTransaction { fixture.sut.get(created.id) }.client.userId)
+    }
+
+    @Test
+    fun `should leave other clients and other businesses alone when linking an account`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val otherBusinessId = fixture.attachBusiness(automaticCompletion = true)
+        val clientId = Uuid.random()
+        val request = fixture.buildRequest()
+        val otherClient = suspendTransaction { fixture.sut.create(request.copy(client = request.client.copy(userId = null))) }
+        val otherBusiness = suspendTransaction {
+            fixture.sut.create(request.copy(id = Uuid.random(), businessId = otherBusinessId, client = request.client.copy(id = clientId, userId = null)))
+        }
+
+        whenn()
+        suspendTransaction { fixture.sut.linkClientUser(fixture.businessId, clientId, Uuid.random()) }
+
+        then()
+        assertNull(suspendTransaction { fixture.sut.get(otherClient.id) }.client.userId)
+        assertNull(suspendTransaction { fixture.sut.get(otherBusiness.id) }.client.userId)
     }
 
     @Test

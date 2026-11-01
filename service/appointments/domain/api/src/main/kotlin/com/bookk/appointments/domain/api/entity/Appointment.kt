@@ -12,7 +12,7 @@ import kotlin.uuid.Uuid
 @Serializable
 data class Appointment(
     @ProtoNumber(1) override val id: Uuid,
-    @ProtoNumber(2) override val userId: Uuid,
+    @ProtoNumber(2) override val initiatorUserId: Uuid,
     @ProtoNumber(3) override val businessId: Uuid,
     @ProtoNumber(4) override val employee: EmployeeSnapshot,
     @ProtoNumber(5) val client: ClientSnapshot,
@@ -67,15 +67,15 @@ data class Appointment(
     companion object {
         fun stub(
             id: Uuid = Uuid.random(),
-            userId: Uuid = Uuid.random(),
+            initiatorUserId: Uuid = Uuid.random(),
             businessId: Uuid = Uuid.random(),
             date: Instant = Instant.fromEpochMilliseconds(0)
         ) = Appointment(
             id = id,
-            userId = userId,
+            initiatorUserId = initiatorUserId,
             businessId = businessId,
             employee = EmployeeSnapshot.stub(),
-            client = ClientSnapshot.stub(),
+            client = ClientSnapshot.stub(userId = initiatorUserId),
             services = listOf(ServiceSnapshot.stub()),
             status = AppointmentStatus.SCHEDULED,
             date = date,

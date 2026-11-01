@@ -24,6 +24,7 @@ import io.mockk.slot
 import kotlinx.datetime.TimeZone
 import library.permissions.ResourcePermission
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import kotlin.uuid.Uuid
@@ -209,6 +210,51 @@ internal class CancelAppointmentImplTest {
 
         then()
         assertEquals(TimeZone.of("Europe/Kyiv"), eventSlot.captured.timeZone)
+    }
+
+    @Test
+    fun `should address the cancellation to the client's own account, not whoever booked`() = runUnitTest {
+        val fixture = SutFixture()
+        given()
+        fixture.transactionManager.mockTransaction()
+        val clientUserId = Uuid.random()
+        val appointment = Appointment.stub(id = testCancellation.id, businessId = testBusinessId)
+            .let { it.copy(client = it.client.copy(userId = clientUserId), status = AppointmentStatus.SCHEDULED) }
+        val eventSlot = slot<AppointmentEvent.Cancelled>()
+
+        coEvery { fixture.appointmentPermissionDataSource.getPermission(testUserId, testBusinessId) } returns ResourcePermission(view = false, update = true, delete = false)
+        coEvery { fixture.appointmentDataSource.getForUpdate(testCancellation.id) } returns appointment
+        coEvery { fixture.appointmentDataSource.cancel(testCancellation.id, testCancellation.reason) } returns appointment.copy(status = AppointmentStatus.CANCELLED)
+        coEvery { fixture.subscriptionDataSource.getBusinessSnapshot(testBusinessId) } returns BusinessSnapshot.stub()
+        coEvery { fixture.eventProducer.send(capture(eventSlot), any()) } returns Unit
+
+        whenn()
+        fixture.sut.invoke(testUserId, testCancellation)
+
+        then()
+        assertEquals(clientUserId, eventSlot.captured.clientUserId)
+    }
+
+    @Test
+    fun `should name no client account on the cancellation of a client without one`() = runUnitTest {
+        val fixture = SutFixture()
+        given()
+        fixture.transactionManager.mockTransaction()
+        val appointment = Appointment.stub(id = testCancellation.id, businessId = testBusinessId)
+            .let { it.copy(client = it.client.copy(userId = null), status = AppointmentStatus.SCHEDULED) }
+        val eventSlot = slot<AppointmentEvent.Cancelled>()
+
+        coEvery { fixture.appointmentPermissionDataSource.getPermission(testUserId, testBusinessId) } returns ResourcePermission(view = false, update = true, delete = false)
+        coEvery { fixture.appointmentDataSource.getForUpdate(testCancellation.id) } returns appointment
+        coEvery { fixture.appointmentDataSource.cancel(testCancellation.id, testCancellation.reason) } returns appointment.copy(status = AppointmentStatus.CANCELLED)
+        coEvery { fixture.subscriptionDataSource.getBusinessSnapshot(testBusinessId) } returns BusinessSnapshot.stub()
+        coEvery { fixture.eventProducer.send(capture(eventSlot), any()) } returns Unit
+
+        whenn()
+        fixture.sut.invoke(testUserId, testCancellation)
+
+        then()
+        assertNull(eventSlot.captured.clientUserId)
     }
 
     @Test

@@ -15,7 +15,7 @@ plugins {
 }
 
 group = "com.bookk.server"
-version = "0.16.2"
+version = "0.17.0"
 
 application {
     mainClass.set("com.bookk.server.MonolithServerKt")

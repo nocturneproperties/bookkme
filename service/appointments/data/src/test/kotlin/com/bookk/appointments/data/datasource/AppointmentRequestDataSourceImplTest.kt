@@ -47,7 +47,7 @@ internal class AppointmentRequestDataSourceImplTest {
         fun buildRequest(
             userId: Uuid = Uuid.random(),
             date: Instant = Instant.fromEpochMilliseconds(0)
-        ) = AppointmentRequest.stub(userId = userId, businessId = businessId, date = date)
+        ) = AppointmentRequest.stub(initiatorUserId = userId, businessId = businessId, date = date)
     }
 
     @Test
@@ -112,7 +112,7 @@ internal class AppointmentRequestDataSourceImplTest {
         val declined = suspendTransaction { fixture.sut.create(fixture.buildRequest(userId = userId)) }
         suspendTransaction { fixture.sut.decline(declined.id, "Fully booked") }
         suspendTransaction { fixture.sut.create(fixture.buildRequest()) }
-        suspendTransaction { fixture.sut.create(AppointmentRequest.stub(userId = userId, businessId = otherBusiness.id)) }
+        suspendTransaction { fixture.sut.create(AppointmentRequest.stub(initiatorUserId = userId, businessId = otherBusiness.id)) }
 
         whenn()
         val pending = suspendTransaction { fixture.sut.getPendingByUser(userId, fixture.businessId) }
@@ -355,14 +355,28 @@ internal class AppointmentRequestDataSourceImplTest {
     }
 
     @Test
-    fun `should delete requests booked with the deleted user as client`() = runUnitTest {
+    fun `should delete requests the deleted user booked`() = runUnitTest {
         given()
         val fixture = SutFixture()
         fixture.setup()
         val userId = Uuid.random()
-        val request = fixture.buildRequest().let {
-            it.copy(client = it.client.copy(id = userId))
-        }
+        val created = suspendTransaction { fixture.sut.create(fixture.buildRequest(userId = userId)) }
+
+        whenn()
+        suspendTransaction { fixture.sut.deleteForUser(userId) }
+        val found = suspendTransaction { fixture.sut.get(created.id) }
+
+        then()
+        assertNull(found)
+    }
+
+    @Test
+    fun `should delete requests where the deleted user is the client, whoever booked them`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val userId = Uuid.random()
+        val request = fixture.buildRequest().let { it.copy(client = it.client.copy(userId = userId)) }
         val created = suspendTransaction { fixture.sut.create(request) }
 
         whenn()
@@ -422,6 +436,22 @@ internal class AppointmentRequestDataSourceImplTest {
     }
 
     @Test
+    fun `should keep the client's user id on a request`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val clientUserId = Uuid.random()
+        val request = fixture.buildRequest().let { it.copy(client = it.client.copy(userId = clientUserId)) }
+
+        whenn()
+        val created = suspendTransaction { fixture.sut.create(request) }
+        val found = suspendTransaction { fixture.sut.get(created.id) }
+
+        then()
+        assertEquals(clientUserId, found?.client?.userId)
+    }
+
+    @Test
     fun `should read request with a row lock`() = runUnitTest {
         given()
         val fixture = SutFixture()
@@ -465,6 +495,25 @@ internal class AppointmentRequestDataSourceImplTest {
         then()
         assertEquals(AppointmentRequestStatus.DECLINED, declined.status)
         assertEquals(AppointmentRequestStatus.DECLINED, suspendTransaction { fixture.sut.get(created.id) }?.status)
+    }
+
+    @Test
+    fun `should give the client's requests in the business the linked account`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val clientId = Uuid.random()
+        val userId = Uuid.random()
+        val request = fixture.buildRequest().let { it.copy(client = it.client.copy(id = clientId, userId = null)) }
+        val created = suspendTransaction { fixture.sut.create(request) }
+        val other = suspendTransaction { fixture.sut.create(fixture.buildRequest().let { it.copy(client = it.client.copy(userId = null)) }) }
+
+        whenn()
+        suspendTransaction { fixture.sut.linkClientUser(fixture.businessId, clientId, userId) }
+
+        then()
+        assertEquals(userId, suspendTransaction { fixture.sut.get(created.id) }?.client?.userId)
+        assertNull(suspendTransaction { fixture.sut.get(other.id) }?.client?.userId)
     }
 
     @Test

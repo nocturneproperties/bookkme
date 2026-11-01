@@ -15,6 +15,7 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.coVerifyOrder
 import io.mockk.mockk
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import kotlin.time.Instant
@@ -135,13 +136,46 @@ internal class SyncUserProfileImplTest {
         coVerifyOrder {
             fixture.clientDataSource.deleteClient(merge.businessId, merge.fromClientId)
             fixture.eventProducer.send(
-                match<BusinessEvent.ClientMerged> {
-                    it.businessId == merge.businessId && it.fromClientId == merge.fromClientId && it.toClientId == merge.toClientId
+                match<BusinessEvent.ClientLinked> {
+                    it.businessId == merge.businessId && it.clientId == merge.toClientId && it.userId == userId &&
+                        it.mergedClientIds == listOf(merge.fromClientId)
                 },
                 any()
             )
             fixture.clientDataSource.updateIntegratedClients(userId, "John", "Doe", "john@doe.com", "+1555", updatedAt)
         }
+    }
+
+    @Test
+    fun `should announce one link per kept client, listing every duplicate merged into it`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val updatedAt = Instant.fromEpochMilliseconds(1000)
+        val kept = ClientMerge.stub()
+        val sameKept = ClientMerge.stub(businessId = kept.businessId, toClientId = kept.toClientId)
+        val elsewhere = ClientMerge.stub()
+        val linked = mutableListOf<BusinessEvent.ClientLinked>()
+        with(fixture) {
+            transactionManager.mockTransaction()
+            coEvery { clientDataSource.findClientMergesForUser(userId, any(), any(), updatedAt) } returns listOf(kept, sameKept, elsewhere)
+            coEvery { clientDataSource.deleteClient(any(), any()) } returns true
+            coEvery { eventProducer.send(capture(linked), any()) } returns Unit
+            coEvery { clientDataSource.updateIntegratedClients(userId, any(), any(), any(), any(), any()) } returns 1
+            coEvery { employeeDataSource.updateIntegratedEmployees(userId, any(), any(), any(), any(), any()) } returns 0
+        }
+
+        whenn()
+        fixture.sut(userId, "John", "Doe", "john@doe.com", "+1555", updatedAt)
+
+        then()
+        assertEquals(
+            setOf(
+                Triple(kept.businessId, kept.toClientId, listOf(kept.fromClientId, sameKept.fromClientId)),
+                Triple(elsewhere.businessId, elsewhere.toClientId, listOf(elsewhere.fromClientId))
+            ),
+            linked.map { Triple(it.businessId, it.clientId, it.mergedClientIds) }.toSet()
+        )
     }
 
     @Test
@@ -160,6 +194,6 @@ internal class SyncUserProfileImplTest {
 
         then()
         coVerify(exactly = 0) { fixture.clientDataSource.deleteClient(any(), any()) }
-        coVerify(exactly = 0) { fixture.eventProducer.send(any<BusinessEvent.ClientMerged>(), any()) }
+        coVerify(exactly = 0) { fixture.eventProducer.send(any<BusinessEvent.ClientLinked>(), any()) }
     }
 }

@@ -322,7 +322,59 @@ internal class GetAppointmentBookingContextImplTest {
             )
         }
         coVerify(exactly = 0) { fixture.clientDataSource.getOrCreateIntegratedClient(any(), any()) }
-        coVerify(exactly = 0) { fixture.eventProducer.send(any<BusinessEvent.ClientMerged>(), any()) }
+        coVerify(exactly = 1) { fixture.eventProducer.send(match<BusinessEvent.ClientLinked> { it.mergedClientIds.isEmpty() }, any()) }
+    }
+
+    @Test
+    fun `should announce that the taken over client now belongs to the user, after taking it over`() = runUnitTest {
+        given()
+        val businessId = Uuid.random()
+        val employeeId = Uuid.random()
+        val user = UserSnapshot.stub(id = Uuid.random(), email = "user@test.com", phone = "+123456789")
+        val service = Service.stub(businessId = businessId)
+        val detached = Client.Detached.stub(phone = null, email = "user@test.com")
+        val fixture = SutFixture()
+        with(fixture) {
+            bookingByNewClient(businessId, employeeId, user, service)
+            coEvery { clientDataSource.getClientsByContacts(businessId, any(), any()) } returns listOf(detached)
+            coEvery { clientDataSource.takeOverClient(businessId, detached.id, any()) } returns
+                Client.Integrated.stub(id = detached.id, userId = user.id)
+        }
+
+        whenn()
+        fixture.sut.invoke(businessId, employeeId, user.id, listOf(service.id))
+
+        then()
+        coVerifyOrder {
+            fixture.clientDataSource.takeOverClient(businessId, detached.id, any())
+            fixture.eventProducer.send(
+                match<BusinessEvent.ClientLinked> {
+                    it.businessId == businessId && it.clientId == detached.id && it.userId == user.id && it.mergedClientIds.isEmpty()
+                },
+                any()
+            )
+        }
+    }
+
+    @Test
+    fun `should announce no link when the user's client is newly created`() = runUnitTest {
+        given()
+        val businessId = Uuid.random()
+        val employeeId = Uuid.random()
+        val user = UserSnapshot.stub(id = Uuid.random(), email = "user@test.com", phone = null)
+        val service = Service.stub(businessId = businessId)
+        val fixture = SutFixture()
+        with(fixture) {
+            bookingByNewClient(businessId, employeeId, user, service)
+            coEvery { clientDataSource.getClientsByContacts(businessId, any(), any()) } returns emptyList()
+            coEvery { clientDataSource.getOrCreateIntegratedClient(businessId, any()) } returns Client.Integrated.stub(userId = user.id)
+        }
+
+        whenn()
+        fixture.sut.invoke(businessId, employeeId, user.id, listOf(service.id))
+
+        then()
+        coVerify(exactly = 0) { fixture.eventProducer.send(any<BusinessEvent.ClientLinked>(), any()) }
     }
 
     @Test
@@ -373,14 +425,43 @@ internal class GetAppointmentBookingContextImplTest {
         assertEquals(byEmail.id, result.getOrThrow().client.id)
         coVerifyOrder {
             fixture.clientDataSource.deleteClient(businessId, byPhone.id)
+            fixture.clientDataSource.takeOverClient(businessId, byEmail.id, any())
             fixture.eventProducer.send(
-                match<BusinessEvent.ClientMerged> {
-                    it.businessId == businessId && it.fromClientId == byPhone.id && it.toClientId == byEmail.id
+                match<BusinessEvent.ClientLinked> {
+                    it.businessId == businessId && it.clientId == byEmail.id && it.userId == user.id &&
+                        it.mergedClientIds == listOf(byPhone.id)
                 },
                 any()
             )
-            fixture.clientDataSource.takeOverClient(businessId, byEmail.id, any())
         }
+    }
+
+    @Test
+    fun `should link the duplicates to the client the user actually got when the takeover lost a race`() = runUnitTest {
+        given()
+        val businessId = Uuid.random()
+        val employeeId = Uuid.random()
+        val user = UserSnapshot.stub(id = Uuid.random(), email = "user@test.com", phone = "+123456789")
+        val service = Service.stub(businessId = businessId)
+        val byPhone = Client.Detached.stub(phone = "+123456789", email = null)
+        val byEmail = Client.Detached.stub(phone = null, email = "user@test.com")
+        val created = Client.Integrated.stub(userId = user.id)
+        val linked = mutableListOf<BusinessEvent.ClientLinked>()
+        val fixture = SutFixture()
+        with(fixture) {
+            bookingByNewClient(businessId, employeeId, user, service)
+            coEvery { clientDataSource.getClientsByContacts(businessId, any(), any()) } returns listOf(byPhone, byEmail)
+            coEvery { clientDataSource.deleteClient(businessId, byPhone.id) } returns true
+            coEvery { clientDataSource.takeOverClient(businessId, byEmail.id, any()) } returns null
+            coEvery { clientDataSource.getOrCreateIntegratedClient(businessId, any()) } returns created
+            coEvery { eventProducer.send(capture(linked), any()) } returns Unit
+        }
+
+        whenn()
+        fixture.sut.invoke(businessId, employeeId, user.id, listOf(service.id))
+
+        then()
+        assertEquals(listOf(Triple(created.id, user.id, listOf(byPhone.id))), linked.map { Triple(it.clientId, it.userId, it.mergedClientIds) })
     }
 
     @Test
@@ -429,5 +510,6 @@ internal class GetAppointmentBookingContextImplTest {
 
         then()
         assertEquals(created.id, result.getOrThrow().client.id)
+        coVerify(exactly = 0) { fixture.eventProducer.send(any<BusinessEvent.ClientLinked>(), any()) }
     }
 }

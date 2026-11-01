@@ -9,6 +9,7 @@ import com.bookk.server.business.client.api.BusinessDTO
 import kotlinx.datetime.TimeZone
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.protobuf.ProtoBuf
+import kotlinx.serialization.protobuf.ProtoNumber
 import library.schedule.Schedule
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -150,9 +151,9 @@ internal class BusinessEventTest {
     }
 
     @Test
-    fun `should key the client merged event by business id`() = runUnitTest {
+    fun `should key the client linked event by business id`() = runUnitTest {
         given()
-        val event = BusinessEvent.ClientMerged(businessId, fromClientId = Uuid.random(), toClientId = Uuid.random())
+        val event = BusinessEvent.ClientLinked(businessId, clientId = Uuid.random(), userId = Uuid.random())
 
         whenn()
         val partitionKey = event.partitionKey
@@ -162,18 +163,45 @@ internal class BusinessEventTest {
     }
 
     @Test
-    fun `should round trip the client merged event through protobuf`() = runUnitTest {
+    fun `should decode the client linked event from its pinned field numbers`() = runUnitTest {
         given()
-        val event = BusinessEvent.ClientMerged(businessId, fromClientId = Uuid.random(), toClientId = Uuid.random())
+        val pinned = PinnedClientLinked(
+            businessId, Uuid.random(), Uuid.random(), listOf(Uuid.random(), Uuid.random()), "key", BusinessEvent.ClientLinked.TOPIC
+        )
 
         whenn()
         val decoded = protoBuf.decodeFromByteArray(
-            BusinessEvent.ClientMerged.serializer(),
-            protoBuf.encodeToByteArray(BusinessEvent.ClientMerged.serializer(), event)
+            BusinessEvent.ClientLinked.serializer(),
+            protoBuf.encodeToByteArray(PinnedClientLinked.serializer(), pinned)
+        )
+
+        then()
+        assertEquals(BusinessEvent.ClientLinked(businessId, pinned.clientId, pinned.userId, pinned.mergedClientIds, "key"), decoded)
+        assertEquals(BusinessEvent.ClientLinked.TOPIC, decoded.topic)
+    }
+
+    @Test
+    fun `should round trip a client linked event that merged nothing`() = runUnitTest {
+        given()
+        val event = BusinessEvent.ClientLinked(businessId, clientId = Uuid.random(), userId = Uuid.random(), mergedClientIds = emptyList())
+
+        whenn()
+        val decoded = protoBuf.decodeFromByteArray(
+            BusinessEvent.ClientLinked.serializer(),
+            protoBuf.encodeToByteArray(BusinessEvent.ClientLinked.serializer(), event)
         )
 
         then()
         assertEquals(event, decoded)
-        assertEquals(BusinessEvent.ClientMerged.TOPIC, decoded.topic)
     }
 }
+
+@Serializable
+private data class PinnedClientLinked(
+    @ProtoNumber(1) val businessId: Uuid,
+    @ProtoNumber(2) val clientId: Uuid,
+    @ProtoNumber(3) val userId: Uuid,
+    @ProtoNumber(4) val mergedClientIds: List<Uuid>,
+    @ProtoNumber(5) val idempotencyKey: String,
+    @ProtoNumber(6) val topic: String
+)

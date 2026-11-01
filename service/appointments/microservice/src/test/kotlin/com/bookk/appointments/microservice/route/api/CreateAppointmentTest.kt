@@ -44,10 +44,10 @@ internal class CreateAppointmentTest {
         val userId = Uuid.random()
         val appointment = Appointment(
             id = Uuid.random(),
-            userId = userId,
+            initiatorUserId = userId,
             businessId = Uuid.random(),
             employee = EmployeeSnapshot.stub(),
-            client = ClientSnapshot(Uuid.random(), "Full Name", "123456789", "test@example.com"),
+            client = ClientSnapshot(Uuid.random(), "Full Name", "123456789", "test@example.com", Uuid.random()),
             services = listOf(ServiceSnapshot(
                 Uuid.random(),
                 "Service Name",

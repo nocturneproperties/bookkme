@@ -9,6 +9,7 @@ import com.bookk.notifications.domain.api.DeleteUserNotificationData
 import com.bookk.notifications.domain.impl.UpdateDeviceLanguage
 import com.bookk.notifications.domain.impl.UpdateTargetInformation
 import com.bookk.notifications.domain.impl.UpdateTargetInformation.Target
+import com.bookk.notifications.domain.impl.notification.NotificationParameters
 import com.bookk.notifications.domain.impl.notification.SendNotification
 import com.bookk.notifications.domain.impl.notification.renderer.appointment.notification
 import com.bookk.notifications.domain.impl.notification.renderer.employee.notification
@@ -17,6 +18,7 @@ import com.bookk.server.auth.client.AuthEvent
 import com.bookk.server.business.client.api.event.BusinessEvent
 import com.bookk.server.user.client.api.event.UserEvent
 import kotlinx.coroutines.CoroutineScope
+import kotlin.uuid.Uuid
 
 internal class NotificationEventHandler(
     private val consumer: StandardEventConsumer,
@@ -48,13 +50,18 @@ internal class NotificationEventHandler(
                 sendNotification(event.employeeUserId, event.notification)
             }
             .registerResultReceiver(AppointmentEvent.RequestApproved.TOPIC) { event : AppointmentEvent.RequestApproved ->
-                sendNotification(event.clientUserId, event.notification)
+                notifyClient(event.clientUserId, event.notification)
             }
             .registerResultReceiver(AppointmentEvent.RequestRejected.TOPIC) { event : AppointmentEvent.RequestRejected ->
-                sendNotification(event.clientUserId, event.notification)
+                notifyClient(event.clientUserId, event.notification)
             }
             .registerResultReceiver(AppointmentEvent.Cancelled.TOPIC) { event : AppointmentEvent.Cancelled ->
-                sendNotification(event.clientUserId, event.notification)
+                notifyClient(event.clientUserId, event.notification)
+            }
+            .registerResultReceiver(
+                AppointmentEvent.CancelledForDeletedClient.TOPIC
+            ) { event : AppointmentEvent.CancelledForDeletedClient ->
+                sendNotification(event.employeeUserId, event.notification)
             }
             .registerResultReceiver(
                 BusinessEvent.EmployeeInvitationRedeemed.TOPIC
@@ -63,4 +70,7 @@ internal class NotificationEventHandler(
             }
             .start(scope)
     }
+
+    private suspend fun notifyClient(clientUserId: Uuid?, notification: NotificationParameters): Result<Unit> =
+        clientUserId?.let { sendNotification(it, notification) } ?: Result.success(Unit)
 }

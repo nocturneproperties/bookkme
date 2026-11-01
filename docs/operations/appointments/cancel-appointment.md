@@ -31,7 +31,7 @@ flowchart TD
     Status -- SCHEDULED --> Cancel[AppointmentDataSource.cancel id reason]
     Cancel --> Snapshot[AppointmentSubscriptionDataSource.getBusinessSnapshot businessId]
     Snapshot -- missing --> R404b([404 Error.NotFound - logged as data inconsistency])
-    Snapshot -- found --> Event[eventProducer.send AppointmentEvent.Cancelled]
+    Snapshot -- found --> Event["eventProducer.send AppointmentEvent.Cancelled - clientUserId = appointment.client.userId, empty for a client without an account"]
     Event --> R200([200 Cancelled Appointment])
 ```
 

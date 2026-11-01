@@ -27,12 +27,13 @@ import kotlin.uuid.Uuid
 
 internal class AppointmentEntity(id: EntityID<Uuid>) : UuidEntity(id) {
 
-    var userId by AppointmentTable.userId
+    var initiatorUserId by AppointmentTable.initiatorUserId
     var businessId by AppointmentTable.businessId
     var employeeId by AppointmentTable.employeeId
     var employeeUserId by AppointmentTable.employeeUserId
     var employeeName by AppointmentTable.employeeName
     var clientId by AppointmentTable.clientId
+    var clientUserId by AppointmentTable.clientUserId
     var clientName by AppointmentTable.clientName
     var clientPhone by AppointmentTable.clientPhone
     var clientEmail by AppointmentTable.clientEmail
@@ -49,7 +50,7 @@ internal class AppointmentEntity(id: EntityID<Uuid>) : UuidEntity(id) {
     fun domain(): Appointment {
         return Appointment(
             id = id.value,
-            userId = userId,
+            initiatorUserId = initiatorUserId,
             businessId = businessId.value,
             employee = EmployeeSnapshot(
                 id = employeeId,
@@ -60,7 +61,8 @@ internal class AppointmentEntity(id: EntityID<Uuid>) : UuidEntity(id) {
                 id = clientId,
                 fullName = clientName,
                 phone = clientPhone,
-                email = clientEmail
+                email = clientEmail,
+                userId = clientUserId
             ),
             services = services.map {
                 ServiceSnapshot(
@@ -92,12 +94,13 @@ internal class AppointmentEntity(id: EntityID<Uuid>) : UuidEntity(id) {
     companion object : DecoratorUuidEntityClass<AppointmentEntity>(AppointmentTable) {
 
         fun new(request: AppointmentRequest) = new {
-            userId = request.userId
+            initiatorUserId = request.initiatorUserId
             businessId = EntityID(request.businessId, table = AppointmentBusinessTable)
             employeeId = request.employee.id
             employeeUserId = request.employee.userId
             employeeName = request.employee.fullName
             clientId = request.client.id
+            clientUserId = request.client.userId
             clientName = request.client.fullName
             clientPhone = request.client.phone
             clientEmail = request.client.email
@@ -109,12 +112,13 @@ internal class AppointmentEntity(id: EntityID<Uuid>) : UuidEntity(id) {
         }
 
         fun new(appointment: Appointment) = new {
-            userId = appointment.userId
+            initiatorUserId = appointment.initiatorUserId
             businessId = EntityID(appointment.businessId, table = AppointmentBusinessTable)
             employeeId = appointment.employee.id
             employeeUserId = appointment.employee.userId
             employeeName = appointment.employee.fullName
             clientId = appointment.client.id
+            clientUserId = appointment.client.userId
             clientName = appointment.client.fullName
             clientPhone = appointment.client.phone
             clientEmail = appointment.client.email
@@ -126,12 +130,13 @@ internal class AppointmentEntity(id: EntityID<Uuid>) : UuidEntity(id) {
         }
 
         fun findByIdAndUpdate(appointment: Appointment) = findByIdAndUpdate(appointment.id) {
-            it.userId = appointment.userId
+            it.initiatorUserId = appointment.initiatorUserId
             it.businessId = EntityID(appointment.businessId, table = AppointmentBusinessTable)
             it.employeeId = appointment.employee.id
             it.employeeUserId = appointment.employee.userId
             it.employeeName = appointment.employee.fullName
             it.clientId = appointment.client.id
+            it.clientUserId = appointment.client.userId
             it.clientName = appointment.client.fullName
             it.clientPhone = appointment.client.phone
             it.clientEmail = appointment.client.email

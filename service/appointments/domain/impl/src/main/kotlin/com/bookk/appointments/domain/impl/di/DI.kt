@@ -39,9 +39,9 @@ import com.bookk.appointments.domain.impl.operation.GetClientBusinessesAppointme
 import com.bookk.appointments.domain.impl.operation.GetPendingAppointmentRequestsImpl
 import com.bookk.appointments.domain.impl.operation.GetSettingsImpl
 import com.bookk.appointments.domain.impl.operation.IsAppointmentsEnabledImpl
+import com.bookk.appointments.domain.impl.operation.LinkClientUser
 import com.bookk.appointments.domain.impl.operation.MarkAppointmentNoShowImpl
 import com.bookk.appointments.domain.impl.operation.MarkAppointmentsCompletedImpl
-import com.bookk.appointments.domain.impl.operation.MergeClient
 import com.bookk.appointments.domain.impl.operation.SyncEmployeePermission
 import com.bookk.appointments.domain.impl.operation.UpdateAppointmentImpl
 import com.bookk.appointments.domain.impl.operation.UpdateBusinessInformation
@@ -73,7 +73,7 @@ fun appointmentsDomainModule() = module {
         scopedOf(::CompleteAppointmentImpl) bind CompleteAppointment::class
         scopedOf(::UpdateBusinessInformation)
         scopedOf(::SyncEmployeePermission)
-        scopedOf(::MergeClient)
+        scopedOf(::LinkClientUser)
         scopedOf(::DeclineAppointmentRequestImpl) bind DeclineAppointmentRequest::class
         scopedOf(::IsAppointmentsEnabledImpl) bind IsAppointmentsEnabled::class
         scopedOf(::GetClientBusinessesAppointmentsStatusImpl) bind GetClientBusinessesAppointmentsStatus::class

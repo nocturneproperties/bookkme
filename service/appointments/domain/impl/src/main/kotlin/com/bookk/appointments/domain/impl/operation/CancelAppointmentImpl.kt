@@ -48,7 +48,7 @@ internal class CancelAppointmentImpl(
         }
         eventProducer.send(
             AppointmentEvent.Cancelled(
-                clientUserId = appointment.client.id,
+                clientUserId = appointment.client.userId,
                 clientName = appointment.client.fullName,
                 from = appointment.date,
                 to = appointment.dateEnd,

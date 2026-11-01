@@ -1,17 +1,28 @@
 # Release notes
 
-## 0.16.2
+## 0.17.0
 
-Changes since `monolith/0.16.1`. A patch release: notifications handle their events again, an event that keeps failing is parked instead of retried forever, and public traffic now goes through Cloudflare. No API changes and no migrations, but the infrastructure needs a new secret and an `infra` run before the deploy (see **Upgrade**).
+Changes since `monolith/0.16.1`. Deleting an account now really removes the person's details from appointments, notifications handle their events again, an event that keeps failing is parked instead of retried forever, and public traffic now goes through Cloudflare. Two new internal events (`BusinessEvent.ClientLinked`, which replaces `BusinessEvent.ClientMerged`, and `AppointmentEvent.CancelledForDeletedClient`), and one appointments migration (`V10`: a renamed column, a new indexed one and the `deleted_user` table). The app sees one rename and one new field (see **Changed**), and the infrastructure needs a new secret and an `infra` run before the deploy, and the database needs a one-off cleanup after it (see **Upgrade**).
 
 ### Fixed
 
+- **A deleted user's name, phone and email stayed on their appointments and requests.** On `AuthEvent.UserDeleted`, appointments anonymized client details where `client_id` equalled the user id, but `client_id` is the business's client row id, so it never matched and nothing was cleared. Their pending requests weren't deleted either, for the same reason. Appointments now records the client's own account on every appointment and request (`client_user_id`, see **Changed**) and erases by it: the client name, phone, email and `client_user_id` are cleared on all of the user's appointments, and every request where they are the initiator, the client or the employee is deleted. Appointments booked for a client row before it had an account are covered too: when a user's first booking takes over a business's client row, or duplicates are merged into a user's row, business sends one `BusinessEvent.ClientLinked` naming the kept row, its account and the deleted duplicates, and appointments moves the duplicates' rows onto it and records the account on all of them. It replaces `BusinessEvent.ClientMerged`, whose moves could otherwise arrive after the link and leave moved rows without the account. That event can arrive after the deletion, so appointments keeps the ids of deleted accounts in `deleted_user` (`V10`, id and time only) and erases the rows it links when the account is already gone. A booking from an account whose deletion has already been handled is rejected with a 404, so it can't store the person's details after the erasure. Appointments of users deleted before this release need the one-off cleanup in **Upgrade**.
+- **A deleted user's upcoming appointments stayed booked.** Their slots stayed blocked for a person who no longer exists. Every scheduled appointment of the deleted user that hasn't started yet is now cancelled with the reason "User deleted their account". Past appointments stay, anonymized, as the business's history. The employee assigned to each cancelled appointment gets a notification (`AppointmentEvent.CancelledForDeletedClient`, push, email or text by their settings, in English or Ukrainian) that a client deleted their account and the time is free again. It names no client, since their details are already erased, and no address, since the employee knows where they work. Appointments cancelled by the one-off cleanup in **Upgrade** send no notification.
+- **Clients never received approval, rejection or cancellation notifications.** `AppointmentEvent.RequestApproved`, `RequestRejected` and `Cancelled` carried the business's client row id as `clientUserId`, and the notifications service looked up settings and devices for a user with that id, which never exists. They now carry the client's own account (`client.userId`, see **Changed**), so these notifications reach the client, and a client without an account is simply not notified. `RequestCreated` carried the same wrong id but is sent to the employee, so it had no visible effect. Combined with the notification fix below, this is the first release in which clients get these notifications at all.
+- **The new-request email to an employee no longer lists the business address.** It is the employee's own workplace. The `address` field stays in `AppointmentEvent.RequestCreated`, unused, so the event's wire format is unchanged.
 - **Device language changes and notifications failed on every delivery.** The notifications service handled `AuthEvent.DeviceLanguageUpdated` and every notification event (`AppointmentEvent.RequestCreated`, `RequestApproved`, `RequestRejected`, `Cancelled`, `BusinessEvent.EmployeeInvitationRedeemed`) by reading or writing the database outside a transaction, so each attempt failed with `IllegalStateException: No transaction in context.` A device kept the language it first signed in with, and no appointment or invitation notification was sent. Both now run in a transaction. The channels still send outside it, so a conflict retry never sends a notification twice.
 - **An event that failed every attempt was retried forever.** After the last DLT attempt, both consumers (embedded and Kafka) save the event to `exhausted_event`, but that save also ran outside a transaction. It always failed, logged `Failed to persist exhausted event for topic: … Retrying. Error: … No transaction in context.`, and put the event back on the DLT with a higher attempt count, indefinitely. The save now runs in a transaction, so failing events land in `exhausted_event` as designed.
 - **Passkey requests no longer log a warning per Android origin.** Every passkey registration and sign-in logged `Allowed origin is not a valid URL, it will match only by exact string equality` twice, once for each `android:apk-key-hash:` origin. Those origins are meant to be matched exactly, so `logback.xml` now drops that one message. The relying party's other warnings still appear.
 
+### Changed
+
+- **`Appointment.userId` and `AppointmentRequest.userId` are now `initiatorUserId`** (column `initiator_user_id`, `V10`). It always meant who booked, not who the client is. The field keeps `@ProtoNumber(2)`, so the ProtoBuf bytes are unchanged, but generated client code and the OpenAPI schema use the new name.
+- **`ClientSnapshot.userId` (`@ProtoNumber(5)`, nullable) is the client's own account** (column `client_user_id`, indexed, `V10`), empty for a client without one and cleared when the client is erased. It is resolved server-side: from the booking context for requests, and set to the caller on an instant appointment, whatever the body says. `V10` fills it from `initiator_user_id` for existing rows, which is correct because every appointment so far was booked by the client themselves.
+
 ### Deployment
 
+- **`BusinessEvent.ClientMerged` is gone.** Nothing consumes it any more, so a `ClientMerged` still in the outbox or `exhausted_event` at deploy time is not applied. Prod has almost no clients, so none is expected; if in doubt, check before deploying with `SELECT COUNT(*) FROM business.outbox_event WHERE topic = 'business.client_merged'` and `SELECT COUNT(*) FROM appointments.exhausted_event WHERE original_topic = 'business.client_merged'`.
+- **`V10` renames a column the running version reads.** The monolith deploys `start-first`, so for the few seconds both tasks run, the old task's appointment reads and writes fail with `Unknown column 'user_id'` until it stops. Deploy outside busy hours.
 - **Public traffic goes through Cloudflare.** The domain's records are proxied by Cloudflare, so nginx receives public requests from Cloudflare's edge. Port 443 should admit only Cloudflare's published ranges in the provider firewall, since nginx trusts the client address those ranges send.
 - **The certificate is issued through Cloudflare DNS.** acme.sh now solves the Let's Encrypt DNS challenge with `dns_cf` and the new vault secret `CLOUDFLARE_DNS_API_TOKEN`, instead of Hostinger (`HOSTINGER_API_KEY` and the bundled `dns_hostinger.sh` are gone). Its state now lives in `/acme.sh` on the `acmesh-data` volume. It used to be mounted at a path acme.sh never reads, so every new nginx container requested a new certificate, and Let's Encrypt allows only 5 identical ones per week. A restart now reuses the saved certificate, and the daily cron renews it.
 - **nginx logs the real client address.** `snippets/cloudflare-real-ip.conf` trusts Cloudflare's ranges and takes the client address from `CF-Connecting-IP`. Only the public `${DOMAIN_NAME}` server block includes it, so the VPN-only hosts still check the actual TCP peer. Every `make infra tags=nginx` compares the snippet with Cloudflare's live lists and fails when they differ. In that case, regenerate the snippet with `scripts/cloudflare-real-ip.sh` and update the firewall to the same ranges.
@@ -28,6 +39,26 @@ Changes since `monolith/0.16.1`. A patch release: notifications handle their eve
 3. `make infra tags=vpn`, without `--limit`. It creates `worker-1`'s client and brings up `wg0` on the worker. Re-import every device's WireGuard config from `deployment/ansible/vpn-clients/`: the existing configs point at `vpn.<domain>`, which no longer reaches the manager over UDP.
 4. `make infra tags=nginx`. The service spec changes this time (mounts, env), so nginx restarts once, and its first start issues a new certificate into the relocated `acmesh-data` path. Later changes to the templates only reload.
 5. Deploy the monolith. Events that were looping when the old version stopped were held only in memory and are gone: a device keeps its old language until its next sign-in, and notifications sent before the deploy are not resent.
+6. Erase what this release's fix missed for users deleted before it. Their client rows are already anonymized in `business`, which is how the statements find them. Run once, as the `monolith` user (it has access to both schemas), after the deploy has applied `V10`. Running it again changes nothing. It cancels their upcoming appointments, clears their details from all their appointments, and deletes their requests:
+   ```sql
+   UPDATE appointments.appointment a
+   JOIN business.client c ON c.id = a.client_id
+   SET a.status = 2, a.cancellation_reason = 'User deleted their account', a.updatedAt = NOW(6)
+   WHERE c.user_id IS NULL AND c.name = 'Deleted User' AND c.lastname = '' AND c.phone IS NULL AND c.email IS NULL
+     AND a.status = 0 AND a.date_start > NOW(6);
+
+   UPDATE appointments.appointment a
+   JOIN business.client c ON c.id = a.client_id
+   SET a.client_name = 'Deleted User', a.client_phone = NULL, a.client_email = NULL, a.client_user_id = NULL
+   WHERE c.user_id IS NULL AND c.name = 'Deleted User' AND c.lastname = '' AND c.phone IS NULL AND c.email IS NULL;
+
+   DELETE FROM appointments.appointment_request
+   WHERE client_id IN (
+     SELECT c.id FROM business.client c
+     WHERE c.user_id IS NULL AND c.name = 'Deleted User' AND c.lastname = '' AND c.phone IS NULL AND c.email IS NULL
+   );
+   ```
+   `status` is stored as the enum's position: `0` is `SCHEDULED`, `2` is `CANCELLED`. A detached client that a business itself named "Deleted User", with no phone or email, matches too: its upcoming appointments are cancelled and its requests deleted, so check `SELECT COUNT(*)` with the same `WHERE` first if that could exist.
 
 ## 0.16.1
 

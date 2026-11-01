@@ -29,7 +29,7 @@ internal class GetAppointmentRequestsImplTest {
         val fixture = SutFixture()
         val userId = Uuid.random()
         val businessId = Uuid.random()
-        val requests = listOf(AppointmentRequest.stub(userId = userId, businessId = businessId))
+        val requests = listOf(AppointmentRequest.stub(initiatorUserId = userId, businessId = businessId))
         with(fixture) {
             transactionManager.mockTransaction()
             coEvery { requestsDataSource.getPendingByUser(userId, businessId) } returns requests

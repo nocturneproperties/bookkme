@@ -18,4 +18,5 @@ dependencies {
     testImplementation(testFixtures(projects.core.data))
     testImplementation(testFixtures(projects.core.data.cache.impl))
     testImplementation(libs.joda.money)
+    testImplementation(libs.testcontainers.junit)
 }

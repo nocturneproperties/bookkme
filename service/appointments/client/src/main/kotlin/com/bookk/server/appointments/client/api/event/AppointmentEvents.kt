@@ -11,7 +11,7 @@ interface AppointmentEvent : EventStreaming.Event<String> {
 
     @Serializable
     data class RequestCreated(
-        @ProtoNumber(1) val clientUserId: Uuid,
+        @ProtoNumber(1) val clientUserId: Uuid?,
         @ProtoNumber(2) val clientName: String,
         @ProtoNumber(3) val employeeUserId: Uuid,
         @ProtoNumber(4) val employeeName: String,
@@ -33,7 +33,7 @@ interface AppointmentEvent : EventStreaming.Event<String> {
 
     @Serializable
     data class RequestApproved(
-        @ProtoNumber(1) val clientUserId: Uuid,
+        @ProtoNumber(1) val clientUserId: Uuid?,
         @ProtoNumber(2) val clientName: String,
         @ProtoNumber(3) val employeeUserId: Uuid,
         @ProtoNumber(4) val employeeName: String,
@@ -55,7 +55,7 @@ interface AppointmentEvent : EventStreaming.Event<String> {
 
     @Serializable
     data class RequestRejected(
-        @ProtoNumber(1) val clientUserId: Uuid,
+        @ProtoNumber(1) val clientUserId: Uuid?,
         @ProtoNumber(2) val clientName: String,
         @ProtoNumber(3) val employeeUserId: Uuid,
         @ProtoNumber(4) val employeeName: String,
@@ -78,7 +78,7 @@ interface AppointmentEvent : EventStreaming.Event<String> {
 
     @Serializable
     data class Cancelled(
-        @ProtoNumber(1) val clientUserId: Uuid,
+        @ProtoNumber(1) val clientUserId: Uuid?,
         @ProtoNumber(2) val clientName: String,
         @ProtoNumber(3) val employeeUserId: Uuid,
         @ProtoNumber(4) val employeeName: String,
@@ -96,6 +96,23 @@ interface AppointmentEvent : EventStreaming.Event<String> {
 
         companion object {
             const val TOPIC = "appointment.cancelled"
+        }
+    }
+
+    @Serializable
+    data class CancelledForDeletedClient(
+        @ProtoNumber(1) val employeeUserId: Uuid,
+        @ProtoNumber(2) val from: Instant,
+        @ProtoNumber(3) val to: Instant,
+        @ProtoNumber(4) val timeZone: TimeZone,
+        @ProtoNumber(5) val businessName: String,
+        @ProtoNumber(6) override val idempotencyKey: String = Uuid.random().toString()
+    ) : AppointmentEvent {
+        @ProtoNumber(7)
+        override val topic: String = TOPIC
+
+        companion object {
+            const val TOPIC = "appointment.cancelled_for_deleted_client"
         }
     }
 }

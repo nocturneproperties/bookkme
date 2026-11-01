@@ -61,11 +61,20 @@ internal class GetAppointmentBookingContextImpl(
         val replaced = sameContactClients.firstOrNull()
             ?: return clientDataSource.getOrCreateIntegratedClient(businessId, profile)
 
-        sameContactClients.drop(1).forEach { duplicate ->
-            clientDataSource.deleteClient(businessId, duplicate.id)
-            eventProducer.send(BusinessEvent.ClientMerged(businessId, fromClientId = duplicate.id, toClientId = replaced.id))
+        val duplicates = sameContactClients.drop(1)
+        duplicates.forEach { duplicate -> clientDataSource.deleteClient(businessId, duplicate.id) }
+        val takenOver = clientDataSource.takeOverClient(businessId, replaced.id, profile)
+        val client = takenOver ?: clientDataSource.getOrCreateIntegratedClient(businessId, profile)
+        if (takenOver != null || duplicates.isNotEmpty()) {
+            eventProducer.send(
+                BusinessEvent.ClientLinked(
+                    businessId,
+                    clientId = client.id,
+                    userId = userId,
+                    mergedClientIds = duplicates.map { it.id }
+                )
+            )
         }
-        return clientDataSource.takeOverClient(businessId, replaced.id, profile)
-            ?: clientDataSource.getOrCreateIntegratedClient(businessId, profile)
+        return client
     }
 }
