@@ -48,10 +48,8 @@ infra_stacks:
     compose: [admin-compose.yml]
 
 vpn_clients:
-  - admin-1
   - admin-2
 vpn_client_config_dir: "{{ (inventory_dir ~ '/..') | realpath }}/vpn-clients"
-vpn_host_client: admin-1
 vpn_network_prefix: "172.16.91"
 vpn_subnet: "{{ vpn_network_prefix }}.0/24"
 vpn_address_template: "{{ vpn_network_prefix }}.x"
@@ -60,6 +58,7 @@ vpn_stack_env:
   VPN_SUBNET: "{{ vpn_subnet }}"
   VPN_ADDRESS_TEMPLATE: "{{ vpn_address_template }}"
   VPN_HOST_ADDRESS: "{{ vpn_host_address }}"
+  VPN_ENDPOINT: "{{ vault_hosts[groups['managers'] | first] }}"
 vpn_host_interface: wg0
 
 monolith:

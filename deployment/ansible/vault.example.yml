@@ -8,7 +8,7 @@ vault_registry_password: !unsafe "ghp_classic_token_with_read_packages"
 vault_stack_env:
   DOMAIN_NAME: !unsafe "example.com"
   VPN_PASSWORD_HASH: !unsafe "CHANGE_ME"
-  HOSTINGER_API_KEY: !unsafe "CHANGE_ME"
+  CLOUDFLARE_DNS_API_TOKEN: !unsafe "CHANGE_ME"
   EAB_KID: !unsafe "CHANGE_ME"
   EAB_HMAC: !unsafe "CHANGE_ME"
   GRAFANA_USER: !unsafe "CHANGE_ME"

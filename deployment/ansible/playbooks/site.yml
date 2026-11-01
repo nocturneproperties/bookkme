@@ -13,7 +13,7 @@
   roles:
     - swarm
 
-- name: Deploy the infrastructure stacks
+- name: Deploy the VPN
   hosts: "{{ groups['managers'] | first }}"
   gather_facts: false
   tasks:
@@ -41,6 +41,22 @@
       when: not ansible_check_mode
       tags: [vpn]
 
+- name: Connect the workers to the VPN
+  hosts: workers
+  gather_facts: false
+  tasks:
+    - name: Connect the worker to the VPN
+      ansible.builtin.include_role:
+        name: vpn_host
+        apply:
+          tags: [vpn]
+      when: not ansible_check_mode
+      tags: [vpn]
+
+- name: Deploy the infrastructure stacks
+  hosts: "{{ groups['managers'] | first }}"
+  gather_facts: false
+  tasks:
     - name: Deploy the nginx stack
       ansible.builtin.include_role:
         name: stack

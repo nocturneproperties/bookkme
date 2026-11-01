@@ -15,6 +15,7 @@ INVENTORY = DEPLOYMENT_DIR / "ansible/inventory/prod.yml"
 RETIRED_STACK_ENV = ["RUNNER_ACCESS_TOKEN", "MOBILE_RUNNER_ACCESS_TOKEN", "RUNNER_APP_ID", "RUNNER_APP_PRIVATE_KEY", "VPN_SUBNET"]
 RETIRED_STACK_ENV_PREFIXES = ["KAFKA_"]
 REQUIRED_KEYS = ["vault_vpn_password"]
+REQUIRED_STACK_ENV = ["CLOUDFLARE_DNS_API_TOKEN"]
 RETIRED_KEYS = ["vault_service_env"]
 RETIRED_SWARM_SECRETS = ["jwt_master_key", "jwt_quote_key"]
 PROMETHEUS_USER = "admin"
@@ -109,6 +110,8 @@ def normalize(vault):
         hosts.setdefault(host, None)
     vault["vault_hosts"] = hosts
     stack_env = {name: value for name, value in (vault.get("vault_stack_env") or {}).items() if not is_retired_stack_env(name)}
+    for name in REQUIRED_STACK_ENV:
+        stack_env.setdefault(name, None)
     add_nocodb_admin(stack_env)
     vault["vault_stack_env"] = stack_env
     swarm_secrets = {name: value for name, value in (vault.get("vault_swarm_secrets") or {}).items() if name not in RETIRED_SWARM_SECRETS}
