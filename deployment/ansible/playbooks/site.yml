@@ -13,7 +13,7 @@
   roles:
     - swarm
 
-- name: Deploy the infrastructure stacks
+- name: Deploy the VPN
   hosts: "{{ groups['managers'] | first }}"
   gather_facts: false
   tasks:
@@ -41,6 +41,30 @@
       when: not ansible_check_mode
       tags: [vpn]
 
+- name: Connect the workers to the VPN
+  hosts: workers
+  gather_facts: false
+  tasks:
+    - name: Connect the worker to the VPN
+      ansible.builtin.include_role:
+        name: vpn_host
+        apply:
+          tags: [vpn]
+      when: not ansible_check_mode
+      tags: [vpn]
+
+- name: Deploy the infrastructure stacks
+  hosts: "{{ groups['managers'] | first }}"
+  gather_facts: false
+  tasks:
+    - name: Check nginx's Cloudflare ranges and read its service
+      ansible.builtin.include_role:
+        name: nginx
+        tasks_from: prepare
+        apply:
+          tags: [nginx]
+      tags: [nginx]
+
     - name: Deploy the nginx stack
       ansible.builtin.include_role:
         name: stack
@@ -48,6 +72,14 @@
           tags: [nginx]
       vars:
         stack: "{{ infra_stacks.nginx }}"
+      tags: [nginx]
+
+    - name: Reload nginx with its new files
+      ansible.builtin.include_role:
+        name: nginx
+        tasks_from: reload
+        apply:
+          tags: [nginx]
       tags: [nginx]
 
     - name: Deploy the orchestrator stack

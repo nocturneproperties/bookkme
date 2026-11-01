@@ -4,10 +4,19 @@
     fail_msg: "Set vault_vpn_password with 'make vault-edit': the plain panel password that VPN_PASSWORD_HASH was made from"
     quiet: true
 
-- name: Require the manager's VPN client to be one of the default clients
+- name: Require every swarm node to have a VPN client and address
   ansible.builtin.assert:
-    that: vpn_host_client in vpn_clients
-    fail_msg: "vpn_host_client '{{ vpn_host_client }}' is not in vpn_clients"
+    that:
+      - hostvars[item].vpn_client is defined
+      - hostvars[item].vpn_address is defined
+    fail_msg: "{{ item }} needs vpn_client and vpn_address in the inventory"
+    quiet: true
+  loop: "{{ vpn_node_hosts }}"
+
+- name: Require the manager's VPN address to be vpn_host_address
+  ansible.builtin.assert:
+    that: vpn_address == vpn_host_address
+    fail_msg: "{{ inventory_hostname }} must use vpn_address {{ vpn_host_address }}: dnsmasq resolves the domain to it"
     quiet: true
 
 - name: Wait for the wg-easy container
@@ -32,7 +41,7 @@
   environment:
     ENSURE_CLIENTS_SCRIPT: "{{ lookup('ansible.builtin.file', 'ensure-clients.js') }}"
   args:
-    stdin: "{{ {'password': vault_vpn_password, 'clients': vpn_clients, 'addresses': {vpn_host_client: vpn_host_address}, 'addressTemplate': vpn_address_template} | to_json }}"
+    stdin: "{{ {'password': vault_vpn_password, 'clients': (vpn_clients + (vpn_node_addresses | list)) | unique, 'addresses': vpn_node_addresses, 'addressTemplate': vpn_address_template} | to_json }}"
   register: vpn_clients_result
   until: vpn_clients_result.rc in [0, vpn_login_rejected_exit_code]
   retries: 12
@@ -60,7 +69,7 @@
     quiet: true
   when: not ansible_check_mode
 
-- name: Keep the VPN client configs for the manager's interface
+- name: Keep the VPN client configs for the nodes' interfaces
   ansible.builtin.set_fact:
     vpn_client_configurations: "{{ (vpn_clients_result.stdout | from_json).configurations }}"
   no_log: true
@@ -79,7 +88,7 @@
     content: "{{ item.value }}"
     dest: "{{ vpn_client_config_dir }}/{{ item.key }}.conf"
     mode: "0600"
-  loop: "{{ vpn_client_configurations | dict2items | rejectattr('key', 'equalto', vpn_host_client) }}"
+  loop: "{{ vpn_client_configurations | dict2items | rejectattr('key', 'in', vpn_node_addresses | list) }}"
   loop_control:
     label: "{{ item.key }}"
   delegate_to: localhost

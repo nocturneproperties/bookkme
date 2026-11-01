@@ -1,0 +1,26 @@
+- name: Read Cloudflare's published IP ranges
+  ansible.builtin.uri:
+    url: "https://www.cloudflare.com/{{ item }}"
+    return_content: true
+  loop: "{{ nginx_cloudflare_lists }}"
+  register: nginx_cloudflare_ranges
+  check_mode: false
+
+- name: Require nginx to trust exactly Cloudflare's ranges
+  ansible.builtin.assert:
+    that: nginx_trusted_ranges == nginx_published_ranges
+    fail_msg: >-
+      {{ nginx_real_ip_snippet | basename }} trusts {{ nginx_trusted_ranges | difference(nginx_published_ranges) }}
+      and misses {{ nginx_published_ranges | difference(nginx_trusted_ranges) }}.
+      Run scripts/cloudflare-real-ip.sh, and scripts/cloudflare-firewall.sh so port 443 admits the same ranges.
+    quiet: true
+  vars:
+    nginx_published_ranges: "{{ nginx_cloudflare_ranges.results | map(attribute='content') | map('split') | flatten | sort }}"
+    nginx_trusted_ranges: "{{ lookup('ansible.builtin.file', nginx_real_ip_snippet) | regex_findall('set_real_ip_from\\s+([^;\\s]+);') | sort }}"
+
+- name: Read the nginx service before the deploy
+  ansible.builtin.command: docker service inspect {{ nginx_service }} --format '{{ "{{" }}json .Spec{{ "}}" }}'
+  register: nginx_spec_before
+  changed_when: false
+  failed_when: false
+  check_mode: false

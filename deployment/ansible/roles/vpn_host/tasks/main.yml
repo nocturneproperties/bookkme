@@ -1,3 +1,9 @@
+- name: Require this node's VPN config from the manager's run
+  ansible.builtin.assert:
+    that: vpn_client in (hostvars[groups['managers'] | first].vpn_client_configurations | default({}))
+    fail_msg: "No VPN config for {{ vpn_client }}: the vpn tag must also run on {{ groups['managers'] | first }} (don't --limit it out)"
+    quiet: true
+
 - name: Install the WireGuard tools
   ansible.builtin.apt:
     name: wireguard-tools
@@ -5,10 +11,10 @@
     update_cache: true
     cache_valid_time: 3600
 
-- name: Write the manager's VPN interface config
+- name: Write the node's VPN interface config
   ansible.builtin.copy:
     content: >-
-      {{ vpn_client_configurations[vpn_host_client] | regex_replace('(?m)^DNS\s*=.*\n?', '') }}
+      {{ hostvars[groups['managers'] | first].vpn_client_configurations[vpn_client] | regex_replace('(?m)^DNS\s*=.*\n?', '') }}
     dest: "/etc/wireguard/{{ vpn_host_interface }}.conf"
     owner: root
     group: root
@@ -17,13 +23,13 @@
   no_log: true
   register: vpn_host_config
 
-- name: Bring up the manager's VPN interface now and on boot
+- name: Bring up the node's VPN interface now and on boot
   ansible.builtin.systemd_service:
     name: "wg-quick@{{ vpn_host_interface }}"
     enabled: true
     state: "{{ 'restarted' if vpn_host_config is changed else 'started' }}"
 
-- name: Wait for the manager's VPN handshake
+- name: Wait for the node's VPN handshake
   ansible.builtin.command: "wg show {{ vpn_host_interface }} latest-handshakes"
   register: vpn_host_handshake
   until: vpn_host_handshake.stdout.split() | last | default('0') | int > 0

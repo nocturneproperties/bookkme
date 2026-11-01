@@ -6,12 +6,16 @@ all:
       hosts:
         manager-1:
           ansible_host: "{{ vault_hosts['manager-1'] }}"
+          vpn_client: admin-1
+          vpn_address: "{{ vpn_host_address }}"
           swarm_labels:
             monitoring: "true"
     workers:
       hosts:
         worker-1:
           ansible_host: "{{ vault_hosts['worker-1'] }}"
+          vpn_client: worker-1
+          vpn_address: "{{ vpn_network_prefix }}.4"
           swarm_labels:
             database: "true"
             kafka: "true"
