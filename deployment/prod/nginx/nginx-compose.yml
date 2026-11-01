@@ -13,21 +13,9 @@ volumes:
   acmesh-data:
     driver: local
 configs:
-  nginx_config:
-    name: nginx-v48
-    file: nginx.conf.template
-
   nginx_cert_wait_script:
     name: nginx-cert-wait-v2
     file: certificates/wait_for_cert.sh
-
-  android_well_known:
-    name: android_well_known-v3
-    file: android_well_known.json
-
-  ios_well_known:
-    name: ios_well_known-v5
-    file: ios_well_known.json
 
 services:
   acme-sh:
@@ -88,13 +76,10 @@ services:
         mode: host
     volumes:
       - nginx-cert:/etc/nginx/ssl/${DOMAIN_NAME}
+      - ./templates:/etc/nginx/templates:ro
+      - ./snippets:/etc/nginx/snippets:ro
+      - ./static:/srv/static:ro
     configs:
-      - source: nginx_config
-        target: '/etc/nginx/templates/services.conf.template'
-      - source: android_well_known
-        target: '/srv/static/android_well_known.json'
-      - source: ios_well_known
-        target: '/srv/static/ios_well_known.json'
       - source: nginx_cert_wait_script
         target: '/docker-entrypoint.d/wait_for_cert.sh'
         mode: 0744

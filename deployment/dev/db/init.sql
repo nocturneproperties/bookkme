@@ -20,10 +20,6 @@ CREATE DATABASE IF NOT EXISTS `notifications`;
 CREATE USER IF NOT EXISTS 'notifications'@'%' IDENTIFIED BY '94DVwSITc8AUpL7r0ErOYrZ6iFQt4OJh';
 GRANT ALL PRIVILEGES ON `notifications`.* TO 'notifications'@'%';
 
-CREATE DATABASE IF NOT EXISTS `keycloak`;
-CREATE USER IF NOT EXISTS 'keycloak'@'%' IDENTIFIED BY '4FB3P4y3mbRKAxASQjM6cBA52qKMFDqW';
-GRANT ALL PRIVILEGES ON `keycloak`.* TO 'keycloak'@'%';
-
 -- The monolith runs all five services in one process sharing one set of DB
 -- credentials (AppLevelConstants reads APPLICATION_DB_USER/PASSWORD process-wide),
 -- so it needs a single user with grants on every service schema instead of one

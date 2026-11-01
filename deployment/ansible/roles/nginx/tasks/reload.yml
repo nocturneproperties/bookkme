@@ -1,0 +1,29 @@
+- name: Read the nginx service after the deploy
+  ansible.builtin.command: docker service inspect {{ nginx_service }} --format '{{ "{{" }}json .Spec{{ "}}" }}'
+  register: nginx_spec_after
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Reload nginx when only its mounted files changed
+  when:
+    - not ansible_check_mode
+    - stack_files_copy is changed
+    - nginx_spec_before.rc == 0
+    - nginx_spec_after.stdout == nginx_spec_before.stdout
+  block:
+    - name: Find the running nginx container
+      ansible.builtin.command: >-
+        docker ps --quiet --filter status=running
+        --filter label=com.docker.swarm.service.name={{ nginx_service }}
+      register: nginx_container
+      changed_when: false
+      failed_when: nginx_container.stdout_lines | length != 1
+
+    - name: Test the new configuration and reload nginx
+      ansible.builtin.command: docker exec --interactive {{ nginx_container.stdout }} sh -s
+      args:
+        stdin: "{{ lookup('ansible.builtin.file', 'reload.sh') }}"
+      register: nginx_reload
+      changed_when: true
+      failed_when: nginx_reload.rc != 0

@@ -1,0 +1,3 @@
+nginx_service: "{{ infra_stacks.nginx.name }}_nginx"
+nginx_real_ip_snippet: "{{ deployment_dir }}/{{ infra_stacks.nginx.source }}/snippets/cloudflare-real-ip.conf"
+nginx_cloudflare_lists: [ips-v4, ips-v6]
