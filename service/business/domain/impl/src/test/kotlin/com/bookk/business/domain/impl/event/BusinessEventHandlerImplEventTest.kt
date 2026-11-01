@@ -10,6 +10,7 @@ import com.bookk.core.data.eventstreaming.impl.kafka.KafkaEventProducer
 import com.bookk.core.data.eventstreaming.impl.kafka.KafkaTestBroker
 import com.bookk.core.data.eventstreaming.impl.kafka.NoopProducer
 import com.bookk.core.data.eventstreaming.send
+import com.bookk.core.domain.datasource.transaction.mockedTransactionManager
 import com.bookk.core.test.given
 import com.bookk.core.test.runIntegrationTest
 import com.bookk.core.test.then
@@ -48,13 +49,15 @@ internal class BusinessEventHandlerImplEventTest {
         val deleteBusiness = mockk<DeleteBusiness>()
         val syncUserProfile = mockk<SyncUserProfile>()
         val anonymizeUserProfile = mockk<AnonymizeUserProfile>()
+        val transactionManager = mockedTransactionManager()
         val consumer = KafkaEventConsumer(
             servers = KafkaTestBroker.servers,
             consumerGroup = "business-handler-${Uuid.random()}",
             eventIdempotencyStorage = inMemoryEventIdempotencyStorage(),
             protoBuf = KafkaTestBroker.protoBuf,
             dltProducer = NoopProducer(),
-            exhaustedEventDataSource = InMemoryExhaustedEventDataSource()
+            exhaustedEventDataSource = InMemoryExhaustedEventDataSource(transactionManager),
+            transactionManager = transactionManager,
         )
         val sut = BusinessEventHandlerImpl(consumer, deleteBusiness, syncUserProfile, anonymizeUserProfile)
 

@@ -1,5 +1,34 @@
 # Release notes
 
+## 0.16.2
+
+Changes since `monolith/0.16.1`. A patch release: notifications handle their events again, an event that keeps failing is parked instead of retried forever, and public traffic now goes through Cloudflare. No API changes and no migrations, but the infrastructure needs a new secret and an `infra` run before the deploy (see **Upgrade**).
+
+### Fixed
+
+- **Device language changes and notifications failed on every delivery.** The notifications service handled `AuthEvent.DeviceLanguageUpdated` and every notification event (`AppointmentEvent.RequestCreated`, `RequestApproved`, `RequestRejected`, `Cancelled`, `BusinessEvent.EmployeeInvitationRedeemed`) by reading or writing the database outside a transaction, so each attempt failed with `IllegalStateException: No transaction in context.` A device kept the language it first signed in with, and no appointment or invitation notification was sent. Both now run in a transaction. The channels still send outside it, so a conflict retry never sends a notification twice.
+- **An event that failed every attempt was retried forever.** After the last DLT attempt, both consumers (embedded and Kafka) save the event to `exhausted_event`, but that save also ran outside a transaction. It always failed, logged `Failed to persist exhausted event for topic: … Retrying. Error: … No transaction in context.`, and put the event back on the DLT with a higher attempt count, indefinitely. The save now runs in a transaction, so failing events land in `exhausted_event` as designed.
+- **Passkey requests no longer log a warning per Android origin.** Every passkey registration and sign-in logged `Allowed origin is not a valid URL, it will match only by exact string equality` twice, once for each `android:apk-key-hash:` origin. Those origins are meant to be matched exactly, so `logback.xml` now drops that one message. The relying party's other warnings still appear.
+
+### Deployment
+
+- **Public traffic goes through Cloudflare.** The domain's records are proxied by Cloudflare, so nginx receives public requests from Cloudflare's edge. Port 443 should admit only Cloudflare's published ranges in the provider firewall, since nginx trusts the client address those ranges send.
+- **The certificate is issued through Cloudflare DNS.** acme.sh now solves the Let's Encrypt DNS challenge with `dns_cf` and the new vault secret `CLOUDFLARE_DNS_API_TOKEN`, instead of Hostinger (`HOSTINGER_API_KEY` and the bundled `dns_hostinger.sh` are gone). Its state now lives in `/acme.sh` on the `acmesh-data` volume. It used to be mounted at a path acme.sh never reads, so every new nginx container requested a new certificate, and Let's Encrypt allows only 5 identical ones per week. A restart now reuses the saved certificate, and the daily cron renews it.
+- **nginx logs the real client address.** `snippets/cloudflare-real-ip.conf` trusts Cloudflare's ranges and takes the client address from `CF-Connecting-IP`. Only the public `${DOMAIN_NAME}` server block includes it, so the VPN-only hosts still check the actual TCP peer. Every `make infra tags=nginx` compares the snippet with Cloudflare's live lists and fails when they differ. In that case, regenerate the snippet with `scripts/cloudflare-real-ip.sh` and update the firewall to the same ranges.
+- **nginx reloads instead of restarting.** A restart dropped HTTPS for a few seconds, because 443 is published in `mode: host`. The templates, snippets and well-known files are now read-only directory bind mounts from the stack directory, not swarm configs. They moved to `templates/services.conf.template` (was `nginx.conf.template`) and `static/` (the two well-known files). When only those files change, `make infra tags=nginx` renders them in the running container, runs `nginx -t` and reloads. If the test fails, the run fails and the previous configuration keeps serving. A change to the service itself (image, env, ports, networks) still restarts nginx. The swarm configs `nginx-v47`, `android_well_known-v3`, `ios_well_known-v5` and `acme_sh_hostinger_dns-v1` are no longer used.
+- **The `identity.` host is gone.** Its nginx server block proxied to a Keycloak that was never deployed. Dev's commented-out Keycloak service and its database user are removed too. nginx's `listen … http2` directives became `http2 on`, which removes nginx's deprecation warning.
+- **WireGuard's endpoint is the manager's public IP.** Cloudflare's proxy carries no UDP, so `vpn.<domain>` can no longer be the endpoint. `WG_HOST` is now `VPN_ENDPOINT`, the first manager's address from `vault_hosts`, and the public `vpn.` record isn't needed. Inside the tunnel, dnsmasq still resolves `vpn.<domain>` to the panel.
+- **Every swarm node joins the VPN.** Each host in `inventory/prod.yml` names its client and address (`vpn_client`, `vpn_address`): the manager stays `admin-1` on `.2`, and `worker-1` gets `.4`, reachable from VPN clients without a public port. These replace `vpn_host_client`, and `admin-1` is no longer in `vpn_clients`. `tags=vpn` must run on the manager too: the workers' configs come from its run, so don't `--limit` it out.
+- `deployment/prod/.env.example` is removed. The vault (`vault.example.yml`) lists every value a deployment needs.
+
+### Upgrade
+
+1. Create a Cloudflare API token with Zone Read and DNS Edit on the zone. Run `make vault-update`, which adds an empty `CLOUDFLARE_DNS_API_TOKEN`, then set it with `make vault-edit`. `HOSTINGER_API_KEY` can be deleted.
+2. Move the domain's DNS to Cloudflare with proxied records, and restrict 443 in the provider firewall to Cloudflare's ranges (`https://www.cloudflare.com/ips-v4`, `ips-v6`). A DNS-only `vpn.` record is not needed, and it would publish the manager's IP.
+3. `make infra tags=vpn`, without `--limit`. It creates `worker-1`'s client and brings up `wg0` on the worker. Re-import every device's WireGuard config from `deployment/ansible/vpn-clients/`: the existing configs point at `vpn.<domain>`, which no longer reaches the manager over UDP.
+4. `make infra tags=nginx`. The service spec changes this time (mounts, env), so nginx restarts once, and its first start issues a new certificate into the relocated `acmesh-data` path. Later changes to the templates only reload.
+5. Deploy the monolith. Events that were looping when the old version stopped were held only in memory and are gone: a device keeps its old language until its next sign-in, and notifications sent before the deploy are not resent.
+
 ## 0.16.1
 
 Changes since `monolith/0.16.0`. A patch release: the app survives a database restart. No API changes and no migrations.

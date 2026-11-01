@@ -7,6 +7,7 @@ import com.bookk.core.data.eventstreaming.impl.kafka.KafkaEventProducer
 import com.bookk.core.data.eventstreaming.impl.kafka.KafkaTestBroker
 import com.bookk.core.data.eventstreaming.impl.kafka.NoopProducer
 import com.bookk.core.data.eventstreaming.send
+import com.bookk.core.domain.datasource.transaction.mockedTransactionManager
 import com.bookk.core.domain.entity.Language
 import com.bookk.core.test.given
 import com.bookk.core.test.runIntegrationTest
@@ -67,13 +68,15 @@ internal class NotificationEventHandlerEventTest {
         val updateDeviceLanguage = mockk<UpdateDeviceLanguage>()
         val sendNotification = mockk<SendNotification>()
         val deleteUserNotificationData = mockk<DeleteUserNotificationData>()
+        val transactionManager = mockedTransactionManager()
         val consumer = KafkaEventConsumer(
             servers = KafkaTestBroker.servers,
             consumerGroup = "notification-handler-${Uuid.random()}",
             eventIdempotencyStorage = inMemoryEventIdempotencyStorage(),
             protoBuf = KafkaTestBroker.protoBuf,
             dltProducer = NoopProducer(),
-            exhaustedEventDataSource = InMemoryExhaustedEventDataSource()
+            exhaustedEventDataSource = InMemoryExhaustedEventDataSource(transactionManager),
+            transactionManager = transactionManager,
         )
         val sut = NotificationEventHandler(
             consumer, createDeviceEntry, deleteDeviceByUUID,

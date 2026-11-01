@@ -8,7 +8,7 @@ import com.bookk.core.data.eventstreaming.EventStreaming.Event
 import com.bookk.core.data.eventstreaming.ExhaustedEventDataSource
 import com.bookk.core.data.eventstreaming.impl.IdempotentDelivery
 import com.bookk.core.data.eventstreaming.impl.logDelivered
-import com.bookk.core.domain.entity.runSuspendCatching
+import com.bookk.core.domain.datasource.transaction.TransactionManager
 import io.ktor.util.collections.ConcurrentMap
 import io.ktor.util.logging.KtorSimpleLogger
 import kotlinx.coroutines.CoroutineScope
@@ -32,6 +32,7 @@ class EmbeddedEventConsumer(
     private val topicQueueHolder: TopicQueueHolder<String>,
     private val protoBuf: ProtoBuf,
     private val exhaustedEventDataSource: ExhaustedEventDataSource,
+    private val transactionManager: TransactionManager,
     eventIdempotencyStorage: EventIdempotencyStorage,
     private val consumerGroup: String,
     private val maxAttempts: Int = DltRetry.DEFAULT_MAX_ATTEMPTS,
@@ -117,7 +118,7 @@ class EmbeddedEventConsumer(
             topic = originalEvent.topic,
             idempotencyKey = dltEvent.idempotencyKey
         )
-        runSuspendCatching { exhaustedEventDataSource.save(record) }
+        transactionManager.transaction { exhaustedEventDataSource.save(record) }
             .onFailure {
                 logger.error("Failed to persist exhausted event for topic: {}. Retrying. Error: {}", originalEvent.topic, it.message)
                 topicQueueHolder.publish(dltEvent.copy(attempt = dltEvent.attempt + 1))

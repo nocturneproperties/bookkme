@@ -7,6 +7,8 @@ import com.bookk.core.data.eventstreaming.impl.InMemoryExhaustedEventDataSource
 import com.bookk.core.data.eventstreaming.impl.inMemoryEventIdempotencyStorage
 import com.bookk.core.data.eventstreaming.registerReceiver
 import com.bookk.core.data.eventstreaming.send
+import com.bookk.core.domain.datasource.transaction.TransactionManager
+import com.bookk.core.domain.datasource.transaction.mockedTransactionManager
 import com.bookk.core.test.given
 import com.bookk.core.test.runIntegrationTest
 import com.bookk.core.test.then
@@ -47,7 +49,8 @@ internal class KafkaDltRetryTest {
 
     private fun consumer(
         topic: String,
-        exhaustedEventDataSource: ExhaustedEventDataSource = InMemoryExhaustedEventDataSource(),
+        transactionManager: TransactionManager = mockedTransactionManager(),
+        exhaustedEventDataSource: ExhaustedEventDataSource = InMemoryExhaustedEventDataSource(transactionManager),
     ) = KafkaEventConsumer(
         servers = KafkaTestBroker.servers,
         consumerGroup = consumerGroupFor(topic),
@@ -55,6 +58,7 @@ internal class KafkaDltRetryTest {
         protoBuf = KafkaTestBroker.protoBuf,
         dltProducer = producer(),
         exhaustedEventDataSource = exhaustedEventDataSource,
+        transactionManager = transactionManager,
     )
 
     private suspend fun awaitUntil(deadlineMillis: Long = 20_000, condition: suspend () -> Boolean) {
@@ -98,8 +102,9 @@ internal class KafkaDltRetryTest {
         val topic = "dlt.retry.exhausted.${Uuid.random()}"
         prepareTopics(topic)
         val attempts = AtomicInteger(0)
-        val exhaustedEventDataSource = InMemoryExhaustedEventDataSource()
-        val sut = consumer(topic, exhaustedEventDataSource)
+        val transactionManager = mockedTransactionManager()
+        val exhaustedEventDataSource = InMemoryExhaustedEventDataSource(transactionManager)
+        val sut = consumer(topic, transactionManager, exhaustedEventDataSource)
         sut.registerReceiver<KeyedTestEvent, String>(topic) {
             attempts.incrementAndGet()
             throw RuntimeException("boom")
@@ -127,8 +132,9 @@ internal class KafkaDltRetryTest {
         val topic = "dlt.retry.persist.${Uuid.random()}"
         prepareTopics(topic)
         val attempts = AtomicInteger(0)
-        val flakyStore = FlakyExhaustedEventDataSource(failuresBeforeSuccess = 2)
-        val sut = consumer(topic, flakyStore)
+        val transactionManager = mockedTransactionManager()
+        val flakyStore = FlakyExhaustedEventDataSource(failuresBeforeSuccess = 2, transactionManager)
+        val sut = consumer(topic, transactionManager, flakyStore)
         sut.registerReceiver<KeyedTestEvent, String>(topic) {
             attempts.incrementAndGet()
             throw RuntimeException("boom")
@@ -158,8 +164,9 @@ internal class KafkaDltRetryTest {
         val flakyAttempts = AtomicInteger(0)
         val flakyReceived = ConcurrentLinkedQueue<KeyedTestEvent>()
         val healthyReceived = ConcurrentLinkedQueue<KeyedTestEvent>()
-        val exhaustedEventDataSource = InMemoryExhaustedEventDataSource()
-        val sut = consumer(flakyTopic, exhaustedEventDataSource)
+        val transactionManager = mockedTransactionManager()
+        val exhaustedEventDataSource = InMemoryExhaustedEventDataSource(transactionManager)
+        val sut = consumer(flakyTopic, transactionManager, exhaustedEventDataSource)
         sut.registerReceiver<KeyedTestEvent, String>(flakyTopic) { event ->
             if (flakyAttempts.getAndIncrement() < 2) throw RuntimeException("boom") else flakyReceived += event
         }

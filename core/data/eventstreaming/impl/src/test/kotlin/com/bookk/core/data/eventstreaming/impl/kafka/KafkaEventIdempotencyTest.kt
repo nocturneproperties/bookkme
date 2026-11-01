@@ -5,6 +5,7 @@ import com.bookk.core.data.eventstreaming.impl.InMemoryExhaustedEventDataSource
 import com.bookk.core.data.eventstreaming.impl.inMemoryEventIdempotencyStorage
 import com.bookk.core.data.eventstreaming.registerReceiver
 import com.bookk.core.data.eventstreaming.send
+import com.bookk.core.domain.datasource.transaction.mockedTransactionManager
 import com.bookk.core.test.given
 import com.bookk.core.test.runIntegrationTest
 import com.bookk.core.test.then
@@ -37,13 +38,16 @@ internal class KafkaEventIdempotencyTest {
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         val producer = KafkaEventProducer(KafkaTestBroker.servers, "idempotency-test-${Uuid.random()}", KafkaTestBroker.protoBuf)
 
+        val transactionManager = mockedTransactionManager()
+
         fun newConsumer(consumerGroup: String) = KafkaEventConsumer(
             servers = KafkaTestBroker.servers,
             consumerGroup = consumerGroup,
             eventIdempotencyStorage = eventIdempotencyStorage,
             protoBuf = KafkaTestBroker.protoBuf,
             dltProducer = NoopProducer(),
-            exhaustedEventDataSource = InMemoryExhaustedEventDataSource()
+            exhaustedEventDataSource = InMemoryExhaustedEventDataSource(transactionManager),
+            transactionManager = transactionManager,
         )
     }
 

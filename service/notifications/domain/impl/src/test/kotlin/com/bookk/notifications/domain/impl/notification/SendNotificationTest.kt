@@ -1,5 +1,6 @@
 package com.bookk.notifications.domain.impl.notification
 
+import com.bookk.core.domain.datasource.transaction.mockedTransactionManager
 import com.bookk.core.test.given
 import com.bookk.core.test.runUnitTest
 import com.bookk.core.test.then
@@ -12,6 +13,7 @@ import com.bookk.notifications.domain.impl.channel.NotificationSender
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import kotlin.uuid.Uuid
@@ -28,7 +30,8 @@ internal class SendNotificationTest {
             CommunicationChannel.TELEGRAM to telegramSender,
             CommunicationChannel.PUSH_NOTIFICATIONS to pushSender,
         )
-        val sut = SendNotification(notificationDataSource, senderMap)
+        val transactionManager = mockedTransactionManager()
+        val sut = SendNotification(notificationDataSource, senderMap, transactionManager)
     }
 
     private fun notificationParams() = NotificationParameters(
@@ -197,5 +200,51 @@ internal class SendNotificationTest {
         then()
         assertTrue(result.isFailure)
         assertTrue(result.exceptionOrNull() is IllegalArgumentException)
+    }
+
+    @Test
+    fun `should read notification settings inside a transaction`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        var readInTransaction = false
+        with(fixture) {
+            coEvery { notificationDataSource.getByUserId(userId) } coAnswers {
+                readInTransaction = transactionManager.isInTransaction()
+                NotificationSettings.stub(userId = userId, channels = emptyList())
+            }
+        }
+
+        whenn()
+        fixture.sut.invoke(userId, notificationParams())
+
+        then()
+        assertTrue(readInTransaction)
+    }
+
+    @Test
+    fun `should send through channels outside the settings read transaction`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val notification = notificationParams()
+        val settings = NotificationSettings.stub(
+            userId = userId,
+            channels = listOf(NotificationChannelSettings.stub(channel = CommunicationChannel.EMAIL, enabled = true))
+        )
+        var sentInTransaction = true
+        with(fixture) {
+            coEvery { notificationDataSource.getByUserId(userId) } returns settings
+            coEvery { emailSender.send(userId, notification) } coAnswers {
+                sentInTransaction = transactionManager.isInTransaction()
+                Result.success(Unit)
+            }
+        }
+
+        whenn()
+        fixture.sut.invoke(userId, notification)
+
+        then()
+        assertFalse(sentInTransaction)
     }
 }

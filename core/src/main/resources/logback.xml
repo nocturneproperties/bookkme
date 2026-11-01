@@ -1,5 +1,10 @@
 <configuration>
 
+    <turboFilter class="com.bookk.core.log.SuppressedMessageFilter">
+        <logger>com.yubico.webauthn.RelyingParty</logger>
+        <message>Allowed origin is not a valid URL, it will match only by exact string equality: {}</message>
+    </turboFilter>
+
     <!-- Rolling and compressing are done on the Dockers side-->
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>

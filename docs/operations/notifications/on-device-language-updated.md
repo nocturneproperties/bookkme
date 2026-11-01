@@ -10,7 +10,7 @@ Keeps the locale used to render push/email notifications current.
 flowchart TD
     Start([Consume AuthEvent.DeviceLanguageUpdated]) --> Dedup{idempotencyKey already processed?}
     Dedup -- Yes --> Skip([Skip - already handled])
-    Dedup -- No --> Update[DeviceDataSource.updateLanguage deviceUuid language]
+    Dedup -- No --> Update[transaction - DeviceDataSource.updateLanguage deviceUuid language]
     Update -- throws --> Dlt([Sent to AuthEvent.DeviceLanguageUpdated_dlt topic, logged - no auto-retry])
     Update -- ok --> Ack([Marked processed])
 ```

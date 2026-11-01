@@ -11,8 +11,10 @@ dependencies {
     implementation(projects.core.data.eventstreaming.api)
     implementation(projects.core)
     implementation(projects.core.domain)
+    implementation(projects.core.domain.datasource)
 
     testFixturesApi(projects.core.data.eventstreaming.api)
+    testFixturesApi(projects.core.domain.datasource)
     testFixturesApi(libs.kafka.client)
     testFixturesApi(libs.ktor.protobuf)
     testFixturesApi(libs.testcontainers.kafka)
@@ -21,6 +23,7 @@ dependencies {
     testFixturesImplementation(testFixtures(projects.core.data.cache.impl))
 
     testImplementation(testFixtures(projects.core))
+    testImplementation(testFixtures(projects.core.domain.datasource))
     testImplementation(libs.testcontainers.junit)
     testImplementation(libs.kotlin.coroutines.test)
 }

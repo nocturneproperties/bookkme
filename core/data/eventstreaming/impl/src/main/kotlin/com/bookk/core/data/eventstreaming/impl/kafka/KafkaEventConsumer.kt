@@ -9,7 +9,7 @@ import com.bookk.core.data.eventstreaming.ExhaustedEventDataSource
 import com.bookk.core.data.eventstreaming.impl.IdempotentDelivery
 import com.bookk.core.data.eventstreaming.impl.logDelivered
 import com.bookk.core.data.eventstreaming.send
-import com.bookk.core.domain.entity.runSuspendCatching
+import com.bookk.core.domain.datasource.transaction.TransactionManager
 import io.ktor.util.collections.ConcurrentMap
 import io.ktor.util.logging.KtorSimpleLogger
 import kotlinx.coroutines.CoroutineScope
@@ -42,6 +42,7 @@ class KafkaEventConsumer(
     private val protoBuf: ProtoBuf,
     private val dltProducer: EventStreaming.Producer<String>,
     private val exhaustedEventDataSource: ExhaustedEventDataSource,
+    private val transactionManager: TransactionManager,
     private val maxAttempts: Int = DltRetry.DEFAULT_MAX_ATTEMPTS,
 ) : EventStreaming.Consumer<String> {
 
@@ -137,7 +138,7 @@ class KafkaEventConsumer(
     }
 
     private suspend fun persistOrRequeue(dltEvent: DltEvent) {
-        runSuspendCatching { exhaustedEventDataSource.save(dltEvent) }
+        transactionManager.transaction { exhaustedEventDataSource.save(dltEvent) }
             .onFailure {
                 logger.error("Failed to persist exhausted event for topic: {}. Retrying. Error: {}", dltEvent.originalTopic, it.message)
                 dltProducer.send(dltEvent.copy(attempt = dltEvent.attempt + 1))

@@ -12,6 +12,8 @@ import com.bookk.core.data.eventstreaming.impl.embedded.publishEncoded
 import com.bookk.core.data.eventstreaming.impl.inMemoryEventIdempotencyStorage
 import com.bookk.core.data.eventstreaming.impl.kafka.KeyedTestEvent
 import com.bookk.core.data.eventstreaming.registerReceiver
+import com.bookk.core.domain.datasource.transaction.TransactionManager
+import com.bookk.core.domain.datasource.transaction.mockedTransactionManager
 import com.bookk.core.test.given
 import com.bookk.core.test.runUnitTest
 import com.bookk.core.test.then
@@ -38,7 +40,10 @@ internal class EmbeddedEventStreamingModuleTest {
         }
 
         private fun serviceModule(qualifier: Qualifier) = module {
-            scope(qualifier) { scoped<ExhaustedEventDataSource> { InMemoryExhaustedEventDataSource() } }
+            scope(qualifier) {
+                scoped<TransactionManager> { mockedTransactionManager() }
+                scoped<ExhaustedEventDataSource> { InMemoryExhaustedEventDataSource(get()) }
+            }
         }
 
         fun scopeWith(eventStreaming: Module): Scope =

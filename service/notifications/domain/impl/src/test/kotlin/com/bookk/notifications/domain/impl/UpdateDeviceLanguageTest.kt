@@ -1,5 +1,6 @@
 package com.bookk.notifications.domain.impl
 
+import com.bookk.core.domain.datasource.transaction.mockedTransactionManager
 import com.bookk.core.domain.entity.Language
 import com.bookk.core.test.given
 import com.bookk.core.test.runUnitTest
@@ -18,7 +19,8 @@ internal class UpdateDeviceLanguageTest {
 
     private class SutFixture {
         val deviceDataSource = mockk<DeviceDataSource>()
-        val sut = UpdateDeviceLanguage(deviceDataSource)
+        val transactionManager = mockedTransactionManager()
+        val sut = UpdateDeviceLanguage(deviceDataSource, transactionManager)
     }
 
     @Test
@@ -36,6 +38,26 @@ internal class UpdateDeviceLanguageTest {
         then()
         assertTrue(result.isSuccess)
         coVerify(exactly = 1) { fixture.deviceDataSource.updateLanguage(deviceUuid, Language.UK) }
+    }
+
+    @Test
+    fun `should update device language inside a transaction`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val deviceUuid = Uuid.random()
+        var updatedInTransaction = false
+        with(fixture) {
+            coEvery { deviceDataSource.updateLanguage(deviceUuid, Language.UK) } coAnswers {
+                updatedInTransaction = transactionManager.isInTransaction()
+                Device.stub(deviceId = deviceUuid, language = Language.UK)
+            }
+        }
+
+        whenn()
+        fixture.sut.invoke(deviceUuid, Language.UK)
+
+        then()
+        assertTrue(updatedInTransaction)
     }
 
     @Test

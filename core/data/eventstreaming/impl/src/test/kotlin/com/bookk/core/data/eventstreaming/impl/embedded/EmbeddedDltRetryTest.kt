@@ -7,6 +7,8 @@ import com.bookk.core.data.eventstreaming.impl.InMemoryExhaustedEventDataSource
 import com.bookk.core.data.eventstreaming.impl.inMemoryEventIdempotencyStorage
 import com.bookk.core.data.eventstreaming.impl.kafka.KeyedTestEvent
 import com.bookk.core.data.eventstreaming.registerReceiver
+import com.bookk.core.domain.datasource.transaction.TransactionManager
+import com.bookk.core.domain.datasource.transaction.mockedTransactionManager
 import com.bookk.core.test.given
 import com.bookk.core.test.runUnitTest
 import com.bookk.core.test.then
@@ -27,8 +29,10 @@ import kotlin.time.Duration.Companion.milliseconds
 internal class EmbeddedDltRetryTest {
 
     private class SutFixture(
-        val exhaustedEventDataSource: ExhaustedEventDataSource = InMemoryExhaustedEventDataSource(),
+        exhaustedEventDataSourceIn: (TransactionManager) -> ExhaustedEventDataSource = ::InMemoryExhaustedEventDataSource,
     ) {
+        val transactionManager = mockedTransactionManager()
+        val exhaustedEventDataSource = exhaustedEventDataSourceIn(transactionManager)
         val topicQueueHolder = TopicQueueHolder<String>()
         val protoBuf = ProtoBuf { encodeDefaults = true }
         val producer = EmbeddedEventProducer(topicQueueHolder)
@@ -36,6 +40,7 @@ internal class EmbeddedDltRetryTest {
             topicQueueHolder = topicQueueHolder,
             protoBuf = protoBuf,
             exhaustedEventDataSource = exhaustedEventDataSource,
+            transactionManager = transactionManager,
             eventIdempotencyStorage = inMemoryEventIdempotencyStorage(),
             consumerGroup = "business_group",
         )
@@ -130,7 +135,7 @@ internal class EmbeddedDltRetryTest {
     @Test
     fun `should retry persisting without re-invoking the business handler when the save fails`() = runUnitTest {
         given()
-        val fixture = SutFixture(exhaustedEventDataSource = FlakyExhaustedEventDataSource(failuresBeforeSuccess = 2))
+        val fixture = SutFixture { transactionManager -> FlakyExhaustedEventDataSource(failuresBeforeSuccess = 2, transactionManager) }
         val topic = "embedded.dlt.retry.persist"
         val attempts = AtomicInteger(0)
         fixture.consumer.registerReceiver<KeyedTestEvent, String>(topic) {
