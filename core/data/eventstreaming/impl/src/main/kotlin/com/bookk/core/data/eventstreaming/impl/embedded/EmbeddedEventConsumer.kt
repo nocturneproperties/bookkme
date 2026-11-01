@@ -9,13 +9,12 @@ import com.bookk.core.data.eventstreaming.ExhaustedEventDataSource
 import com.bookk.core.data.eventstreaming.impl.IdempotentDelivery
 import com.bookk.core.data.eventstreaming.impl.logDelivered
 import com.bookk.core.domain.datasource.transaction.TransactionManager
+import com.bookk.core.domain.entity.runCatchingUnlessCancelled
 import io.ktor.util.collections.ConcurrentMap
 import io.ktor.util.logging.KtorSimpleLogger
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.merge
@@ -54,6 +53,17 @@ class EmbeddedEventConsumer(
         return this
     }
 
+    override suspend fun replay(exhausted: DltEvent): Boolean {
+        val dltTopic = DltRetry.dltTopic(exhausted.originalTopic, consumerGroup)
+        val type = types[exhausted.originalTopic]
+        if (type == null || dltTopic !in receivers) return false
+        val event = runCatching { decode(type, exhausted.payload) }
+            .onFailure { logger.error("Cannot replay an undecodable event, topic: {}. Error: {}", exhausted.originalTopic, it.message) }
+            .getOrNull() ?: return false
+        topicQueueHolder.publish(EmbeddedDltEvent(originalEvent = event, attempt = FIRST_ATTEMPT, topic = dltTopic))
+        return true
+    }
+
     override fun start(scope: CoroutineScope): Job {
         registerDltReceivers()
         return receivers.keys
@@ -77,12 +87,8 @@ class EmbeddedEventConsumer(
             }
 
     private suspend fun dispatch(event: Event<String>) {
-        try {
-            decoded(event)?.let { receivers[event.topic]?.invoke(it, FIRST_ATTEMPT) }
-        } catch (e: Throwable) {
-            currentCoroutineContext().ensureActive()
-            logger.error("Failed to handle: topic:{}, event:{}, error:{}", event.topic, event, e.stackTraceToString())
-        }
+        runCatchingUnlessCancelled { decoded(event)?.let { receivers[event.topic]?.invoke(it, FIRST_ATTEMPT) } }
+            .onFailure { logger.error("Failed to handle: topic:{}, event:{}, error:{}", event.topic, event, it.stackTraceToString()) }
     }
 
     private suspend fun <T : Event<String>> deliver(topic: String, event: T, attempt: Int, onEvent: suspend (T) -> Unit) {

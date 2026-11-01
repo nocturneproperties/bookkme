@@ -148,3 +148,13 @@ groups:
         annotations:
           summary: "Logs would take more than 5GB over Loki's 14-day retention"
           description: "Loki stored {{ $value | humanize1024 }}B projected over 14 days at the last day's rate. Loki deletes only by age: lower retention_period in loki.yml, or find the service that logs too much on the Logs dashboard."
+
+  - name: event_alerts
+    rules:
+      - alert: EventsExhausted
+        expr: max by (consumer_group, topic) (events_exhausted) > 0
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $value }} {{ $labels.topic }} event(s) parked for {{ $labels.consumer_group }}"
+          description: "These events failed every delivery attempt and wait in the exhausted_event table of the consumer's schema (auth_group is authorization, every other group its service's name). Nothing applies them until they are replayed. Find the cause in the logs ('Error while processing event for topic'), fix it, then deploy (every start replays all parked events) or run UPDATE exhausted_event SET replay_requested = TRUE WHERE original_topic = '{{ $labels.topic }}' in that schema, which replays them within a minute. An event that fails again is parked again. One the app can't replay any more is kept and logged as 'Cannot replay a parked event'; handle it by hand, then delete its row."

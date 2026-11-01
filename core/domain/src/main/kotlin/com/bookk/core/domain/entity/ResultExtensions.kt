@@ -1,5 +1,7 @@
 package com.bookk.core.domain.entity
 
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlin.coroutines.cancellation.CancellationException
 
 inline fun <R, reified T> Result<R>.handle(
@@ -27,6 +29,13 @@ inline fun <R> runSuspendCatching(block: () -> R): Result<R> = try {
 } catch (cancellation: CancellationException) {
     throw cancellation
 } catch (failure: Throwable) {
+    Result.failure(failure)
+}
+
+suspend inline fun <R> runCatchingUnlessCancelled(block: () -> R): Result<R> = try {
+    Result.success(block())
+} catch (failure: Throwable) {
+    currentCoroutineContext().ensureActive()
     Result.failure(failure)
 }
 

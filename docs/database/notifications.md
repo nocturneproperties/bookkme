@@ -60,6 +60,7 @@ erDiagram
         string idempotency_key UK
         int attempt
         blob payload
+        bool replay_requested
         timestamp createdAt
         timestamp updatedAt
     }
@@ -69,4 +70,4 @@ erDiagram
 foreign-keyed to `notification_settings` in the schema — they are joined to a
 user's settings at query time via the shared `user_id`.
 
-`EXHAUSTED_EVENT` is not part of the notifications domain model — it's the shared DLT landing table (`core/data/eventstreaming/data`, one instance per service schema) that `KafkaEventConsumer`/`EmbeddedEventConsumer` write to when an event exhausts its retry budget, so a failed event survives a process restart or crash instead of being lost. See `AGENTS.md`'s event-streaming retry design notes.
+`EXHAUSTED_EVENT` is not part of the notifications domain model — it's the shared DLT landing table (`core/data/eventstreaming/data`, one instance per service schema) that `KafkaEventConsumer`/`EmbeddedEventConsumer` write to when an event exhausts its retry budget, so a failed event survives a process restart or crash instead of being lost. Every start, and every row an operator sets `replay_requested` on, is replayed through the consumer group's DLT topic by `ExhaustedEventReplayer`, which also exports the parked rows as the `events_exhausted` metric. See [Exhausted events](../exhausted-events.md).

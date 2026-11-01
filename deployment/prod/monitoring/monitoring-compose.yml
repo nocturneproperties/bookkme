@@ -27,7 +27,7 @@ configs:
     name: prometheus_cfg-v2
     file: prometheus/prometheus.yml
   prometheus_alerts_cfg:
-    name: prometheus_alerts_cfg-v6
+    name: prometheus_alerts_cfg-v7
     file: prometheus/node_alerts.yml
   alertmanager_cfg:
     name: alertmanager_cfg-v2

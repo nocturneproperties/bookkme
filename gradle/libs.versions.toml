@@ -22,6 +22,7 @@ money = "2.0.2"
 firebase = "9.10.0"
 inmemcache = "3.2.4"
 icu4j = "78.3"
+micrometer = "1.17.1"
 
 [libraries]
 flyway-core = { module = "org.flywaydb:flyway-core", version.ref = "flyway" }
@@ -49,7 +50,8 @@ ktor-client-mock = { module = "io.ktor:ktor-client-mock", version.ref = "ktor" }
 ktor-swagger = { module = "io.ktor:ktor-server-swagger", version.ref = "ktor" }
 ktor-openapi = { module = "io.ktor:ktor-server-openapi", version.ref = "ktor" }
 ktor-metrics = { module = "io.ktor:ktor-server-metrics-micrometer", version.ref = "ktor" }
-ktor-metrics-prometheus = { module = "io.micrometer:micrometer-registry-prometheus", version = "1.16.1" }
+ktor-metrics-prometheus = { module = "io.micrometer:micrometer-registry-prometheus", version.ref = "micrometer" }
+micrometer-core = { module = "io.micrometer:micrometer-core", version.ref = "micrometer" }
 ktor-json = { module = "io.ktor:ktor-serialization-kotlinx-json", version.ref = "ktor" }
 ktor-jwt = { module = "io.ktor:ktor-server-auth-jwt", version.ref = "ktor" }
 ktor-logging = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }

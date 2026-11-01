@@ -8,6 +8,7 @@ dependencies {
     implementation(libs.kotlin.coroutines)
     implementation(libs.ktor.protobuf)
     implementation(libs.kafka.client)
+    implementation(libs.micrometer.core)
     implementation(projects.core.data.eventstreaming.api)
     implementation(projects.core)
     implementation(projects.core.domain)

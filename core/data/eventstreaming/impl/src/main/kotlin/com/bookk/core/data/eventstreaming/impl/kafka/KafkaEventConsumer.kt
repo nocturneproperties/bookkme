@@ -86,6 +86,18 @@ class KafkaEventConsumer(
         return this
     }
 
+    override suspend fun replay(exhausted: DltEvent): Boolean {
+        if (exhausted.originalTopic !in receivers) return false
+        dltProducer.send(
+            DltEvent(
+                payload = exhausted.payload,
+                originalTopic = exhausted.originalTopic,
+                topic = DltRetry.dltTopic(exhausted.originalTopic, consumerGroup)
+            )
+        )
+        return true
+    }
+
     override fun start(scope: CoroutineScope): Job {
         val originalTopics = receivers.keys.toList()
         originalTopics.forEach { topic ->

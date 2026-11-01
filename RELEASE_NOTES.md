@@ -2,7 +2,7 @@
 
 ## 0.17.0
 
-Changes since `monolith/0.16.1`. Deleting an account now really removes the person's details from appointments, notifications handle their events again, an event that keeps failing is parked instead of retried forever, and public traffic now goes through Cloudflare. Two new internal events (`BusinessEvent.ClientLinked`, which replaces `BusinessEvent.ClientMerged`, and `AppointmentEvent.CancelledForDeletedClient`), and one appointments migration (`V10`: a renamed column, a new indexed one and the `deleted_user` table). The app sees one rename and one new field (see **Changed**), and the infrastructure needs a new secret and an `infra` run before the deploy, and the database needs a one-off cleanup after it (see **Upgrade**).
+Changes since `monolith/0.16.1`. Deleting an account now really removes the person's details from appointments, notifications handle their events again, an event that keeps failing is parked instead of retried forever, a parked event raises an alert and is replayed on the next start or on request, and public traffic now goes through Cloudflare. Two new internal events (`BusinessEvent.ClientLinked`, which replaces `BusinessEvent.ClientMerged`, and `AppointmentEvent.CancelledForDeletedClient`), one appointments migration (`V10`: a renamed column, a new indexed one and the `deleted_user` table), and one migration in every schema that adds `exhausted_event.replay_requested` (authorization `V4`, user `V5`, business `V17`, appointments `V11`, notifications `V3`). The app sees one rename and one new field (see **Changed**). The infrastructure needs a new secret and an `infra` run before the deploy, the database needs a one-off cleanup after it, and the monitoring stack needs an `infra` run for the new alert (see **Upgrade**).
 
 ### Fixed
 
@@ -13,6 +13,11 @@ Changes since `monolith/0.16.1`. Deleting an account now really removes the pers
 - **Device language changes and notifications failed on every delivery.** The notifications service handled `AuthEvent.DeviceLanguageUpdated` and every notification event (`AppointmentEvent.RequestCreated`, `RequestApproved`, `RequestRejected`, `Cancelled`, `BusinessEvent.EmployeeInvitationRedeemed`) by reading or writing the database outside a transaction, so each attempt failed with `IllegalStateException: No transaction in context.` A device kept the language it first signed in with, and no appointment or invitation notification was sent. Both now run in a transaction. The channels still send outside it, so a conflict retry never sends a notification twice.
 - **An event that failed every attempt was retried forever.** After the last DLT attempt, both consumers (embedded and Kafka) save the event to `exhausted_event`, but that save also ran outside a transaction. It always failed, logged `Failed to persist exhausted event for topic: … Retrying. Error: … No transaction in context.`, and put the event back on the DLT with a higher attempt count, indefinitely. The save now runs in a transaction, so failing events land in `exhausted_event` as designed.
 - **Passkey requests no longer log a warning per Android origin.** Every passkey registration and sign-in logged `Allowed origin is not a valid URL, it will match only by exact string equality` twice, once for each `android:apk-key-hash:` origin. Those origins are meant to be matched exactly, so `logback.xml` now drops that one message. The relying party's other warnings still appear.
+
+### Added
+
+- **Parked events are replayed.** An event parked in a service's `exhausted_event` table used to stay there until someone re-published it by hand, and nothing did. A parked `AuthEvent.UserDeleted` meant an erasure that never ran. Every start of the app now replays every event parked before it, so deploying a fix heals what the bug parked. An operator can also request a replay without a deploy, with `UPDATE <schema>.exhausted_event SET replay_requested = TRUE WHERE original_topic = '<topic>'`, which takes effect within a minute. A replayed event goes back only to the consumer that failed it, through that consumer's own DLT topic, with all 3 attempts again. If it fails again, it is parked again as a new row. A row the running version can't replay any more (its topic has no receiver, or its payload no longer decodes) is kept, logged as `Cannot replay a parked event`, and not retried. Handle it by hand and delete it. See `docs/exhausted-events.md`.
+- **Parked events raise an alert.** The app exports the parked rows as `events_exhausted{consumer_group, topic}`, refreshed every minute, and Prometheus fires `EventsExhausted` (critical) while any exist. The alert's description has the replay steps.
 
 ### Changed
 
@@ -31,6 +36,10 @@ Changes since `monolith/0.16.1`. Deleting an account now really removes the pers
 - **WireGuard's endpoint is the manager's public IP.** Cloudflare's proxy carries no UDP, so `vpn.<domain>` can no longer be the endpoint. `WG_HOST` is now `VPN_ENDPOINT`, the first manager's address from `vault_hosts`, and the public `vpn.` record isn't needed. Inside the tunnel, dnsmasq still resolves `vpn.<domain>` to the panel.
 - **Every swarm node joins the VPN.** Each host in `inventory/prod.yml` names its client and address (`vpn_client`, `vpn_address`): the manager stays `admin-1` on `.2`, and `worker-1` gets `.4`, reachable from VPN clients without a public port. These replace `vpn_host_client`, and `admin-1` is no longer in `vpn_clients`. `tags=vpn` must run on the manager too: the workers' configs come from its run, so don't `--limit` it out.
 - `deployment/prod/.env.example` is removed. The vault (`vault.example.yml`) lists every value a deployment needs.
+
+- **The `exhausted_event` migrations only add a column** with a default, so the old task keeps working during the `start-first` deploy.
+- **The first start replays everything already parked.** Until this release, saving a parked event failed, so the tables should be empty. Check before deploying with `SELECT original_topic, COUNT(*) FROM <schema>.exhausted_event GROUP BY original_topic` in each of the five schemas. Any row there is replayed once on the first start. A `business.client_merged` row can't be replayed (nothing consumes that topic any more), so it stays and raises the alert. Delete it once the `ClientMerged` check above is done.
+- The Prometheus rules are a new swarm config, `prometheus_alerts_cfg-v7`.
 
 ### Upgrade
 
@@ -58,6 +67,7 @@ Changes since `monolith/0.16.1`. Deleting an account now really removes the pers
      WHERE c.user_id IS NULL AND c.name = 'Deleted User' AND c.lastname = '' AND c.phone IS NULL AND c.email IS NULL
    );
    ```
+7. `make infra tags=monitoring` deploys the `EventsExhausted` alert (`prometheus_alerts_cfg-v7`). Deploys never run the infra playbook. The metric is there as soon as the new version runs, so this step can come before or after the deploy.
    `status` is stored as the enum's position: `0` is `SCHEDULED`, `2` is `CANCELLED`. A detached client that a business itself named "Deleted User", with no phone or email, matches too: its upcoming appointments are cancelled and its requests deleted, so check `SELECT COUNT(*)` with the same `WHERE` first if that could exist.
 
 ## 0.16.1

@@ -29,6 +29,7 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.openapi.OpenApiDocSource
 import io.ktor.server.routing.routing
 import io.ktor.server.routing.routingRoot
+import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.distribution.DistributionStatisticConfig
 import io.micrometer.prometheusmetrics.PrometheusConfig
 import io.micrometer.prometheusmetrics.PrometheusMeterRegistry
@@ -39,6 +40,7 @@ import library.signing.TokenValidatorFactory
 import library.signing.ValidationType
 import library.signing.impl.di.tokenValidatorModule
 import org.koin.core.module.Module
+import org.koin.dsl.module
 import org.koin.ktor.ext.get
 import org.koin.ktor.plugin.Koin
 import org.slf4j.event.Level
@@ -64,7 +66,8 @@ fun startServer(
                 modules(
                     *diModules.toTypedArray(),
                     commonModule(),
-                    tokenValidatorModule()
+                    tokenValidatorModule(),
+                    meterRegistryModule(prometheusRegistry)
                 )
             }
             installRequestLogging()
@@ -116,6 +119,10 @@ internal fun Application.installRequestMetrics(registry: PrometheusMeterRegistry
             .serviceLevelObjectives(*requestDurationBuckets)
             .build()
     }
+}
+
+internal fun meterRegistryModule(registry: PrometheusMeterRegistry) = module {
+    single<MeterRegistry> { registry }
 }
 
 internal fun Application.installRequestLogging() {

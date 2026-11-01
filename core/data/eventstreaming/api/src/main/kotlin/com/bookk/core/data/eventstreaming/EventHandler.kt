@@ -11,7 +11,10 @@ interface EventHandler {
 }
 
 fun Application.startEventHandling(vararg scopes: Scope) {
-    scopes.flatMap { it.getAll<EventHandler>() }.forEach {
-        it.start(this + Dispatchers.Default)
-    }
+    startEventHandling(this + Dispatchers.Default, scopes.toList())
+}
+
+fun startEventHandling(coroutineScope: CoroutineScope, serviceScopes: List<Scope>) {
+    serviceScopes.flatMap { it.getAll<EventHandler>() }.forEach { it.start(coroutineScope) }
+    serviceScopes.mapNotNull { it.getOrNull<ExhaustedEventReplayer>() }.forEach { it.start(coroutineScope) }
 }

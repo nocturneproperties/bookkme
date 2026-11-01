@@ -2,6 +2,7 @@ package com.bookk.core.data.eventstreaming.data.orm.entity
 
 import com.bookk.core.data.DecoratorUuidEntityClass
 import com.bookk.core.data.eventstreaming.DltEvent
+import com.bookk.core.data.eventstreaming.ExhaustedEvent
 import com.bookk.core.data.eventstreaming.data.orm.table.ExhaustedEventTable
 import org.jetbrains.exposed.v1.core.dao.id.EntityID
 import org.jetbrains.exposed.v1.dao.UuidEntity
@@ -20,6 +21,8 @@ internal class ExhaustedEventEntity(id: EntityID<Uuid>) : UuidEntity(id) {
         topic = originalTopic,
         idempotencyKey = idempotencyKey
     )
+
+    fun exhaustedEvent(): ExhaustedEvent = ExhaustedEvent(id = id.value, event = domain())
 
     companion object : DecoratorUuidEntityClass<ExhaustedEventEntity>(ExhaustedEventTable)
 }

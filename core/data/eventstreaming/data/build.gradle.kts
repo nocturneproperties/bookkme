@@ -11,6 +11,7 @@ dependencies {
     testFixturesApi(platform(libs.koin.bom))
     testFixturesApi(libs.koin.core)
     testFixturesImplementation(libs.mockk)
+    testFixturesImplementation(libs.micrometer.core)
     testFixturesImplementation(projects.core.data.cache.api)
     testFixturesImplementation(projects.core.data.eventstreaming.api)
     testFixturesImplementation(projects.core.domain.datasource)

@@ -35,5 +35,6 @@ dependencies {
     testImplementation(libs.joda.money)
     testImplementation(testFixtures(projects.core))
     testImplementation(testFixtures(projects.core.service))
+    testImplementation(testFixtures(projects.core.data.eventstreaming.data))
     testImplementation(testFixtures(projects.library.scheduler))
 }

@@ -1,5 +1,6 @@
 package com.bookk.core.data.eventstreaming.impl.kafka
 
+import com.bookk.core.data.eventstreaming.DltEvent
 import com.bookk.core.data.eventstreaming.DltRetry
 import com.bookk.core.data.eventstreaming.ExhaustedEventDataSource
 import com.bookk.core.data.eventstreaming.impl.FlakyExhaustedEventDataSource
@@ -187,6 +188,35 @@ internal class KafkaDltRetryTest {
         assertEquals(3, flakyAttempts.get())
         assertTrue(exhaustedEventDataSource.findByOriginalTopic(flakyTopic).isEmpty())
         assertTrue(exhaustedEventDataSource.findByOriginalTopic(healthyTopic).isEmpty())
+        job?.cancel()
+    }
+
+    @Test
+    fun `should deliver a replayed exhausted event through the consumer group's dlt topic`() = runIntegrationTest {
+        given()
+        val topic = "dlt.retry.replay.${Uuid.random()}"
+        prepareTopics(topic)
+        val event = KeyedTestEvent(entityId = "entity-1", sequence = 0, topic = topic)
+        val received = ConcurrentLinkedQueue<KeyedTestEvent>()
+        val sut = consumer(topic)
+        sut.registerReceiver<KeyedTestEvent, String>(topic) { received += it }
+        val exhausted = DltEvent(
+            payload = KafkaTestBroker.protoBuf.encodeToByteArray(KeyedTestEvent.serializer(), event),
+            originalTopic = topic,
+            attempt = DltRetry.DEFAULT_MAX_ATTEMPTS,
+            topic = topic,
+        )
+        var job: Job? = null
+
+        whenn()
+        withContext(Dispatchers.IO) {
+            job = sut.start(CoroutineScope(SupervisorJob() + Dispatchers.IO))
+            sut.replay(exhausted)
+            awaitUntil { received.isNotEmpty() }
+        }
+
+        then()
+        assertEquals(listOf(event), received.toList())
         job?.cancel()
     }
 }

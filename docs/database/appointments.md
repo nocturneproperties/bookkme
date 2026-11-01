@@ -185,6 +185,7 @@ erDiagram
         string idempotency_key UK
         int attempt
         blob payload
+        bool replay_requested
         timestamp createdAt
         timestamp updatedAt
     }
@@ -205,6 +206,6 @@ erDiagram
 
 `DELETED_USER` records every account whose deletion appointments has handled, the user id and the time only. `AuthEvent.UserDeleted` erases by `client_user_id`, but `BusinessEvent.ClientLinked`, which fills `client_user_id` in after the fact, can arrive after the deletion on its own topic. It reads this table first with a shared lock and erases the rows it links when the account is already gone (see [React to a client getting an account](../operations/appointments/on-client-linked.md)). Both booking paths read it the same way and reject a deleted account. A row is inserted once (`INSERT IGNORE`) and keeps the first deletion time.
 
-`EXHAUSTED_EVENT` is not part of the appointments domain model — it's the shared DLT landing table (`core/data/eventstreaming/data`, one instance per service schema) that `KafkaEventConsumer`/`EmbeddedEventConsumer` write to when an event exhausts its retry budget, so a failed event survives a process restart or crash instead of being lost. See `AGENTS.md`'s event-streaming retry design notes.
+`EXHAUSTED_EVENT` is not part of the appointments domain model — it's the shared DLT landing table (`core/data/eventstreaming/data`, one instance per service schema) that `KafkaEventConsumer`/`EmbeddedEventConsumer` write to when an event exhausts its retry budget, so a failed event survives a process restart or crash instead of being lost. Every start, and every row an operator sets `replay_requested` on, is replayed through the consumer group's DLT topic by `ExhaustedEventReplayer`, which also exports the parked rows as the `events_exhausted` metric. See [Exhausted events](../exhausted-events.md).
 
 `OUTBOX_EVENT` is not part of the appointments domain model either — it's the shared transactional outbox (`core/data/eventstreaming/data`, one instance per service schema). `eventProducer.send` inserts the encoded event in the same transaction as the appointments write, so an event exists exactly when its write committed; `OutboxRelay` then locks the oldest rows (`SELECT … FOR UPDATE`), publishes them to Kafka (or the embedded transport in the monolith) and deletes them. Delivery is at-least-once, deduplicated by consumers through the event's idempotency key. See [Transactional outbox](../transactional-outbox.md).
