@@ -27,6 +27,8 @@ interface ClientDataSource {
         phone: String?,
         updatedAt: Instant,
     ): Int
-    suspend fun anonymizeClientsByUserId(userId: Uuid): Int
+    suspend fun deleteClientsByUserId(userId: Uuid)
     suspend fun getBusinessIdsByUserId(userId: Uuid): List<Uuid>
+    suspend fun recordVisit(businessId: Uuid, clientId: Uuid, visitEnd: Instant)
+    suspend fun deleteInactiveClients(businessId: Uuid, inactiveSince: Instant): List<Uuid>
 }

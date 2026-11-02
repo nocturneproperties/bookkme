@@ -21,7 +21,10 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import kotlin.time.Clock
+import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Instant
 
 internal class ExhaustedEventReplayerImplTest {
 
@@ -38,6 +41,7 @@ internal class ExhaustedEventReplayerImplTest {
             consumerGroup = GROUP,
             interval = INTERVAL,
             batchSize = batchSize,
+            clock = FixedClock,
         )
 
         fun parkedGauge(topic: String): Double? = meterRegistry.find(ExhaustedEventReplayerImpl.PARKED_EVENTS_METRIC)
@@ -221,10 +225,44 @@ internal class ExhaustedEventReplayerImplTest {
         assertNull(fixture.parkedGauge(TOPIC))
     }
 
+    @Test
+    fun `should delete events parked longer than the retention period`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        coEvery { fixture.consumer.replay(any()) } returns false
+        val expired = fixture.exhaustedEventDataSource.park(dltEvent(), parkedAt = NOW - ExhaustedEventReplayerImpl.DEFAULT_RETENTION - 1.minutes)
+        val kept = fixture.exhaustedEventDataSource.park(dltEvent(originalTopic = OTHER_TOPIC), parkedAt = NOW - ExhaustedEventReplayerImpl.DEFAULT_RETENTION + 1.minutes)
+
+        whenn()
+        fixture.sut.start(backgroundScope)
+        runCurrent()
+
+        then()
+        assertEquals(listOf(kept), fixture.exhaustedEventDataSource.parked())
+        assertTrue(expired !in fixture.exhaustedEventDataSource.parked())
+    }
+
+    @Test
+    fun `should keep parked events for 30 days`() = runUnitTest {
+        given()
+        val expected = 30.days
+
+        whenn()
+        val retention = ExhaustedEventReplayerImpl.DEFAULT_RETENTION
+
+        then()
+        assertEquals(expected, retention)
+    }
+
+    private object FixedClock : Clock {
+        override fun now(): Instant = NOW
+    }
+
     private companion object {
         const val TOPIC = "replayer.topic"
         const val OTHER_TOPIC = "replayer.other"
         const val GROUP = "appointments_group"
         val INTERVAL = 1.minutes
+        val NOW: Instant = Instant.parse("2026-11-02T12:00:00Z")
     }
 }

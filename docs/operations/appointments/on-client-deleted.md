@@ -2,7 +2,9 @@
 
 Kafka topic `BusinessEvent.ClientDeleted` → `AppointmentEventHandler` → `DeleteClientAppointmentData`
 
-Produced by [Delete client](../business/delete-client.md). Erases one client
+Produced by [Delete client](../business/delete-client.md) and by the
+[`business-deleteInactiveClients` job](../scheduled-jobs.md), which deletes
+clients inactive for longer than the business's retention period. Erases one client
 from one business's appointments, in one transaction, matched by
 `business_id` and `client_id` (the business's client row id, indexed on both
 tables). Nothing changes at other businesses, and a client with an account
@@ -43,7 +45,7 @@ flowchart TD
     Claim -- claimed --> Tx[[Begin transaction]]
     Tx --> Mark["DeletedClientDataSource.markDeleted businessId clientId - INSERT IGNORE into deleted_client"]
     Mark --> Cancel["AppointmentDataSource.cancelUpcomingForClient businessId clientId now 'Client was removed by the business' - SELECT FOR UPDATE, SCHEDULED and date_start after now become CANCELLED"]
-    Cancel --> Anon["AppointmentDataSource.anonymizeClient businessId clientId - client_name = Deleted Client, phone, email and client_user_id null"]
+    Cancel --> Anon["AppointmentDataSource.anonymizeClient businessId clientId - client_name = Deleted Client, phone, email and client_user_id null, note cleared, cancellation and price adjustment reasons kept"]
     Anon --> DelReq["AppointmentRequestDataSource.deleteForClient businessId clientId"]
     DelReq --> Any{any appointment cancelled?}
     Any -- No --> Processed

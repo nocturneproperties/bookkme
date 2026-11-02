@@ -208,4 +208,35 @@ internal class MarkAppointmentNoShowTest {
         then()
         assertEquals(HttpStatusCode.Unauthorized, response.status)
     }
+
+    @Test
+    fun `should return unprocessable entity when the appointment ended more than a week ago`() = routeTest {
+        given()
+        val useCase: MarkAppointmentNoShow = mockk()
+        val userId = Uuid.random()
+        val appointmentId = Uuid.random()
+        coEvery { useCase.invoke(userId, appointmentId) } returns Result.failure(AppointmentStatusError.EditWindowClosed())
+
+        setupApplication(
+            extension = {
+                install(Authentication) {
+                    provider {
+                        authenticate { context ->
+                            context.principal(AppPrincipal(Uuid.random(), userId, Uuid.random()))
+                        }
+                    }
+                }
+            },
+            diModule = module { single { useCase } },
+            routeUnderTest = { appointment() },
+        )
+
+        whenn()
+        val client = createTestClient()
+        val response = client.post(Api.Appointment.NoShow(id = appointmentId))
+
+        then()
+        assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
+        assertEquals(AppointmentErrorCodes.APPOINTMENT_EDIT_WINDOW_CLOSED, response.body<SimpleServerError>().errorCode)
+    }
 }

@@ -64,6 +64,34 @@ internal class AppointmentEventTest {
         then()
         assertEquals(event.copy(idempotencyKey = "key"), decoded)
     }
+
+    @Test
+    fun `should decode the client visit booked event from its pinned field numbers`() = runUnitTest {
+        given()
+        val pinned = PinnedClientVisitBooked(Uuid.random(), Uuid.random(), Instant.fromEpochMilliseconds(1_000_000), "key", AppointmentEvent.ClientVisitBooked.TOPIC)
+
+        whenn()
+        val decoded = protoBuf.decodeFromByteArray(
+            AppointmentEvent.ClientVisitBooked.serializer(),
+            protoBuf.encodeToByteArray(PinnedClientVisitBooked.serializer(), pinned),
+        )
+
+        then()
+        assertEquals(AppointmentEvent.ClientVisitBooked(pinned.businessId, pinned.clientId, pinned.visitEnd, "key"), decoded)
+        assertEquals(AppointmentEvent.ClientVisitBooked.TOPIC, decoded.topic)
+    }
+
+    @Test
+    fun `should key the client visit booked event by client id`() = runUnitTest {
+        given()
+        val event = AppointmentEvent.ClientVisitBooked(Uuid.random(), Uuid.random(), Instant.fromEpochMilliseconds(1_000_000))
+
+        whenn()
+        val partitionKey = event.partitionKey
+
+        then()
+        assertEquals(event.clientId.toString(), partitionKey)
+    }
 }
 
 @Serializable
@@ -75,4 +103,13 @@ private data class PinnedCancelledForDeletedClient(
     @ProtoNumber(5) val businessName: String,
     @ProtoNumber(6) val idempotencyKey: String,
     @ProtoNumber(7) val topic: String,
+)
+
+@Serializable
+private data class PinnedClientVisitBooked(
+    @ProtoNumber(1) val businessId: Uuid,
+    @ProtoNumber(2) val clientId: Uuid,
+    @ProtoNumber(3) val visitEnd: Instant,
+    @ProtoNumber(4) val idempotencyKey: String,
+    @ProtoNumber(5) val topic: String,
 )

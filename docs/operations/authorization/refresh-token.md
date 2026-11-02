@@ -13,6 +13,13 @@ flowchart TD
     HeaderCheck -- No --> R401a([401 Unauthorized])
     HeaderCheck -- Yes --> Gen[GenerateAuthToken.invoke Source.RefreshToken token]
     Gen -- token invalid/expired/mismatched hash --> R422([422 INVALID_CREDENTIALS 8])
-    Gen -- valid --> Rotate[Rotate device refresh_token_hash + previous_refresh_token_hash]
+    Gen -- valid --> Activity[AccountDataSource.recordActivity authId - last_active_at = now and dormancy_stage = ACTIVE, written at most once a day unless a dormancy warning is pending]
+    Activity --> Rotate[Rotate device refresh_token_hash + previous_refresh_token_hash]
     Rotate --> R200([200 AuthTokens - new access/refresh pair])
 ```
+
+Refreshing counts as activity for [dormant-account deletion](../scheduled-jobs.md)
+(`auth-handleDormantAccounts`): the app refreshes almost every time it opens,
+since access tokens live 5 minutes. Sign-in records it too, through the
+same `GenerateAuthToken`, which matters because refresh tokens expire and
+inactive devices are deleted after 30 days.

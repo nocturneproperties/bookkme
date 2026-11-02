@@ -1,11 +1,13 @@
 package com.bookk.business.domain.impl.event
 
 import com.bookk.business.domain.api.business.operation.DeleteBusiness
-import com.bookk.business.domain.api.user.operation.AnonymizeUserProfile
+import com.bookk.business.domain.api.client.operation.RecordClientVisit
+import com.bookk.business.domain.api.user.operation.DeleteUserBusinessData
 import com.bookk.business.domain.api.user.operation.SyncUserProfile
 import com.bookk.core.data.eventstreaming.EventHandler
 import com.bookk.core.data.eventstreaming.StandardEventConsumer
 import com.bookk.core.data.eventstreaming.registerResultReceiver
+import com.bookk.server.appointments.client.api.event.AppointmentEvent
 import com.bookk.server.auth.client.AuthEvent
 import com.bookk.server.user.client.api.event.UserEvent
 import kotlinx.coroutines.CoroutineScope
@@ -14,13 +16,14 @@ internal class BusinessEventHandlerImpl(
     private val consumer: StandardEventConsumer,
     private val deleteBusiness: DeleteBusiness,
     private val syncUserProfile: SyncUserProfile,
-    private val anonymizeUserProfile: AnonymizeUserProfile,
+    private val deleteUserBusinessData: DeleteUserBusinessData,
+    private val recordClientVisit: RecordClientVisit,
 ) : EventHandler {
     override fun start(scope: CoroutineScope) {
         consumer
             .registerResultReceiver(AuthEvent.UserDeleted.TOPIC) { event: AuthEvent.UserDeleted ->
                 deleteBusiness(event.userId).getOrThrow()
-                anonymizeUserProfile(event.userId)
+                deleteUserBusinessData(event.userId)
             }
             .registerResultReceiver(UserEvent.Updated.TOPIC) { event: UserEvent.Updated ->
                 syncUserProfile(
@@ -31,6 +34,9 @@ internal class BusinessEventHandlerImpl(
                     phone = event.phone,
                     updatedAt = event.updatedAt,
                 )
+            }
+            .registerResultReceiver(AppointmentEvent.ClientVisitBooked.TOPIC) { event: AppointmentEvent.ClientVisitBooked ->
+                recordClientVisit(event.businessId, event.clientId, event.visitEnd)
             }
             .start(scope)
     }

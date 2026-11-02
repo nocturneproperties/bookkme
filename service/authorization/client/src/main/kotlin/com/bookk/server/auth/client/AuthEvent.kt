@@ -4,9 +4,26 @@ import com.bookk.core.data.eventstreaming.EventStreaming
 import com.bookk.core.domain.entity.Language
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.protobuf.ProtoNumber
+import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
 interface AuthEvent : EventStreaming.Event<String> {
+    @Serializable
+    data class AccountDormancyWarning(
+        @ProtoNumber(1) val userId: Uuid,
+        @ProtoNumber(2) val deletesAt: Instant,
+        @ProtoNumber(3) val final: Boolean,
+        @ProtoNumber(4) override val idempotencyKey: String = Uuid.random().toString(),
+    ) : AuthEvent {
+        @ProtoNumber(5)
+        override val topic: String = TOPIC
+        override val partitionKey: String get() = userId.toString()
+
+        companion object {
+            const val TOPIC = "auth.account_dormancy_warning"
+        }
+    }
+
     @Serializable
     data class UserDeleted(
         @ProtoNumber(1) val userId: Uuid,

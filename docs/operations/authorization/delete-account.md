@@ -24,7 +24,7 @@ flowchart TD
     GetAuth -- found --> GetDevices[DeviceDataSource.getDevices authRecord.id]
     GetDevices --> UserDeletedEvt[eventProducer.send AuthEvent.UserDeleted]
     UserDeletedEvt --> DeviceLoop[For each device: send AuthEvent.DeviceDeleted]
-    DeviceLoop --> DeleteAuth[AccountDataSource.deleteAuthorization authRecord.userId]
+    DeviceLoop --> DeleteAuth[AccountEraser - AccountDataSource.deleteAuthorization authRecord.id, cascades to passkeys and devices]
     DeleteAuth --> R204([204 Account deleted])
 ```
 

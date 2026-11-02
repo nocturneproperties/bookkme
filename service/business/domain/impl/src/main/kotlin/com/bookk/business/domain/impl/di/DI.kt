@@ -17,15 +17,18 @@ import com.bookk.business.domain.api.business.operation.SetDashboardBusiness
 import com.bookk.business.domain.api.business.operation.UpdateBusiness
 import com.bookk.business.domain.api.client.operation.CreateClient
 import com.bookk.business.domain.api.client.operation.DeleteClient
+import com.bookk.business.domain.api.client.operation.DeleteInactiveClients
 import com.bookk.business.domain.api.client.operation.GetClientBusinessIds
 import com.bookk.business.domain.api.client.operation.GetClients
 import com.bookk.business.domain.api.client.operation.ImportClients
+import com.bookk.business.domain.api.client.operation.RecordClientVisit
 import com.bookk.business.domain.api.client.operation.UpdateClient
 import com.bookk.business.domain.api.employee.operation.CreateEmployeeInvitation
 import com.bookk.business.domain.api.employee.operation.DeleteProcessedEmployeeInvitations
 import com.bookk.business.domain.api.employee.operation.ExpireEmployeeInvitations
 import com.bookk.business.domain.api.employee.operation.GetEmployeeInvitations
 import com.bookk.business.domain.api.employee.operation.GetEmployees
+import com.bookk.business.domain.api.employee.operation.GetOwnedBusinessMemberIds
 import com.bookk.business.domain.api.employee.operation.JoinBusiness
 import com.bookk.business.domain.api.employee.operation.RevokeEmployeeInvitation
 import com.bookk.business.domain.api.employee.operation.SetEmployeePermissions
@@ -40,7 +43,7 @@ import com.bookk.business.domain.api.service.operation.GetServices
 import com.bookk.business.domain.api.service.operation.GetServicesByIds
 import com.bookk.business.domain.api.service.operation.IssueServiceQuote
 import com.bookk.business.domain.api.service.operation.UpdateService
-import com.bookk.business.domain.api.user.operation.AnonymizeUserProfile
+import com.bookk.business.domain.api.user.operation.DeleteUserBusinessData
 import com.bookk.business.domain.api.user.operation.SyncUserProfile
 import com.bookk.business.domain.impl.event.BusinessEventHandlerImpl
 import com.bookk.business.domain.impl.operation.appointment.GetAppointmentBookingContextImpl
@@ -58,15 +61,18 @@ import com.bookk.business.domain.impl.operation.business.SetDashboardBusinessImp
 import com.bookk.business.domain.impl.operation.business.UpdateBusinessImpl
 import com.bookk.business.domain.impl.operation.client.CreateClientImpl
 import com.bookk.business.domain.impl.operation.client.DeleteClientImpl
+import com.bookk.business.domain.impl.operation.client.DeleteInactiveClientsImpl
 import com.bookk.business.domain.impl.operation.client.GetClientBusinessIdsImpl
 import com.bookk.business.domain.impl.operation.client.GetClientsImpl
 import com.bookk.business.domain.impl.operation.client.ImportClientsImpl
+import com.bookk.business.domain.impl.operation.client.RecordClientVisitImpl
 import com.bookk.business.domain.impl.operation.client.UpdateClientImpl
 import com.bookk.business.domain.impl.operation.employee.CreateEmployeeInvitationImpl
 import com.bookk.business.domain.impl.operation.employee.DeleteProcessedEmployeeInvitationsImpl
 import com.bookk.business.domain.impl.operation.employee.ExpireEmployeeInvitationsImpl
 import com.bookk.business.domain.impl.operation.employee.GetEmployeeInvitationsImpl
 import com.bookk.business.domain.impl.operation.employee.GetEmployeesImpl
+import com.bookk.business.domain.impl.operation.employee.GetOwnedBusinessMemberIdsImpl
 import com.bookk.business.domain.impl.operation.employee.JoinBusinessImpl
 import com.bookk.business.domain.impl.operation.employee.RevokeEmployeeInvitationImpl
 import com.bookk.business.domain.impl.operation.employee.SetEmployeePermissionsImpl
@@ -81,7 +87,7 @@ import com.bookk.business.domain.impl.operation.service.GetServicesByIdsImpl
 import com.bookk.business.domain.impl.operation.service.GetServicesImpl
 import com.bookk.business.domain.impl.operation.service.IssueQuoteImpl
 import com.bookk.business.domain.impl.operation.service.UpdateServiceImpl
-import com.bookk.business.domain.impl.operation.user.AnonymizeUserProfileImpl
+import com.bookk.business.domain.impl.operation.user.DeleteUserBusinessDataImpl
 import com.bookk.business.domain.impl.operation.user.SyncUserProfileImpl
 import com.bookk.business.domain.impl.stepup.StepUpVerifier
 import com.bookk.core.data.eventstreaming.EventHandler
@@ -112,11 +118,14 @@ fun businessDomainModule() = module {
         scopedOf(::ImportClientsImpl) bind ImportClients::class
         scopedOf(::GetClientsImpl) bind GetClients::class
         scopedOf(::GetClientBusinessIdsImpl) bind GetClientBusinessIds::class
+        scopedOf(::GetOwnedBusinessMemberIdsImpl) bind GetOwnedBusinessMemberIds::class
         scopedOf(::DeleteClientImpl) bind DeleteClient::class
+        scopedOf(::DeleteInactiveClientsImpl) bind DeleteInactiveClients::class
+        scopedOf(::RecordClientVisitImpl) bind RecordClientVisit::class
         scopedOf(::StepUpVerifier)
         scopedOf(::UpdateClientImpl) bind UpdateClient::class
         scopedOf(::SyncUserProfileImpl) bind SyncUserProfile::class
-        scopedOf(::AnonymizeUserProfileImpl) bind AnonymizeUserProfile::class
+        scopedOf(::DeleteUserBusinessDataImpl) bind DeleteUserBusinessData::class
         scopedOf(::CreateServiceImpl) bind CreateService::class
         scopedOf(::DeleteServiceGroupImpl) bind DeleteServiceGroup::class
         scopedOf(::CreateServiceGroupImpl) bind CreateServiceGroup::class

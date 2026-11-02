@@ -90,6 +90,10 @@ flowchart TD
     WorktimeCheck -- Yes --> Overlap{overlaps another appointment?}
     Overlap -- Yes --> R422e([422 APPOINTMENT_EXISTS 300004])
     Overlap -- No --> Store[AppointmentDataSource.create appointment]
-    Store --> R200([200 Created Appointment - token stays spent])
+    Store --> Visit[eventProducer.send AppointmentEvent.ClientVisitBooked businessId client.id dateEnd]
+    Visit --> R200([200 Created Appointment - token stays spent])
     Tx -- any failure after the reservation --> Release["AppointmentRequestDataSource.releaseOfferToken - NonCancellable, best effort"]
 ```
+
+**Consumed by:** `AppointmentEvent.ClientVisitBooked` → [business: record the client's
+visit](../business/on-client-visit-booked.md).

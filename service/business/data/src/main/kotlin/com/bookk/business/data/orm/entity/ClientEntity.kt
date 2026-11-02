@@ -6,6 +6,7 @@ import com.bookk.business.domain.api.client.entity.ClientUpdateModel
 import com.bookk.core.data.DecoratorUuidEntityClass
 import org.jetbrains.exposed.v1.core.dao.id.EntityID
 import org.jetbrains.exposed.v1.dao.UuidEntity
+import kotlin.time.Clock
 import kotlin.uuid.Uuid
 
 internal class ClientEntity(id: EntityID<Uuid>) : UuidEntity(id) {
@@ -16,6 +17,7 @@ internal class ClientEntity(id: EntityID<Uuid>) : UuidEntity(id) {
     var email by ClientTable.email
     var userId by ClientTable.userId
     var description by ClientTable.description
+    var lastActivityAt by ClientTable.lastActivityAt
 
     companion object : DecoratorUuidEntityClass<ClientEntity>(ClientTable) {
         fun findByIdAndUpdate(businessId: Uuid, model: ClientUpdateModel): ClientEntity? = findByIdAndUpdate(model.id) {
@@ -25,6 +27,7 @@ internal class ClientEntity(id: EntityID<Uuid>) : UuidEntity(id) {
                 model.phone?.let { phone -> it.phone = phone }
                 model.email?.let { email -> it.email = email }
                 model.description?.let { description -> it.description = description }
+                it.lastActivityAt = Clock.System.now()
             }
         }?.takeIf { it.businessId.value == businessId }
 
@@ -36,6 +39,7 @@ internal class ClientEntity(id: EntityID<Uuid>) : UuidEntity(id) {
                 lastName = profile.lastName.trim()
                 profile.phone?.let { phone = it.trim() }
                 profile.email?.let { email = it.trim() }
+                lastActivityAt = Clock.System.now()
             }
     }
 

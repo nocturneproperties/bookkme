@@ -25,4 +25,5 @@ interface AppointmentRequestDataSource {
 
     suspend fun reserveOfferToken(token: String): Boolean
     suspend fun releaseOfferToken(token: String)
+    suspend fun deleteEndedBefore(before: Instant)
 }

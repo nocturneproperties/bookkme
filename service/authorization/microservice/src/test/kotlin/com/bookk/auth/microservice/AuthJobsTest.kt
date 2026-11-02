@@ -1,5 +1,6 @@
 package com.bookk.auth.microservice
 
+import com.bookk.auth.domain.api.authentication.operation.HandleDormantAccounts
 import com.bookk.auth.domain.api.device.operation.DeleteInactiveDevices
 import com.bookk.auth.domain.impl.di.AuthScope
 import com.bookk.core.service.test.routeTest
@@ -25,12 +26,14 @@ internal class AuthJobsTest {
     private class SutFixture {
         val rotateSigningKeys = mockk<RotateSigningKeys>()
         val deleteInactiveDevices = mockk<DeleteInactiveDevices>()
+        val handleDormantAccounts = mockk<HandleDormantAccounts>()
         val scheduler = SchedulerConfiguration()
 
         suspend fun registerJobs(builder: ApplicationTestBuilder) {
             val application = builder.startScopedApplication(AuthScope) {
                 scoped { rotateSigningKeys }
                 scoped { deleteInactiveDevices }
+                scoped { handleDormantAccounts }
             }
             application.registerAuthJobs(scheduler)
         }
@@ -49,6 +52,7 @@ internal class AuthJobsTest {
             mapOf(
                 "auth-rotateSigningKeys" to 1.days,
                 "auth-deleteInactiveDevices" to 1.days,
+                "auth-handleDormantAccounts" to 1.days,
             ),
             fixture.scheduler.registeredJobs(),
         )
@@ -107,6 +111,35 @@ internal class AuthJobsTest {
 
         whenn()
         val result = runCatching { fixture.scheduler.runJob("auth-deleteInactiveDevices") }
+
+        then()
+        assertSame(error, result.exceptionOrNull())
+    }
+
+    @Test
+    fun `should warn and delete accounts inactive for three years`() = routeTest {
+        given()
+        val fixture = SutFixture()
+        coEvery { fixture.handleDormantAccounts.invoke() } returns Result.success(Unit)
+        fixture.registerJobs(this)
+
+        whenn()
+        fixture.scheduler.runJob("auth-handleDormantAccounts")
+
+        then()
+        coVerify(exactly = 1) { fixture.handleDormantAccounts.invoke() }
+    }
+
+    @Test
+    fun `should surface a failed dormant account run`() = routeTest {
+        given()
+        val fixture = SutFixture()
+        val error = RuntimeException("dormant accounts failed")
+        coEvery { fixture.handleDormantAccounts.invoke() } returns Result.failure(error)
+        fixture.registerJobs(this)
+
+        whenn()
+        val result = runCatching { fixture.scheduler.runJob("auth-handleDormantAccounts") }
 
         then()
         assertSame(error, result.exceptionOrNull())

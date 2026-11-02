@@ -70,6 +70,7 @@ internal class UpdateBusinessImplTest {
         socials: List<Business.Social>? = null,
         schedule: Schedule? = null,
         dayOffs: List<DayOffRange> = emptyList(),
+        clientDataRetentionMonths: Int? = null,
     ) = BusinessUpdateModel(
         id = id,
         name = name,
@@ -80,6 +81,7 @@ internal class UpdateBusinessImplTest {
         timeZone = timeZone,
         socials = socials,
         schedule = schedule?.copy(dayOffs = dayOffs),
+        clientDataRetentionMonths = clientDataRetentionMonths,
     )
 
     private fun scheduleOf(vararg days: DayOfWeek) = Schedule(
@@ -598,5 +600,77 @@ internal class UpdateBusinessImplTest {
         then()
         assertTrue(result.exceptionOrNull() is UpdateBusiness.Error.InvalidCurrency)
         coVerify(exactly = 0) { fixture.businessDataSource.updateBusiness(any(), any()) }
+    }
+
+    @Test
+    fun `should reject client data retention shorter than the minimum`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.transactionManager.mockTransaction()
+
+        whenn()
+        val result = fixture.sut(requestUserId, updateModel(clientDataRetentionMonths = 11))
+
+        then()
+        assertTrue(result.exceptionOrNull() is UpdateBusiness.Error.ClientDataRetentionOutOfRange)
+        coVerify(exactly = 0) { fixture.businessDataSource.updateBusiness(any(), any()) }
+    }
+
+    @Test
+    fun `should reject client data retention longer than the maximum`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.transactionManager.mockTransaction()
+
+        whenn()
+        val result = fixture.sut(requestUserId, updateModel(clientDataRetentionMonths = 121))
+
+        then()
+        assertTrue(result.exceptionOrNull() is UpdateBusiness.Error.ClientDataRetentionOutOfRange)
+        coVerify(exactly = 0) { fixture.businessDataSource.updateBusiness(any(), any()) }
+    }
+
+    @Test
+    fun `should store client data retention equal to the minimum`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.transactionManager.mockTransaction()
+        val model = updateModel(clientDataRetentionMonths = 12)
+
+        whenn()
+        val result = fixture.sut(requestUserId, model)
+
+        then()
+        assertTrue(result.isSuccess)
+        coVerify(exactly = 1) { fixture.businessDataSource.updateBusiness(match { it.clientDataRetentionMonths == 12 }, any()) }
+    }
+
+    @Test
+    fun `should store client data retention equal to the maximum`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.transactionManager.mockTransaction()
+        val model = updateModel(clientDataRetentionMonths = 120)
+
+        whenn()
+        val result = fixture.sut(requestUserId, model)
+
+        then()
+        assertTrue(result.isSuccess)
+        coVerify(exactly = 1) { fixture.businessDataSource.updateBusiness(match { it.clientDataRetentionMonths == 120 }, any()) }
+    }
+
+    @Test
+    fun `should check the permission before validating client data retention`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.transactionManager.mockTransaction()
+        fixture.grantPermission(ResourcePermission.NONE)
+
+        whenn()
+        val result = fixture.sut(requestUserId, updateModel(clientDataRetentionMonths = 1))
+
+        then()
+        assertTrue(result.exceptionOrNull() is Error.OperationNotAllowed)
     }
 }

@@ -31,6 +31,9 @@ import library.permissions.ResourcePermission
 import library.schedule.DayOffRange
 import library.schedule.Schedule
 import library.schedule.WorkHour
+import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.jdbc.deleteWhere
+import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -68,6 +71,13 @@ internal class EmployeeDataSourceImplTest {
             return suspendTransaction {
                 serviceSut.createService(Service.stub(businessId = businessId, group = group, name = name))
             }
+        }
+
+        suspend fun rowsOf(employeeId: Uuid): Long = suspendTransaction {
+            EmployeeCanProvideServiceTable.selectAll().where { EmployeeCanProvideServiceTable.employeeId eq employeeId }.count() +
+                EmployeeWorkingHoursTable.selectAll().where { EmployeeWorkingHoursTable.employeeId eq employeeId }.count() +
+                EmployeeDayOffTable.selectAll().where { EmployeeDayOffTable.employeeId eq employeeId }.count() +
+                BusinessPermissionGrantsTable.selectAll().where { BusinessPermissionGrantsTable.employeeId eq employeeId }.count()
         }
     }
 
@@ -661,7 +671,7 @@ internal class EmployeeDataSourceImplTest {
     }
 
     @Test
-    fun `should anonymize employee PII and clear schedule and services for the deleted user`() = runUnitTest {
+    fun `should delete the deleted user's employee rows together with their services, schedule and grants`() = runUnitTest {
         given()
         val fixture = SutFixture()
         fixture.setup()
@@ -677,43 +687,33 @@ internal class EmployeeDataSourceImplTest {
                 Employee.stub(
                     businessId = fixture.businessId,
                     userId = userId,
-                    name = "Alice",
-                    lastName = "Smith",
-                    phone = "+1234567890",
-                    email = "alice@test.com",
                     services = listOf(service),
                     schedule = schedule,
+                    permissions = BusinessPermissions.FULL,
                 ),
             )
         }
 
         whenn()
-        val affected = suspendTransaction { fixture.sut.anonymizeEmployeesByUserId(userId) }
-        val found = suspendTransaction { fixture.sut.getEmployee(fixture.businessId, created.id) }
+        suspendTransaction { fixture.sut.deleteEmployeesByUserId(userId) }
 
         then()
-        assertEquals(1, affected)
-        assertNotNull(found)
-        assertEquals("Deleted User", found!!.name)
-        assertEquals("", found.lastName)
-        assertNull(found.phone)
-        assertNull(found.email)
-        assertTrue(found.services.isEmpty())
-        assertTrue(found.schedule.activeDays().isEmpty())
-        assertTrue(found.schedule.dayOffs.isEmpty())
+        assertNull(suspendTransaction { fixture.sut.getEmployee(fixture.businessId, created.id) })
+        assertEquals(0L, fixture.rowsOf(created.id))
     }
 
     @Test
-    fun `should return zero when anonymizing employees for a user with none`() = runUnitTest {
+    fun `should keep the employees of other users when deleting a user's employee rows`() = runUnitTest {
         given()
         val fixture = SutFixture()
         fixture.setup()
+        val other = suspendTransaction { fixture.sut.createEmployee(Employee.stub(businessId = fixture.businessId)) }
 
         whenn()
-        val affected = suspendTransaction { fixture.sut.anonymizeEmployeesByUserId(Uuid.random()) }
+        suspendTransaction { fixture.sut.deleteEmployeesByUserId(Uuid.random()) }
 
         then()
-        assertEquals(0, affected)
+        assertNotNull(suspendTransaction { fixture.sut.getEmployee(fixture.businessId, other.id) })
     }
 
     @Test
@@ -765,7 +765,7 @@ internal class EmployeeDataSourceImplTest {
         val created = suspendTransaction {
             fixture.sut.createEmployee(Employee.stub(businessId = fixture.businessId, permissions = BusinessPermissions.FULL))
         }
-        suspendTransaction { fixture.permissionSut.deleteUserPermissions(created.userId) }
+        suspendTransaction { BusinessPermissionGrantsTable.deleteWhere { BusinessPermissionGrantsTable.employeeId eq created.id } }
 
         whenn()
         val employees = suspendTransaction { fixture.sut.getEmployees(fixture.businessId) }
@@ -948,4 +948,41 @@ internal class EmployeeDataSourceImplTest {
         services = employee.services,
         schedule = employee.schedule,
     )
+
+    @Test
+    fun `should list the user ids of the other members of the business the user owns`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val ownerId = Uuid.random()
+        val memberId = Uuid.random()
+        val otherOwnerId = Uuid.random()
+        val owned = suspendTransaction { fixture.businessSut.createBusiness(ownerId, "Owned", "USD", TimeZone.UTC) }
+        val other = suspendTransaction { fixture.businessSut.createBusiness(otherOwnerId, "Other", "USD", TimeZone.UTC) }
+        suspendTransaction {
+            fixture.sut.createEmployee(Employee.stub(businessId = owned.id, userId = ownerId))
+            fixture.sut.createEmployee(Employee.stub(businessId = owned.id, userId = memberId))
+            fixture.sut.createEmployee(Employee.stub(businessId = other.id, userId = Uuid.random()))
+        }
+
+        whenn()
+        val members = suspendTransaction { fixture.sut.getOwnedBusinessMemberUserIds(ownerId) }
+
+        then()
+        assertEquals(listOf(memberId), members)
+    }
+
+    @Test
+    fun `should list no members for a user who owns no business`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val employeeUserId = Uuid.random()
+        suspendTransaction { fixture.sut.createEmployee(Employee.stub(businessId = fixture.businessId, userId = employeeUserId)) }
+
+        whenn()
+        val members = suspendTransaction { fixture.sut.getOwnedBusinessMemberUserIds(employeeUserId) }
+
+        then()
+        assertTrue(members.isEmpty())
+    }
 }

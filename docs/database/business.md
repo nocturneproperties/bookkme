@@ -34,6 +34,7 @@ erDiagram
         string currency
         string timezone
         byte working_days
+        int client_data_retention_months "default 36, 12 to 120; a client inactive longer than this is deleted"
         string instagram
         string telegram
         string viber
@@ -90,6 +91,7 @@ erDiagram
         string email "nullable; UK with business_id; at least one of phone/email required on create"
         uuid user_id "logical FK -> user.profile.id, nullable; UK with business_id"
         string description "nullable; business owner's notes about the client"
+        timestamp last_activity_at "latest booked visit end, or create/edit/takeover time; indexed with business_id; the business-deleteInactiveClients job deletes the row once it is older than the business retention period"
         timestamp source_updated_at
         timestamp created_at
         timestamp updated_at

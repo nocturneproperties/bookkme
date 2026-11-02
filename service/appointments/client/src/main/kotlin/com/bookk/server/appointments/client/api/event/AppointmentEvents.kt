@@ -116,6 +116,22 @@ interface AppointmentEvent : EventStreaming.Event<String> {
             const val TOPIC = "appointment.cancelled_for_deleted_client"
         }
     }
+
+    @Serializable
+    data class ClientVisitBooked(
+        @ProtoNumber(1) val businessId: Uuid,
+        @ProtoNumber(2) val clientId: Uuid,
+        @ProtoNumber(3) val visitEnd: Instant,
+        @ProtoNumber(4) override val idempotencyKey: String = Uuid.random().toString(),
+    ) : AppointmentEvent {
+        @ProtoNumber(5)
+        override val topic: String = TOPIC
+        override val partitionKey: String get() = clientId.toString()
+
+        companion object {
+            const val TOPIC = "appointment.client_visit_booked"
+        }
+    }
 }
 
 @Serializable

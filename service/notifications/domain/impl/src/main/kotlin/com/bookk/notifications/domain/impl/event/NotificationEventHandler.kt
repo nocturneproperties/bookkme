@@ -11,6 +11,7 @@ import com.bookk.notifications.domain.impl.UpdateTargetInformation
 import com.bookk.notifications.domain.impl.UpdateTargetInformation.Target
 import com.bookk.notifications.domain.impl.notification.NotificationParameters
 import com.bookk.notifications.domain.impl.notification.SendNotification
+import com.bookk.notifications.domain.impl.notification.renderer.account.notification
 import com.bookk.notifications.domain.impl.notification.renderer.appointment.notification
 import com.bookk.notifications.domain.impl.notification.renderer.employee.notification
 import com.bookk.server.appointments.client.api.event.AppointmentEvent
@@ -42,6 +43,9 @@ internal class NotificationEventHandler(
             }
             .registerResultReceiver(AuthEvent.DeviceDeleted.TOPIC) { event: AuthEvent.DeviceDeleted ->
                 deleteDeviceByUUID(event.deviceUuid)
+            }
+            .registerResultReceiver(AuthEvent.AccountDormancyWarning.TOPIC) { event: AuthEvent.AccountDormancyWarning ->
+                sendNotification(event.userId, event.notification)
             }
             .registerResultReceiver(UserEvent.Updated.TOPIC) { event: UserEvent.Updated ->
                 updateTargetInformation(event.userId, Target.Email(event.email), event.updatedAt)

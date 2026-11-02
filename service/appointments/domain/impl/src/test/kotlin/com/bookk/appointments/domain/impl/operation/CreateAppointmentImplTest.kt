@@ -317,6 +317,7 @@ internal class CreateAppointmentImplTest {
             coEvery { requestDataSource.approve(request) } returns Unit
             coEvery { subscriptionDataSource.getBusinessSnapshot(businessId) } returns businessSnapshot
             coEvery { eventProducer.send(capture(eventSlot), any()) } returns Unit
+            coEvery { eventProducer.send(any<AppointmentEvent.ClientVisitBooked>(), any()) } returns Unit
             transactionManager.mockTransaction()
         }
 
@@ -351,6 +352,7 @@ internal class CreateAppointmentImplTest {
             coEvery { requestDataSource.approve(request) } returns Unit
             coEvery { subscriptionDataSource.getBusinessSnapshot(businessId) } returns BusinessSnapshot.stub()
             coEvery { eventProducer.send(capture(eventSlot), any()) } returns Unit
+            coEvery { eventProducer.send(any<AppointmentEvent.ClientVisitBooked>(), any()) } returns Unit
             transactionManager.mockTransaction()
         }
 
@@ -614,5 +616,41 @@ internal class CreateAppointmentImplTest {
 
         then()
         assertTrue(result.exceptionOrNull() is Error.OperationNotAllowed)
+    }
+
+    @Test
+    fun `should tell the business the client has a visit until the approved appointment ends`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val businessId = Uuid.random()
+        val request = AppointmentRequest.stub(initiatorUserId = userId, businessId = businessId, date = futureDate)
+        val appointment = Appointment.stub(initiatorUserId = userId, businessId = businessId, date = futureDate)
+        val settings = mockk<AppointmentSettings>()
+        val businessSnapshot = BusinessSnapshot.stub()
+
+        with(fixture) {
+            coEvery { settingsDataSource.getForUpdate(businessId) } returns settings
+            coEvery { settings.automaticApproval } returns false
+            coEvery { settings.isInWorkday(appointment.date) } returns true
+            coEvery { settings.isInWorktime(appointment.date, appointment.dateEnd) } returns true
+            coEvery { appointmentDataSource.hasOverlapsWith(request) } returns false
+            coEvery { appointmentDataSource.create(request) } returns appointment
+            coEvery { requestDataSource.approve(request) } returns Unit
+            coEvery { subscriptionDataSource.getBusinessSnapshot(businessId) } returns businessSnapshot
+            coEvery { eventProducer.send(any(), any()) } returns Unit
+            transactionManager.mockTransaction()
+        }
+        whenn()
+        val result = fixture.sut.createBypassingPermissions(request)
+
+        then()
+        assertTrue(result.isSuccess)
+        coVerify(exactly = 1) {
+            fixture.eventProducer.send(
+                match<AppointmentEvent.ClientVisitBooked> { it.businessId == businessId && it.clientId == request.client.id && it.visitEnd == request.dateEnd },
+                any(),
+            )
+        }
     }
 }

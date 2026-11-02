@@ -31,10 +31,13 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import kotlin.time.Clock
+import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.hours
 import kotlin.uuid.Uuid
 
 internal class CompleteAppointmentImplTest {
+
+    private val recentlyStarted = Clock.System.now() - 1.hours
 
     private class SutFixture {
         val appointmentDataSource = mockk<AppointmentDataSource>()
@@ -65,7 +68,7 @@ internal class CompleteAppointmentImplTest {
         given()
         val fixture = SutFixture()
         val userId = Uuid.random()
-        val appointment = Appointment.stub()
+        val appointment = Appointment.stub(date = recentlyStarted)
         val completed = appointment.copy(status = AppointmentStatus.COMPLETED, completedBy = AppointmentCompletedBy.USER)
         with(fixture) {
             givenLockedAppointment(userId, appointment)
@@ -85,7 +88,7 @@ internal class CompleteAppointmentImplTest {
         given()
         val fixture = SutFixture()
         val userId = Uuid.random()
-        val appointment = Appointment.stub().copy(status = AppointmentStatus.COMPLETED, completedBy = AppointmentCompletedBy.SYSTEM)
+        val appointment = Appointment.stub(date = recentlyStarted).copy(status = AppointmentStatus.COMPLETED, completedBy = AppointmentCompletedBy.SYSTEM)
         fixture.givenLockedAppointment(userId, appointment)
 
         whenn()
@@ -101,7 +104,7 @@ internal class CompleteAppointmentImplTest {
         given()
         val fixture = SutFixture()
         val userId = Uuid.random()
-        val appointment = Appointment.stub().copy(employee = EmployeeSnapshot.stub(userId = userId))
+        val appointment = Appointment.stub(date = recentlyStarted).copy(employee = EmployeeSnapshot.stub(userId = userId))
         with(fixture) {
             givenLockedAppointment(userId, appointment, ResourcePermission(view = true, update = false, delete = false))
             coEvery { appointmentDataSource.markCompletedByUser(appointment.id) } returns appointment.copy(status = AppointmentStatus.COMPLETED)
@@ -119,7 +122,7 @@ internal class CompleteAppointmentImplTest {
         given()
         val fixture = SutFixture()
         val userId = Uuid.random()
-        val appointment = Appointment.stub()
+        val appointment = Appointment.stub(date = recentlyStarted)
         fixture.givenLockedAppointment(userId, appointment, ResourcePermission(view = true, update = false, delete = false))
 
         whenn()
@@ -135,7 +138,7 @@ internal class CompleteAppointmentImplTest {
         given()
         val fixture = SutFixture()
         val userId = Uuid.random()
-        val appointment = Appointment.stub()
+        val appointment = Appointment.stub(date = recentlyStarted)
         with(fixture) {
             transactionManager.mockTransaction()
             coEvery { appointmentDataSource.getForUpdate(appointment.id) } returns appointment
@@ -155,7 +158,7 @@ internal class CompleteAppointmentImplTest {
         given()
         val fixture = SutFixture()
         val userId = Uuid.random()
-        val appointment = Appointment.stub().copy(status = AppointmentStatus.CANCELLED)
+        val appointment = Appointment.stub(date = recentlyStarted).copy(status = AppointmentStatus.CANCELLED)
         fixture.givenLockedAppointment(userId, appointment)
 
         whenn()
@@ -171,7 +174,7 @@ internal class CompleteAppointmentImplTest {
         given()
         val fixture = SutFixture()
         val userId = Uuid.random()
-        val appointment = Appointment.stub().copy(status = AppointmentStatus.NO_SHOW)
+        val appointment = Appointment.stub(date = recentlyStarted).copy(status = AppointmentStatus.NO_SHOW)
         fixture.givenLockedAppointment(userId, appointment)
 
         whenn()
@@ -220,7 +223,7 @@ internal class CompleteAppointmentImplTest {
         given()
         val fixture = SutFixture()
         val userId = Uuid.random()
-        val appointment = Appointment.stub()
+        val appointment = Appointment.stub(date = recentlyStarted)
         val completed = appointment.copy(status = AppointmentStatus.COMPLETED, completedBy = AppointmentCompletedBy.USER)
         val draft = PriceAdjustmentDraft.stub(price = Money.parse("USD 80"), reason = "Discount")
         val expectedAdjustment = PriceAdjustment(additionalServices = emptyList(), price = draft.price, reason = draft.reason)
@@ -245,7 +248,7 @@ internal class CompleteAppointmentImplTest {
         given()
         val fixture = SutFixture()
         val userId = Uuid.random()
-        val appointment = Appointment.stub()
+        val appointment = Appointment.stub(date = recentlyStarted)
         val service = Service.stub(businessId = appointment.businessId, price = Money.parse("USD 30"))
         val draft = PriceAdjustmentDraft.stub(additionalServiceIds = listOf(service.id, service.id))
         val snapshot = ServiceSnapshot(id = service.id, name = service.name, groupId = service.group.id, price = service.price, duration = service.duration)
@@ -271,7 +274,7 @@ internal class CompleteAppointmentImplTest {
         given()
         val fixture = SutFixture()
         val userId = Uuid.random()
-        val appointment = Appointment.stub()
+        val appointment = Appointment.stub(date = recentlyStarted)
         val completed = appointment.copy(status = AppointmentStatus.COMPLETED, completedBy = AppointmentCompletedBy.USER)
         val draft = PriceAdjustmentDraft.stub(reason = "   ")
         val expectedAdjustment = PriceAdjustment(additionalServices = emptyList(), price = draft.price, reason = null)
@@ -293,7 +296,7 @@ internal class CompleteAppointmentImplTest {
         given()
         val fixture = SutFixture()
         val userId = Uuid.random()
-        val appointment = Appointment.stub().copy(
+        val appointment = Appointment.stub(date = recentlyStarted).copy(
             status = AppointmentStatus.COMPLETED,
             completedBy = AppointmentCompletedBy.SYSTEM,
             priceAdjustment = PriceAdjustment.stub(),
@@ -319,7 +322,7 @@ internal class CompleteAppointmentImplTest {
         given()
         val fixture = SutFixture()
         val userId = Uuid.random()
-        val appointment = Appointment.stub().copy(status = AppointmentStatus.CANCELLED)
+        val appointment = Appointment.stub(date = recentlyStarted).copy(status = AppointmentStatus.CANCELLED)
         fixture.givenLockedAppointment(userId, appointment)
 
         whenn()
@@ -349,7 +352,7 @@ internal class CompleteAppointmentImplTest {
         given()
         val fixture = SutFixture()
         val userId = Uuid.random()
-        val appointment = Appointment.stub()
+        val appointment = Appointment.stub(date = recentlyStarted)
         val completed = appointment.copy(status = AppointmentStatus.COMPLETED, completedBy = AppointmentCompletedBy.USER)
         with(fixture) {
             givenLockedAppointment(userId, appointment)
@@ -383,7 +386,7 @@ internal class CompleteAppointmentImplTest {
         given()
         val fixture = SutFixture()
         val userId = Uuid.random()
-        val appointment = Appointment.stub()
+        val appointment = Appointment.stub(date = recentlyStarted)
         with(fixture) {
             givenLockedAppointment(userId, appointment)
             coEvery { appointmentDataSource.markCompletedByUser(appointment.id) } returns appointment.copy(status = AppointmentStatus.COMPLETED)
@@ -402,7 +405,7 @@ internal class CompleteAppointmentImplTest {
         given()
         val fixture = SutFixture()
         val userId = Uuid.random()
-        val appointment = Appointment.stub()
+        val appointment = Appointment.stub(date = recentlyStarted)
         val draft = PriceAdjustmentDraft.stub(additionalServiceIds = listOf(Uuid.random()))
         val serviceNotFound = Error.NotFound()
         with(fixture) {
@@ -424,7 +427,7 @@ internal class CompleteAppointmentImplTest {
         given()
         val fixture = SutFixture()
         val userId = Uuid.random()
-        val appointment = Appointment.stub()
+        val appointment = Appointment.stub(date = recentlyStarted)
         fixture.givenLockedAppointment(userId, appointment, ResourcePermission.NONE)
 
         whenn()
@@ -440,7 +443,7 @@ internal class CompleteAppointmentImplTest {
         given()
         val fixture = SutFixture()
         val userId = Uuid.random()
-        val appointment = Appointment.stub()
+        val appointment = Appointment.stub(date = recentlyStarted)
         val completed = appointment.copy(status = AppointmentStatus.COMPLETED, completedBy = AppointmentCompletedBy.USER)
         with(fixture) {
             givenLockedAppointment(userId, appointment)
@@ -452,6 +455,23 @@ internal class CompleteAppointmentImplTest {
 
         then()
         assertNull(result.getOrNull()?.priceAdjustment)
+        coVerify(exactly = 0) { fixture.appointmentDataSource.adjustPrice(any(), any()) }
+    }
+
+    @Test
+    fun `should return failure when the appointment ended more than a week ago`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val appointment = Appointment.stub(date = Clock.System.now() - 30.days).copy(status = AppointmentStatus.COMPLETED)
+        fixture.givenLockedAppointment(userId, appointment)
+
+        whenn()
+        val result = fixture.sut.invoke(userId, appointment.id, priceAdjustment = PriceAdjustmentDraft.stub())
+
+        then()
+        assertTrue(result.exceptionOrNull() is AppointmentStatusError.EditWindowClosed)
+        coVerify(exactly = 0) { fixture.appointmentDataSource.markCompletedByUser(any()) }
         coVerify(exactly = 0) { fixture.appointmentDataSource.adjustPrice(any(), any()) }
     }
 }

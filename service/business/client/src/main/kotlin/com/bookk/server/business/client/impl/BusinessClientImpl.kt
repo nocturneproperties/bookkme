@@ -9,6 +9,7 @@ import com.bookk.business.domain.api.business.entity.BusinessResource
 import com.bookk.business.domain.api.business.operation.GetBusinessDetails
 import com.bookk.business.domain.api.business.operation.GetBusinessPermission
 import com.bookk.business.domain.api.client.operation.GetClientBusinessIds
+import com.bookk.business.domain.api.employee.operation.GetOwnedBusinessMemberIds
 import com.bookk.business.domain.api.service.entity.Service
 import com.bookk.business.domain.api.service.operation.GetServicesByIds
 import com.bookk.server.business.client.api.BusinessClient
@@ -24,6 +25,7 @@ internal class BusinessClientImpl(
     private val getClientBusinessIds: GetClientBusinessIds,
     private val getServicesByIds: GetServicesByIds,
     private val getStaffBookingContext: GetStaffBookingContext,
+    private val getOwnedBusinessMemberIds: GetOwnedBusinessMemberIds,
 ) : BusinessClient {
     override suspend fun getBusinessById(id: Uuid): Result<BusinessDTO> = getBusinessDetails.invoke(id).map(BusinessDTO::from)
 
@@ -52,4 +54,6 @@ internal class BusinessClientImpl(
     override suspend fun getClientBusinessIds(userId: Uuid): Result<List<Uuid>> = getClientBusinessIds.invoke(userId)
 
     override suspend fun getServicesByIds(businessId: Uuid, serviceIds: List<Uuid>): Result<List<Service>> = getServicesByIds.invoke(businessId, serviceIds)
+
+    override suspend fun getOwnedBusinessMemberIds(ownerUserId: Uuid): Result<List<Uuid>> = getOwnedBusinessMemberIds.invoke(ownerUserId)
 }

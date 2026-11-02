@@ -96,6 +96,7 @@ Reactions to cross-service events:
 |---|---|
 | `AuthEvent.UserDeleted` | [React to user deletion](business/on-user-deleted.md) |
 | `UserEvent.Updated` | [React to user profile update](business/on-user-updated.md) |
+| `AppointmentEvent.ClientVisitBooked` | [React to a booked client visit](business/on-client-visit-booked.md) |
 
 ## Notifications service
 
@@ -112,6 +113,7 @@ Reactions to cross-service events (all handled by the same
 | `AuthEvent.DeviceCreated` | [React to device creation](notifications/on-device-created.md) |
 | `AuthEvent.UserDeleted` | [React to user deletion](notifications/on-user-deleted.md) |
 | `AuthEvent.DeviceLanguageUpdated` | [React to device language change](notifications/on-device-language-updated.md) |
+| `AuthEvent.AccountDormancyWarning` | [React to a dormancy warning](notifications/on-account-dormancy-warning.md) |
 | `AuthEvent.DeviceDeleted` | [React to device deletion](notifications/on-device-deleted.md) |
 | `UserEvent.Updated` | [React to user profile update](notifications/on-user-updated.md) |
 | `AppointmentEvent.RequestCreated` | [React to appointment request creation](notifications/on-appointment-request-created.md) |
@@ -151,19 +153,21 @@ the operation committed, and reaches its consumers at least once. See
 
 | Event | Producer | Consumer(s) |
 |---|---|---|
-| `AuthEvent.UserDeleted` | [Delete account](authorization/delete-account.md) | [appointments](appointments/on-user-deleted.md), [business](business/on-user-deleted.md), [notifications](notifications/on-user-deleted.md), [user](user/on-user-deleted.md) |
-| `AuthEvent.DeviceDeleted` | [Delete account](authorization/delete-account.md) | [notifications](notifications/on-device-deleted.md) |
+| `AuthEvent.UserDeleted` | [Delete account](authorization/delete-account.md), [`auth-handleDormantAccounts` job](scheduled-jobs.md) | [appointments](appointments/on-user-deleted.md), [business](business/on-user-deleted.md), [notifications](notifications/on-user-deleted.md), [user](user/on-user-deleted.md) |
+| `AuthEvent.DeviceDeleted` | [Delete account](authorization/delete-account.md), [`auth-handleDormantAccounts` job](scheduled-jobs.md) | [notifications](notifications/on-device-deleted.md) |
 | `AuthEvent.DeviceCreated` | [Verify sign-up](authorization/sign-up.md), [Verify sign-in](authorization/sign-in.md) | [notifications](notifications/on-device-created.md) |
 | `AuthEvent.DeviceLanguageUpdated` | [Verify sign-in](authorization/sign-in.md) | [notifications](notifications/on-device-language-updated.md) |
+| `AuthEvent.AccountDormancyWarning` | [`auth-handleDormantAccounts` job](scheduled-jobs.md) | [notifications](notifications/on-account-dormancy-warning.md) |
 | `BusinessEvent.Updated` | [Update business](business/update-business.md) | [appointments](appointments/on-business-updated.md) |
 | `BusinessEvent.Deleted` | [React to user deletion (business)](business/on-user-deleted.md) | [appointments](appointments/on-business-deleted.md) |
 | `BusinessEvent.EmployeeInvitationRedeemed` | [Join business](business/join-business.md) | [notifications](notifications/on-employee-invitation-redeemed.md) |
 | `BusinessEvent.EmployeePermissionsChanged` | [Join business](business/join-business.md), [Set employee permissions](business/set-employee-permissions.md), [Set employee suspension](business/set-employee-suspension.md) | [appointments](appointments/on-employee-permissions-changed.md) |
 | `BusinessEvent.ClientLinked` | [Get appointment booking context (internal)](business/get-appointment-booking-context.md), [React to user profile update (business)](business/on-user-updated.md) | [appointments](appointments/on-client-linked.md) |
-| `BusinessEvent.ClientDeleted` | [Delete client](business/delete-client.md) | [appointments](appointments/on-client-deleted.md) |
+| `BusinessEvent.ClientDeleted` | [Delete client](business/delete-client.md), [`business-deleteInactiveClients` job](scheduled-jobs.md) | [appointments](appointments/on-client-deleted.md) |
+| `AppointmentEvent.ClientVisitBooked` | [Create appointment request](appointments/create-appointment-request.md), [Create appointment from a pending request](appointments/create-appointment-from-request.md), [Create instant appointment](appointments/create-appointment-instant.md), [Update appointment (reschedule)](appointments/update-appointment.md) | [business](business/on-client-visit-booked.md) |
 | `UserEvent.Updated` | [Update user](user/update-user.md) | [business](business/on-user-updated.md), [notifications](notifications/on-user-updated.md) |
 | `AppointmentEvent.RequestCreated` | [Create appointment request](appointments/create-appointment-request.md) | [notifications](notifications/on-appointment-request-created.md) |
 | `AppointmentEvent.RequestApproved` | [Create appointment from a pending request](appointments/create-appointment-from-request.md), [Create appointment request](appointments/create-appointment-request.md) (auto-approval) | [notifications](notifications/on-appointment-request-approved.md) |
 | `AppointmentEvent.RequestRejected` | [Decline appointment request](appointments/decline-appointment-request.md) | [notifications](notifications/on-appointment-request-rejected.md) |
-| `AppointmentEvent.Cancelled` | [Cancel appointment](appointments/cancel-appointment.md), [React to client deletion (appointments)](appointments/on-client-deleted.md) | [notifications](notifications/on-appointment-cancelled.md) |
+| `AppointmentEvent.Cancelled` | [Cancel appointment](appointments/cancel-appointment.md), [React to client deletion (appointments)](appointments/on-client-deleted.md), [React to user deletion (appointments)](appointments/on-user-deleted.md) | [notifications](notifications/on-appointment-cancelled.md) |
 | `AppointmentEvent.CancelledForDeletedClient` | [React to user deletion (appointments)](appointments/on-user-deleted.md), [React to client deletion (appointments)](appointments/on-client-deleted.md), [React to a client getting an account (appointments)](appointments/on-client-linked.md) | [notifications](notifications/on-appointment-cancelled-for-deleted-client.md) |

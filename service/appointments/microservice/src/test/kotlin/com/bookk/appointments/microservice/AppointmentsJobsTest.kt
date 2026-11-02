@@ -1,5 +1,7 @@
 package com.bookk.appointments.microservice
 
+import com.bookk.appointments.domain.api.operation.DeleteExpiredRequests
+import com.bookk.appointments.domain.api.operation.DeleteExpiredTombstones
 import com.bookk.appointments.domain.api.operation.DeleteOutdatedRequests
 import com.bookk.appointments.domain.api.operation.MarkAppointmentsCompleted
 import com.bookk.appointments.domain.impl.di.AppointmentsScope
@@ -18,6 +20,7 @@ import library.scheduler.test.runJob
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
+import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
 
@@ -26,12 +29,16 @@ internal class AppointmentsJobsTest {
     private class SutFixture {
         val markAppointmentsCompleted = mockk<MarkAppointmentsCompleted>()
         val deleteOutdatedRequests = mockk<DeleteOutdatedRequests>()
+        val deleteExpiredRequests = mockk<DeleteExpiredRequests>()
+        val deleteExpiredTombstones = mockk<DeleteExpiredTombstones>()
         val scheduler = SchedulerConfiguration()
 
         suspend fun registerJobs(builder: ApplicationTestBuilder) {
             val application = builder.startScopedApplication(AppointmentsScope) {
                 scoped { markAppointmentsCompleted }
                 scoped { deleteOutdatedRequests }
+                scoped { deleteExpiredRequests }
+                scoped { deleteExpiredTombstones }
             }
             application.registerAppointmentsJobs(scheduler)
         }
@@ -50,6 +57,8 @@ internal class AppointmentsJobsTest {
             mapOf(
                 "appointments-markAppointmentsAsCompleted" to 5.minutes,
                 "appointments-deleteOutdatedRequests" to 1.hours,
+                "appointments-deleteExpiredRequests" to 1.days,
+                "appointments-deleteExpiredTombstones" to 1.days,
             ),
             fixture.scheduler.registeredJobs(),
         )
@@ -108,6 +117,64 @@ internal class AppointmentsJobsTest {
 
         whenn()
         val result = runCatching { fixture.scheduler.runJob("appointments-deleteOutdatedRequests") }
+
+        then()
+        assertSame(error, result.exceptionOrNull())
+    }
+
+    @Test
+    fun `should delete requests whose slot ended long ago`() = routeTest {
+        given()
+        val fixture = SutFixture()
+        coEvery { fixture.deleteExpiredRequests.invoke() } returns Result.success(Unit)
+        fixture.registerJobs(this)
+
+        whenn()
+        fixture.scheduler.runJob("appointments-deleteExpiredRequests")
+
+        then()
+        coVerify(exactly = 1) { fixture.deleteExpiredRequests.invoke() }
+    }
+
+    @Test
+    fun `should surface a failed deletion of requests whose slot ended long ago`() = routeTest {
+        given()
+        val fixture = SutFixture()
+        val error = RuntimeException("deleteExpiredRequests failed")
+        coEvery { fixture.deleteExpiredRequests.invoke() } returns Result.failure(error)
+        fixture.registerJobs(this)
+
+        whenn()
+        val result = runCatching { fixture.scheduler.runJob("appointments-deleteExpiredRequests") }
+
+        then()
+        assertSame(error, result.exceptionOrNull())
+    }
+
+    @Test
+    fun `should delete expired deletion tombstones`() = routeTest {
+        given()
+        val fixture = SutFixture()
+        coEvery { fixture.deleteExpiredTombstones.invoke() } returns Result.success(Unit)
+        fixture.registerJobs(this)
+
+        whenn()
+        fixture.scheduler.runJob("appointments-deleteExpiredTombstones")
+
+        then()
+        coVerify(exactly = 1) { fixture.deleteExpiredTombstones.invoke() }
+    }
+
+    @Test
+    fun `should surface a failed deletion of expired deletion tombstones`() = routeTest {
+        given()
+        val fixture = SutFixture()
+        val error = RuntimeException("deleteExpiredTombstones failed")
+        coEvery { fixture.deleteExpiredTombstones.invoke() } returns Result.failure(error)
+        fixture.registerJobs(this)
+
+        whenn()
+        val result = runCatching { fixture.scheduler.runJob("appointments-deleteExpiredTombstones") }
 
         then()
         assertSame(error, result.exceptionOrNull())

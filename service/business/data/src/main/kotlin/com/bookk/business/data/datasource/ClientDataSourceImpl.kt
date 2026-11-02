@@ -181,19 +181,32 @@ internal class ClientDataSourceImpl : DataSource(), ClientDataSource {
         }
     }
 
-    override suspend fun anonymizeClientsByUserId(userId: Uuid): Int = dbQuery {
-        ClientTable.update(where = { ClientTable.userId eq userId }) {
-            it[name] = "Deleted User"
-            it[lastName] = ""
-            it[phone] = null
-            it[email] = null
-            it[this.userId] = null
-        }
+    override suspend fun deleteClientsByUserId(userId: Uuid) = dbQuery<Unit> {
+        ClientTable.deleteWhere { ClientTable.userId eq userId }
     }
 
     override suspend fun getBusinessIdsByUserId(userId: Uuid): List<Uuid> = dbQuery {
         ClientTable.select(ClientTable.businessId)
             .where { ClientTable.userId eq userId }
             .map { it[ClientTable.businessId].value }
+    }
+
+    override suspend fun recordVisit(businessId: Uuid, clientId: Uuid, visitEnd: Instant) = dbQuery<Unit> {
+        ClientTable.update(
+            where = { (ClientTable.id eq clientId) and (ClientTable.businessId eq businessId) and (ClientTable.lastActivityAt less visitEnd) },
+        ) {
+            it[lastActivityAt] = visitEnd
+        }
+    }
+
+    override suspend fun deleteInactiveClients(businessId: Uuid, inactiveSince: Instant): List<Uuid> = dbQuery {
+        val inactiveIds = ClientTable.select(ClientTable.id)
+            .where { (ClientTable.businessId eq businessId) and (ClientTable.lastActivityAt less inactiveSince) }
+            .forUpdate()
+            .map { it[ClientTable.id].value }
+        if (inactiveIds.isNotEmpty()) {
+            ClientTable.deleteWhere { (ClientTable.businessId eq businessId) and (ClientTable.id inList inactiveIds) }
+        }
+        inactiveIds
     }
 }

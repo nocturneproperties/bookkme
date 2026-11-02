@@ -89,6 +89,7 @@ internal class CreateAppointmentRequestImpl(
         assertRequestIsSchedulable(request, settings)
 
         requestDataSource.create(request).also {
+            eventProducer.send(AppointmentEvent.ClientVisitBooked(request.businessId, request.client.id, request.dateEnd))
             sendRequestCreatedNotification(request)
         }
     }

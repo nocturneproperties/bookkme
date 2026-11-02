@@ -170,32 +170,6 @@ internal class BusinessPermissionDataSourceImplTest {
     }
 
     @Test
-    fun `should delete user permissions across businesses`() = runUnitTest {
-        given()
-        val fixture = SutFixture()
-        val userId = Uuid.random()
-        val ownEmployee = fixture.employee(userId, businessName = "Salon")
-        val otherEmployee = fixture.employee(userId, businessName = "Other Salon")
-        suspendTransaction {
-            fixture.sut.setPermissions(ownEmployee, mapOf(BusinessResource.CLIENTS to ResourcePermission.FULL))
-            fixture.sut.setPermissions(otherEmployee, mapOf(BusinessResource.CLIENTS to ResourcePermission(view = true, update = false, delete = false)))
-        }
-
-        whenn()
-        suspendTransaction { fixture.sut.deleteUserPermissions(userId) }
-
-        then()
-        assertEquals(
-            ResourcePermission.NONE,
-            suspendTransaction { fixture.sut.getPermission(userId, ownEmployee.businessId, BusinessResource.CLIENTS) },
-        )
-        assertEquals(
-            ResourcePermission.NONE,
-            suspendTransaction { fixture.sut.getPermission(userId, otherEmployee.businessId, BusinessResource.CLIENTS) },
-        )
-    }
-
-    @Test
     fun `should delete employee grants when the employee is deleted`() = runUnitTest {
         given()
         val fixture = SutFixture()
@@ -385,17 +359,5 @@ internal class BusinessPermissionDataSourceImplTest {
 
         then()
         assertEquals(ResourcePermission.FULL, stored)
-    }
-
-    @Test
-    fun `should not fail deleting permissions for a user with none`() = runUnitTest {
-        given()
-        val fixture = SutFixture()
-
-        whenn()
-        val result = runCatching { suspendTransaction { fixture.sut.deleteUserPermissions(Uuid.random()) } }
-
-        then()
-        assertTrue(result.isSuccess)
     }
 }

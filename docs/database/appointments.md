@@ -46,7 +46,7 @@ erDiagram
         uuid initiator_user_id "logical FK -> user.profile.id of whoever booked; non-unique index with business_id, date_start (overlap checks)"
         uuid business_id FK
         uuid employee_id "logical FK -> business.employee.id"
-        uuid employee_user_id "logical FK -> user.profile.id (employee's own userId)"
+        uuid employee_user_id "indexed; logical FK -> user.profile.id (employee's own userId); what account deletion cancels and renames by"
         string employee_name
         uuid client_id "logical FK -> business.client.id"
         uuid client_user_id "nullable, indexed; logical FK -> user.profile.id of the client's own account, empty for a client without one or once erased; who client notifications go to, and what account deletion erases by"
@@ -107,7 +107,7 @@ erDiagram
         uuid initiator_user_id "logical FK -> user.profile.id of whoever booked; non-unique index with business_id, date_start (overlap checks)"
         uuid business_id FK
         uuid employee_id "logical FK -> business.employee.id"
-        uuid employee_user_id "logical FK -> user.profile.id (employee's own userId)"
+        uuid employee_user_id "indexed; logical FK -> user.profile.id (employee's own userId); what account deletion cancels and renames by"
         string employee_name
         uuid client_id "logical FK -> business.client.id"
         uuid client_user_id "nullable, indexed; logical FK -> user.profile.id of the client's own account, empty for a client without one or once erased; who client notifications go to, and what account deletion erases by"
@@ -115,7 +115,7 @@ erDiagram
         string client_phone
         string client_email
         timestamp date_start
-        timestamp date_end
+        timestamp date_end "indexed; requests ended more than 60 days ago are deleted by appointments-deleteExpiredRequests"
         string note
         enum status
         string decline_reason
@@ -200,13 +200,13 @@ erDiagram
 
     DELETED_USER {
         uuid user_id PK "logical FK -> user.profile.id of a deleted account"
-        timestamp deleted_at
+        timestamp deleted_at "rows older than 60 days are deleted by appointments-deleteExpiredTombstones"
     }
 
     DELETED_CLIENT {
         uuid client_id PK "logical FK -> business.client.id of a deleted client"
         uuid business_id "logical FK -> business.business.id"
-        timestamp deleted_at
+        timestamp deleted_at "rows older than 60 days are deleted by appointments-deleteExpiredTombstones"
     }
 ```
 

@@ -12,10 +12,13 @@ import com.bookk.appointments.domain.datasource.AppointmentSettingsDataSource
 import com.bookk.appointments.domain.datasource.DeletedClientDataSource
 import com.bookk.appointments.domain.datasource.DeletedUserDataSource
 import com.bookk.business.domain.api.appointment.entity.AppointmentBookingContext
+import com.bookk.core.data.eventstreaming.StandardEventProducer
+import com.bookk.core.data.eventstreaming.send
 import com.bookk.core.domain.datasource.transaction.TransactionManager
 import com.bookk.core.domain.entity.Error
 import com.bookk.core.domain.entity.runCleaningUpOnFailure
 import com.bookk.core.domain.entity.runSuspendCatching
+import com.bookk.server.appointments.client.api.event.AppointmentEvent
 import com.bookk.server.business.client.api.BusinessClient
 import library.permissions.PermissionAction
 import library.permissions.assertOrSelf
@@ -36,6 +39,7 @@ internal class CreateInstantAppointmentImpl(
     private val businessClient: BusinessClient,
     private val deletedUserDataSource: DeletedUserDataSource,
     private val deletedClientDataSource: DeletedClientDataSource,
+    private val eventProducer: StandardEventProducer,
 ) : CreateInstantAppointment {
 
     private val quoteVerifier = BookingQuoteVerifier(tokenValidatorFactory)
@@ -69,7 +73,9 @@ internal class CreateInstantAppointmentImpl(
             if (clientUserId != null && deletedUserDataSource.isDeletedForShare(clientUserId)) throw Error.OperationNotAllowed()
             if (deletedClientDataSource.isDeletedForShare(appointment.businessId, appointment.client.id)) throw Error.OperationNotAllowed()
             requireBookable(appointment)
-            appointmentDataSource.create(appointment)
+            appointmentDataSource.create(appointment).also {
+                eventProducer.send(AppointmentEvent.ClientVisitBooked(it.businessId, it.client.id, it.dateEnd))
+            }
         }.getOrThrow()
     }
 

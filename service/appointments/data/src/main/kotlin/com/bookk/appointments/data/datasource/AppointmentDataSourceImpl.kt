@@ -29,6 +29,7 @@ import org.jetbrains.exposed.v1.core.like
 import org.jetbrains.exposed.v1.core.lowerCase
 import org.jetbrains.exposed.v1.core.neq
 import org.jetbrains.exposed.v1.core.or
+import org.jetbrains.exposed.v1.core.statements.UpdateStatement
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.update
@@ -37,6 +38,8 @@ import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
 private const val DELETED_CLIENT_NAME = "Deleted Client"
+private const val DELETED_USER_NAME = "Deleted User"
+private const val DELETED_EMPLOYEE_NAME = "Deleted User"
 
 internal class AppointmentDataSourceImpl : DataSource(), AppointmentDataSource {
 
@@ -212,23 +215,25 @@ internal class AppointmentDataSourceImpl : DataSource(), AppointmentDataSource {
 
     override suspend fun anonymizeEmployee(employeeUserId: Uuid) = dbQuery<Unit> {
         AppointmentTable.update(where = { AppointmentTable.employeeUserId eq employeeUserId }) {
-            it[employeeName] = "Deleted User"
+            it[employeeName] = DELETED_EMPLOYEE_NAME
         }
     }
 
     override suspend fun anonymizeClientUser(clientUserId: Uuid) = dbQuery<Unit> {
         AppointmentTable.update(where = { AppointmentTable.clientUserId eq clientUserId }) {
-            it[clientName] = "Deleted User"
-            it[clientPhone] = null
-            it[clientEmail] = null
-            it[this.clientUserId] = null
+            it.eraseClientDetails(DELETED_USER_NAME)
         }
     }
 
-    override suspend fun cancelUpcomingForClientUser(clientUserId: Uuid, startingAfter: Instant, reason: String): List<Appointment> = dbQuery {
+    override suspend fun cancelUpcomingForUser(
+        userId: Uuid,
+        startingAfter: Instant,
+        asClientReason: String,
+        asEmployeeReason: String,
+    ): List<Appointment> = dbQuery {
         val upcoming = AppointmentEntity
             .find {
-                (AppointmentTable.clientUserId eq clientUserId)
+                ((AppointmentTable.clientUserId eq userId) or (AppointmentTable.employeeUserId eq userId))
                     .and(AppointmentTable.status eq AppointmentStatus.SCHEDULED)
                     .and(AppointmentTable.dateStart greater startingAfter)
             }
@@ -237,7 +242,7 @@ internal class AppointmentDataSourceImpl : DataSource(), AppointmentDataSource {
         val cancelledAt = Clock.System.now()
         upcoming.forEach {
             it.status = AppointmentStatus.CANCELLED
-            it.cancellationReason = reason
+            it.cancellationReason = if (it.clientUserId == userId) asClientReason else asEmployeeReason
             it.updatedAt = cancelledAt
         }
         upcoming.withDetails().map { it.domain() }
@@ -276,10 +281,15 @@ internal class AppointmentDataSourceImpl : DataSource(), AppointmentDataSource {
 
     override suspend fun anonymizeClient(businessId: Uuid, clientId: Uuid) = dbQuery<Unit> {
         AppointmentTable.update(where = { (AppointmentTable.businessId eq businessId) and (AppointmentTable.clientId eq clientId) }) {
-            it[clientName] = DELETED_CLIENT_NAME
-            it[clientPhone] = null
-            it[clientEmail] = null
-            it[clientUserId] = null
+            it.eraseClientDetails(DELETED_CLIENT_NAME)
         }
+    }
+
+    private fun UpdateStatement.eraseClientDetails(placeholderName: String) {
+        this[AppointmentTable.clientName] = placeholderName
+        this[AppointmentTable.clientPhone] = null
+        this[AppointmentTable.clientEmail] = null
+        this[AppointmentTable.clientUserId] = null
+        this[AppointmentTable.note] = ""
     }
 }

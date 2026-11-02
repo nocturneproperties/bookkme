@@ -41,6 +41,9 @@ internal class UpdateBusinessImpl(
                 throw UpdateBusiness.Error.InvalidDayOffRange()
             }
         }
+        businessUpdateModel.clientDataRetentionMonths?.let { months ->
+            if (months !in Business.CLIENT_DATA_RETENTION_MONTHS_RANGE) throw UpdateBusiness.Error.ClientDataRetentionOutOfRange()
+        }
         currencyChange?.let { requireCurrencyChangeAllowed(businessUpdateModel.id, it) }
         val name = businessUpdateModel.name?.take(Business.MAX_NAME_LENGTH)
         val description = businessUpdateModel.description?.take(Business.MAX_DESCRIPTION_LENGTH)

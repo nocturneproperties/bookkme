@@ -24,5 +24,6 @@ interface EmployeeDataSource {
 
     suspend fun getServiceIds(employeeId: Uuid): List<Uuid>
     suspend fun getEmployeesByService(serviceId: Uuid): List<Employee>
-    suspend fun anonymizeEmployeesByUserId(userId: Uuid): Int
+    suspend fun deleteEmployeesByUserId(userId: Uuid)
+    suspend fun getOwnedBusinessMemberUserIds(ownerUserId: Uuid): List<Uuid>
 }

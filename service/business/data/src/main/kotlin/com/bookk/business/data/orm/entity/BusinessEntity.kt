@@ -30,6 +30,7 @@ internal class BusinessEntity(id: EntityID<Uuid>) : UuidEntity(id) {
     var viber by BusinessTable.viber
     var whatsapp by BusinessTable.whatsapp
     var phone by BusinessTable.phone
+    var clientDataRetentionMonths by BusinessTable.clientDataRetentionMonths
     var createdAt by BusinessTable.createdAt
     var updatedAt by BusinessTable.updatedAt
     var workingDays by BusinessTable.workingDays
@@ -64,6 +65,7 @@ internal class BusinessEntity(id: EntityID<Uuid>) : UuidEntity(id) {
         permissions = BusinessPermissions.NONE,
         employeeId = null,
         clientId = null,
+        clientDataRetentionMonths = clientDataRetentionMonths,
     )
 
     private fun replaceSchedule(schedule: Schedule) {
@@ -107,6 +109,7 @@ internal class BusinessEntity(id: EntityID<Uuid>) : UuidEntity(id) {
             model.currencyCode?.let { currencyCode -> it.currency = currencyCode }
             model.socials?.let { socials -> it.updateSocials(socials) }
             model.schedule?.let { schedule -> it.replaceSchedule(schedule) }
+            model.clientDataRetentionMonths?.let { months -> it.clientDataRetentionMonths = months }
             it.updatedAt = updatedAt
         }
     }

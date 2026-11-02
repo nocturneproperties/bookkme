@@ -1,5 +1,6 @@
 package com.bookk.core.data.eventstreaming
 
+import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
 interface ExhaustedEventDataSource {
@@ -10,4 +11,5 @@ interface ExhaustedEventDataSource {
     suspend fun delete(ids: List<Uuid>)
     suspend fun clearReplayRequest(ids: List<Uuid>)
     suspend fun countByOriginalTopic(): Map<String, Long>
+    suspend fun deleteParkedBefore(cutoff: Instant): Int
 }

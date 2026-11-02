@@ -1,6 +1,7 @@
 package com.bookk.business.microservice
 
 import com.bookk.business.domain.api.business.operation.DeleteDayOffsInThePast
+import com.bookk.business.domain.api.client.operation.DeleteInactiveClients
 import com.bookk.business.domain.api.employee.operation.DeleteProcessedEmployeeInvitations
 import com.bookk.business.domain.api.employee.operation.ExpireEmployeeInvitations
 import com.bookk.business.domain.impl.di.BusinessScope
@@ -29,6 +30,7 @@ internal class BusinessJobsTest {
         val deleteDayOffsInThePast = mockk<DeleteDayOffsInThePast>()
         val expireEmployeeInvitations = mockk<ExpireEmployeeInvitations>()
         val deleteProcessedEmployeeInvitations = mockk<DeleteProcessedEmployeeInvitations>()
+        val deleteInactiveClients = mockk<DeleteInactiveClients>()
         val scheduler = SchedulerConfiguration()
 
         suspend fun registerJobs(builder: ApplicationTestBuilder) {
@@ -37,6 +39,7 @@ internal class BusinessJobsTest {
                 scoped { deleteDayOffsInThePast }
                 scoped { expireEmployeeInvitations }
                 scoped { deleteProcessedEmployeeInvitations }
+                scoped { deleteInactiveClients }
             }
             application.registerBusinessJobs(scheduler)
         }
@@ -57,6 +60,7 @@ internal class BusinessJobsTest {
                 "business-deleteDayOffsInThePast" to 1.days,
                 "business-expireEmployeeInvitations" to 1.days,
                 "business-deleteProcessedEmployeeInvitations" to 1.days,
+                "business-deleteInactiveClients" to 1.days,
             ),
             fixture.scheduler.registeredJobs(),
         )
@@ -173,6 +177,35 @@ internal class BusinessJobsTest {
 
         whenn()
         val result = runCatching { fixture.scheduler.runJob("business-deleteProcessedEmployeeInvitations") }
+
+        then()
+        assertSame(error, result.exceptionOrNull())
+    }
+
+    @Test
+    fun `should delete clients inactive for longer than their business's retention period`() = routeTest {
+        given()
+        val fixture = SutFixture()
+        coEvery { fixture.deleteInactiveClients.invoke() } returns Result.success(Unit)
+        fixture.registerJobs(this)
+
+        whenn()
+        fixture.scheduler.runJob("business-deleteInactiveClients")
+
+        then()
+        coVerify(exactly = 1) { fixture.deleteInactiveClients.invoke() }
+    }
+
+    @Test
+    fun `should surface a failed inactive client deletion`() = routeTest {
+        given()
+        val fixture = SutFixture()
+        val error = RuntimeException("inactive client deletion failed")
+        coEvery { fixture.deleteInactiveClients.invoke() } returns Result.failure(error)
+        fixture.registerJobs(this)
+
+        whenn()
+        val result = runCatching { fixture.scheduler.runJob("business-deleteInactiveClients") }
 
         then()
         assertSame(error, result.exceptionOrNull())

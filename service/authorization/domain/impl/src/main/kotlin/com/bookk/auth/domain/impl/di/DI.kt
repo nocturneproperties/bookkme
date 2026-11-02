@@ -3,6 +3,7 @@ package com.bookk.auth.domain.impl.di
 import com.bookk.auth.domain.api.AUTH_SCHEMA
 import com.bookk.auth.domain.api.AUTH_SERVICE_NAME
 import com.bookk.auth.domain.api.authentication.operation.FinishAssertion
+import com.bookk.auth.domain.api.authentication.operation.HandleDormantAccounts
 import com.bookk.auth.domain.api.authentication.operation.SignIn
 import com.bookk.auth.domain.api.authentication.operation.StartAssertion
 import com.bookk.auth.domain.api.delete_account.operation.DeleteAccount
@@ -19,9 +20,11 @@ import com.bookk.auth.domain.api.signout.operation.SignOut
 import com.bookk.auth.domain.api.stepup.operation.IssueStepUpToken
 import com.bookk.auth.domain.api.token.operation.GenerateAuthToken
 import com.bookk.auth.domain.api.token.operation.RefreshToken
+import com.bookk.auth.domain.impl.operation.AccountEraser
 import com.bookk.auth.domain.impl.operation.DeleteAccountImpl
 import com.bookk.auth.domain.impl.operation.SignOutImpl
 import com.bookk.auth.domain.impl.operation.authentication.FinishAssertionImpl
+import com.bookk.auth.domain.impl.operation.authentication.HandleDormantAccountsImpl
 import com.bookk.auth.domain.impl.operation.authentication.SignInImpl
 import com.bookk.auth.domain.impl.operation.authentication.StartAssertionImpl
 import com.bookk.auth.domain.impl.operation.device.DeleteInactiveDevicesImpl
@@ -53,6 +56,8 @@ fun authDomainModule() = module {
         scopedOf(::GenerateAuthTokenImpl) bind GenerateAuthToken::class
         scopedOf(::RefreshTokenImpl) bind RefreshToken::class
         scopedOf(::SignOutImpl) bind SignOut::class
+        scopedOf(::AccountEraser)
+        scopedOf(::HandleDormantAccountsImpl) bind HandleDormantAccounts::class
         scopedOf(::DeleteAccountImpl) bind DeleteAccount::class
         scopedOf(::IssueStepUpTokenImpl) bind IssueStepUpToken::class
         scopedOf(::StartRegistrationImpl) bind StartRegistration::class

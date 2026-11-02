@@ -3,6 +3,7 @@ package com.bookk.business.data.orm.table
 import org.jetbrains.exposed.v1.core.ReferenceOption
 import org.jetbrains.exposed.v1.core.dao.id.UuidTable
 import org.jetbrains.exposed.v1.datetime.timestamp
+import kotlin.time.Clock
 
 internal object ClientTable : UuidTable("client") {
     val businessId = reference("business_id", BusinessTable, onDelete = ReferenceOption.CASCADE).index()
@@ -13,10 +14,12 @@ internal object ClientTable : UuidTable("client") {
     val userId = uuid("user_id").nullable().index()
     val sourceUpdatedAt = timestamp("source_updated_at").nullable()
     val description = varchar("description", 1024).nullable()
+    val lastActivityAt = timestamp("last_activity_at").clientDefault { Clock.System.now() }
 
     init {
         uniqueIndex(businessId, userId)
         uniqueIndex(businessId, phone)
         uniqueIndex(businessId, email)
+        index(false, businessId, lastActivityAt)
     }
 }

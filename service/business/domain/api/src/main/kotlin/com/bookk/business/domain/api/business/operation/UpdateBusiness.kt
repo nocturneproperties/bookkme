@@ -1,5 +1,6 @@
 package com.bookk.business.domain.api.business.operation
 
+import com.bookk.business.domain.api.business.entity.Business
 import com.bookk.business.domain.api.business.entity.BusinessUpdateModel
 import com.bookk.business.domain.api.error.BusinessErrorCodes
 import com.bookk.core.domain.entity.BusinessError
@@ -39,6 +40,14 @@ interface UpdateBusiness {
                 statusCode = HttpStatusCode.UnprocessableEntity.value,
                 code = BusinessErrorCodes.BUSINESS_CURRENCY_LOCKED,
                 message = "Currency cannot be changed once the business has services",
+            ),
+            Error
+
+        class ClientDataRetentionOutOfRange :
+            BusinessError(
+                statusCode = HttpStatusCode.UnprocessableEntity.value,
+                code = BusinessErrorCodes.BUSINESS_CLIENT_DATA_RETENTION_OUT_OF_RANGE,
+                message = "Client data retention must be between ${Business.CLIENT_DATA_RETENTION_MONTHS_RANGE.first} and ${Business.CLIENT_DATA_RETENTION_MONTHS_RANGE.last} months",
             ),
             Error
     }

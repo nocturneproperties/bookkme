@@ -1,14 +1,20 @@
 # React to user deletion
 
-Kafka topic `AuthEvent.UserDeleted` → `BusinessEventHandlerImpl` → `DeleteBusiness` + `AnonymizeUserProfile`
+Kafka topic `AuthEvent.UserDeleted` → `BusinessEventHandlerImpl` → `DeleteBusiness` + `DeleteUserBusinessData`
 
 Produced by [Delete account](../authorization/delete-account.md). Two
 steps, and only the first one gates the second: `deleteBusiness` is
 unwrapped with `.getOrThrow()` inline, so if it fails the handler throws
-immediately and `anonymizeUserProfile` never runs; `anonymizeUserProfile`'s
+immediately and `deleteUserBusinessData` never runs; `deleteUserBusinessData`'s
 own `Result` is the lambda's return value, so *its* failure still reaches
 the framework's dead-letter handling, just after the deletes below have
 already been attempted.
+
+The user's client and employee rows are deleted, not anonymized: nothing in
+business needs them once the account is gone, and the appointments booked
+for them keep their own erased copy of the details. Appointments handles the
+same event itself and cancels the user's upcoming appointments in both
+roles ([React to user deletion (appointments)](../appointments/on-user-deleted.md)).
 
 ```mermaid
 flowchart TD
@@ -19,10 +25,9 @@ flowchart TD
     GetBiz --> Loop[For each owned business: eventProducer.send BusinessEvent.Deleted businessId]
     Loop -- consumed by --> Downstream[[See appointments/on-business-deleted.md]]
     Loop -- deleteBusiness throws --> Dlt([Sent to AuthEvent.UserDeleted_dlt topic, logged - no auto-retry])
-    Loop --> Anonymize[AnonymizeUserProfile userId]
-    Anonymize --> AnonClients[ClientDataSource.anonymizeClientsByUserId userId]
-    AnonClients --> AnonEmployees[EmployeeDataSource.anonymizeEmployeesByUserId userId]
-    AnonEmployees --> DelPerm[BusinessPermissionDataSource.deleteUserPermissions userId]
-    DelPerm -- throws --> Dlt
-    DelPerm -- ok --> Ack([Marked processed])
+    Loop --> DeleteData[[DeleteUserBusinessData userId - one transaction]]
+    DeleteData --> DelClients["ClientDataSource.deleteClientsByUserId userId - DELETE client WHERE user_id, in every business"]
+    DelClients --> DelEmployees["EmployeeDataSource.deleteEmployeesByUserId userId - DELETE employee WHERE user_id; services, working hours, days off and permission grants go by ON DELETE CASCADE"]
+    DelEmployees -- throws --> Dlt
+    DelEmployees -- ok --> Ack([Marked processed])
 ```

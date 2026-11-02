@@ -64,7 +64,7 @@ internal class UpdateBusinessImplEventTest {
 
     private fun updateModel(id: Uuid, schedule: Schedule) = BusinessUpdateModel(
         id = id, name = "Salon", description = null, address = null, location = null,
-        currencyCode = null, timeZone = null, socials = null, schedule = schedule,
+        currencyCode = null, timeZone = null, socials = null, schedule = schedule, clientDataRetentionMonths = null,
     )
 
     private fun publishedFor(businessId: Uuid) = KafkaTestBroker

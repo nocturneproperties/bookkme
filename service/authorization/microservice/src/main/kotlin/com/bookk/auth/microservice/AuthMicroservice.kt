@@ -2,6 +2,7 @@ package com.bookk.auth.microservice
 
 import com.bookk.auth.data.di.authDataModule
 import com.bookk.auth.domain.api.AUTH_SERVICE_NAME
+import com.bookk.auth.domain.api.authentication.operation.HandleDormantAccounts
 import com.bookk.auth.domain.api.device.operation.DeleteInactiveDevices
 import com.bookk.auth.domain.impl.di.AuthScope
 import com.bookk.auth.domain.impl.di.authDomainModule
@@ -15,6 +16,7 @@ import com.bookk.core.service.di.installServiceScope
 import com.bookk.core.service.di.serviceScope
 import com.bookk.core.service.installNegotiation
 import com.bookk.core.service.startServer
+import com.bookk.server.business.client.di.businessClientModule
 import io.ktor.server.application.Application
 import io.ktor.server.application.install
 import io.ktor.server.routing.application
@@ -31,6 +33,7 @@ fun authModule() = module {
         eventStreamingTransportModule(AuthScope, AUTH_SERVICE_NAME),
         outboxModule(AuthScope),
         cacheModule(),
+        businessClientModule(AuthScope, AUTH_SERVICE_NAME),
     )
 }
 
@@ -41,6 +44,7 @@ fun authEmbeddedModule() = module {
         embeddedEventStreamingTransportModule(AuthScope, AUTH_SERVICE_NAME),
         outboxModule(AuthScope),
         cacheModule(),
+        businessClientModule(AuthScope, AUTH_SERVICE_NAME),
     )
 }
 
@@ -65,5 +69,8 @@ fun Application.registerAuthJobs(scheduler: SchedulerConfiguration) {
     }
     scheduler.job("$AUTH_SERVICE_NAME-deleteInactiveDevices", interval = 1.days) {
         scope.get<DeleteInactiveDevices>().invoke().getOrThrow()
+    }
+    scheduler.job("$AUTH_SERVICE_NAME-handleDormantAccounts", interval = 1.days) {
+        scope.get<HandleDormantAccounts>().invoke().getOrThrow()
     }
 }

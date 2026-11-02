@@ -12,11 +12,13 @@ import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.count
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.inList
+import org.jetbrains.exposed.v1.core.less
 import org.jetbrains.exposed.v1.core.statements.api.ExposedBlob
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.insertAndGetId
 import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.update
+import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
 class ExhaustedEventDataSourceImpl : DataSource(), ExhaustedEventDataSource {
@@ -70,5 +72,9 @@ class ExhaustedEventDataSourceImpl : DataSource(), ExhaustedEventDataSource {
         ExhaustedEventTable.select(ExhaustedEventTable.originalTopic, parked)
             .groupBy(ExhaustedEventTable.originalTopic)
             .associate { it[ExhaustedEventTable.originalTopic] to it[parked] }
+    }
+
+    override suspend fun deleteParkedBefore(cutoff: Instant): Int = dbQuery {
+        ExhaustedEventTable.deleteWhere { ExhaustedEventTable.createdAt less cutoff }
     }
 }

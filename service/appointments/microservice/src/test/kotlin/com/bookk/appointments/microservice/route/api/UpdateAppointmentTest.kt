@@ -536,4 +536,47 @@ internal class UpdateAppointmentTest {
         then()
         assertEquals(HttpStatusCode.BadRequest, response.status)
     }
+
+    @Test
+    fun `should return unprocessable entity when the appointment ended more than a week ago`() = routeTest {
+        given()
+        val useCase: UpdateAppointment = mockk()
+        val userId = Uuid.random()
+
+        coEvery {
+            useCase.invoke(
+                userId,
+                any(),
+            )
+        } returns Result.failure(AppointmentStatusError.EditWindowClosed())
+
+        setupApplication(
+            extension = {
+                install(Authentication) {
+                    provider {
+                        authenticate { context ->
+                            context.principal(AppPrincipal(Uuid.random(), userId, Uuid.random()))
+                        }
+                    }
+                }
+            },
+            diModule = module {
+                single { useCase }
+            },
+            routeUnderTest = {
+                appointment()
+            },
+        )
+
+        whenn()
+        val client = createTestClient()
+        val response = client.put(Api.Appointment.Id(id = testAppointment.id)) {
+            setBody(testUpdate)
+        }
+
+        then()
+        assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
+        val body = response.body<SimpleServerError>()
+        assertEquals(AppointmentErrorCodes.APPOINTMENT_EDIT_WINDOW_CLOSED, body.errorCode)
+    }
 }

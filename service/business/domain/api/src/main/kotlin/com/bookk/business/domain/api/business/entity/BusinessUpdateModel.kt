@@ -17,4 +17,5 @@ data class BusinessUpdateModel(
     @ProtoNumber(7) val timeZone: TimeZone?,
     @ProtoNumber(8) val socials: List<Business.Social>?,
     @ProtoNumber(9) val schedule: Schedule?,
+    @ProtoNumber(10) val clientDataRetentionMonths: Int?,
 )

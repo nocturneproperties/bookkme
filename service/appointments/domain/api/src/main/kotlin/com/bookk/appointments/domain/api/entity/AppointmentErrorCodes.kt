@@ -23,4 +23,5 @@ object AppointmentErrorCodes {
     const val PRICE_ADJUSTMENT_CURRENCY_MISMATCH = BASE + 22
     const val PRICE_ADJUSTMENT_REASON_TOO_LONG = BASE + 23
     const val SERVICE_SELECTION_INVALID = BASE + 24
+    const val APPOINTMENT_EDIT_WINDOW_CLOSED = BASE + 26
 }

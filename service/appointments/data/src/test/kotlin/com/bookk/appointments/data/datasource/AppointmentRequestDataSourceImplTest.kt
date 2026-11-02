@@ -22,6 +22,7 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import kotlin.time.Clock
+import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
@@ -359,7 +360,7 @@ internal class AppointmentRequestDataSourceImplTest {
     }
 
     @Test
-    fun `should delete requests the deleted user booked`() = runUnitTest {
+    fun `should delete requests the deleted user booked for themselves`() = runUnitTest {
         given()
         val fixture = SutFixture()
         fixture.setup()
@@ -372,6 +373,25 @@ internal class AppointmentRequestDataSourceImplTest {
 
         then()
         assertNull(found)
+    }
+
+    @Test
+    fun `should keep a request the deleted user only initiated and clear their id from it`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val userId = Uuid.random()
+        val request = fixture.buildRequest(userId = userId).let { it.copy(client = it.client.copy(userId = Uuid.random())) }
+        val created = suspendTransaction { fixture.sut.create(request) }
+
+        whenn()
+        suspendTransaction { fixture.sut.deleteForUser(userId) }
+        val found = suspendTransaction { fixture.sut.get(created.id) }
+
+        then()
+        assertNotNull(found)
+        assertEquals(Uuid.NIL, found?.initiatorUserId)
+        assertEquals(request.client, found?.client)
     }
 
     @Test
@@ -579,5 +599,36 @@ internal class AppointmentRequestDataSourceImplTest {
         then()
         assertNotNull(suspendTransaction { fixture.sut.get(otherClient.id) })
         assertNotNull(suspendTransaction { fixture.sut.get(inOtherBusiness.id) })
+    }
+
+    @Test
+    fun `should delete requests whose slot ended before the cutoff whatever their status`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val pending = suspendTransaction { fixture.sut.create(fixture.buildRequest(date = Instant.fromEpochMilliseconds(0))) }
+        val declined = suspendTransaction { fixture.sut.create(fixture.buildRequest(date = Instant.fromEpochMilliseconds(0) + 2.hours)) }
+        suspendTransaction { fixture.sut.decline(declined.id, "Fully booked") }
+
+        whenn()
+        suspendTransaction { fixture.sut.deleteEndedBefore(Clock.System.now() - 60.days) }
+
+        then()
+        assertNull(suspendTransaction { fixture.sut.get(pending.id) })
+        assertNull(suspendTransaction { fixture.sut.get(declined.id) })
+    }
+
+    @Test
+    fun `should keep requests whose slot ended after the cutoff`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val recent = suspendTransaction { fixture.sut.create(fixture.buildRequest(date = Clock.System.now() - 30.days)) }
+
+        whenn()
+        suspendTransaction { fixture.sut.deleteEndedBefore(Clock.System.now() - 60.days) }
+
+        then()
+        assertNotNull(suspendTransaction { fixture.sut.get(recent.id) })
     }
 }

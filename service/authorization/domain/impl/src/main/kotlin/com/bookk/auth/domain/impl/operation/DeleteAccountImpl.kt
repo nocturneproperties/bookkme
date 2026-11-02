@@ -6,18 +6,13 @@ import com.bookk.auth.domain.api.authentication.operation.finishOwnedBy
 import com.bookk.auth.domain.api.delete_account.operation.DeleteAccount
 import com.bookk.auth.domain.api.delete_account.operation.DeleteAccount.Error.InvalidCredentials
 import com.bookk.auth.domain.datasource.AccountDataSource
-import com.bookk.auth.domain.datasource.DeviceDataSource
-import com.bookk.core.data.eventstreaming.StandardEventProducer
-import com.bookk.core.data.eventstreaming.send
 import com.bookk.core.domain.datasource.transaction.TransactionManager
-import com.bookk.server.auth.client.AuthEvent
 import kotlin.uuid.Uuid
 
 internal class DeleteAccountImpl(
     private val finishAssertion: FinishAssertion,
     private val accountDataSource: AccountDataSource,
-    private val deviceDataSource: DeviceDataSource,
-    private val eventProducer: StandardEventProducer,
+    private val accountEraser: AccountEraser,
     private val transactionManager: TransactionManager,
 ) : DeleteAccount {
 
@@ -27,11 +22,6 @@ internal class DeleteAccountImpl(
     ): Result<Unit> = transactionManager.transaction {
         finishAssertion.finishOwnedBy(userId, request).getOrThrow()
         val authRecord = accountDataSource.getAuthRecordByUserId(userId) ?: throw InvalidCredentials()
-        val devices = deviceDataSource.getDevices(authRecord.id)
-        eventProducer.send(AuthEvent.UserDeleted(authRecord.userId))
-        devices.forEach {
-            eventProducer.send(AuthEvent.DeviceDeleted(it.deviceInfo.deviceUUID))
-        }
-        accountDataSource.deleteAuthorization(authRecord.userId)
+        accountEraser.erase(authRecord.id, authRecord.userId)
     }
 }

@@ -14,7 +14,6 @@ import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.core.isNull
-import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import kotlin.uuid.Uuid
@@ -79,9 +78,5 @@ internal class BusinessPermissionDataSourceImpl : DataSource(), BusinessPermissi
 
     override suspend fun setPermissions(employee: Employee, grants: Map<BusinessResource, ResourcePermission>) = dbQuery {
         BusinessPermissionGrantsTable.upsertGrants(employee.id, employee.userId, employee.businessId, grants)
-    }
-
-    override suspend fun deleteUserPermissions(userId: Uuid) = dbQuery<Unit> {
-        BusinessPermissionGrantsTable.deleteWhere { BusinessPermissionGrantsTable.userId eq userId }
     }
 }

@@ -2,6 +2,8 @@ package com.bookk.appointments.microservice
 
 import com.bookk.appointments.data.di.appointmentsDataModule
 import com.bookk.appointments.domain.api.APPOINTMENTS_SERVICE_NAME
+import com.bookk.appointments.domain.api.operation.DeleteExpiredRequests
+import com.bookk.appointments.domain.api.operation.DeleteExpiredTombstones
 import com.bookk.appointments.domain.api.operation.DeleteOutdatedRequests
 import com.bookk.appointments.domain.api.operation.MarkAppointmentsCompleted
 import com.bookk.appointments.domain.impl.di.AppointmentsScope
@@ -23,6 +25,7 @@ import io.ktor.server.routing.application
 import library.scheduler.Scheduler
 import library.scheduler.SchedulerConfiguration
 import org.koin.dsl.module
+import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
 
@@ -71,5 +74,11 @@ fun Application.registerAppointmentsJobs(scheduler: SchedulerConfiguration) {
     }
     scheduler.job("$APPOINTMENTS_SERVICE_NAME-deleteOutdatedRequests", interval = 1.hours) {
         scope.get<DeleteOutdatedRequests>().invoke().getOrThrow()
+    }
+    scheduler.job("$APPOINTMENTS_SERVICE_NAME-deleteExpiredRequests", interval = 1.days) {
+        scope.get<DeleteExpiredRequests>().invoke().getOrThrow()
+    }
+    scheduler.job("$APPOINTMENTS_SERVICE_NAME-deleteExpiredTombstones", interval = 1.days) {
+        scope.get<DeleteExpiredTombstones>().invoke().getOrThrow()
     }
 }

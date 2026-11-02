@@ -9,10 +9,14 @@ import com.bookk.core.test.whenn
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
+import org.jetbrains.exposed.v1.jdbc.update
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import kotlin.time.Clock
+import kotlin.time.Duration.Companion.days
+import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
 internal class DeletedUserDataSourceImplTest {
@@ -84,4 +88,24 @@ internal class DeletedUserDataSourceImplTest {
         .select(DeletedUserTable.deletedAt)
         .where { DeletedUserTable.userId eq userId }
         .single()[DeletedUserTable.deletedAt]
+
+    @Test
+    fun `should forget only the users marked deleted before the cutoff`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val expired = Uuid.random()
+        val recent = Uuid.random()
+        suspendTransaction {
+            fixture.sut.markDeleted(expired)
+            fixture.sut.markDeleted(recent)
+            DeletedUserTable.update(where = { DeletedUserTable.userId eq expired }) { it[deletedAt] = Instant.fromEpochMilliseconds(0) }
+        }
+
+        whenn()
+        suspendTransaction { fixture.sut.deleteMarkedBefore(Clock.System.now() - 60.days) }
+
+        then()
+        assertFalse(suspendTransaction { fixture.sut.isDeletedForShare(expired) })
+        assertTrue(suspendTransaction { fixture.sut.isDeletedForShare(recent) })
+    }
 }

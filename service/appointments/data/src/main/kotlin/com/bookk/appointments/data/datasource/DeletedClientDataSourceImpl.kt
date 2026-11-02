@@ -6,9 +6,12 @@ import com.bookk.core.data.DataSource
 import com.bookk.core.data.forShare
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.less
+import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.insertIgnore
 import org.jetbrains.exposed.v1.jdbc.select
 import kotlin.time.Clock
+import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
 internal class DeletedClientDataSourceImpl : DataSource(), DeletedClientDataSource {
@@ -27,5 +30,9 @@ internal class DeletedClientDataSourceImpl : DataSource(), DeletedClientDataSour
             .where { (DeletedClientTable.clientId eq clientId) and (DeletedClientTable.businessId eq businessId) }
             .forShare()
             .any()
+    }
+
+    override suspend fun deleteMarkedBefore(cutoff: Instant) = dbQuery<Unit> {
+        DeletedClientTable.deleteWhere { DeletedClientTable.deletedAt less cutoff }
     }
 }

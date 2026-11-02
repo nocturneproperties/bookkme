@@ -76,13 +76,15 @@ flowchart TD
         Suspended{AppointmentPermissionDataSource.getPermission businessId - grant row marked suspended?}
         Suspended -- No --> Perm{caller update permission, or view permission and stored employee.userId == userId?}
         Perm -- Yes --> Stored{Appointment.requireScheduled - stored status}
-        Stored -- SCHEDULED --> Past{body.date before now?}
+        Stored -- SCHEDULED --> Window{stored dateEnd + 7 days before now?}
+        Window -- No --> Past{body.date before now?}
     end
     Suspended -- Yes --> R403s([403 BUSINESS_EMPLOYEE_ACCESS_SUSPENDED 200034])
     Perm -- No --> R404b([404 Error.OperationNotAllowed])
     Stored -- CANCELLED --> R422c([422 ALREADY_CANCELLED 300005])
     Stored -- COMPLETED --> R422d([422 ALREADY_COMPLETED 300006])
     Stored -- NO_SHOW --> R422e([422 MARKED_NO_SHOW 300019])
+    Window -- Yes --> R422w([422 APPOINTMENT_EDIT_WINDOW_CLOSED 300026])
     Past -- Yes --> R422p([422 DATE_IN_PAST 300012])
     Past -- No, in transaction 1 --> Changes{employeeId changed or a service id not on the appointment?}
     Changes -- No --> Rebuild
@@ -105,7 +107,9 @@ flowchart TD
     Worktime -- Yes --> Overlap{AppointmentDataSource.hasOverlapsWith rescheduled?}
     Overlap -- Yes --> R422o([422 APPOINTMENT_EXISTS 300004])
     Overlap -- No --> Write[AppointmentDataSource.update rescheduled - replaces services]
-    Write --> R200([200 Stored Appointment])
+    Write --> Visit[eventProducer.send AppointmentEvent.ClientVisitBooked businessId client.id rescheduled dateEnd]
+    Visit --> R200([200 Stored Appointment])
 ```
 
-No event is published.
+**Consumed by:** `AppointmentEvent.ClientVisitBooked` → [business: record the client's
+visit](../business/on-client-visit-booked.md).

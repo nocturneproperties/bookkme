@@ -32,7 +32,7 @@ internal class DeleteAccountImplTest {
         val deviceDataSource = mockk<DeviceDataSource>()
         val eventProducer = mockk<StandardEventProducer>(relaxed = true)
         val transactionManager = mockk<TransactionManager>()
-        val sut = DeleteAccountImpl(finishAssertion, accountDataSource, deviceDataSource, eventProducer, transactionManager)
+        val sut = DeleteAccountImpl(finishAssertion, accountDataSource, AccountEraser(accountDataSource, deviceDataSource, eventProducer), transactionManager)
     }
 
     private fun makeDevice(authRecord: Authentication, deviceUUID: Uuid = Uuid.random()): Device = Device(
@@ -53,7 +53,7 @@ internal class DeleteAccountImplTest {
     }
 
     @Test
-    fun `should delete account and emit user and device deleted events`() = runUnitTest {
+    fun `should delete the account record by its own id and emit user and device deleted events`() = runUnitTest {
         given()
         val fixture = SutFixture()
         val userId = Uuid.random()
@@ -67,7 +67,7 @@ internal class DeleteAccountImplTest {
             coEvery { finishAssertion(request) } returns Result.success(credential)
             coEvery { accountDataSource.getAuthRecordByUserId(userId) } returns authRecord
             coEvery { deviceDataSource.getDevices(authRecord.id) } returns listOf(device)
-            coEvery { accountDataSource.deleteAuthorization(authRecord.userId) } returns Unit
+            coEvery { accountDataSource.deleteAuthorization(authRecord.id) } returns Unit
         }
 
         whenn()
@@ -75,7 +75,7 @@ internal class DeleteAccountImplTest {
 
         then()
         assertTrue(result.isSuccess)
-        coVerify(exactly = 1) { fixture.accountDataSource.deleteAuthorization(authRecord.userId) }
+        coVerify(exactly = 1) { fixture.accountDataSource.deleteAuthorization(authRecord.id) }
         coVerify(atLeast = 1) { fixture.eventProducer.send(any<AuthEvent.UserDeleted>(), any()) }
         coVerify(atLeast = 1) { fixture.eventProducer.send(any<AuthEvent.DeviceDeleted>(), any()) }
     }
@@ -96,7 +96,7 @@ internal class DeleteAccountImplTest {
             coEvery { finishAssertion(request) } returns Result.success(credential)
             coEvery { accountDataSource.getAuthRecordByUserId(userId) } returns authRecord
             coEvery { deviceDataSource.getDevices(authRecord.id) } returns listOf(device1, device2, device3)
-            coEvery { accountDataSource.deleteAuthorization(authRecord.userId) } returns Unit
+            coEvery { accountDataSource.deleteAuthorization(authRecord.id) } returns Unit
         }
 
         whenn()

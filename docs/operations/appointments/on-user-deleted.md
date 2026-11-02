@@ -14,13 +14,23 @@ this user's appointment footprint in every role, in one transaction:
   their appointments then has its client name, phone, email and
   `client_user_id` cleared, and the rows, their `client_id` and the
   scheduling history stay for the business.
-- **As the employee** (`employee_user_id`): the employee name on the
-  appointments they worked becomes "Deleted User".
+- **As the employee** (`employee_user_id`, indexed): their upcoming
+  scheduled appointments are cancelled with the reason "Employee deleted
+  their account", and a client with an account is told through
+  `AppointmentEvent.Cancelled`. This is a stopgap until such appointments
+  can be reassigned to another employee (#137). The employee name on every
+  appointment they worked becomes "Deleted User". An appointment they
+  booked with themselves is cancelled with the client reason and notifies
+  nobody.
 - **Requests** they booked, are the client of, or were assigned are
   deleted, and so are their permission grants.
 
 Recording the user in `deleted_user` comes first, then cancelling, which is
-the only locking read on appointments (`SELECT … FOR UPDATE`).
+the only locking read on appointments (`SELECT … FOR UPDATE`). It finds both
+roles in one statement, `client_user_id = ? OR employee_user_id = ?`,
+answered by an index merge of the two indexes: a second locking read after
+the first one's plain read of the services would meet rows changed since
+that snapshot and fail with error 1020.
 
 Erasing by `client_user_id` finds every row only if that column is
 complete. Appointments booked for a client without an account get it later:
@@ -39,18 +49,23 @@ flowchart TD
     Claim -- held by another delivery --> Wait[Re-claim every second, up to the 1-minute claim TTL] --> Claim
     Claim -- claimed --> Tx[[Begin transaction]]
     Tx --> Mark["DeletedUserDataSource.markDeleted userId - INSERT IGNORE into deleted_user"]
-    Mark --> Cancel["AppointmentDataSource.cancelUpcomingForClientUser userId now 'User deleted their account' - SELECT FOR UPDATE, SCHEDULED and date_start after now become CANCELLED"]
-    Cancel --> AnonClient["AppointmentDataSource.anonymizeClientUser userId - client_name = Deleted User, phone, email and client_user_id null"]
+    Mark --> Cancel["AppointmentDataSource.cancelUpcomingForUser userId now - SELECT FOR UPDATE by client_user_id OR employee_user_id, SCHEDULED and date_start after now become CANCELLED, reason 'User deleted their account' as client, 'Employee deleted their account' as employee"]
+    Cancel --> AnonClient["AppointmentDataSource.anonymizeClientUser userId - client_name = Deleted User, phone, email and client_user_id null, note cleared, cancellation and price adjustment reasons kept"]
     AnonClient --> AnonEmployee["AppointmentDataSource.anonymizeEmployee userId - employee_user_id match, employee_name = Deleted User"]
-    AnonEmployee --> DelReq["AppointmentRequestDataSource.deleteForUser userId - initiator_user_id, client_user_id or employee_user_id match"]
+    AnonEmployee --> DelReq["AppointmentRequestDataSource.deleteForUser userId - deletes rows where client_user_id or employee_user_id match, sets initiator_user_id to the nil UUID on requests they only booked"]
     DelReq --> DelPerm[AppointmentPermissionDataSource.deleteForUser userId]
-    DelPerm --> Each{"For each cancelled appointment whose employee is someone else - AppointmentSubscriptionDataSource.getBusinessSnapshot businessId"}
-    Each -- found --> Send["eventProducer.send AppointmentEvent.CancelledForDeletedClient employeeUserId from to timeZone businessName"]
+    DelPerm --> Each{"For each cancelled appointment not booked by the user with themselves - AppointmentSubscriptionDataSource.getBusinessSnapshot businessId"}
     Each -- missing --> Log[Log error, no event for that business]
+    Each -- found --> Role{Was the user its client?}
+    Role -- yes --> Send["eventProducer.send AppointmentEvent.CancelledForDeletedClient employeeUserId from to timeZone businessName"]
+    Role -- "no, its employee" --> HasAccount{client.userId set?}
+    HasAccount -- yes --> SendClient["eventProducer.send AppointmentEvent.Cancelled clientUserId employeeName 'Deleted User' reason 'Employee deleted their account'"]
+    HasAccount -- no --> Processed
     Send --> Processed([markProcessed - kept 1 hour])
+    SendClient --> Processed
     Log --> Processed
     DelPerm -- any step throws, rolled back --> Release[Release the claim] --> Dlt["Retried through auth.user_deleted_appointments_dlt, up to 3 attempts"]
     Dlt -- every attempt failed --> Parked(["Saved to exhausted_event - EventsExhausted alert, replayed on the next start or when replay_requested is set"])
 ```
 
-**Consumed by:** `AppointmentEvent.CancelledForDeletedClient` → [notifications: tell the employee](../notifications/on-appointment-cancelled-for-deleted-client.md).
+**Consumed by:** `AppointmentEvent.CancelledForDeletedClient` → [notifications: tell the employee](../notifications/on-appointment-cancelled-for-deleted-client.md); `AppointmentEvent.Cancelled` → [notifications: tell the client](../notifications/on-appointment-cancelled.md).

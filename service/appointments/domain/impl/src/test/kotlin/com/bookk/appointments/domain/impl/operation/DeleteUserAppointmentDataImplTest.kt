@@ -14,6 +14,7 @@ import com.bookk.core.test.given
 import com.bookk.core.test.runUnitTest
 import com.bookk.core.test.then
 import com.bookk.core.test.whenn
+import com.bookk.library.serializer.moneyFormatter
 import com.bookk.server.appointments.client.api.event.AppointmentEvent
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -39,7 +40,7 @@ internal class DeleteUserAppointmentDataImplTest {
         val eventProducer = mockk<StandardEventProducer>()
         val transactionManager = mockk<TransactionManager>()
         val writesInTransaction = mutableListOf<Boolean>()
-        val sentEvents = mutableListOf<AppointmentEvent.CancelledForDeletedClient>()
+        val sentEvents = mutableListOf<AppointmentEvent>()
         val sentInTransaction = mutableListOf<Boolean>()
         val sut = DeleteUserAppointmentDataImpl(
             deletedUserDataSource,
@@ -56,7 +57,7 @@ internal class DeleteUserAppointmentDataImplTest {
             coEvery { deletedUserDataSource.markDeleted(userId) } coAnswers {
                 writesInTransaction += transactionManager.isInTransaction()
             }
-            coEvery { appointmentDataSource.cancelUpcomingForClientUser(userId, any(), any()) } coAnswers {
+            coEvery { appointmentDataSource.cancelUpcomingForUser(userId, any(), any(), any()) } coAnswers {
                 writesInTransaction += transactionManager.isInTransaction()
                 cancelled
             }
@@ -72,14 +73,26 @@ internal class DeleteUserAppointmentDataImplTest {
             coEvery { appointmentPermissionDataSource.deleteForUser(userId) } coAnswers {
                 writesInTransaction += transactionManager.isInTransaction()
             }
-            coEvery { eventProducer.send(any<AppointmentEvent.CancelledForDeletedClient>(), any()) } coAnswers {
-                sentEvents += firstArg<AppointmentEvent.CancelledForDeletedClient>()
+            coEvery { eventProducer.send(any<AppointmentEvent>(), any()) } coAnswers {
+                sentEvents += firstArg<AppointmentEvent>()
                 sentInTransaction += transactionManager.isInTransaction()
             }
         }
+
+        fun employeeNotifications() = sentEvents.filterIsInstance<AppointmentEvent.CancelledForDeletedClient>()
+
+        fun clientNotifications() = sentEvents.filterIsInstance<AppointmentEvent.Cancelled>()
     }
 
     private fun AppointmentEvent.CancelledForDeletedClient.withoutIdempotencyKey() = copy(idempotencyKey = "")
+
+    private fun AppointmentEvent.Cancelled.withoutIdempotencyKey() = copy(idempotencyKey = "")
+
+    private fun bookedBy(clientUserId: Uuid, businessId: Uuid) = Appointment.stub(initiatorUserId = clientUserId, businessId = businessId)
+
+    private fun assignedTo(employeeUserId: Uuid, businessId: Uuid) = Appointment.stub(businessId = businessId)
+        .let { it.copy(employee = it.employee.copy(userId = employeeUserId)) }
+        .copy(cancellationReason = DeleteUserAppointmentDataImpl.EMPLOYEE_DELETED_CANCELLATION_REASON)
 
     @Test
     fun `should erase the user as client and as employee and delete their requests and permissions in one transaction`() = runUnitTest {
@@ -113,21 +126,21 @@ internal class DeleteUserAppointmentDataImplTest {
         then()
         coVerifyOrder {
             fixture.deletedUserDataSource.markDeleted(userId)
-            fixture.appointmentDataSource.cancelUpcomingForClientUser(userId, any(), any())
+            fixture.appointmentDataSource.cancelUpcomingForUser(userId, any(), any(), any())
             fixture.appointmentDataSource.anonymizeClientUser(userId)
             fixture.appointmentDataSource.anonymizeEmployee(userId)
         }
     }
 
     @Test
-    fun `should cancel the user's upcoming appointments as client with the account deletion reason`() = runUnitTest {
+    fun `should cancel the user's upcoming appointments with a reason for each role`() = runUnitTest {
         given()
         val fixture = SutFixture()
         val userId = Uuid.random()
         val startingAfter = mutableListOf<Instant>()
         fixture.stubWrites(userId)
         coEvery {
-            fixture.appointmentDataSource.cancelUpcomingForClientUser(userId, capture(startingAfter), any())
+            fixture.appointmentDataSource.cancelUpcomingForUser(userId, capture(startingAfter), any(), any())
         } returns emptyList()
         val before = Clock.System.now()
 
@@ -137,19 +150,24 @@ internal class DeleteUserAppointmentDataImplTest {
         then()
         assertTrue(result.isSuccess)
         coVerify(exactly = 1) {
-            fixture.appointmentDataSource.cancelUpcomingForClientUser(userId, any(), "User deleted their account")
+            fixture.appointmentDataSource.cancelUpcomingForUser(
+                userId,
+                any(),
+                asClientReason = "User deleted their account",
+                asEmployeeReason = "Employee deleted their account",
+            )
         }
         assertTrue(startingAfter.single() in before..(before + 5.seconds))
     }
 
     @Test
-    fun `should tell the assigned employee about every appointment cancelled by the account deletion`() = runUnitTest {
+    fun `should tell the assigned employee about every appointment cancelled because their client deleted the account`() = runUnitTest {
         given()
         val fixture = SutFixture()
         val userId = Uuid.random()
         val business = BusinessSnapshot.stub().copy(timeZone = TimeZone.of("Europe/Kyiv"))
-        val first = Appointment.stub(businessId = business.id)
-        val second = Appointment.stub(businessId = business.id)
+        val first = bookedBy(userId, business.id)
+        val second = bookedBy(userId, business.id)
         fixture.stubWrites(userId, cancelled = listOf(first, second))
         coEvery { fixture.subscriptionDataSource.getBusinessSnapshot(business.id) } returns business
 
@@ -168,19 +186,19 @@ internal class DeleteUserAppointmentDataImplTest {
                 idempotencyKey = "",
             )
         }
-        assertEquals(expected, fixture.sentEvents.map { it.withoutIdempotencyKey() })
+        assertEquals(expected, fixture.employeeNotifications().map { it.withoutIdempotencyKey() })
+        assertTrue(fixture.clientNotifications().isEmpty())
         assertEquals(listOf(true, true), fixture.sentInTransaction)
     }
 
     @Test
-    fun `should not notify the deleted user about their own appointment at a business where they also work`() = runUnitTest {
+    fun `should tell the client with an account about an appointment cancelled because its employee deleted the account`() = runUnitTest {
         given()
         val fixture = SutFixture()
         val userId = Uuid.random()
-        val business = BusinessSnapshot.stub()
-        val ownAppointment = Appointment.stub(businessId = business.id).let { it.copy(employee = it.employee.copy(userId = userId)) }
-        val otherEmployee = Appointment.stub(businessId = business.id)
-        fixture.stubWrites(userId, cancelled = listOf(ownAppointment, otherEmployee))
+        val business = BusinessSnapshot.stub().copy(timeZone = TimeZone.of("Europe/Kyiv"))
+        val appointment = assignedTo(userId, business.id)
+        fixture.stubWrites(userId, cancelled = listOf(appointment))
         coEvery { fixture.subscriptionDataSource.getBusinessSnapshot(business.id) } returns business
 
         whenn()
@@ -188,7 +206,59 @@ internal class DeleteUserAppointmentDataImplTest {
 
         then()
         assertTrue(result.isSuccess)
-        assertEquals(listOf(otherEmployee.employee.userId), fixture.sentEvents.map { it.employeeUserId })
+        val expected = AppointmentEvent.Cancelled(
+            clientUserId = appointment.client.userId,
+            clientName = appointment.client.fullName,
+            employeeUserId = userId,
+            employeeName = "Deleted User",
+            from = appointment.date,
+            to = appointment.dateEnd,
+            timeZone = business.timeZone,
+            address = business.address,
+            businessName = business.name,
+            price = moneyFormatter.print(appointment.totalAmount),
+            reason = "Employee deleted their account",
+            idempotencyKey = "",
+        )
+        assertEquals(listOf(expected), fixture.clientNotifications().map { it.withoutIdempotencyKey() })
+        assertTrue(fixture.employeeNotifications().isEmpty())
+        assertEquals(listOf(true), fixture.sentInTransaction)
+    }
+
+    @Test
+    fun `should not notify a client without an account about an appointment cancelled because its employee deleted the account`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val business = BusinessSnapshot.stub()
+        val appointment = assignedTo(userId, business.id).let { it.copy(client = it.client.copy(userId = null)) }
+        fixture.stubWrites(userId, cancelled = listOf(appointment))
+        coEvery { fixture.subscriptionDataSource.getBusinessSnapshot(business.id) } returns business
+
+        whenn()
+        val result = fixture.sut(userId)
+
+        then()
+        assertTrue(result.isSuccess)
+        assertTrue(fixture.sentEvents.isEmpty())
+    }
+
+    @Test
+    fun `should notify nobody about an appointment the user booked with themselves as employee`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val business = BusinessSnapshot.stub()
+        val own = bookedBy(userId, business.id).let { it.copy(employee = it.employee.copy(userId = userId)) }
+        fixture.stubWrites(userId, cancelled = listOf(own))
+        coEvery { fixture.subscriptionDataSource.getBusinessSnapshot(business.id) } returns business
+
+        whenn()
+        val result = fixture.sut(userId)
+
+        then()
+        assertTrue(result.isSuccess)
+        assertTrue(fixture.sentEvents.isEmpty())
     }
 
     @Test
@@ -196,7 +266,7 @@ internal class DeleteUserAppointmentDataImplTest {
         given()
         val fixture = SutFixture()
         val userId = Uuid.random()
-        val orphan = Appointment.stub()
+        val orphan = bookedBy(userId, Uuid.random())
         fixture.stubWrites(userId, cancelled = listOf(orphan))
         coEvery { fixture.subscriptionDataSource.getBusinessSnapshot(orphan.businessId) } returns null
 
@@ -221,7 +291,7 @@ internal class DeleteUserAppointmentDataImplTest {
 
         then()
         assertTrue(result.isSuccess)
-        coVerify(exactly = 0) { fixture.eventProducer.send(any<AppointmentEvent.CancelledForDeletedClient>(), any()) }
+        coVerify(exactly = 0) { fixture.eventProducer.send(any<AppointmentEvent>(), any()) }
     }
 
     @Test

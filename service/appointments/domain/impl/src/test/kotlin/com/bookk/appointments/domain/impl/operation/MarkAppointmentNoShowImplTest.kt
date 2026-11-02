@@ -23,10 +23,13 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import kotlin.time.Clock
+import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.hours
 import kotlin.uuid.Uuid
 
 internal class MarkAppointmentNoShowImplTest {
+
+    private val recentlyStarted = Clock.System.now() - 1.hours
 
     private class SutFixture {
         val appointmentDataSource = mockk<AppointmentDataSource>()
@@ -55,7 +58,7 @@ internal class MarkAppointmentNoShowImplTest {
         given()
         val fixture = SutFixture()
         val userId = Uuid.random()
-        val appointment = Appointment.stub()
+        val appointment = Appointment.stub(date = recentlyStarted)
         val noShow = appointment.copy(status = AppointmentStatus.NO_SHOW)
         with(fixture) {
             givenLockedAppointment(userId, appointment)
@@ -75,7 +78,7 @@ internal class MarkAppointmentNoShowImplTest {
         given()
         val fixture = SutFixture()
         val userId = Uuid.random()
-        val appointment = Appointment.stub().copy(status = AppointmentStatus.COMPLETED, completedBy = AppointmentCompletedBy.SYSTEM)
+        val appointment = Appointment.stub(date = recentlyStarted).copy(status = AppointmentStatus.COMPLETED, completedBy = AppointmentCompletedBy.SYSTEM)
         val noShow = appointment.copy(status = AppointmentStatus.NO_SHOW, completedBy = null)
         with(fixture) {
             givenLockedAppointment(userId, appointment)
@@ -94,7 +97,7 @@ internal class MarkAppointmentNoShowImplTest {
         given()
         val fixture = SutFixture()
         val userId = Uuid.random()
-        val appointment = Appointment.stub().copy(status = AppointmentStatus.NO_SHOW)
+        val appointment = Appointment.stub(date = recentlyStarted).copy(status = AppointmentStatus.NO_SHOW)
         fixture.givenLockedAppointment(userId, appointment)
 
         whenn()
@@ -110,7 +113,7 @@ internal class MarkAppointmentNoShowImplTest {
         given()
         val fixture = SutFixture()
         val userId = Uuid.random()
-        val appointment = Appointment.stub().copy(employee = EmployeeSnapshot.stub(userId = userId))
+        val appointment = Appointment.stub(date = recentlyStarted).copy(employee = EmployeeSnapshot.stub(userId = userId))
         with(fixture) {
             givenLockedAppointment(userId, appointment, ResourcePermission(view = true, update = false, delete = false))
             coEvery { appointmentDataSource.markNoShow(appointment.id) } returns appointment.copy(status = AppointmentStatus.NO_SHOW)
@@ -128,7 +131,7 @@ internal class MarkAppointmentNoShowImplTest {
         given()
         val fixture = SutFixture()
         val userId = Uuid.random()
-        val appointment = Appointment.stub()
+        val appointment = Appointment.stub(date = recentlyStarted)
         fixture.givenLockedAppointment(userId, appointment, ResourcePermission(view = true, update = false, delete = false))
 
         whenn()
@@ -144,7 +147,7 @@ internal class MarkAppointmentNoShowImplTest {
         given()
         val fixture = SutFixture()
         val userId = Uuid.random()
-        val appointment = Appointment.stub()
+        val appointment = Appointment.stub(date = recentlyStarted)
         with(fixture) {
             transactionManager.mockTransaction()
             coEvery { appointmentDataSource.getForUpdate(appointment.id) } returns appointment
@@ -164,7 +167,7 @@ internal class MarkAppointmentNoShowImplTest {
         given()
         val fixture = SutFixture()
         val userId = Uuid.random()
-        val appointment = Appointment.stub().copy(status = AppointmentStatus.CANCELLED)
+        val appointment = Appointment.stub(date = recentlyStarted).copy(status = AppointmentStatus.CANCELLED)
         fixture.givenLockedAppointment(userId, appointment)
 
         whenn()
@@ -222,5 +225,21 @@ internal class MarkAppointmentNoShowImplTest {
 
         then()
         assertTrue(result.exceptionOrNull() is Error.NotFound)
+    }
+
+    @Test
+    fun `should return failure when the appointment ended more than a week ago`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val appointment = Appointment.stub(date = Clock.System.now() - 30.days).copy(status = AppointmentStatus.COMPLETED)
+        fixture.givenLockedAppointment(userId, appointment)
+
+        whenn()
+        val result = fixture.sut.invoke(userId, appointment.id)
+
+        then()
+        assertTrue(result.exceptionOrNull() is AppointmentStatusError.EditWindowClosed)
+        coVerify(exactly = 0) { fixture.appointmentDataSource.markNoShow(any()) }
     }
 }

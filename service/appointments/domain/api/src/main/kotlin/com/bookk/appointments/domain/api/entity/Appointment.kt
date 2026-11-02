@@ -5,6 +5,7 @@ import kotlinx.serialization.Transient
 import kotlinx.serialization.protobuf.ProtoNumber
 import org.joda.money.Money
 import kotlin.time.Clock
+import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
 import kotlin.uuid.Uuid
@@ -34,13 +35,14 @@ data class Appointment(
 
     fun hasStarted(now: Instant = Clock.System.now()): Boolean = date <= now
 
-    fun requireScheduled() {
+    fun requireScheduled(now: Instant = Clock.System.now()) {
         when (status) {
             AppointmentStatus.SCHEDULED -> Unit
             AppointmentStatus.CANCELLED -> throw AppointmentStatusError.AlreadyCancelled()
             AppointmentStatus.COMPLETED -> throw AppointmentStatusError.AlreadyCompleted()
             AppointmentStatus.NO_SHOW -> throw AppointmentStatusError.MarkedNoShow()
         }
+        requireWithinEditWindow(now)
     }
 
     fun requireCompletable(now: Instant = Clock.System.now()) {
@@ -50,6 +52,7 @@ data class Appointment(
             AppointmentStatus.CANCELLED -> throw AppointmentStatusError.AlreadyCancelled()
             AppointmentStatus.NO_SHOW -> throw AppointmentStatusError.MarkedNoShow()
         }
+        requireWithinEditWindow(now)
     }
 
     fun requireNoShowMarkable(now: Instant = Clock.System.now()) {
@@ -58,6 +61,11 @@ data class Appointment(
             AppointmentStatus.SCHEDULED, AppointmentStatus.COMPLETED -> requireStarted(now)
             AppointmentStatus.CANCELLED -> throw AppointmentStatusError.AlreadyCancelled()
         }
+        requireWithinEditWindow(now)
+    }
+
+    private fun requireWithinEditWindow(now: Instant) {
+        if (now > dateEnd + EDIT_WINDOW) throw AppointmentStatusError.EditWindowClosed()
     }
 
     private fun requireStarted(now: Instant) {
@@ -65,6 +73,8 @@ data class Appointment(
     }
 
     companion object {
+        val EDIT_WINDOW = 7.days
+
         fun stub(
             id: Uuid = Uuid.random(),
             initiatorUserId: Uuid = Uuid.random(),

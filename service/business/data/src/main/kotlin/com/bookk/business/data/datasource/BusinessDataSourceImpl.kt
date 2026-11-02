@@ -145,4 +145,10 @@ internal class BusinessDataSourceImpl : DataSource(), BusinessDataSource {
             }
         }
     }
+
+    override suspend fun getClientDataRetentionMonths(): Map<Uuid, Int> = dbQuery {
+        BusinessTable
+            .select(BusinessTable.id, BusinessTable.clientDataRetentionMonths)
+            .associate { it[BusinessTable.id].value to it[BusinessTable.clientDataRetentionMonths] }
+    }
 }

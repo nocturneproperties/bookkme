@@ -23,6 +23,7 @@ dependencies {
     implementation(projects.service.authorization.data)
     implementation(projects.service.authorization.domain.api)
     implementation(projects.service.authorization.domain.impl)
+    implementation(projects.service.business.client)
     testImplementation(testFixtures(projects.core.data.eventstreaming.data))
     testImplementation(testFixtures(projects.core))
     testImplementation(testFixtures(projects.core.service))

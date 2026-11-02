@@ -157,6 +157,34 @@ internal class SendNotificationTest {
     }
 
     @Test
+    fun `should send account notifications even when appointment notifications are disabled`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val notification = notificationParams().copyWithType(NotificationType.ACCOUNT)
+        val settings = NotificationSettings.stub(
+            userId = userId,
+            appointmentEnabled = false,
+            channels = listOf(
+                NotificationChannelSettings.stub(channel = CommunicationChannel.EMAIL, enabled = true),
+                NotificationChannelSettings.stub(channel = CommunicationChannel.PUSH_NOTIFICATIONS, enabled = false),
+            ),
+        )
+        with(fixture) {
+            coEvery { notificationDataSource.getByUserId(userId) } returns settings
+            coEvery { emailSender.send(userId, notification) } returns Result.success(Unit)
+        }
+
+        whenn()
+        val result = fixture.sut.invoke(userId, notification)
+
+        then()
+        assertTrue(result.isSuccess)
+        coVerify(exactly = 1) { fixture.emailSender.send(userId, notification) }
+        coVerify(exactly = 0) { fixture.pushSender.send(any(), any()) }
+    }
+
+    @Test
     fun `should not send employee notifications through disabled channels`() = runUnitTest {
         given()
         val fixture = SutFixture()

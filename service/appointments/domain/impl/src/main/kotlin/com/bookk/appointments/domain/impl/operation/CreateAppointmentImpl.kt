@@ -56,6 +56,7 @@ internal class CreateAppointmentImpl(
         verifyAppointment(request, settings)
         return appointmentDataSource.create(request).also {
             requestDataSource.approve(request)
+            eventProducer.send(AppointmentEvent.ClientVisitBooked(request.businessId, request.client.id, request.dateEnd))
             sendRequestApprovedNotification(request)
         }
     }

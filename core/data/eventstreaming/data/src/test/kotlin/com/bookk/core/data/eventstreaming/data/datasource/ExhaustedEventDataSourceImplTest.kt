@@ -8,10 +8,15 @@ import com.bookk.core.test.given
 import com.bookk.core.test.runUnitTest
 import com.bookk.core.test.then
 import com.bookk.core.test.whenn
+import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
+import org.jetbrains.exposed.v1.jdbc.update
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import kotlin.time.Clock
+import kotlin.time.Duration.Companion.days
+import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
 internal class ExhaustedEventDataSourceImplTest {
@@ -232,5 +237,28 @@ internal class ExhaustedEventDataSourceImplTest {
 
         then()
         assertTrue(counts.isEmpty())
+    }
+
+    @Test
+    fun `should delete only the events parked before the cutoff`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val expired = dltEvent(originalTopic = "topic.expired")
+        val recent = dltEvent(originalTopic = "topic.recent")
+        suspendTransaction {
+            fixture.sut.save(expired)
+            fixture.sut.save(recent)
+            ExhaustedEventTable.update(where = { ExhaustedEventTable.originalTopic eq expired.originalTopic }) {
+                it[createdAt] = Instant.fromEpochMilliseconds(0)
+            }
+        }
+
+        whenn()
+        val deleted = suspendTransaction { fixture.sut.deleteParkedBefore(Clock.System.now() - 30.days) }
+
+        then()
+        assertEquals(1, deleted)
+        assertTrue(suspendTransaction { fixture.sut.findByOriginalTopic(expired.originalTopic) }.isEmpty())
+        assertEquals(listOf(recent), suspendTransaction { fixture.sut.findByOriginalTopic(recent.originalTopic) })
     }
 }

@@ -29,6 +29,7 @@ flowchart TD
     gauge["countByOriginalTopic()<br/>gauge events_exhausted{consumer_group, topic}"] --> wait[wait 1 minute] --> once
 ```
 
+- **After 30 days** a parked row is deleted (`ExhaustedEventReplayerImpl.DEFAULT_RETENTION`, checked on every tick through `deleteParkedBefore`, logged as a warning), because its payload can hold personal data. Replay or fix it within that time; its `EventsExhausted` alert resolves when it goes.
 - **On every start** the replayer marks every row parked so far for replay (retried on the next tick if the database is down), so deploying a fix replays what the bug parked.
 - **By hand**: `UPDATE exhausted_event SET replay_requested = TRUE WHERE …` in the consumer's schema. The next tick, within a minute, replays it. Every instance runs the loop, and the row lock makes each row replay once.
 - **`consumer.replay(event)`** publishes the event to *this* consumer group's DLT topic with attempt 0 and a new random key, so it gets every attempt again and no other service sees it. Kafka re-sends the stored payload (`DltEvent`). The embedded transport decodes it with the receiver's type and publishes an `EmbeddedDltEvent`. It returns `false`, and the row is kept with its request cleared, when this consumer has no receiver for the topic any more, when the payload no longer decodes, or (embedded) when the consumer hasn't started yet. `startEventHandling` starts the replayers after every `EventHandler`, so the embedded subscriptions exist before the first replay.

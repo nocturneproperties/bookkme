@@ -25,6 +25,7 @@ import com.bookk.business.domain.api.appointment.operation.GetStaffBookingContex
 import com.bookk.business.domain.api.client.entity.ClientRemote
 import com.bookk.business.domain.api.employee.entity.Employee
 import com.bookk.business.domain.api.service.entity.Service
+import com.bookk.core.data.eventstreaming.StandardEventProducer
 import com.bookk.core.domain.datasource.transaction.TransactionManager
 import com.bookk.core.domain.datasource.transaction.mockTransaction
 import com.bookk.core.domain.entity.Error
@@ -32,6 +33,7 @@ import com.bookk.core.test.given
 import com.bookk.core.test.runUnitTest
 import com.bookk.core.test.then
 import com.bookk.core.test.whenn
+import com.bookk.server.appointments.client.api.event.AppointmentEvent
 import com.bookk.server.business.client.api.BusinessClient
 import com.bookk.server.business.client.api.QuoteClaims
 import io.mockk.coEvery
@@ -64,6 +66,9 @@ internal class CreateInstantAppointmentImplTest {
         val businessClient = mockk<BusinessClient>()
         val deletedUserDataSource = mockk<DeletedUserDataSource>()
         val deletedClientDataSource = mockk<DeletedClientDataSource>()
+        val eventProducer = mockk<StandardEventProducer>()
+        val sentEvents = mutableListOf<AppointmentEvent>()
+        val sentInTransaction = mutableListOf<Boolean>()
         val businessId = Uuid.random()
         val service = Service.stub(businessId = businessId, price = Money.parse("UAH 250.00"), duration = 45.minutes)
         val clientUserId = Uuid.random()
@@ -93,6 +98,7 @@ internal class CreateInstantAppointmentImplTest {
             businessClient,
             deletedUserDataSource,
             deletedClientDataSource,
+            eventProducer,
         )
 
         init {
@@ -115,6 +121,10 @@ internal class CreateInstantAppointmentImplTest {
                 firstArg()
             }
             acceptQuote(total = "UAH 500.00", duration = 90.minutes.toString())
+            coEvery { eventProducer.send(any<AppointmentEvent>(), any()) } coAnswers {
+                sentEvents += firstArg<AppointmentEvent>()
+                sentInTransaction += transactionManager.isInTransaction()
+            }
         }
 
         fun grant(permission: ResourcePermission) {
@@ -488,5 +498,21 @@ internal class CreateInstantAppointmentImplTest {
         then()
         assertTrue(result.exceptionOrNull() is Error.NotFound)
         assertTrue(fixture.stored.isEmpty())
+    }
+
+    @Test
+    fun `should tell the business the client has a visit until the appointment ends`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+
+        whenn()
+        val appointment = fixture.sut(fixture.callerId, fixture.draft).getOrThrow()
+
+        then()
+        val visit = fixture.sentEvents.filterIsInstance<AppointmentEvent.ClientVisitBooked>().single()
+        assertEquals(fixture.businessId, visit.businessId)
+        assertEquals(fixture.context.client.id, visit.clientId)
+        assertEquals(appointment.dateEnd, visit.visitEnd)
+        assertEquals(listOf(true), fixture.sentInTransaction)
     }
 }

@@ -21,6 +21,7 @@ data class Business(
     @ProtoNumber(11) val ownerId: Uuid,
     @ProtoNumber(12) val employeeId: Uuid?,
     @ProtoNumber(13) val clientId: Uuid?,
+    @ProtoNumber(14) val clientDataRetentionMonths: Int = DEFAULT_CLIENT_DATA_RETENTION_MONTHS,
 ) {
     fun viewedBy(viewer: BusinessViewer): Business = copy(
         permissions = viewer.permissions,
@@ -53,6 +54,8 @@ data class Business(
         const val MAX_DESCRIPTION_LENGTH = 1024
         const val MAX_ADDRESS_LENGTH = 512
         const val MAX_SOCIAL_LENGTH = 256
+        const val DEFAULT_CLIENT_DATA_RETENTION_MONTHS = 36
+        val CLIENT_DATA_RETENTION_MONTHS_RANGE = 12..120
 
         fun stub(
             id: Uuid = Uuid.random(),
@@ -68,6 +71,7 @@ data class Business(
             ownerId: Uuid = Uuid.random(),
             employeeId: Uuid? = null,
             clientId: Uuid? = null,
+            clientDataRetentionMonths: Int = DEFAULT_CLIENT_DATA_RETENTION_MONTHS,
         ) = Business(
             id = id,
             name = name,
@@ -82,6 +86,7 @@ data class Business(
             ownerId = ownerId,
             employeeId = employeeId,
             clientId = clientId,
+            clientDataRetentionMonths = clientDataRetentionMonths,
         )
     }
 }

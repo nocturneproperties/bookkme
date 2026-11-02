@@ -15,6 +15,7 @@ import com.bookk.appointments.domain.datasource.AppointmentSettingsDataSource
 import com.bookk.business.domain.api.appointment.entity.AppointmentRescheduleContext
 import com.bookk.business.domain.api.employee.entity.Employee
 import com.bookk.business.domain.api.service.entity.Service
+import com.bookk.core.data.eventstreaming.StandardEventProducer
 import com.bookk.core.domain.datasource.transaction.TransactionManager
 import com.bookk.core.domain.datasource.transaction.mockTransaction
 import com.bookk.core.domain.entity.Error
@@ -22,6 +23,7 @@ import com.bookk.core.test.given
 import com.bookk.core.test.runUnitTest
 import com.bookk.core.test.then
 import com.bookk.core.test.whenn
+import com.bookk.server.appointments.client.api.event.AppointmentEvent
 import com.bookk.server.business.client.api.BusinessClient
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -33,6 +35,8 @@ import org.joda.money.Money
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import kotlin.time.Clock
+import kotlin.time.Duration.Companion.days
 import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
@@ -45,6 +49,9 @@ internal class UpdateAppointmentImplTest {
         val businessClient = mockk<BusinessClient>()
         val transactionManager = mockk<TransactionManager>()
         val settings = mockk<AppointmentSettings>()
+        val eventProducer = mockk<StandardEventProducer>()
+        val sentEvents = mutableListOf<AppointmentEvent>()
+        val sentInTransaction = mutableListOf<Boolean>()
 
         val sut = UpdateAppointmentImpl(
             appointmentDataSource,
@@ -52,6 +59,7 @@ internal class UpdateAppointmentImplTest {
             appointmentPermissionDataSource,
             businessClient,
             transactionManager,
+            eventProducer,
         )
 
         fun givenValidUpdate(
@@ -68,6 +76,10 @@ internal class UpdateAppointmentImplTest {
             coEvery { appointmentPermissionDataSource.getPermission(userId, stored.businessId) } returns permission
             coEvery { appointmentDataSource.hasOverlapsWith(any<Appointment>()) } returns false
             coEvery { appointmentDataSource.update(any<Appointment>()) } answers { firstArg() }
+            coEvery { eventProducer.send(any<AppointmentEvent>(), any()) } coAnswers {
+                sentEvents += firstArg<AppointmentEvent>()
+                sentInTransaction += transactionManager.isInTransaction()
+            }
         }
     }
 
@@ -534,5 +546,40 @@ internal class UpdateAppointmentImplTest {
         assertTrue(isExpected(result.exceptionOrNull()))
         coVerify(exactly = 0) { fixture.businessClient.getAppointmentRescheduleContext(any(), any(), any()) }
         coVerify(exactly = 0) { fixture.appointmentDataSource.update(any()) }
+    }
+
+    @Test
+    fun `should return failure when the appointment ended more than a week ago`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val stored = Appointment.stub(date = Clock.System.now() - 30.days)
+        fixture.givenValidUpdate(userId, stored)
+
+        whenn()
+        val result = fixture.sut(userId, keepingEverything(stored))
+
+        then()
+        assertTrue(result.exceptionOrNull() is AppointmentStatusError.EditWindowClosed)
+        coVerify(exactly = 0) { fixture.appointmentDataSource.update(any()) }
+    }
+
+    @Test
+    fun `should tell the business the client has a visit until the rescheduled appointment ends`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val stored = Appointment.stub(date = futureDate)
+        fixture.givenValidUpdate(userId, stored)
+
+        whenn()
+        val rescheduled = fixture.sut(userId, keepingEverything(stored)).getOrThrow()
+
+        then()
+        val visit = fixture.sentEvents.filterIsInstance<AppointmentEvent.ClientVisitBooked>().single()
+        assertEquals(stored.businessId, visit.businessId)
+        assertEquals(stored.client.id, visit.clientId)
+        assertEquals(rescheduled.dateEnd, visit.visitEnd)
+        assertEquals(listOf(true), fixture.sentInTransaction)
     }
 }

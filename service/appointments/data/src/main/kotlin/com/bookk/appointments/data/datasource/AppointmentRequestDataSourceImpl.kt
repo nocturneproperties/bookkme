@@ -128,9 +128,10 @@ internal class AppointmentRequestDataSourceImpl(
 
     override suspend fun deleteForUser(userId: Uuid) = dbQuery<Unit> {
         AppointmentRequestTable.deleteWhere {
-            (AppointmentRequestTable.initiatorUserId eq userId) or
-                (AppointmentRequestTable.clientUserId eq userId) or
-                (AppointmentRequestTable.employeeUserId eq userId)
+            (AppointmentRequestTable.clientUserId eq userId) or (AppointmentRequestTable.employeeUserId eq userId)
+        }
+        AppointmentRequestTable.update(where = { AppointmentRequestTable.initiatorUserId eq userId }) {
+            it[initiatorUserId] = Uuid.NIL
         }
     }
 
@@ -158,5 +159,9 @@ internal class AppointmentRequestDataSourceImpl(
         AppointmentRequestTable.deleteWhere {
             (AppointmentRequestTable.businessId eq businessId) and (AppointmentRequestTable.clientId eq clientId)
         }
+    }
+
+    override suspend fun deleteEndedBefore(before: Instant) = dbQuery<Unit> {
+        AppointmentRequestTable.deleteWhere { AppointmentRequestTable.dateEnd less before }
     }
 }

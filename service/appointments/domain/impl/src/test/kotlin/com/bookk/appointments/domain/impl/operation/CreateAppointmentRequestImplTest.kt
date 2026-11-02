@@ -754,6 +754,7 @@ internal class CreateAppointmentRequestImplTest {
             coEvery { requestDataSource.create(any()) } answers { firstArg() }
             coEvery { subscriptionDataSource.getBusinessSnapshot(any()) } returns businessSnapshot
             coEvery { eventProducer.send(capture(eventSlot), any()) } returns Unit
+            coEvery { eventProducer.send(any<AppointmentEvent.ClientVisitBooked>(), any()) } returns Unit
             mockValidToken(draft, totalOf(expand(context, draft)), durationOf(expand(context, draft)))
             transactionManager.mockTransaction()
         }
@@ -793,6 +794,7 @@ internal class CreateAppointmentRequestImplTest {
             coEvery { requestDataSource.create(capture(created)) } answers { firstArg() }
             coEvery { subscriptionDataSource.getBusinessSnapshot(any()) } returns BusinessSnapshot.stub()
             coEvery { eventProducer.send(capture(eventSlot), any()) } returns Unit
+            coEvery { eventProducer.send(any<AppointmentEvent.ClientVisitBooked>(), any()) } returns Unit
             mockValidToken(draft, totalOf(expand(context, draft)), durationOf(expand(context, draft)))
             transactionManager.mockTransaction()
         }
@@ -833,6 +835,7 @@ internal class CreateAppointmentRequestImplTest {
             coEvery { requestDataSource.create(capture(created)) } answers { firstArg() }
             coEvery { subscriptionDataSource.getBusinessSnapshot(any()) } returns BusinessSnapshot.stub()
             coEvery { eventProducer.send(capture(eventSlot), any()) } returns Unit
+            coEvery { eventProducer.send(any<AppointmentEvent.ClientVisitBooked>(), any()) } returns Unit
             mockValidToken(draft, totalOf(expand(context, draft)), durationOf(expand(context, draft)))
             coEvery { deletedUserDataSource.isDeletedForShare(userId) } returns true
             coEvery { requestDataSource.releaseOfferToken(any()) } returns Unit
@@ -874,6 +877,7 @@ internal class CreateAppointmentRequestImplTest {
             coEvery { requestDataSource.create(capture(created)) } answers { firstArg() }
             coEvery { subscriptionDataSource.getBusinessSnapshot(any()) } returns BusinessSnapshot.stub()
             coEvery { eventProducer.send(capture(eventSlot), any()) } returns Unit
+            coEvery { eventProducer.send(any<AppointmentEvent.ClientVisitBooked>(), any()) } returns Unit
             mockValidToken(draft, totalOf(expand(context, draft)), durationOf(expand(context, draft)))
             transactionManager.mockTransaction()
         }
@@ -1057,6 +1061,7 @@ internal class CreateAppointmentRequestImplTest {
             coEvery { requestDataSource.create(capture(created)) } answers { firstArg() }
             coEvery { subscriptionDataSource.getBusinessSnapshot(any()) } returns BusinessSnapshot.stub()
             coEvery { eventProducer.send(capture(eventSlot), any()) } returns Unit
+            coEvery { eventProducer.send(any<AppointmentEvent.ClientVisitBooked>(), any()) } returns Unit
             mockValidToken(draft, totalOf(expand(context, draft)), durationOf(expand(context, draft)))
             coEvery { deletedClientDataSource.isDeletedForShare(businessId, context.client.id) } returns true
             coEvery { requestDataSource.releaseOfferToken(any()) } returns Unit
@@ -1098,6 +1103,7 @@ internal class CreateAppointmentRequestImplTest {
             coEvery { requestDataSource.create(capture(created)) } answers { firstArg() }
             coEvery { subscriptionDataSource.getBusinessSnapshot(any()) } returns BusinessSnapshot.stub()
             coEvery { eventProducer.send(capture(eventSlot), any()) } returns Unit
+            coEvery { eventProducer.send(any<AppointmentEvent.ClientVisitBooked>(), any()) } returns Unit
             mockValidToken(draft, totalOf(expand(context, draft)), durationOf(expand(context, draft)))
             transactionManager.mockTransaction()
         }
@@ -1111,6 +1117,48 @@ internal class CreateAppointmentRequestImplTest {
             fixture.deletedUserDataSource.isDeletedForShare(userId)
             fixture.deletedClientDataSource.isDeletedForShare(businessId, context.client.id)
             fixture.settingsDataSource.getForUpdate(businessId)
+        }
+    }
+
+    @Test
+    fun `should tell the business the client has a visit until the requested appointment ends`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val businessId = Uuid.random()
+        val context = bookingContext(businessId, Uuid.random(), Uuid.random(), Uuid.random())
+        val draft = draftFor(context, businessId, futureDate)
+        val settings = mockk<AppointmentSettings>()
+        val businessSnapshot = BusinessSnapshot.stub()
+        val created = slot<AppointmentRequest>()
+
+        with(fixture) {
+            coEvery {
+                businessClient.getAppointmentBookingContext(businessId, draft.employeeId, userId, distinctIds(draft))
+            } returns Result.success(context)
+            coEvery { settingsDataSource.getForUpdate(businessId) } returns settings
+            coEvery { settings.automaticApproval } returns false
+            coEvery { settings.isInWorkday(draft.date) } returns true
+            coEvery { settings.isInWorktime(any(), any()) } returns true
+            coEvery { requestDataSource.hasOverlapsWith(any()) } returns false
+            coEvery { appointmentDataSource.hasOverlapsWith(any()) } returns false
+            coEvery { requestDataSource.create(capture(created)) } answers { firstArg() }
+            coEvery { subscriptionDataSource.getBusinessSnapshot(businessId) } returns businessSnapshot
+            coEvery { eventProducer.send(any(), any()) } returns Unit
+            mockValidToken(draft, totalOf(expand(context, draft)), durationOf(expand(context, draft)))
+            transactionManager.mockTransaction()
+        }
+        whenn()
+        val result = fixture.sut.invoke(userId, draft)
+
+        then()
+        assertTrue(result.isSuccess)
+        val request = created.captured
+        coVerify(exactly = 1) {
+            fixture.eventProducer.send(
+                match<AppointmentEvent.ClientVisitBooked> { it.businessId == businessId && it.clientId == context.client.id && it.visitEnd == request.dateEnd },
+                any(),
+            )
         }
     }
 }

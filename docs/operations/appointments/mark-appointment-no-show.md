@@ -33,11 +33,14 @@ flowchart TD
     Suspended -- No --> Perm{caller update permission, or view permission and appointment.employee.userId == userId?}
     Perm -- No --> R404b([404 Error.OperationNotAllowed])
     Perm -- Yes --> Status{appointment.status}
-    Status -- NO_SHOW --> R200u([200 Appointment unchanged])
+    Status -- NO_SHOW --> Window{appointment dateEnd + 7 days before now?}
     Status -- CANCELLED --> R422a([422 ALREADY_CANCELLED 300005])
     Status -- SCHEDULED or COMPLETED --> Started{date_start is not after now?}
     Started -- No --> R422b([422 NOT_STARTED 300018])
-    Started -- Yes --> Mark[AppointmentDataSource.markNoShow id - sets NO_SHOW and clears completedBy]
+    Started -- Yes --> Window
+    Window -- Yes --> R422w([422 APPOINTMENT_EDIT_WINDOW_CLOSED 300026])
+    Window -- No, already NO_SHOW --> R200u([200 Appointment unchanged])
+    Window -- No --> Mark[AppointmentDataSource.markNoShow id - sets NO_SHOW and clears completedBy]
     Mark --> R200([200 No-show Appointment])
 ```
 

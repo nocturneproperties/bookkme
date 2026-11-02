@@ -6,12 +6,14 @@ import com.bookk.core.data.eventstreaming.ExhaustedEventDataSource
 import com.bookk.core.domain.datasource.transaction.TransactionManager
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.time.Clock
+import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
 class InMemoryExhaustedEventDataSource(
     private val transactionManager: TransactionManager,
 ) : ExhaustedEventDataSource {
-    private class Row(val exhausted: ExhaustedEvent, @Volatile var replayRequested: Boolean = false)
+    private class Row(val exhausted: ExhaustedEvent, @Volatile var replayRequested: Boolean = false, @Volatile var parkedAt: Instant = Clock.System.now())
 
     private val rows = ConcurrentLinkedQueue<Row>()
 
@@ -49,10 +51,18 @@ class InMemoryExhaustedEventDataSource(
         return rows.groupingBy { it.exhausted.event.originalTopic }.eachCount().mapValues { it.value.toLong() }
     }
 
-    suspend fun park(dltEvent: DltEvent, replayRequested: Boolean = false): ExhaustedEvent {
+    override suspend fun deleteParkedBefore(cutoff: Instant): Int {
+        requireTransaction()
+        val expired = rows.filter { it.parkedAt < cutoff }
+        rows.removeAll(expired.toSet())
+        return expired.size
+    }
+
+    suspend fun park(dltEvent: DltEvent, replayRequested: Boolean = false, parkedAt: Instant = Clock.System.now()): ExhaustedEvent {
         transactionManager.transaction { save(dltEvent) }
         val row = rows.single { it.exhausted.event.idempotencyKey == dltEvent.idempotencyKey }
         row.replayRequested = replayRequested
+        row.parkedAt = parkedAt
         return row.exhausted
     }
 

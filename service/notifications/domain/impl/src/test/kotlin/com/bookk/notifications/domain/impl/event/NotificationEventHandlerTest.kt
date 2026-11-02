@@ -15,6 +15,7 @@ import com.bookk.notifications.domain.impl.notification.NotificationParameters
 import com.bookk.notifications.domain.impl.notification.NotificationType
 import com.bookk.notifications.domain.impl.notification.SendNotification
 import com.bookk.server.appointments.client.api.event.AppointmentEvent
+import com.bookk.server.auth.client.AuthEvent
 import com.bookk.server.business.client.api.event.BusinessEvent
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -159,5 +160,22 @@ internal class NotificationEventHandlerTest {
 
         then()
         coVerify(exactly = 0) { fixture.sendNotification.invoke(any(), any()) }
+    }
+
+    @Test
+    fun `should warn the user whose account is about to be deleted for inactivity`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val event = AuthEvent.AccountDormancyWarning(userId = Uuid.random(), deletesAt = Instant.parse("2029-03-05T14:30:00Z"), final = false)
+        val params = slot<NotificationParameters>()
+        coEvery { fixture.sendNotification.invoke(any(), capture(params)) } returns Result.success(Unit)
+        fixture.start(this)
+
+        whenn()
+        fixture.dispatch(AuthEvent.AccountDormancyWarning.TOPIC, event)
+
+        then()
+        coVerify(exactly = 1) { fixture.sendNotification.invoke(event.userId, any()) }
+        assertEquals(NotificationType.ACCOUNT, params.captured.type)
     }
 }

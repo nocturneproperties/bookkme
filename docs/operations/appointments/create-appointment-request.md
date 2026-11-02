@@ -142,13 +142,16 @@ flowchart TD
     OverlapAppointments -- No --> Create[AppointmentRequestDataSource.create request]
     Create --> Snapshot[AppointmentSubscriptionDataSource.getBusinessSnapshot businessId]
     Snapshot -- missing --> R404d([404 Error.NotFound - logged as data inconsistency])
-    Snapshot -- found --> Event["eventProducer.send AppointmentEvent.RequestCreated - clientUserId = request.client.userId"]
+    Snapshot -- found --> Visit[eventProducer.send AppointmentEvent.ClientVisitBooked businessId client.id dateEnd]
+    Visit --> Event["eventProducer.send AppointmentEvent.RequestCreated - clientUserId = request.client.userId"]
     Event --> Commit[[Commit transaction]]
     Commit --> R204([204 No Content - offerToken stays reserved])
 ```
 
 **Consumed by:** `AppointmentEvent.RequestCreated` → [notifications: notify the
-employee](../notifications/on-appointment-request-created.md). The
+employee](../notifications/on-appointment-request-created.md);
+`AppointmentEvent.ClientVisitBooked` → [business: record the client's
+visit](../business/on-client-visit-booked.md). The
 `automaticApproval` branch delegates into [Create appointment from a
 pending request](create-appointment-from-request.md)'s shared logic and
 sends `AppointmentEvent.RequestApproved` instead — see [notifications:

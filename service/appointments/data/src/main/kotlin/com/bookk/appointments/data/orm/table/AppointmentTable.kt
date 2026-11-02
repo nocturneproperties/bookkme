@@ -10,7 +10,7 @@ object AppointmentTable : BaseUUIDTable("appointment") {
     val initiatorUserId = uuid("initiator_user_id")
     val businessId = reference("business_id", AppointmentBusinessTable.id, onDelete = ReferenceOption.CASCADE)
     val employeeId = uuid("employee_id")
-    val employeeUserId = uuid("employee_user_id")
+    val employeeUserId = uuid("employee_user_id").index()
     val employeeName = varchar("employee_name", 1024)
     val clientId = uuid("client_id").index()
     val clientUserId = uuid("client_user_id").nullable().index()

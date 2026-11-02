@@ -18,7 +18,7 @@ flowchart TD
     InsertDevice -- new device row --> DeviceCreatedEvt[eventProducer.send AuthEvent.DeviceCreated]
     InsertDevice -- device already exists --> UpdateLang[DeviceDataSource.updateLanguage ownerId uuid language]
     UpdateLang --> LangEvt[eventProducer.send AuthEvent.DeviceLanguageUpdated]
-    DeviceCreatedEvt --> GenToken[GenerateAuthToken InitialAuthentication ownerId deviceUuid]
+    DeviceCreatedEvt --> GenToken[GenerateAuthToken InitialAuthentication ownerId deviceUuid - also AccountDataSource.recordActivity]
     LangEvt --> GenToken
     GenToken --> R200([200 AuthTokens])
 ```

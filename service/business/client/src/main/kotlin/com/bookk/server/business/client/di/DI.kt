@@ -6,6 +6,7 @@ import com.bookk.business.domain.api.appointment.operation.GetStaffBookingContex
 import com.bookk.business.domain.api.business.operation.GetBusinessDetails
 import com.bookk.business.domain.api.business.operation.GetBusinessPermission
 import com.bookk.business.domain.api.client.operation.GetClientBusinessIds
+import com.bookk.business.domain.api.employee.operation.GetOwnedBusinessMemberIds
 import com.bookk.business.domain.api.service.operation.GetServicesByIds
 import com.bookk.core.AppLevelConstants
 import com.bookk.core.AppLevelConstants.SupportedSerializers
@@ -17,6 +18,7 @@ import com.bookk.server.business.client.impl.operation.GetAppointmentRescheduleC
 import com.bookk.server.business.client.impl.operation.GetBusinessDetailsClientImpl
 import com.bookk.server.business.client.impl.operation.GetBusinessPermissionClientImpl
 import com.bookk.server.business.client.impl.operation.GetClientBusinessIdsClientImpl
+import com.bookk.server.business.client.impl.operation.GetOwnedBusinessMemberIdsClientImpl
 import com.bookk.server.business.client.impl.operation.GetServicesByIdsClientImpl
 import com.bookk.server.business.client.impl.operation.GetStaffBookingContextClientImpl
 import io.ktor.client.HttpClient
@@ -90,6 +92,7 @@ fun businessClientModule(qualifier: Qualifier, clientTag: String) = module {
         scoped<GetAppointmentRescheduleContext> { GetAppointmentRescheduleContextClientImpl(get(named(BUSINESS_HTTP_CLIENT))) }
         scoped<GetClientBusinessIds> { GetClientBusinessIdsClientImpl(get(named(BUSINESS_HTTP_CLIENT))) }
         scoped<GetServicesByIds> { GetServicesByIdsClientImpl(get(named(BUSINESS_HTTP_CLIENT))) }
-        scoped<BusinessClient> { BusinessClientImpl(get(), get(), get(), get(), get(), get(), get()) }
+        scoped<GetOwnedBusinessMemberIds> { GetOwnedBusinessMemberIdsClientImpl(get(named(BUSINESS_HTTP_CLIENT))) }
+        scoped<BusinessClient> { BusinessClientImpl(get(), get(), get(), get(), get(), get(), get(), get()) }
     }
 }

@@ -29,5 +29,7 @@ internal class SendNotification(
         // Employee invitations are account-level and actionable, so they are not user-suppressible.
         // They still only go out through the channels the user has enabled.
         NotificationType.EMPLOYEE -> true
+
+        NotificationType.ACCOUNT -> true
     }
 }

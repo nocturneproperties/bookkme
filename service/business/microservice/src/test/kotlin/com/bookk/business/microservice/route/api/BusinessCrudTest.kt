@@ -78,6 +78,7 @@ internal class BusinessCrudTest {
         name: String? = null,
         schedule: Schedule? = null,
         dayOffs: List<DayOffRange> = emptyList(),
+        clientDataRetentionMonths: Int? = null,
     ) = BusinessUpdateModel(
         id = id,
         name = name,
@@ -88,6 +89,7 @@ internal class BusinessCrudTest {
         timeZone = null,
         socials = emptyList(),
         schedule = schedule?.copy(dayOffs = dayOffs),
+        clientDataRetentionMonths = clientDataRetentionMonths,
     )
 
     private fun lenientUpdateModel(schedule: LenientSchedule) = LenientUpdateModel(
@@ -551,6 +553,39 @@ internal class BusinessCrudTest {
 
         then()
         assertEquals(HttpStatusCode.NoContent, response.status)
+    }
+
+    @Test
+    fun `should return unprocessable entity when client data retention is out of range`() = routeTest {
+        given()
+        val useCase: UpdateBusiness = mockk()
+        coEvery { useCase.invoke(userId, any()) } returns
+            Result.failure(UpdateBusiness.Error.ClientDataRetentionOutOfRange())
+
+        setupApplication(
+            extension = {
+                install(Authentication) {
+                    provider {
+                        authenticate { it.principal(AppPrincipal(Uuid.random(), userId, Uuid.random())) }
+                    }
+                }
+            },
+            diModule = module { single { useCase } },
+            routeUnderTest = { businessCrud() },
+        )
+
+        whenn()
+        val client = createTestClient()
+        val response = client.put(BusinessRouting.Api.Business.Id(id = businessId)) {
+            setBody(updateModel(clientDataRetentionMonths = 6))
+        }
+
+        then()
+        assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
+        assertEquals(
+            BusinessErrorCodes.BUSINESS_CLIENT_DATA_RETENTION_OUT_OF_RANGE,
+            response.body<SimpleServerError>().errorCode,
+        )
     }
 
     @Test

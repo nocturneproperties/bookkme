@@ -9,6 +9,7 @@ import com.bookk.business.data.orm.table.EmployeeCanProvideServiceTable
 import com.bookk.business.data.orm.table.EmployeeDayOffTable
 import com.bookk.business.data.orm.table.EmployeeTable
 import com.bookk.business.data.orm.table.EmployeeWorkingHoursTable
+import com.bookk.business.domain.api.business.entity.Business
 import com.bookk.business.domain.api.business.entity.BusinessUpdateModel
 import com.bookk.business.domain.api.employee.entity.Employee
 import com.bookk.business.domain.datasource.LockedBusiness
@@ -62,6 +63,7 @@ internal class BusinessDataSourceImplTest {
         name: String? = null,
         schedule: Schedule? = null,
         dayOffs: List<DayOffRange> = emptyList(),
+        clientDataRetentionMonths: Int? = null,
     ) = BusinessUpdateModel(
         id = id,
         name = name,
@@ -72,6 +74,7 @@ internal class BusinessDataSourceImplTest {
         timeZone = null,
         socials = null,
         schedule = schedule?.copy(dayOffs = dayOffs),
+        clientDataRetentionMonths = clientDataRetentionMonths,
     )
 
     @Test
@@ -538,4 +541,62 @@ internal class BusinessDataSourceImplTest {
     }
 
     // deleteUserBusinesses uses deleteReturning which is not supported by Exposed's H2 dialect
+
+    @Test
+    fun `should give a new business the default client data retention`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+
+        whenn()
+        val created = suspendTransaction { fixture.sut.createBusiness(Uuid.random(), "Salon", "USD", TimeZone.UTC) }
+
+        then()
+        assertEquals(Business.DEFAULT_CLIENT_DATA_RETENTION_MONTHS, suspendTransaction { fixture.sut.getBusinessById(created.id) }?.clientDataRetentionMonths)
+    }
+
+    @Test
+    fun `should update client data retention`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val created = suspendTransaction { fixture.sut.createBusiness(Uuid.random(), "Salon", "USD", TimeZone.UTC) }
+
+        whenn()
+        val updated = suspendTransaction { fixture.sut.updateBusiness(updateModel(created.id, clientDataRetentionMonths = 18), Clock.System.now()) }
+
+        then()
+        assertEquals(18, updated.clientDataRetentionMonths)
+        assertEquals(18, suspendTransaction { fixture.sut.getBusinessById(created.id) }?.clientDataRetentionMonths)
+    }
+
+    @Test
+    fun `should keep client data retention when update omits it`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val created = suspendTransaction { fixture.sut.createBusiness(Uuid.random(), "Salon", "USD", TimeZone.UTC) }
+        suspendTransaction { fixture.sut.updateBusiness(updateModel(created.id, clientDataRetentionMonths = 60), Clock.System.now()) }
+
+        whenn()
+        val updated = suspendTransaction { fixture.sut.updateBusiness(updateModel(created.id, name = "Renamed"), Clock.System.now()) }
+
+        then()
+        assertEquals(60, updated.clientDataRetentionMonths)
+    }
+
+    @Test
+    fun `should list the client data retention of every business`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val shortRetention = suspendTransaction { fixture.sut.createBusiness(Uuid.random(), "Short", "USD", TimeZone.UTC) }
+        val longRetention = suspendTransaction { fixture.sut.createBusiness(Uuid.random(), "Long", "USD", TimeZone.UTC) }
+        suspendTransaction {
+            fixture.sut.updateBusiness(updateModel(shortRetention.id, clientDataRetentionMonths = 12), Clock.System.now())
+            fixture.sut.updateBusiness(updateModel(longRetention.id, clientDataRetentionMonths = 120), Clock.System.now())
+        }
+
+        whenn()
+        val retention = suspendTransaction { fixture.sut.getClientDataRetentionMonths() }
+
+        then()
+        assertEquals(mapOf(shortRetention.id to 12, longRetention.id to 120), retention)
+    }
 }

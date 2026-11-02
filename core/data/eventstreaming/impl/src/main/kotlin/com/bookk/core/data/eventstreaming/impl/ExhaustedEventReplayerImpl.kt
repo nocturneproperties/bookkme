@@ -17,7 +17,9 @@ import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.runningFold
+import kotlin.time.Clock
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.minutes
 
 class ExhaustedEventReplayerImpl(
@@ -28,6 +30,8 @@ class ExhaustedEventReplayerImpl(
     private val consumerGroup: String,
     private val interval: Duration = DEFAULT_INTERVAL,
     private val batchSize: Int = DEFAULT_BATCH_SIZE,
+    private val retention: Duration = DEFAULT_RETENTION,
+    private val clock: Clock = Clock.System,
 ) : ExhaustedEventReplayer {
 
     private val logger = KtorSimpleLogger("ExhaustedEventReplayer")
@@ -39,6 +43,7 @@ class ExhaustedEventReplayerImpl(
         .runningFold(false) { parkedRequested, _ -> parkedRequested || requestReplayOfParked() }
         .drop(1)
         .onEach {
+            deleteExpired()
             replayRequested()
             exportParkedEvents()
         }
@@ -49,6 +54,12 @@ class ExhaustedEventReplayerImpl(
     }.onFailure {
         logger.error("Failed to request a replay of the events parked by {}, retrying in {}. Error: {}", consumerGroup, interval, it.message)
     }.isSuccess
+
+    private suspend fun deleteExpired() {
+        transactionManager.transaction { exhaustedEventDataSource.deleteParkedBefore(clock.now() - retention) }
+            .onSuccess { deleted -> if (deleted > 0) logger.warn("Deleted {} events parked by {} for longer than {}", deleted, consumerGroup, retention) }
+            .onFailure { logger.error("Failed to delete the expired events parked by {}, retrying in {}. Error: {}", consumerGroup, interval, it.message) }
+    }
 
     private suspend fun replayRequested() {
         do {
@@ -81,6 +92,7 @@ class ExhaustedEventReplayerImpl(
 
     companion object {
         val DEFAULT_INTERVAL = 1.minutes
+        val DEFAULT_RETENTION = 30.days
         const val DEFAULT_BATCH_SIZE = 100
         const val PARKED_EVENTS_METRIC = "events.exhausted"
         private const val CONSUMER_GROUP_TAG = "consumer_group"
