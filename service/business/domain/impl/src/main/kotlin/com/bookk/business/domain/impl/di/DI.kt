@@ -4,6 +4,7 @@ import com.bookk.business.domain.api.BUSINESS_SCHEMA
 import com.bookk.business.domain.api.BUSINESS_SERVICE_NAME
 import com.bookk.business.domain.api.appointment.operation.GetAppointmentBookingContext
 import com.bookk.business.domain.api.appointment.operation.GetAppointmentRescheduleContext
+import com.bookk.business.domain.api.appointment.operation.GetStaffBookingContext
 import com.bookk.business.domain.api.business.operation.CreateBusiness
 import com.bookk.business.domain.api.business.operation.DeleteBusiness
 import com.bookk.business.domain.api.business.operation.DeleteDayOffsInThePast
@@ -44,6 +45,7 @@ import com.bookk.business.domain.api.user.operation.SyncUserProfile
 import com.bookk.business.domain.impl.event.BusinessEventHandlerImpl
 import com.bookk.business.domain.impl.operation.appointment.GetAppointmentBookingContextImpl
 import com.bookk.business.domain.impl.operation.appointment.GetAppointmentRescheduleContextImpl
+import com.bookk.business.domain.impl.operation.appointment.GetStaffBookingContextImpl
 import com.bookk.business.domain.impl.operation.business.CreateBusinessImpl
 import com.bookk.business.domain.impl.operation.business.DeleteBusinessImpl
 import com.bookk.business.domain.impl.operation.business.DeleteDayOffsInThePastImpl
@@ -81,6 +83,7 @@ import com.bookk.business.domain.impl.operation.service.IssueQuoteImpl
 import com.bookk.business.domain.impl.operation.service.UpdateServiceImpl
 import com.bookk.business.domain.impl.operation.user.AnonymizeUserProfileImpl
 import com.bookk.business.domain.impl.operation.user.SyncUserProfileImpl
+import com.bookk.business.domain.impl.stepup.StepUpVerifier
 import com.bookk.core.data.eventstreaming.EventHandler
 import com.bookk.server.user.client.di.userClientModule
 import org.koin.core.module.dsl.scopedOf
@@ -110,6 +113,7 @@ fun businessDomainModule() = module {
         scopedOf(::GetClientsImpl) bind GetClients::class
         scopedOf(::GetClientBusinessIdsImpl) bind GetClientBusinessIds::class
         scopedOf(::DeleteClientImpl) bind DeleteClient::class
+        scopedOf(::StepUpVerifier)
         scopedOf(::UpdateClientImpl) bind UpdateClient::class
         scopedOf(::SyncUserProfileImpl) bind SyncUserProfile::class
         scopedOf(::AnonymizeUserProfileImpl) bind AnonymizeUserProfile::class
@@ -133,6 +137,7 @@ fun businessDomainModule() = module {
         scopedOf(::ExpireEmployeeInvitationsImpl) bind ExpireEmployeeInvitations::class
         scopedOf(::DeleteProcessedEmployeeInvitationsImpl) bind DeleteProcessedEmployeeInvitations::class
         scopedOf(::GetAppointmentBookingContextImpl) bind GetAppointmentBookingContext::class
+        scopedOf(::GetStaffBookingContextImpl) bind GetStaffBookingContext::class
         scopedOf(::GetAppointmentRescheduleContextImpl) bind GetAppointmentRescheduleContext::class
     }
 }

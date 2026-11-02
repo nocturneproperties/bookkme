@@ -16,6 +16,7 @@ import com.bookk.auth.domain.api.registration.operation.FinishRegistration
 import com.bookk.auth.domain.api.registration.operation.StartPasskeyRegistration
 import com.bookk.auth.domain.api.registration.operation.StartRegistration
 import com.bookk.auth.domain.api.signout.operation.SignOut
+import com.bookk.auth.domain.api.stepup.operation.IssueStepUpToken
 import com.bookk.auth.domain.api.token.operation.GenerateAuthToken
 import com.bookk.auth.domain.api.token.operation.RefreshToken
 import com.bookk.auth.domain.impl.operation.DeleteAccountImpl
@@ -32,6 +33,7 @@ import com.bookk.auth.domain.impl.operation.registration.FinishPasskeyRegistrati
 import com.bookk.auth.domain.impl.operation.registration.FinishRegistrationImpl
 import com.bookk.auth.domain.impl.operation.registration.StartPasskeyRegistrationImpl
 import com.bookk.auth.domain.impl.operation.registration.StartRegistrationImpl
+import com.bookk.auth.domain.impl.operation.stepup.IssueStepUpTokenImpl
 import com.bookk.auth.domain.impl.operation.token.GenerateAuthTokenImpl
 import com.bookk.auth.domain.impl.operation.token.RefreshTokenImpl
 import com.bookk.server.user.client.di.userClientModule
@@ -52,6 +54,7 @@ fun authDomainModule() = module {
         scopedOf(::RefreshTokenImpl) bind RefreshToken::class
         scopedOf(::SignOutImpl) bind SignOut::class
         scopedOf(::DeleteAccountImpl) bind DeleteAccount::class
+        scopedOf(::IssueStepUpTokenImpl) bind IssueStepUpToken::class
         scopedOf(::StartRegistrationImpl) bind StartRegistration::class
         scopedOf(::FinishRegistrationImpl) bind FinishRegistration::class
         scopedOf(::StartAssertionImpl) bind StartAssertion::class

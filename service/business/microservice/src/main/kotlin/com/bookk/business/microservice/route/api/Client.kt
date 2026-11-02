@@ -21,6 +21,7 @@ import io.ktor.openapi.jsonSchema
 import io.ktor.server.auth.authenticate
 import io.ktor.server.auth.principal
 import io.ktor.server.request.receive
+import io.ktor.server.request.receiveNullable
 import io.ktor.server.resources.delete
 import io.ktor.server.resources.get
 import io.ktor.server.resources.patch
@@ -32,6 +33,11 @@ import io.ktor.server.routing.openapi.describe
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.protobuf.ProtoNumber
 import kotlin.uuid.Uuid
+
+@Serializable
+internal class DeleteClientRequest(
+    @ProtoNumber(1) val stepUpToken: String?
+)
 
 @Serializable
 internal class ClientImportRequest(
@@ -146,20 +152,23 @@ fun Route.clientCrud() {
          * Description: Delete client by id and erase them from the business's appointments. Only the owner may delete a client with an account
          * Tag: business
          * Security: jwt
+         * Body: application/x-protobuf [com.bookk.business.microservice.route.api.DeleteClientRequest]
          * Response: 204 application/x-protobuf Entity deleted
          * Response: 404 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Client not found, or user is not allowed to delete it (a client with an account can be deleted only by the owner)
-         * Response: 403 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Caller is a suspended employee of this business<br>BUSINESS_EMPLOYEE_ACCESS_SUSPENDED (200034) Your access to this business is suspended
+         * Response: 403 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Deletion not confirmed, or the caller is suspended<br>BUSINESS_STEP_UP_INVALID (200040) Confirm deleting the client with your passkey (step-up token from POST auth/passkey/step_up missing, expired, already used or issued for another client)<br>BUSINESS_EMPLOYEE_ACCESS_SUSPENDED (200034) Your access to this business is suspended
          * See: docs/operations/business/delete-client.md
          */
         delete<Api.Clients.Id> {
             val principal = requireNotNull(call.principal<AppPrincipal>())
+            val stepUpToken = call.receiveNullable<DeleteClientRequest>()?.stepUpToken.orEmpty()
             val deleteClient by application.injectScoped<DeleteClient>(BusinessScope)
 
             call.respondWith(
                 deleteClient(
                     requestUserId = principal.userId,
                     businessId = it.parent.businessId,
-                    id = it.id
+                    id = it.id,
+                    stepUpToken = stepUpToken
                 )
             )
         }

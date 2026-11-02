@@ -12,6 +12,7 @@ import com.bookk.business.microservice.route.api.internal.getBusinessDetails
 import com.bookk.business.microservice.route.api.internal.getBusinessPermission
 import com.bookk.business.microservice.route.api.internal.getClientBusinessIds
 import com.bookk.business.microservice.route.api.internal.getServicesByIds
+import com.bookk.business.microservice.route.api.internal.getStaffBookingContext
 import com.bookk.business.microservice.route.api.quote
 import com.bookk.business.microservice.route.api.serviceCrud
 import com.bookk.business.microservice.route.api.serviceGroupCrud
@@ -26,6 +27,7 @@ fun Routing.businessRoute() {
     getBusinessDetails()
     getBusinessPermission()
     getAppointmentBookingContext()
+    getStaffBookingContext()
     getAppointmentRescheduleContext()
     getServicesByIds()
     getClientBusinessIds()

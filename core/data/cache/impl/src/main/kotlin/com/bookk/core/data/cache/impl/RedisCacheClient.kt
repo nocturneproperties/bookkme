@@ -2,6 +2,7 @@ package com.bookk.core.data.cache.impl
 
 import com.bookk.core.data.cache.CacheClient
 import com.bookk.core.data.cache.impl.codec.ProtobufRedisCodec
+import com.bookk.core.domain.entity.runCleaningUpOnFailure
 import io.lettuce.core.RedisClient
 import io.lettuce.core.RedisURI
 import io.lettuce.core.ScriptOutputType
@@ -10,9 +11,7 @@ import io.lettuce.core.api.StatefulRedisConnection
 import io.lettuce.core.api.async.RedisAsyncCommands
 import io.lettuce.core.api.coroutines
 import io.lettuce.core.support.ConnectionPoolSupport
-import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.future.await
-import kotlinx.coroutines.withContext
 import kotlinx.serialization.protobuf.ProtoBuf
 import kotlinx.serialization.serializer
 import java.nio.ByteBuffer
@@ -77,11 +76,8 @@ class RedisCacheClient(
         withPooledConnection {
             val commands = async()
             commands.multi().await()
-            try {
+            runCleaningUpOnFailure(cleanUp = { commands.discard().await() }) {
                 action(commands.asTransactionCache())
-            } catch (failure: Throwable) {
-                withContext(NonCancellable) { commands.discard().await() }
-                throw failure
             }
             commands.exec().await().filterIsInstance<Throwable>().firstOrNull()?.let { throw it }
         }

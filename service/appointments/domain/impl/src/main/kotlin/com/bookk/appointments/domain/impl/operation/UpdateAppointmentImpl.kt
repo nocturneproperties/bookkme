@@ -13,6 +13,7 @@ import com.bookk.business.domain.api.employee.entity.Employee
 import com.bookk.business.domain.api.service.entity.Service
 import com.bookk.core.domain.datasource.transaction.TransactionManager
 import com.bookk.core.domain.entity.Error
+import com.bookk.core.domain.entity.runSuspendCatching
 import com.bookk.server.business.client.api.BusinessClient
 import library.permissions.PermissionAction
 import library.permissions.assertOrSelf
@@ -26,23 +27,32 @@ internal class UpdateAppointmentImpl(
     private val businessClient: BusinessClient,
     private val transactionManager: TransactionManager
 ) : UpdateAppointment {
-    override suspend fun invoke(userId: Uuid, update: AppointmentUpdate): Result<Appointment> {
-        if (!update.hasValidServiceSelection()) return Result.failure(UpdateAppointment.Error.InvalidServiceSelection())
-        return transactionManager.transaction {
-            val existing = appointmentDataSource.getForUpdate(update.id)
-            appointmentPermissionDataSource.getPermission(userId, existing.businessId)
-                .assertOrSelf(PermissionAction.UPDATE, actorId = userId, assigneeId = existing.employee.userId)
-            existing.requireScheduled()
-            if (update.date < Clock.System.now()) throw UpdateAppointment.Error.DateInThePastNotAllowed()
+    override suspend fun invoke(userId: Uuid, update: AppointmentUpdate): Result<Appointment> = runSuspendCatching {
+        if (!update.hasValidServiceSelection()) throw UpdateAppointment.Error.InvalidServiceSelection()
+        val existing = transactionManager.transaction {
+            appointmentDataSource.get(update.id).also { requireReschedulable(userId, it, update) }
+        }.getOrThrow()
 
-            val rescheduled = reschedule(existing, update)
+        val rescheduled = reschedule(existing, update)
 
+        val stored = transactionManager.transaction {
             val settings = settingsDataSource.getForUpdate(existing.businessId) ?: throw Error.NotFound()
+            val locked = appointmentDataSource.getForUpdate(update.id)
+            if (locked != existing) return@transaction null
+            requireReschedulable(userId, locked, update)
             if (!settings.isInWorkday(rescheduled.date)) throw UpdateAppointment.Error.RequestForThisDateNotAllowed()
             if (!settings.isInWorktime(rescheduled.date, rescheduled.dateEnd)) throw UpdateAppointment.Error.RequestForThisTimeNotAllowed()
             if (appointmentDataSource.hasOverlapsWith(rescheduled)) throw UpdateAppointment.Error.AppointmentForThisTimeExists()
             appointmentDataSource.update(rescheduled)
-        }
+        }.getOrThrow()
+        stored ?: throw Error.TransactionConflict("Appointment ${update.id} changed while it was being rescheduled", ConcurrentModificationException())
+    }
+
+    private suspend fun requireReschedulable(userId: Uuid, appointment: Appointment, update: AppointmentUpdate) {
+        appointmentPermissionDataSource.getPermission(userId, appointment.businessId)
+            .assertOrSelf(PermissionAction.UPDATE, actorId = userId, assigneeId = appointment.employee.userId)
+        appointment.requireScheduled()
+        if (update.date < Clock.System.now()) throw UpdateAppointment.Error.DateInThePastNotAllowed()
     }
 
     private fun AppointmentUpdate.hasValidServiceSelection(): Boolean {

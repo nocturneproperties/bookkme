@@ -27,20 +27,38 @@ The status only changes through [Cancel appointment](cancel-appointment.md),
 no-show](mark-appointment-no-show.md), or the `MarkAppointmentsCompleted`
 job. The response is the stored appointment, not an echo of the body.
 
-The stored appointment is read with `AppointmentDataSource.getForUpdate`
-(`SELECT … FOR UPDATE`) as the first read and its status checked with
-`Appointment.requireScheduled()`. The row lock is held until commit, so a
-concurrent cancel, completion, no-show or job run waits for this
-transaction. Lock order is appointment row → (business-service call) →
-settings row: the settings lock serializes every booking write of the
-business, so it is only taken after the HTTP call, right before the
-workday/worktime/overlap checks it guards. That lock is the double-booking
-guard — the `(user_id, business_id, date_start)` index is deliberately
-non-unique so a cancelled appointment doesn't block its slot. Nothing is
-written until every validation has passed. The appointment is fetched
-before the permission check so a `view`-only employee can be let through
-when it's their own — see [Managing your own resource on a `view`
-grant](../../object-permissions.md#managing-your-own-resource-on-a-view-grant).
+It runs in two transactions, so that no lock is held during the call to
+business and the booking transaction still takes its locks before its first
+plain read:
+
+1. **Check.** A short transaction reads the appointment
+   (`AppointmentDataSource.get`), checks the caller's permission, that it is
+   still `SCHEDULED` (`Appointment.requireScheduled()`) and that the new date
+   isn't in the past. The appointment is fetched before the permission check
+   so a `view`-only employee can be let through when it's their own — see
+   [Managing your own resource on a `view`
+   grant](../../object-permissions.md#managing-your-own-resource-on-a-view-grant).
+   The change is then resolved from business, outside any transaction.
+2. **Book.** The settings row is locked first
+   (`AppointmentSettingsDataSource.getForUpdate`), then the appointment row
+   (`getForUpdate`). If the locked appointment differs from the one checked
+   in step 1 (a cancel, completion, no-show, job run or another reschedule
+   committed in between), nothing is written and the route answers 409
+   `TRANSACTION_CONFLICT`, so the app retries with fresh data. Otherwise the
+   permission, status and date are checked again, now that the snapshot is
+   taken after both locks, followed by workday, worktime and overlaps, and
+   the appointment is written.
+
+The settings lock serializes every booking write of the business and is the
+double-booking guard — the `(user_id, business_id, date_start)` index is
+deliberately non-unique so a cancelled appointment doesn't block its slot.
+Before this order, the permission was read before the settings lock, so a
+reschedule that waited behind another booking checked overlaps against a
+snapshot from before that booking committed and could take the same slot.
+Lock order settings → appointment can't deadlock with the other writers: a
+cancel, completion or no-show locks only the appointment, and approving a
+request locks the request, then the settings. Nothing is written until every
+validation has passed.
 
 ```mermaid
 flowchart TD
@@ -50,29 +68,37 @@ flowchart TD
     Auth -- No --> R401([401 Unauthorized])
     Auth -- Yes --> Selection{services non-empty, distinct and every count > 0?}
     Selection -- No --> R422v([422 SERVICE_SELECTION_INVALID 300024])
-    Selection -- Yes --> Tx[[Begin transaction]]
-    Tx --> Get[AppointmentDataSource.getForUpdate id - row locked until commit]
+    Selection -- Yes --> Tx1[[Transaction 1 - check]]
+    Tx1 --> Get[AppointmentDataSource.get id]
     Get -- missing --> R404a([404 Error.NotFound])
-    Get -- found --> Suspended{AppointmentPermissionDataSource.getPermission existing.businessId - grant row marked suspended?}
+    Get -- found --> Check
+    subgraph Check [requireReschedulable - run in both transactions]
+        Suspended{AppointmentPermissionDataSource.getPermission businessId - grant row marked suspended?}
+        Suspended -- No --> Perm{caller update permission, or view permission and stored employee.userId == userId?}
+        Perm -- Yes --> Stored{Appointment.requireScheduled - stored status}
+        Stored -- SCHEDULED --> Past{body.date before now?}
+    end
     Suspended -- Yes --> R403s([403 BUSINESS_EMPLOYEE_ACCESS_SUSPENDED 200034])
-    Suspended -- No --> Perm{caller update permission, or view permission and stored employee.userId == userId?}
     Perm -- No --> R404b([404 Error.OperationNotAllowed])
-    Perm -- Yes --> Stored{Appointment.requireScheduled - stored status}
     Stored -- CANCELLED --> R422c([422 ALREADY_CANCELLED 300005])
     Stored -- COMPLETED --> R422d([422 ALREADY_COMPLETED 300006])
     Stored -- NO_SHOW --> R422e([422 MARKED_NO_SHOW 300019])
-    Stored -- SCHEDULED --> Past{body.date before now?}
     Past -- Yes --> R422p([422 DATE_IN_PAST 300012])
-    Past -- No --> Changes{employeeId changed or a service id not on the appointment?}
+    Past -- No, in transaction 1 --> Changes{employeeId changed or a service id not on the appointment?}
     Changes -- No --> Rebuild
-    Changes -- Yes --> Resolve[BusinessClient.getAppointmentRescheduleContext existing.businessId changedEmployeeId addedServiceIds]
+    Changes -- Yes --> Resolve[BusinessClient.getAppointmentRescheduleContext businessId changedEmployeeId addedServiceIds - no transaction, no lock]
     Resolve -- employee missing --> R404e([404 BUSINESS_EMPLOYEE_NOT_EXISTS 200024])
     Resolve -- employee suspended --> R422es([422 BUSINESS_EMPLOYEE_SUSPENDED 200033])
     Resolve -- service missing or foreign --> R422sv([422 BUSINESS_QUOTE_SERVICE_NOT_FOUND 200013])
-    Resolve -- resolved --> Rebuild[rescheduled = stored copy with date, note, employee snapshot, services expanded per count - stored snapshots reused]
-    Rebuild --> Settings[AppointmentSettingsDataSource.getForUpdate existing.businessId]
+    Resolve -- resolved --> Rebuild[rescheduled = checked copy with date, note, employee snapshot, services expanded per count - stored snapshots reused]
+    Rebuild --> Tx2[[Transaction 2 - book]]
+    Tx2 --> Settings[AppointmentSettingsDataSource.getForUpdate businessId - first lock]
     Settings -- missing --> R404s([404 Error.NotFound])
-    Settings -- found --> Workday{settings.isInWorkday date?}
+    Settings -- found --> Lock[AppointmentDataSource.getForUpdate id - second lock]
+    Lock --> Same{locked appointment == the one checked in transaction 1?}
+    Same -- No --> R409([409 TRANSACTION_CONFLICT 900001 - nothing written])
+    Same -- Yes, check again --> Check
+    Past -- No, in transaction 2 --> Workday{settings.isInWorkday date?}
     Workday -- No --> R422w([422 DATE_NOT_ALLOWED 300003])
     Workday -- Yes --> Worktime{settings.isInWorktime date, dateEnd?}
     Worktime -- No --> R422t([422 TIME_NOT_ALLOWED 300002])

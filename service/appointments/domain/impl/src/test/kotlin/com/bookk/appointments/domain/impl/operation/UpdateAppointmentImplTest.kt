@@ -25,6 +25,7 @@ import com.bookk.core.test.whenn
 import com.bookk.server.business.client.api.BusinessClient
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.coVerifyOrder
 import io.mockk.mockk
 import library.permissions.EmployeeAccessSuspended
 import library.permissions.ResourcePermission
@@ -59,6 +60,7 @@ internal class UpdateAppointmentImplTest {
             permission: ResourcePermission = ResourcePermission(view = false, update = true, delete = false)
         ) {
             transactionManager.mockTransaction()
+            coEvery { appointmentDataSource.get(stored.id) } returns stored
             coEvery { appointmentDataSource.getForUpdate(stored.id) } returns stored
             coEvery { settingsDataSource.getForUpdate(stored.businessId) } returns settings
             coEvery { settings.isInWorkday(any()) } returns true
@@ -220,6 +222,7 @@ internal class UpdateAppointmentImplTest {
 
         then()
         coVerify(exactly = 0) { fixture.settingsDataSource.getForUpdate(any()) }
+        coVerify(exactly = 0) { fixture.appointmentDataSource.getForUpdate(any()) }
     }
 
     @Test
@@ -270,7 +273,7 @@ internal class UpdateAppointmentImplTest {
         val update = AppointmentUpdate.stub(date = futureDate)
         with(fixture) {
             transactionManager.mockTransaction()
-            coEvery { appointmentDataSource.getForUpdate(update.id) } throws Error.NotFound()
+            coEvery { appointmentDataSource.get(update.id) } throws Error.NotFound()
         }
 
         whenn()
@@ -299,7 +302,7 @@ internal class UpdateAppointmentImplTest {
     }
 
     @Test
-    fun `should read the stored appointment with a row lock`() = runUnitTest {
+    fun `should lock the settings and then the appointment before reading the permission in the booking transaction`() = runUnitTest {
         given()
         val fixture = SutFixture()
         val userId = Uuid.random()
@@ -310,8 +313,56 @@ internal class UpdateAppointmentImplTest {
         fixture.sut(userId, keepingEverything(stored))
 
         then()
-        coVerify(exactly = 1) { fixture.appointmentDataSource.getForUpdate(stored.id) }
-        coVerify(exactly = 0) { fixture.appointmentDataSource.get(any()) }
+        coVerifyOrder {
+            fixture.appointmentDataSource.get(stored.id)
+            fixture.appointmentPermissionDataSource.getPermission(userId, stored.businessId)
+            fixture.settingsDataSource.getForUpdate(stored.businessId)
+            fixture.appointmentDataSource.getForUpdate(stored.id)
+            fixture.appointmentPermissionDataSource.getPermission(userId, stored.businessId)
+            fixture.appointmentDataSource.hasOverlapsWith(any<Appointment>())
+            fixture.appointmentDataSource.update(any<Appointment>())
+        }
+    }
+
+    @Test
+    fun `should return a conflict when the appointment changed while the change was resolved`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val stored = Appointment.stub(date = futureDate)
+        with(fixture) {
+            givenValidUpdate(userId, stored)
+            coEvery { appointmentDataSource.getForUpdate(stored.id) } returns stored.copy(note = "Changed meanwhile")
+        }
+
+        whenn()
+        val result = fixture.sut(userId, keepingEverything(stored))
+
+        then()
+        assertTrue(result.exceptionOrNull() is Error.TransactionConflict)
+        coVerify(exactly = 0) { fixture.appointmentDataSource.update(any()) }
+    }
+
+    @Test
+    fun `should check the permission again after taking the locks`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val stored = Appointment.stub(date = futureDate)
+        with(fixture) {
+            givenValidUpdate(userId, stored)
+            coEvery { appointmentPermissionDataSource.getPermission(userId, stored.businessId) } returnsMany listOf(
+                ResourcePermission(view = false, update = true, delete = false),
+                ResourcePermission.NONE
+            )
+        }
+
+        whenn()
+        val result = fixture.sut(userId, keepingEverything(stored))
+
+        then()
+        assertTrue(result.exceptionOrNull() is Error.OperationNotAllowed)
+        coVerify(exactly = 0) { fixture.appointmentDataSource.update(any()) }
     }
 
     @Test

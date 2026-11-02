@@ -12,7 +12,7 @@ flowchart TD
     Start([POST /api/auth/refresh]) --> HeaderCheck{Authorization Bearer header present?}
     HeaderCheck -- No --> R401a([401 Unauthorized])
     HeaderCheck -- Yes --> Gen[GenerateAuthToken.invoke Source.RefreshToken token]
-    Gen -- token invalid/expired/mismatched hash --> R422([422 INVALID_CREDENTIALS 400001])
+    Gen -- token invalid/expired/mismatched hash --> R422([422 INVALID_CREDENTIALS 8])
     Gen -- valid --> Rotate[Rotate device refresh_token_hash + previous_refresh_token_hash]
     Rotate --> R200([200 AuthTokens - new access/refresh pair])
 ```

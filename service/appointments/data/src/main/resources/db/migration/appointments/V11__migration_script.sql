@@ -1,1 +1,0 @@
-ALTER TABLE exhausted_event ADD COLUMN replay_requested BOOLEAN NOT NULL DEFAULT FALSE;

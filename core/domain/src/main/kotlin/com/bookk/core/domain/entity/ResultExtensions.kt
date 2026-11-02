@@ -1,7 +1,9 @@
 package com.bookk.core.domain.entity
 
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.withContext
 import kotlin.coroutines.cancellation.CancellationException
 
 inline fun <R, reified T> Result<R>.handle(
@@ -44,3 +46,14 @@ inline fun <R, T : R> Result<T>.recoverSuspendCatching(transform: (Throwable) ->
         null -> this
         else -> runSuspendCatching { transform(failure) }
     }
+
+suspend inline fun <R> runCleaningUpOnFailure(crossinline cleanUp: suspend () -> Unit, block: () -> R): R = try {
+    block()
+} catch (failure: Throwable) {
+    try {
+        withContext(NonCancellable) { cleanUp() }
+    } catch (cleanUpFailure: Throwable) {
+        failure.addSuppressed(cleanUpFailure)
+    }
+    throw failure
+}

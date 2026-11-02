@@ -33,7 +33,7 @@ internal fun Route.signIn() {
      * Tag: auth
      * Body: application/x-protobuf [com.bookk.auth.domain.api.authentication.entity.VerifySignInRequest]
      * Response: 200 application/x-protobuf [com.bookk.auth.domain.api.token.entity.AuthTokens] Authentication tokens
-     * Response: 422 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Sign in errors<br>CHALLENGE_WINDOW_EXPIRED (300001) Challenge window expired<br>VERIFICATION_FAILED (300002) Passkey verification failed<br>PASSKEY_OWNER_NOT_FOUND (300003) Passkey owner not found
+     * Response: 422 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Sign in errors<br>CHALLENGE_WINDOW_EXPIRED (6) Challenge window expired<br>VERIFICATION_FAILED (4) Passkey verification failed<br>PASSKEY_OWNER_NOT_FOUND (7) Passkey owner not found
      * See: docs/operations/authorization/sign-in.md
      */
     post<Api.Auth.SignIn> {

@@ -2,6 +2,7 @@ package com.bookk.auth.domain.impl.operation
 
 import com.bookk.auth.domain.api.authentication.entity.FinishAssertionRequest
 import com.bookk.auth.domain.api.authentication.operation.FinishAssertion
+import com.bookk.auth.domain.api.authentication.operation.finishOwnedBy
 import com.bookk.auth.domain.api.delete_account.operation.DeleteAccount
 import com.bookk.auth.domain.api.delete_account.operation.DeleteAccount.Error.InvalidCredentials
 import com.bookk.auth.domain.datasource.AccountDataSource
@@ -24,7 +25,7 @@ internal class DeleteAccountImpl(
         userId: Uuid,
         request: FinishAssertionRequest
     ): Result<Unit> = transactionManager.transaction {
-        finishAssertion(request).getOrThrow()
+        finishAssertion.finishOwnedBy(userId, request).getOrThrow()
         val authRecord = accountDataSource.getAuthRecordByUserId(userId) ?: throw InvalidCredentials()
         val devices = deviceDataSource.getDevices(authRecord.id)
         eventProducer.send(AuthEvent.UserDeleted(authRecord.userId))

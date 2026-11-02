@@ -61,6 +61,7 @@ Reactions to cross-service events:
 | `POST /api/auth/refresh` | [Refresh access token](authorization/refresh-token.md) |
 | `DELETE /api/auth/session` | [Sign out](authorization/sign-out.md) |
 | `DELETE /api/auth/account` | [Delete account](authorization/delete-account.md) |
+| `POST /api/auth/passkey/step_up` | [Confirm a sensitive action with a passkey](authorization/step-up.md) |
 | `POST /api/auth/passkey/add/finish` | [Add passkey to account](authorization/add-passkey.md) |
 | `DELETE /api/auth/passkey/{id}` | [Delete passkey](authorization/delete-passkey.md) |
 
@@ -87,6 +88,7 @@ Reactions to cross-service events:
 | `POST /api/business/{businessId}/service_group` | [Create service group](business/create-service-group.md) |
 | `DELETE /api/business/{businessId}/service_group/{id}` | [Delete service group](business/delete-service-group.md) |
 | `POST /api/internal/business/{id}/appointment-booking-context` | [Get appointment booking context (internal)](business/get-appointment-booking-context.md) |
+| `POST /api/internal/business/{id}/staff-booking-context` | [Get staff booking context (internal)](business/get-staff-booking-context.md) |
 
 Reactions to cross-service events:
 

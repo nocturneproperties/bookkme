@@ -2,6 +2,7 @@ package com.bookk.server.business.client.di
 
 import com.bookk.business.domain.api.appointment.operation.GetAppointmentBookingContext
 import com.bookk.business.domain.api.appointment.operation.GetAppointmentRescheduleContext
+import com.bookk.business.domain.api.appointment.operation.GetStaffBookingContext
 import com.bookk.business.domain.api.business.operation.GetBusinessDetails
 import com.bookk.business.domain.api.business.operation.GetBusinessPermission
 import com.bookk.business.domain.api.client.operation.GetClientBusinessIds
@@ -17,6 +18,7 @@ import com.bookk.server.business.client.impl.operation.GetBusinessDetailsClientI
 import com.bookk.server.business.client.impl.operation.GetBusinessPermissionClientImpl
 import com.bookk.server.business.client.impl.operation.GetClientBusinessIdsClientImpl
 import com.bookk.server.business.client.impl.operation.GetServicesByIdsClientImpl
+import com.bookk.server.business.client.impl.operation.GetStaffBookingContextClientImpl
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.HttpRequestRetry
@@ -82,9 +84,10 @@ fun businessClientModule(qualifier: Qualifier, clientTag: String) = module {
         scoped<GetBusinessDetails> { GetBusinessDetailsClientImpl(get(named(BUSINESS_HTTP_CLIENT))) }
         scoped<GetBusinessPermission> { GetBusinessPermissionClientImpl(get(named(BUSINESS_HTTP_CLIENT))) }
         scoped<GetAppointmentBookingContext> { GetAppointmentBookingContextClientImpl(get(named(BUSINESS_HTTP_CLIENT))) }
+        scoped<GetStaffBookingContext> { GetStaffBookingContextClientImpl(get(named(BUSINESS_HTTP_CLIENT))) }
         scoped<GetAppointmentRescheduleContext> { GetAppointmentRescheduleContextClientImpl(get(named(BUSINESS_HTTP_CLIENT))) }
         scoped<GetClientBusinessIds> { GetClientBusinessIdsClientImpl(get(named(BUSINESS_HTTP_CLIENT))) }
         scoped<GetServicesByIds> { GetServicesByIdsClientImpl(get(named(BUSINESS_HTTP_CLIENT))) }
-        scoped<BusinessClient> { BusinessClientImpl(get(), get(), get(), get(), get(), get()) }
+        scoped<BusinessClient> { BusinessClientImpl(get(), get(), get(), get(), get(), get(), get()) }
     }
 }

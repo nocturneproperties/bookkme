@@ -15,7 +15,6 @@ object AppointmentErrorCodes {
     const val DATE_IN_PAST = BASE + 12
     const val PRICE_CHANGED = BASE + 13
     const val SERVICES_VALIDATION_FAILED = BASE + 14
-    const val INSTANT_APPOINTMENT_TO_OTHER = BASE + 15
     const val QUOTE_TOKEN_ALREADY_USED = BASE + 16
     const val DURATION_CHANGED = BASE + 17
     const val APPOINTMENT_NOT_STARTED = BASE + 18

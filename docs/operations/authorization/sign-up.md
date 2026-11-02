@@ -16,15 +16,15 @@ transaction of their own, opened after the failed one has rolled back.
 ```mermaid
 flowchart TD
     Start([POST /api/auth/sign_up]) --> Verify[FinishPasskeyRegistration.verifyRequest request]
-    Verify -- expired --> R422a([422 CHALLENGE_WINDOW_EXPIRED 300001])
-    Verify -- signature invalid --> R422b([422 VERIFICATION_FAILED 300002])
+    Verify -- expired --> R422a([422 CHALLENGE_WINDOW_EXPIRED 6])
+    Verify -- signature invalid --> R422b([422 VERIFICATION_FAILED 4])
     Verify -- ok --> CreateUser[UserClient.createUser name lastName email]
-    CreateUser -- already exists --> R422c([422 USER_ALREADY_EXIST 200003])
+    CreateUser -- already exists --> R422c([422 USER_ALREADY_EXIST 3])
     CreateUser -- ok userId --> Tx[[Begin transaction]]
     Tx --> CreateAuth[AccountDataSource.createAuthorization Authentication]
     CreateAuth --> AttachOwner[FinishPasskeyRegistration.attachOwner ownerId passkey]
     AttachOwner --> InsertDevice[DeviceDataSource.insertDevice authId uuid name language]
-    InsertDevice -- null - already exists --> Fail1([throw ACCOUNT_CREATION_FAILED 200004])
+    InsertDevice -- null - already exists --> Fail1([throw ACCOUNT_CREATION_FAILED 5])
     InsertDevice -- inserted --> DeviceEvent[eventProducer.send AuthEvent.DeviceCreated]
     DeviceEvent --> GenToken[GenerateAuthToken InitialAuthentication ownerId deviceUuid]
     GenToken --> TxEnd[[Commit transaction]]
@@ -33,7 +33,7 @@ flowchart TD
     Rollback --> CompTx[[Begin compensation transaction]]
     CompTx --> Compensate[eventProducer.send AuthEvent.UserDeleted + AuthEvent.DeviceDeleted]
     Compensate --> CompEnd[[Commit compensation transaction]]
-    CompEnd --> R422d([422 ACCOUNT_CREATION_FAILED 200004])
+    CompEnd --> R422d([422 ACCOUNT_CREATION_FAILED 5])
 ```
 
 **Consumed by:** `AuthEvent.DeviceCreated` → [notifications: mirror the new

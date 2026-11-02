@@ -9,8 +9,7 @@ import kotlin.uuid.Uuid
 
 interface CreateAppointment {
     suspend operator fun invoke(userId: Uuid, appointmentRequestId: Uuid): Result<Appointment>
-    suspend operator fun invoke(userId: Uuid, request: AppointmentRequest): Result<Appointment>
-    suspend operator fun invoke(userId: Uuid, appointment: Appointment, isInstant: Boolean): Result<Appointment>
+    suspend fun createBypassingPermissions(request: AppointmentRequest): Result<Appointment>
 
     sealed interface Error {
         class AppointmentForThisTimeExists : BusinessError(
@@ -35,12 +34,6 @@ interface CreateAppointment {
             statusCode = HttpStatusCode.UnprocessableEntity.value,
             code = AppointmentErrorCodes.DATE_IN_PAST,
             message = "Appointment date is in the past"
-        ), Error
-
-        class InstantAppointmentOnlySelfAllowed : BusinessError(
-            statusCode = HttpStatusCode.UnprocessableEntity.value,
-            code = AppointmentErrorCodes.INSTANT_APPOINTMENT_TO_OTHER,
-            message = "Instant appointments can only be booked to your schedule"
         ), Error
     }
 }

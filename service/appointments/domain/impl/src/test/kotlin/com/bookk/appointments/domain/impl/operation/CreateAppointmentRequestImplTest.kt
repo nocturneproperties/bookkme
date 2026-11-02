@@ -6,6 +6,7 @@ import com.auth0.jwt.interfaces.DecodedJWT
 import com.bookk.appointments.domain.api.entity.AppointmentRequest
 import com.bookk.appointments.domain.api.entity.AppointmentRequestDraft
 import com.bookk.appointments.domain.api.entity.AppointmentSettings
+import com.bookk.appointments.domain.api.entity.BookingQuoteError
 import com.bookk.appointments.domain.api.entity.BusinessSnapshot
 import com.bookk.appointments.domain.api.entity.RequestedService
 import com.bookk.appointments.domain.api.operation.CreateAppointment
@@ -262,7 +263,7 @@ internal class CreateAppointmentRequestImplTest {
 
         then()
         assertTrue(result.isFailure)
-        assertTrue(result.exceptionOrNull() is CreateAppointmentRequest.Error.ServicesSignatureMiss)
+        assertTrue(result.exceptionOrNull() is BookingQuoteError.ServicesSignatureMiss)
         coVerify(exactly = 0) { fixture.businessClient.getAppointmentBookingContext(any(), any(), any(), any()) }
     }
 
@@ -286,7 +287,7 @@ internal class CreateAppointmentRequestImplTest {
 
         then()
         assertTrue(result.isFailure)
-        assertTrue(result.exceptionOrNull() is CreateAppointmentRequest.Error.ServicesSignatureMiss)
+        assertTrue(result.exceptionOrNull() is BookingQuoteError.ServicesSignatureMiss)
         coVerify(exactly = 0) { fixture.businessClient.getAppointmentBookingContext(any(), any(), any(), any()) }
     }
 
@@ -307,7 +308,7 @@ internal class CreateAppointmentRequestImplTest {
             } returns Result.success(context)
             coEvery { settingsDataSource.getForUpdate(businessId) } returns settings
             coEvery { settings.automaticApproval } returns true
-            coEvery { createAppointment.invoke(userId, any<AppointmentRequest>()) } returns Result.success(mockk())
+            coEvery { createAppointment.createBypassingPermissions(any()) } returns Result.success(mockk())
             mockValidToken(draft, totalOf(expand(context, draft)), durationOf(expand(context, draft)))
             transactionManager.mockTransaction()
         }
@@ -318,7 +319,7 @@ internal class CreateAppointmentRequestImplTest {
         then()
         assertTrue(result.isSuccess)
         coVerify(exactly = 0) { fixture.requestDataSource.create(any()) }
-        coVerify(exactly = 1) { fixture.createAppointment.invoke(userId, any<AppointmentRequest>()) }
+        coVerify(exactly = 1) { fixture.createAppointment.createBypassingPermissions(any()) }
     }
 
     @Test
@@ -395,7 +396,7 @@ internal class CreateAppointmentRequestImplTest {
             } returns Result.success(context)
             coEvery { settingsDataSource.getForUpdate(businessId) } returns settings
             coEvery { settings.automaticApproval } returns true
-            coEvery { createAppointment.invoke(userId, any<AppointmentRequest>()) } returns Result.failure(RuntimeException())
+            coEvery { createAppointment.createBypassingPermissions(any()) } returns Result.failure(RuntimeException())
             mockValidToken(draft, totalOf(expand(context, draft)), durationOf(expand(context, draft)))
             transactionManager.mockTransaction()
         }
@@ -561,7 +562,7 @@ internal class CreateAppointmentRequestImplTest {
 
         then()
         assertTrue(result.isFailure)
-        assertTrue(result.exceptionOrNull() is CreateAppointmentRequest.Error.PriceChanged)
+        assertTrue(result.exceptionOrNull() is BookingQuoteError.PriceChanged)
     }
 
     @Test
@@ -586,7 +587,7 @@ internal class CreateAppointmentRequestImplTest {
 
         then()
         assertTrue(result.isFailure)
-        assertTrue(result.exceptionOrNull() is CreateAppointmentRequest.Error.DurationChanged)
+        assertTrue(result.exceptionOrNull() is BookingQuoteError.DurationChanged)
     }
 
     @Test
@@ -627,7 +628,7 @@ internal class CreateAppointmentRequestImplTest {
 
         then()
         assertTrue(result.isFailure)
-        assertTrue(result.exceptionOrNull() is CreateAppointmentRequest.Error.ServicesSignatureMiss)
+        assertTrue(result.exceptionOrNull() is BookingQuoteError.ServicesSignatureMiss)
         coVerify(exactly = 0) { fixture.businessClient.getAppointmentBookingContext(any(), any(), any(), any()) }
         coVerify(exactly = 1) { fixture.requestDataSource.releaseOfferToken("token") }
     }
@@ -670,7 +671,7 @@ internal class CreateAppointmentRequestImplTest {
 
         then()
         assertTrue(result.isFailure)
-        assertTrue(result.exceptionOrNull() is CreateAppointmentRequest.Error.ServicesSignatureMiss)
+        assertTrue(result.exceptionOrNull() is BookingQuoteError.ServicesSignatureMiss)
         coVerify(exactly = 0) { fixture.businessClient.getAppointmentBookingContext(any(), any(), any(), any()) }
     }
 
@@ -690,7 +691,7 @@ internal class CreateAppointmentRequestImplTest {
 
         then()
         assertTrue(result.isFailure)
-        assertTrue(result.exceptionOrNull() is CreateAppointmentRequest.Error.TokenAlreadyUsed)
+        assertTrue(result.exceptionOrNull() is BookingQuoteError.TokenAlreadyUsed)
         coVerify(exactly = 0) { fixture.requestDataSource.releaseOfferToken(any()) }
         coVerify(exactly = 0) { fixture.transactionManager.transaction<Any>(any()) }
     }

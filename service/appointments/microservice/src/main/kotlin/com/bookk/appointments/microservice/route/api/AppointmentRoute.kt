@@ -3,10 +3,12 @@ package com.bookk.appointments.microservice.route.api
 import com.bookk.appointments.domain.api.entity.Appointment
 import com.bookk.appointments.domain.api.entity.AppointmentCancellation
 import com.bookk.appointments.domain.api.entity.AppointmentUpdate
+import com.bookk.appointments.domain.api.entity.InstantAppointmentDraft
 import com.bookk.appointments.domain.api.entity.PriceAdjustmentDraft
 import com.bookk.appointments.domain.api.operation.CancelAppointment
 import com.bookk.appointments.domain.api.operation.CompleteAppointment
 import com.bookk.appointments.domain.api.operation.CreateAppointment
+import com.bookk.appointments.domain.api.operation.CreateInstantAppointment
 import com.bookk.appointments.domain.api.operation.GetAppointmentHistory
 import com.bookk.appointments.domain.api.operation.GetAppointmentsForDate
 import com.bookk.appointments.domain.api.operation.MarkAppointmentNoShow
@@ -57,6 +59,7 @@ fun Routing.appointment() {
          * Response: 422 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Update appointment errors<br>APPOINTMENT_EXISTS (300004) Appointment for this time already exists<br>DATE_NOT_ALLOWED (300003) Request for this date not allowed<br>TIME_NOT_ALLOWED (300002) Request for this time not allowed<br>DATE_IN_PAST (300012) Appointment date is in the past<br>ALREADY_CANCELLED (300005) Appointment already cancelled<br>ALREADY_COMPLETED (300006) Appointment already completed<br>MARKED_NO_SHOW (300019) Appointment is marked as no-show<br>SERVICE_SELECTION_INVALID (300024) Services must be a non-empty list of distinct services with positive counts<br>BUSINESS_QUOTE_SERVICE_NOT_FOUND (200013) One or more services not found<br>BUSINESS_EMPLOYEE_SUSPENDED (200033) Employee is suspended and cannot be booked
          * Response: 404 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Assigned employee not found<br>BUSINESS_EMPLOYEE_NOT_EXISTS (200024) Employee with this id is missing
          * Response: 403 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Caller is a suspended employee of this business<br>BUSINESS_EMPLOYEE_ACCESS_SUSPENDED (200034) Your access to this business is suspended
+         * Response: 409 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] The appointment changed while it was being rescheduled<br>TRANSACTION_CONFLICT (900001) The request conflicted with concurrent changes, retry it
          * See: docs/operations/appointments/update-appointment.md
          */
         put<Api.Appointment.Id> {
@@ -149,29 +152,24 @@ fun Routing.appointment() {
         }
 
         /**
-         * Summary: Create appointment
-         * Description: Create new appointment from request
+         * Summary: Create instant appointment
+         * Description: An employee books a client of the business straight into a schedule, without a request. A caller with the appointments update grant may book any employee of the business, a caller with only the view grant only themselves. The body names the business, the employee, an existing client of the business, the services with counts, the date, a note and the quote token for those services. The employee, client and services are resolved from the business, and the quote token is spent once
          * Tag: appointment
          * Security: jwt
-         * Body: application/x-protobuf [com.bookk.appointments.domain.api.entity.Appointment]
+         * Body: application/x-protobuf [com.bookk.appointments.domain.api.entity.InstantAppointmentDraft]
          * Response: 200 application/x-protobuf [com.bookk.appointments.domain.api.entity.Appointment] Created appointment entity
-         * Response: 422 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Create appointment errors<br>APPOINTMENT_EXISTS (300004) Appointment for this time already exists<br>DATE_NOT_ALLOWED (300003) Request for this date not allowed<br>TIME_NOT_ALLOWED (300002) Request for this time not allowed<br>DATE_IN_PAST (300012) Appointment date is in the past
-         * Response: 404 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Business settings not found, or the account booking was deleted
+         * Response: 400 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Create instant appointment errors<br>PRICE_CHANGED (300013) While booking, price for services has been changed, refresh<br>DURATION_CHANGED (300017) While booking, duration for services has been changed, refresh<br>SERVICES_VALIDATION_FAILED (300014) Quote token invalid or requested services does not match with the quote token
+         * Response: 404 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Create instant appointment errors<br>BUSINESS_EMPLOYEE_NOT_EXISTS (200024) Employee with this id is missing<br>BUSINESS_CLIENT_NOT_EXISTS (200006) Client not found<br>Also returned when the caller may not book into that employee's schedule, business settings are missing, or the client or their account was deleted
+         * Response: 422 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Create instant appointment errors<br>APPOINTMENT_EXISTS (300004) Appointment for this time already exists<br>DATE_NOT_ALLOWED (300003) Request for this date and time not allowed<br>TIME_NOT_ALLOWED (300002) Request for this time not allowed<br>DATE_IN_PAST (300012) Appointment date is in the past<br>QUOTE_TOKEN_ALREADY_USED (300016) Quote token invalid or requested services does not match with the quote token<br>BUSINESS_QUOTE_SERVICE_NOT_FOUND (200013) One or more services not found<br>BUSINESS_QUOTE_EMPTY_SERVICE_LIST (200014) Service list must not be empty<br>BUSINESS_EMPLOYEE_SUSPENDED (200033) Employee is suspended and cannot be booked
          * Response: 403 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Caller is a suspended employee of this business<br>BUSINESS_EMPLOYEE_ACCESS_SUSPENDED (200034) Your access to this business is suspended
          * See: docs/operations/appointments/create-appointment-instant.md
          */
         post<Api.Appointment.Instant> {
             val principal = requireNotNull(call.principal<AppPrincipal>())
-            val body = call.receive<Appointment>()
-            val createAppointment by application.injectScoped<CreateAppointment>(AppointmentsScope)
+            val body = call.receive<InstantAppointmentDraft>()
+            val createInstantAppointment by application.injectScoped<CreateInstantAppointment>(AppointmentsScope)
 
-            call.respondWith(
-                createAppointment(
-                    userId = principal.userId,
-                    appointment = body,
-                    isInstant = true
-                )
-            )
+            call.respondWith(createInstantAppointment(userId = principal.userId, draft = body))
         }
 
         /**

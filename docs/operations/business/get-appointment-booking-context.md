@@ -4,7 +4,8 @@
 
 Called by appointments when a user books, to resolve the employee, the
 services and the user's client record from the business service's own
-data. On the user's first booking with the business it attaches them as an
+data. An employee booking an existing client uses [Get staff booking
+context](get-staff-booking-context.md) instead. On the user's first booking with the business it attaches them as an
 integrated client. A detached client is only a placeholder for a person
 until they use the app, so before inserting a new row it looks for
 detached clients of the business holding the user's email or phone

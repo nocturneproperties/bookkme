@@ -16,6 +16,6 @@ flowchart TD
     Auth -- Yes --> Tx[[Begin transaction]]
     Tx --> Delete[PassKeyDataSource.deletePasskey id authId - guarded by count > 1]
     Delete --> RowCount{deletedRowCount == 0?}
-    RowCount -- Yes --> R422([422 LAST_PASSKEY 200006 - or not found -> 404])
+    RowCount -- Yes --> R422([422 LAST_PASSKEY 9 - or not found -> 404])
     RowCount -- No --> R204([204 Passkey deleted])
 ```

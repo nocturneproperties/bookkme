@@ -37,6 +37,8 @@ import org.junit.jupiter.api.Test
 import org.koin.dsl.module
 import kotlin.uuid.Uuid
 
+private const val STEP_UP_TOKEN = "step-up-token"
+
 internal class ClientCrudTest {
 
     private val businessId = Uuid.random()
@@ -156,7 +158,7 @@ internal class ClientCrudTest {
         val useCase: DeleteClient = mockk()
         val id = Uuid.random()
 
-        coEvery { useCase.invoke(userId, businessId, id) } returns Result.success(Unit)
+        coEvery { useCase.invoke(userId, businessId, id, STEP_UP_TOKEN) } returns Result.success(Unit)
 
         setupApplication(
             extension = {
@@ -174,7 +176,7 @@ internal class ClientCrudTest {
 
         whenn()
         val httpClient = createTestClient()
-        val response = httpClient.delete(BusinessRouting.Api.Clients.Id(BusinessRouting.Api.Clients(businessId = businessId), id))
+        val response = httpClient.delete(BusinessRouting.Api.Clients.Id(BusinessRouting.Api.Clients(businessId = businessId), id)) { setBody(DeleteClientRequest(STEP_UP_TOKEN)) }
 
         then()
         assertEquals(HttpStatusCode.NoContent, response.status)
@@ -522,7 +524,7 @@ internal class ClientCrudTest {
         given()
         val useCase: DeleteClient = mockk()
         val id = Uuid.random()
-        coEvery { useCase.invoke(userId, businessId, id) } returns Result.failure(DeleteClient.Error.NotFound())
+        coEvery { useCase.invoke(userId, businessId, id, STEP_UP_TOKEN) } returns Result.failure(DeleteClient.Error.NotFound())
 
         setupApplication(
             extension = {
@@ -538,7 +540,7 @@ internal class ClientCrudTest {
 
         whenn()
         val httpClient = createTestClient()
-        val response = httpClient.delete(BusinessRouting.Api.Clients.Id(BusinessRouting.Api.Clients(businessId = businessId), id))
+        val response = httpClient.delete(BusinessRouting.Api.Clients.Id(BusinessRouting.Api.Clients(businessId = businessId), id)) { setBody(DeleteClientRequest(STEP_UP_TOKEN)) }
 
         then()
         assertEquals(HttpStatusCode.NotFound, response.status)
@@ -607,7 +609,7 @@ internal class ClientCrudTest {
         given()
         val useCase: DeleteClient = mockk()
         val id = Uuid.random()
-        coEvery { useCase.invoke(userId, businessId, id) } returns Result.failure(Error.OperationNotAllowed())
+        coEvery { useCase.invoke(userId, businessId, id, STEP_UP_TOKEN) } returns Result.failure(Error.OperationNotAllowed())
 
         setupApplication(
             extension = {
@@ -625,7 +627,7 @@ internal class ClientCrudTest {
         val client = createTestClient()
         val response = client.delete(
             BusinessRouting.Api.Clients.Id(parent = BusinessRouting.Api.Clients(businessId = businessId), id = id)
-        )
+        ) { setBody(DeleteClientRequest(STEP_UP_TOKEN)) }
 
         then()
         assertEquals(HttpStatusCode.NotFound, response.status)
@@ -684,9 +686,65 @@ internal class ClientCrudTest {
 
         whenn()
         val httpClient = createTestClient()
-        val response = httpClient.delete(BusinessRouting.Api.Clients.Id(BusinessRouting.Api.Clients(businessId = businessId), Uuid.random()))
+        val response = httpClient.delete(BusinessRouting.Api.Clients.Id(BusinessRouting.Api.Clients(businessId = businessId), Uuid.random())) { setBody(DeleteClientRequest(STEP_UP_TOKEN)) }
 
         then()
         assertEquals(HttpStatusCode.Unauthorized, response.status)
+    }
+
+    @Test
+    fun `should return forbidden when the deletion is not confirmed with a passkey`() = routeTest {
+        given()
+        val useCase: DeleteClient = mockk()
+        val id = Uuid.random()
+        coEvery { useCase.invoke(userId, businessId, id, STEP_UP_TOKEN) } returns Result.failure(DeleteClient.Error.StepUpInvalid())
+
+        setupApplication(
+            extension = {
+                install(Authentication) {
+                    provider {
+                        authenticate { it.principal(AppPrincipal(Uuid.random(), userId, Uuid.random())) }
+                    }
+                }
+            },
+            diModule = module { single { useCase } },
+            routeUnderTest = { clientCrud() }
+        )
+
+        whenn()
+        val response = createTestClient().delete(BusinessRouting.Api.Clients.Id(BusinessRouting.Api.Clients(businessId = businessId), id)) {
+            setBody(DeleteClientRequest(STEP_UP_TOKEN))
+        }
+
+        then()
+        assertEquals(HttpStatusCode.Forbidden, response.status)
+        assertEquals(BusinessErrorCodes.BUSINESS_STEP_UP_INVALID, response.body<SimpleServerError>().errorCode)
+    }
+
+    @Test
+    fun `should ask an app that sends no step-up token to confirm with a passkey`() = routeTest {
+        given()
+        val useCase: DeleteClient = mockk()
+        val id = Uuid.random()
+        coEvery { useCase.invoke(userId, businessId, id, "") } returns Result.failure(DeleteClient.Error.StepUpInvalid())
+
+        setupApplication(
+            extension = {
+                install(Authentication) {
+                    provider {
+                        authenticate { it.principal(AppPrincipal(Uuid.random(), userId, Uuid.random())) }
+                    }
+                }
+            },
+            diModule = module { single { useCase } },
+            routeUnderTest = { clientCrud() }
+        )
+
+        whenn()
+        val response = createTestClient().delete(BusinessRouting.Api.Clients.Id(BusinessRouting.Api.Clients(businessId = businessId), id))
+
+        then()
+        assertEquals(HttpStatusCode.Forbidden, response.status)
+        assertEquals(BusinessErrorCodes.BUSINESS_STEP_UP_INVALID, response.body<SimpleServerError>().errorCode)
     }
 }

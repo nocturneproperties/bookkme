@@ -4,6 +4,7 @@ import com.bookk.business.domain.api.appointment.entity.AppointmentBookingContex
 import com.bookk.business.domain.api.appointment.entity.AppointmentRescheduleContext
 import com.bookk.business.domain.api.appointment.operation.GetAppointmentBookingContext
 import com.bookk.business.domain.api.appointment.operation.GetAppointmentRescheduleContext
+import com.bookk.business.domain.api.appointment.operation.GetStaffBookingContext
 import com.bookk.business.domain.api.business.entity.BusinessResource
 import com.bookk.business.domain.api.business.operation.GetBusinessDetails
 import com.bookk.business.domain.api.business.operation.GetBusinessPermission
@@ -21,7 +22,8 @@ internal class BusinessClientImpl(
     private val getAppointmentBookingContext: GetAppointmentBookingContext,
     private val getAppointmentRescheduleContext: GetAppointmentRescheduleContext,
     private val getClientBusinessIds: GetClientBusinessIds,
-    private val getServicesByIds: GetServicesByIds
+    private val getServicesByIds: GetServicesByIds,
+    private val getStaffBookingContext: GetStaffBookingContext
 ) : BusinessClient {
     override suspend fun getBusinessById(id: Uuid): Result<BusinessDTO> {
         return getBusinessDetails.invoke(id).map(BusinessDTO::from)
@@ -38,6 +40,15 @@ internal class BusinessClientImpl(
         serviceIds: List<Uuid>
     ): Result<AppointmentBookingContext> {
         return getAppointmentBookingContext.invoke(businessId, employeeId, userId, serviceIds)
+    }
+
+    override suspend fun getStaffBookingContext(
+        businessId: Uuid,
+        employeeId: Uuid,
+        clientId: Uuid,
+        serviceIds: List<Uuid>
+    ): Result<AppointmentBookingContext> {
+        return getStaffBookingContext.invoke(businessId, employeeId, clientId, serviceIds)
     }
 
     override suspend fun getAppointmentRescheduleContext(

@@ -3,14 +3,13 @@ package com.bookk.appointments.domain.impl.operation
 import com.bookk.appointments.domain.api.entity.Appointment
 import com.bookk.appointments.domain.api.entity.AppointmentRepresentation
 import com.bookk.appointments.domain.api.entity.AppointmentRequest
+import com.bookk.appointments.domain.api.entity.AppointmentSettings
 import com.bookk.appointments.domain.api.operation.CreateAppointment
 import com.bookk.appointments.domain.datasource.AppointmentDataSource
 import com.bookk.appointments.domain.datasource.AppointmentPermissionDataSource
 import com.bookk.appointments.domain.datasource.AppointmentRequestDataSource
 import com.bookk.appointments.domain.datasource.AppointmentSettingsDataSource
 import com.bookk.appointments.domain.datasource.AppointmentSubscriptionDataSource
-import com.bookk.appointments.domain.datasource.DeletedClientDataSource
-import com.bookk.appointments.domain.datasource.DeletedUserDataSource
 import com.bookk.core.data.eventstreaming.StandardEventProducer
 import com.bookk.core.data.eventstreaming.send
 import com.bookk.core.domain.datasource.transaction.TransactionManager
@@ -32,9 +31,7 @@ internal class CreateAppointmentImpl(
     private val appointmentPermissionDataSource: AppointmentPermissionDataSource,
     private val subscriptionDataSource: AppointmentSubscriptionDataSource,
     private val transactionManager: TransactionManager,
-    private val eventProducer: StandardEventProducer,
-    private val deletedUserDataSource: DeletedUserDataSource,
-    private val deletedClientDataSource: DeletedClientDataSource
+    private val eventProducer: StandardEventProducer
 ) : CreateAppointment {
 
     override suspend fun invoke(
@@ -42,43 +39,30 @@ internal class CreateAppointmentImpl(
         appointmentRequestId: Uuid
     ): Result<Appointment> = transactionManager.transaction {
         val request = requestDataSource.getForUpdate(appointmentRequestId) ?: throw Error.NotFound()
+        val settings = lockSettings(request.businessId)
         appointmentPermissionDataSource.getPermission(userId, request.businessId)
             .assertOrSelf(PermissionAction.UPDATE, actorId = userId, assigneeId = request.employee.userId)
         request.requirePending()
-        createAppointment(request)
+        createAppointment(request, settings)
     }
 
-    override suspend fun invoke(userId: Uuid, request: AppointmentRequest): Result<Appointment> {
-        return transactionManager.transaction {
-            createAppointment(request)
+    override suspend fun createBypassingPermissions(request: AppointmentRequest): Result<Appointment> =
+        transactionManager.transaction {
+            createAppointment(request, lockSettings(request.businessId))
         }
-    }
 
-    override suspend fun invoke(userId: Uuid, appointment: Appointment, isInstant: Boolean): Result<Appointment> {
-        if (isInstant && userId != appointment.initiatorUserId) return Result.failure(CreateAppointment.Error.InstantAppointmentOnlySelfAllowed())
-        val stored = if (isInstant) appointment.copy(client = appointment.client.copy(userId = userId)) else appointment
-        return transactionManager.transaction {
-            if (isInstant && deletedUserDataSource.isDeletedForShare(userId)) throw Error.OperationNotAllowed()
-            if (isInstant && deletedClientDataSource.isDeletedForShare(stored.businessId, stored.client.id)) throw Error.OperationNotAllowed()
-            createAppointment(stored)
-        }
-    }
+    private suspend fun lockSettings(businessId: Uuid): AppointmentSettings =
+        settingsDataSource.getForUpdate(businessId) ?: throw Error.NotFound()
 
-    private suspend fun createAppointment(appointment: Appointment): Appointment {
-        verifyAppointment(appointment)
-        return appointmentDataSource.create(appointment)
-    }
-
-    private suspend fun createAppointment(request: AppointmentRequest): Appointment {
-        verifyAppointment(request)
+    private suspend fun createAppointment(request: AppointmentRequest, settings: AppointmentSettings): Appointment {
+        verifyAppointment(request, settings)
         return appointmentDataSource.create(request).also {
             requestDataSource.approve(request)
             sendRequestApprovedNotification(request)
         }
     }
 
-    private suspend fun verifyAppointment(appointment: AppointmentRepresentation) {
-        val settings = settingsDataSource.getForUpdate(appointment.businessId) ?: throw Error.NotFound()
+    private suspend fun verifyAppointment(appointment: AppointmentRepresentation, settings: AppointmentSettings) {
         if (appointment.date < Clock.System.now()) throw CreateAppointment.Error.DateInThePastNotAllowed()
         if (!settings.isInWorkday(appointment.date)) throw CreateAppointment.Error.RequestForThisDateNotAllowed()
         if (!settings.isInWorktime(appointment.date, appointment.dateEnd)) throw CreateAppointment.Error.RequestForThisTimeNotAllowed()

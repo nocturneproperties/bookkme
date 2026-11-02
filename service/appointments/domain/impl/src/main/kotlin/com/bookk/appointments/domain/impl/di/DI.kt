@@ -5,6 +5,7 @@ import com.bookk.appointments.domain.api.operation.CancelAppointment
 import com.bookk.appointments.domain.api.operation.CompleteAppointment
 import com.bookk.appointments.domain.api.operation.CreateAppointment
 import com.bookk.appointments.domain.api.operation.CreateAppointmentRequest
+import com.bookk.appointments.domain.api.operation.CreateInstantAppointment
 import com.bookk.appointments.domain.api.operation.DeclineAppointmentRequest
 import com.bookk.appointments.domain.api.operation.DeleteClientAppointmentData
 import com.bookk.appointments.domain.api.operation.DeleteModule
@@ -27,6 +28,7 @@ import com.bookk.appointments.domain.impl.operation.CancelAppointmentImpl
 import com.bookk.appointments.domain.impl.operation.CompleteAppointmentImpl
 import com.bookk.appointments.domain.impl.operation.CreateAppointmentImpl
 import com.bookk.appointments.domain.impl.operation.CreateAppointmentRequestImpl
+import com.bookk.appointments.domain.impl.operation.CreateInstantAppointmentImpl
 import com.bookk.appointments.domain.impl.operation.DeclineAppointmentRequestImpl
 import com.bookk.appointments.domain.impl.operation.DeleteClientAppointmentDataImpl
 import com.bookk.appointments.domain.impl.operation.DeleteModuleImpl
@@ -65,6 +67,7 @@ fun appointmentsDomainModule() = module {
         scopedOf(::EditSettingsImpl) bind EditSettings::class
         scopedOf(::GetSettingsImpl) bind GetSettings::class
         scopedOf(::CreateAppointmentRequestImpl) bind CreateAppointmentRequest::class
+        scopedOf(::CreateInstantAppointmentImpl) bind CreateInstantAppointment::class
         scopedOf(::GetAppointmentRequestsImpl) bind GetAppointmentRequests::class
         scopedOf(::GetPendingAppointmentRequestsImpl) bind GetPendingAppointmentRequests::class
         scopedOf(::GetAppointmentsForDateImpl) bind GetAppointmentsForDate::class

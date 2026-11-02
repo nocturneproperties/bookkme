@@ -11,6 +11,7 @@ dependencies {
     implementation(libs.redis.pool)
     implementation(projects.core)
     implementation(projects.core.data.cache.api)
+    implementation(projects.core.domain)
 
     testFixturesImplementation(projects.core.data.cache.api)
     testFixturesImplementation(libs.ktor.protobuf)
