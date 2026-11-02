@@ -1,5 +1,6 @@
 package com.bookk.appointments.domain.impl.event
 
+import com.bookk.appointments.domain.api.operation.DeleteClientAppointmentData
 import com.bookk.appointments.domain.api.operation.DeleteModule
 import com.bookk.appointments.domain.api.operation.DeleteUserAppointmentData
 import com.bookk.appointments.domain.impl.operation.LinkClientUser
@@ -56,6 +57,7 @@ internal class AppointmentEventHandlerEventTest {
             KafkaTestBroker.createTopic(AuthEvent.UserDeleted.TOPIC, partitions = 3)
             KafkaTestBroker.createTopic(BusinessEvent.EmployeePermissionsChanged.TOPIC, partitions = 3)
             KafkaTestBroker.createTopic(BusinessEvent.ClientLinked.TOPIC, partitions = 3)
+            KafkaTestBroker.createTopic(BusinessEvent.ClientDeleted.TOPIC, partitions = 3)
         }
     }
 
@@ -65,6 +67,7 @@ internal class AppointmentEventHandlerEventTest {
         val deleteUserAppointmentData = mockk<DeleteUserAppointmentData>()
         val syncEmployeePermission = mockk<SyncEmployeePermission>()
         val linkClientUser = mockk<LinkClientUser>()
+        val deleteClientAppointmentData = mockk<DeleteClientAppointmentData>()
         val transactionManager = mockedTransactionManager()
         val consumer = KafkaEventConsumer(
             servers = KafkaTestBroker.servers,
@@ -81,7 +84,8 @@ internal class AppointmentEventHandlerEventTest {
             updateBusinessInformation,
             deleteUserAppointmentData,
             syncEmployeePermission,
-            linkClientUser
+            linkClientUser,
+            deleteClientAppointmentData
         )
         private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -269,5 +273,26 @@ internal class AppointmentEventHandlerEventTest {
 
         then()
         coVerify(exactly = 1) { fixture.linkClientUser(businessId, clientId, userId, mergedClientIds) }
+    }
+
+    @Test
+    fun `should erase the client from appointments when the business deletes it`() = runIntegrationTest {
+        given()
+        val fixture = SutFixture()
+        val businessId = Uuid.random()
+        val clientId = Uuid.random()
+        val arrived = CountDownLatch(1)
+        coEvery { fixture.deleteClientAppointmentData(businessId, clientId) } answers { arrived.countDown(); Result.success(Unit) }
+
+        whenn()
+        withContext(Dispatchers.IO) {
+            fixture.start()
+            producer().send(BusinessEvent.ClientDeleted(businessId = businessId, clientId = clientId))
+            arrived.await(20, TimeUnit.SECONDS)
+        }
+        fixture.stop()
+
+        then()
+        coVerify(exactly = 1) { fixture.deleteClientAppointmentData(businessId, clientId) }
     }
 }

@@ -155,4 +155,10 @@ internal class AppointmentRequestDataSourceImpl(
             it[clientUserId] = userId
         }
     }
+
+    override suspend fun deleteForClient(businessId: Uuid, clientId: Uuid) = dbQuery<Unit> {
+        AppointmentRequestTable.deleteWhere {
+            (AppointmentRequestTable.businessId eq businessId) and (AppointmentRequestTable.clientId eq clientId)
+        }
+    }
 }

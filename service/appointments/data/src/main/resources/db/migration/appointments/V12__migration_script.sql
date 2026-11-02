@@ -1,0 +1,1 @@
+CREATE TABLE IF NOT EXISTS deleted_client (client_id BINARY(16) NOT NULL PRIMARY KEY, business_id BINARY(16) NOT NULL, deleted_at TIMESTAMP(6) NOT NULL);

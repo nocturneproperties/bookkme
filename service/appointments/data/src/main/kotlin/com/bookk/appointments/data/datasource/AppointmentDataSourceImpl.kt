@@ -36,6 +36,8 @@ import kotlin.time.Clock
 import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
+private const val DELETED_CLIENT_NAME = "Deleted Client"
+
 internal class AppointmentDataSourceImpl : DataSource(), AppointmentDataSource {
 
     override suspend fun get(id: Uuid): Appointment = dbQuery {
@@ -256,6 +258,34 @@ internal class AppointmentDataSourceImpl : DataSource(), AppointmentDataSource {
     override suspend fun linkClientUser(businessId: Uuid, clientId: Uuid, userId: Uuid) = dbQuery<Unit> {
         AppointmentTable.update(where = { (AppointmentTable.businessId eq businessId) and (AppointmentTable.clientId eq clientId) }) {
             it[clientUserId] = userId
+        }
+    }
+
+    override suspend fun cancelUpcomingForClient(businessId: Uuid, clientId: Uuid, startingAfter: Instant, reason: String): List<Appointment> = dbQuery {
+        val upcoming = AppointmentEntity
+            .find {
+                (AppointmentTable.businessId eq businessId)
+                    .and(AppointmentTable.clientId eq clientId)
+                    .and(AppointmentTable.status eq AppointmentStatus.SCHEDULED)
+                    .and(AppointmentTable.dateStart greater startingAfter)
+            }
+            .forUpdate()
+            .toList()
+        val cancelledAt = Clock.System.now()
+        upcoming.forEach {
+            it.status = AppointmentStatus.CANCELLED
+            it.cancellationReason = reason
+            it.updatedAt = cancelledAt
+        }
+        upcoming.withDetails().map { it.domain() }
+    }
+
+    override suspend fun anonymizeClient(businessId: Uuid, clientId: Uuid) = dbQuery<Unit> {
+        AppointmentTable.update(where = { (AppointmentTable.businessId eq businessId) and (AppointmentTable.clientId eq clientId) }) {
+            it[clientName] = DELETED_CLIENT_NAME
+            it[clientPhone] = null
+            it[clientEmail] = null
+            it[clientUserId] = null
         }
     }
 }

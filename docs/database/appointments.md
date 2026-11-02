@@ -202,9 +202,17 @@ erDiagram
         uuid user_id PK "logical FK -> user.profile.id of a deleted account"
         timestamp deleted_at
     }
+
+    DELETED_CLIENT {
+        uuid client_id PK "logical FK -> business.client.id of a deleted client"
+        uuid business_id "logical FK -> business.business.id"
+        timestamp deleted_at
+    }
 ```
 
 `DELETED_USER` records every account whose deletion appointments has handled, the user id and the time only. `AuthEvent.UserDeleted` erases by `client_user_id`, but `BusinessEvent.ClientLinked`, which fills `client_user_id` in after the fact, can arrive after the deletion on its own topic. It reads this table first with a shared lock and erases the rows it links when the account is already gone (see [React to a client getting an account](../operations/appointments/on-client-linked.md)). Both booking paths read it the same way and reject a deleted account. A row is inserted once (`INSERT IGNORE`) and keeps the first deletion time.
+
+`DELETED_CLIENT` does the same for clients a business deleted (`BusinessEvent.ClientDeleted`, which erases by `business_id` and `client_id`): `BusinessEvent.ClientLinked` reads it first and erases the rows it links when the client is already gone, and both booking paths reject a deleted client (see [React to client deletion](../operations/appointments/on-client-deleted.md)). Inserted once (`INSERT IGNORE`), keyed by the client id alone, since client ids are random across businesses.
 
 `EXHAUSTED_EVENT` is not part of the appointments domain model — it's the shared DLT landing table (`core/data/eventstreaming/data`, one instance per service schema) that `KafkaEventConsumer`/`EmbeddedEventConsumer` write to when an event exhausts its retry budget, so a failed event survives a process restart or crash instead of being lost. Every start, and every row an operator sets `replay_requested` on, is replayed through the consumer group's DLT topic by `ExhaustedEventReplayer`, which also exports the parked rows as the `events_exhausted` metric. See [Exhausted events](../exhausted-events.md).
 

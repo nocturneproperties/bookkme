@@ -8,6 +8,7 @@ import com.bookk.core.test.whenn
 import com.bookk.notifications.domain.impl.notification.NotificationType
 import com.bookk.notifications.domain.impl.notification.renderer.formatLocalized
 import com.bookk.server.appointments.client.api.event.AppointmentEvent
+import com.bookk.server.appointments.client.api.event.ClientDeletionCause
 import kotlinx.datetime.TimeZone
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
@@ -16,12 +17,13 @@ import kotlin.uuid.Uuid
 
 internal class AppointmentCancelledForDeletedClientNotificationTest {
 
-    private fun event() = AppointmentEvent.CancelledForDeletedClient(
+    private fun event(cause: ClientDeletionCause = ClientDeletionCause.ACCOUNT_DELETED) = AppointmentEvent.CancelledForDeletedClient(
         employeeUserId = Uuid.random(),
         from = Instant.parse("2026-03-05T14:30:00Z"),
         to = Instant.parse("2026-03-05T15:00:00Z"),
         timeZone = TimeZone.UTC,
-        businessName = "Barbershop"
+        businessName = "Barbershop",
+        cause = cause
     )
 
     @Test
@@ -122,5 +124,85 @@ internal class AppointmentCancelledForDeletedClientNotificationTest {
 
         then()
         assertEquals("Клієнт видалив свій акаунт, тож запис до Barbershop на $whenText скасовано.", text.text)
+    }
+
+    @Test
+    fun `should render English push content telling the employee the business removed the client`() = runUnitTest {
+        given()
+        val event = event(ClientDeletionCause.REMOVED_BY_BUSINESS)
+        val whenText = event.from.formatLocalized(event.timeZone, Language.EN)
+
+        whenn()
+        val push = event.notification.push(Language.EN)
+
+        then()
+        assertEquals("A client was removed from the business, so the appointment at Barbershop on $whenText was cancelled", push.body)
+    }
+
+    @Test
+    fun `should render English email content telling the employee the business removed the client`() = runUnitTest {
+        given()
+        val event = event(ClientDeletionCause.REMOVED_BY_BUSINESS)
+        val whenText = event.from.formatLocalized(event.timeZone, Language.EN)
+
+        whenn()
+        val email = event.notification.email(Language.EN)
+
+        then()
+        assertEquals("Appointment at Barbershop cancelled", email.subject)
+        assertEquals("A client was removed from the business, so the appointment at Barbershop on $whenText was cancelled. The time is free again.", email.body)
+    }
+
+    @Test
+    fun `should render English text content telling the employee the business removed the client`() = runUnitTest {
+        given()
+        val event = event(ClientDeletionCause.REMOVED_BY_BUSINESS)
+        val whenText = event.from.formatLocalized(event.timeZone, Language.EN)
+
+        whenn()
+        val text = event.notification.text(Language.EN)
+
+        then()
+        assertEquals("A client was removed from the business, so the appointment at Barbershop on $whenText was cancelled.", text.text)
+    }
+
+    @Test
+    fun `should render Ukrainian push content telling the employee the business removed the client`() = runUnitTest {
+        given()
+        val event = event(ClientDeletionCause.REMOVED_BY_BUSINESS)
+        val whenText = event.from.formatLocalized(event.timeZone, Language.UK)
+
+        whenn()
+        val push = event.notification.push(Language.UK)
+
+        then()
+        assertEquals("Клієнта видалено з бізнесу, тож запис до Barbershop на $whenText скасовано", push.body)
+    }
+
+    @Test
+    fun `should render Ukrainian email content telling the employee the business removed the client`() = runUnitTest {
+        given()
+        val event = event(ClientDeletionCause.REMOVED_BY_BUSINESS)
+        val whenText = event.from.formatLocalized(event.timeZone, Language.UK)
+
+        whenn()
+        val email = event.notification.email(Language.UK)
+
+        then()
+        assertEquals("Запис до Barbershop скасовано", email.subject)
+        assertEquals("Клієнта видалено з бізнесу, тож запис до Barbershop на $whenText скасовано. Цей час знову вільний.", email.body)
+    }
+
+    @Test
+    fun `should render Ukrainian text content telling the employee the business removed the client`() = runUnitTest {
+        given()
+        val event = event(ClientDeletionCause.REMOVED_BY_BUSINESS)
+        val whenText = event.from.formatLocalized(event.timeZone, Language.UK)
+
+        whenn()
+        val text = event.notification.text(Language.UK)
+
+        then()
+        assertEquals("Клієнта видалено з бізнесу, тож запис до Barbershop на $whenText скасовано.", text.text)
     }
 }

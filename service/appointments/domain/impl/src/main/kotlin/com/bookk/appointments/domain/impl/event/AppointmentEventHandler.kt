@@ -1,5 +1,6 @@
 package com.bookk.appointments.domain.impl.event
 
+import com.bookk.appointments.domain.api.operation.DeleteClientAppointmentData
 import com.bookk.appointments.domain.api.operation.DeleteModule
 import com.bookk.appointments.domain.api.operation.DeleteUserAppointmentData
 import com.bookk.appointments.domain.impl.operation.LinkClientUser
@@ -18,7 +19,8 @@ internal class AppointmentEventHandler(
     private val updateBusinessInformation: UpdateBusinessInformation,
     private val deleteUserAppointmentData: DeleteUserAppointmentData,
     private val syncEmployeePermission: SyncEmployeePermission,
-    private val linkClientUser: LinkClientUser
+    private val linkClientUser: LinkClientUser,
+    private val deleteClientAppointmentData: DeleteClientAppointmentData
 ) : EventHandler {
     override fun start(scope: CoroutineScope) {
         consumer
@@ -36,6 +38,9 @@ internal class AppointmentEventHandler(
             }
             .registerResultReceiver(BusinessEvent.ClientLinked.TOPIC) { event: BusinessEvent.ClientLinked ->
                 linkClientUser(event.businessId, event.clientId, event.userId, event.mergedClientIds)
+            }
+            .registerResultReceiver(BusinessEvent.ClientDeleted.TOPIC) { event: BusinessEvent.ClientDeleted ->
+                deleteClientAppointmentData(event.businessId, event.clientId)
             }
             .start(scope)
     }

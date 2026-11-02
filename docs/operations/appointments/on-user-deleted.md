@@ -50,7 +50,7 @@ flowchart TD
     Send --> Processed([markProcessed - kept 1 hour])
     Log --> Processed
     DelPerm -- any step throws, rolled back --> Release[Release the claim] --> Dlt["Retried through auth.user_deleted_appointments_dlt, up to 3 attempts"]
-    Dlt -- every attempt failed --> Parked([Saved to exhausted_event - replayed only by hand])
+    Dlt -- every attempt failed --> Parked(["Saved to exhausted_event - EventsExhausted alert, replayed on the next start or when replay_requested is set"])
 ```
 
 **Consumed by:** `AppointmentEvent.CancelledForDeletedClient` → [notifications: tell the employee](../notifications/on-appointment-cancelled-for-deleted-client.md).

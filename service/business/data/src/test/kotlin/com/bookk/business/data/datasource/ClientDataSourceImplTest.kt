@@ -147,6 +147,35 @@ internal class ClientDataSourceImplTest {
     }
 
     @Test
+    fun `should lock and return a client of the business`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val created = suspendTransaction { fixture.sut.createDetachedClient(fixture.businessId, Client.Detached.stub(name = "Erin")) }
+
+        whenn()
+        val found = suspendTransaction { fixture.sut.getClientForUpdate(fixture.businessId, created.id) }
+
+        then()
+        assertEquals(created, found)
+    }
+
+    @Test
+    fun `should not lock a client of another business`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val created = suspendTransaction { fixture.sut.createDetachedClient(fixture.businessId, Client.Detached.stub()) }
+        val otherBusinessId = suspendTransaction { fixture.businessSut.createBusiness(Uuid.random(), "Other", "USD", TimeZone.UTC) }.id
+
+        whenn()
+        val found = suspendTransaction { fixture.sut.getClientForUpdate(otherBusinessId, created.id) }
+
+        then()
+        assertNull(found)
+    }
+
+    @Test
     fun `should return null when client id belongs to a different business`() = runUnitTest {
         given()
         val fixture = SutFixture()

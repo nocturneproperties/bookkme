@@ -14,6 +14,7 @@ import com.bookk.appointments.domain.datasource.AppointmentDataSource
 import com.bookk.appointments.domain.datasource.AppointmentRequestDataSource
 import com.bookk.appointments.domain.datasource.AppointmentSettingsDataSource
 import com.bookk.appointments.domain.datasource.AppointmentSubscriptionDataSource
+import com.bookk.appointments.domain.datasource.DeletedClientDataSource
 import com.bookk.appointments.domain.datasource.DeletedUserDataSource
 import com.bookk.business.domain.api.appointment.entity.AppointmentBookingContext
 import com.bookk.business.domain.api.appointment.operation.GetAppointmentBookingContext
@@ -78,6 +79,7 @@ internal class CreateAppointmentRequestImplTest {
         val tokenValidatorFactory = mockk<TokenValidatorFactory>()
         val businessClient = mockk<BusinessClient>()
         val deletedUserDataSource = mockk<DeletedUserDataSource> { coEvery { isDeletedForShare(any()) } returns false }
+        val deletedClientDataSource = mockk<DeletedClientDataSource> { coEvery { isDeletedForShare(any(), any()) } returns false }
 
         val sut = CreateAppointmentRequestImpl(
             requestDataSource,
@@ -89,7 +91,8 @@ internal class CreateAppointmentRequestImplTest {
             transactionManager,
             tokenValidatorFactory,
             businessClient,
-            deletedUserDataSource
+            deletedUserDataSource,
+            deletedClientDataSource
         )
 
         fun mockValidToken(draft: AppointmentRequestDraft, totalAmount: String, totalDuration: String) {
@@ -1029,4 +1032,90 @@ internal class CreateAppointmentRequestImplTest {
         then()
         coVerify(exactly = 1) { fixture.requestDataSource.releaseOfferToken("token") }
     }
+
+    @Test
+    fun `should reject a booking request for a client the business deleted`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val businessId = Uuid.random()
+        val clientUserId = Uuid.random()
+        val context = bookingContext(businessId, Uuid.random(), Uuid.random(), Uuid.random())
+            .let { it.copy(client = ClientRemote.stub(id = it.client.id, userId = clientUserId)) }
+        val created = slot<AppointmentRequest>()
+        val draft = draftFor(context, businessId, futureDate)
+        val settings = mockk<AppointmentSettings>()
+        val eventSlot = slot<AppointmentEvent.RequestCreated>()
+
+        with(fixture) {
+            coEvery {
+                businessClient.getAppointmentBookingContext(businessId, draft.employeeId, userId, distinctIds(draft))
+            } returns Result.success(context)
+            coEvery { settingsDataSource.getForUpdate(businessId) } returns settings
+            coEvery { settings.automaticApproval } returns false
+            coEvery { settings.isInWorkday(draft.date) } returns true
+            coEvery { settings.isInWorktime(any(), any()) } returns true
+            coEvery { requestDataSource.hasOverlapsWith(any()) } returns false
+            coEvery { appointmentDataSource.hasOverlapsWith(any()) } returns false
+            coEvery { requestDataSource.create(capture(created)) } answers { firstArg() }
+            coEvery { subscriptionDataSource.getBusinessSnapshot(any()) } returns BusinessSnapshot.stub()
+            coEvery { eventProducer.send(capture(eventSlot), any()) } returns Unit
+            mockValidToken(draft, totalOf(expand(context, draft)), durationOf(expand(context, draft)))
+            coEvery { deletedClientDataSource.isDeletedForShare(businessId, context.client.id) } returns true
+            coEvery { requestDataSource.releaseOfferToken(any()) } returns Unit
+            transactionManager.mockTransaction()
+        }
+
+        whenn()
+        val result = fixture.sut.invoke(userId, draft)
+
+        then()
+        assertTrue(result.exceptionOrNull() is Error.OperationNotAllowed)
+        coVerify(exactly = 0) { fixture.requestDataSource.create(any()) }
+    }
+
+
+    @Test
+    fun `should check the client before locking the business settings for a booking request`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val businessId = Uuid.random()
+        val clientUserId = Uuid.random()
+        val context = bookingContext(businessId, Uuid.random(), Uuid.random(), Uuid.random())
+            .let { it.copy(client = ClientRemote.stub(id = it.client.id, userId = clientUserId)) }
+        val created = slot<AppointmentRequest>()
+        val draft = draftFor(context, businessId, futureDate)
+        val settings = mockk<AppointmentSettings>()
+        val eventSlot = slot<AppointmentEvent.RequestCreated>()
+
+        with(fixture) {
+            coEvery {
+                businessClient.getAppointmentBookingContext(businessId, draft.employeeId, userId, distinctIds(draft))
+            } returns Result.success(context)
+            coEvery { settingsDataSource.getForUpdate(businessId) } returns settings
+            coEvery { settings.automaticApproval } returns false
+            coEvery { settings.isInWorkday(draft.date) } returns true
+            coEvery { settings.isInWorktime(any(), any()) } returns true
+            coEvery { requestDataSource.hasOverlapsWith(any()) } returns false
+            coEvery { appointmentDataSource.hasOverlapsWith(any()) } returns false
+            coEvery { requestDataSource.create(capture(created)) } answers { firstArg() }
+            coEvery { subscriptionDataSource.getBusinessSnapshot(any()) } returns BusinessSnapshot.stub()
+            coEvery { eventProducer.send(capture(eventSlot), any()) } returns Unit
+            mockValidToken(draft, totalOf(expand(context, draft)), durationOf(expand(context, draft)))
+            transactionManager.mockTransaction()
+        }
+
+        whenn()
+        val result = fixture.sut.invoke(userId, draft)
+
+        then()
+        assertTrue(result.isSuccess)
+        coVerifyOrder {
+            fixture.deletedUserDataSource.isDeletedForShare(userId)
+            fixture.deletedClientDataSource.isDeletedForShare(businessId, context.client.id)
+            fixture.settingsDataSource.getForUpdate(businessId)
+        }
+    }
+
 }

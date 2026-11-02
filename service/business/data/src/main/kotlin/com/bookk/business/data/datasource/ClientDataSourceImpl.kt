@@ -81,6 +81,13 @@ internal class ClientDataSourceImpl : DataSource(), ClientDataSource {
             ?.toDomain()
     }
 
+    override suspend fun getClientForUpdate(businessId: Uuid, id: Uuid): Client? = dbQuery {
+        ClientEntity.find { (ClientTable.businessId eq businessId) and (ClientTable.id eq id) }
+            .forUpdate()
+            .firstOrNull()
+            ?.toDomain()
+    }
+
     override suspend fun getClientByUserId(businessId: Uuid, userId: Uuid): Client? = dbQuery {
         findIntegratedClient(businessId, userId)
     }

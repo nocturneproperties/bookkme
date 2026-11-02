@@ -1154,4 +1154,128 @@ internal class AppointmentDataSourceImplTest {
         assertEquals(unrelated.client.id, suspendTransaction { fixture.sut.get(unrelated.id) }.client.id)
         assertEquals(fromClientId, suspendTransaction { fixture.sut.get(otherBusiness.id) }.client.id)
     }
+
+    @Test
+    fun `should cancel the deleted client's scheduled appointments that start after the given time`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val now = Clock.System.now()
+        val upcoming = suspendTransaction { fixture.sut.create(fixture.buildRequest(date = now + 24.hours)) }
+
+        whenn()
+        val cancelled = suspendTransaction {
+            fixture.sut.cancelUpcomingForClient(fixture.businessId, upcoming.client.id, now, "Client was removed by the business")
+        }
+        val found = suspendTransaction { fixture.sut.get(upcoming.id) }
+
+        then()
+        assertEquals(AppointmentStatus.CANCELLED, found.status)
+        assertEquals("Client was removed by the business", found.cancellationReason)
+        assertEquals(listOf(found), cancelled)
+    }
+
+    @Test
+    fun `should keep the deleted client's appointments that started before the given time`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val now = Clock.System.now()
+        val past = suspendTransaction { fixture.sut.create(fixture.buildRequest(date = now - 24.hours)) }
+
+        whenn()
+        val cancelled = suspendTransaction {
+            fixture.sut.cancelUpcomingForClient(fixture.businessId, past.client.id, now, "Client was removed by the business")
+        }
+        val found = suspendTransaction { fixture.sut.get(past.id) }
+
+        then()
+        assertEquals(AppointmentStatus.SCHEDULED, found.status)
+        assertTrue(cancelled.isEmpty())
+    }
+
+    @Test
+    fun `should keep the deleted client's upcoming appointments that are no longer scheduled`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val now = Clock.System.now()
+        val created = suspendTransaction { fixture.sut.create(fixture.buildRequest(date = now + 24.hours)) }
+        suspendTransaction { fixture.sut.cancel(created.id, "Business closed") }
+
+        whenn()
+        val cancelled = suspendTransaction {
+            fixture.sut.cancelUpcomingForClient(fixture.businessId, created.client.id, now, "Client was removed by the business")
+        }
+        val found = suspendTransaction { fixture.sut.get(created.id) }
+
+        then()
+        assertEquals("Business closed", found.cancellationReason)
+        assertTrue(cancelled.isEmpty())
+    }
+
+    @Test
+    fun `should not cancel upcoming appointments of other clients or of another business`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val now = Clock.System.now()
+        val deleted = suspendTransaction { fixture.sut.create(fixture.buildRequest(date = now + 24.hours)) }
+        val otherClient = suspendTransaction { fixture.sut.create(fixture.buildRequest(date = now + 48.hours)) }
+        val otherBusinessId = fixture.attachBusiness(automaticCompletion = true)
+        val otherBusiness = suspendTransaction {
+            fixture.sut.create(fixture.buildRequest(date = now + 24.hours).copy(businessId = otherBusinessId, client = deleted.client))
+        }
+
+        whenn()
+        suspendTransaction { fixture.sut.cancelUpcomingForClient(fixture.businessId, deleted.client.id, now, "Client was removed by the business") }
+
+        then()
+        assertEquals(AppointmentStatus.SCHEDULED, suspendTransaction { fixture.sut.get(otherClient.id) }.status)
+        assertEquals(AppointmentStatus.SCHEDULED, suspendTransaction { fixture.sut.get(otherBusiness.id) }.status)
+    }
+
+    @Test
+    fun `should anonymize the deleted client on every one of their appointments and unlink their account`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val request = fixture.buildRequest().let {
+            it.copy(client = it.client.copy(userId = Uuid.random(), fullName = "Alice", phone = "+123", email = "alice@test.com"))
+        }
+        val created = suspendTransaction { fixture.sut.create(request) }
+
+        whenn()
+        suspendTransaction { fixture.sut.anonymizeClient(fixture.businessId, created.client.id) }
+        val found = suspendTransaction { fixture.sut.get(created.id) }
+
+        then()
+        assertEquals("Deleted Client", found.client.fullName)
+        assertNull(found.client.phone)
+        assertNull(found.client.email)
+        assertNull(found.client.userId)
+        assertEquals(created.client.id, found.client.id)
+    }
+
+    @Test
+    fun `should keep other clients and other businesses when anonymizing a deleted client`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val deleted = suspendTransaction { fixture.sut.create(fixture.buildRequest()) }
+        val otherClient = suspendTransaction {
+            fixture.sut.create(fixture.buildRequest().let { it.copy(client = it.client.copy(fullName = "Carol")) })
+        }
+        val otherBusinessId = fixture.attachBusiness(automaticCompletion = true)
+        val otherBusiness = suspendTransaction {
+            fixture.sut.create(fixture.buildRequest().copy(businessId = otherBusinessId, client = deleted.client.copy(fullName = "Bob")))
+        }
+
+        whenn()
+        suspendTransaction { fixture.sut.anonymizeClient(fixture.businessId, deleted.client.id) }
+
+        then()
+        assertEquals("Carol", suspendTransaction { fixture.sut.get(otherClient.id) }.client.fullName)
+        assertEquals("Bob", suspendTransaction { fixture.sut.get(otherBusiness.id) }.client.fullName)
+    }
 }

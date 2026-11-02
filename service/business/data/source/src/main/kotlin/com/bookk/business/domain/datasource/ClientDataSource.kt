@@ -12,6 +12,7 @@ interface ClientDataSource {
     suspend fun getClients(businessId: Uuid): List<Client>
     suspend fun getClientsByContacts(businessId: Uuid, phones: Collection<String>, emails: Collection<String>): List<Client>
     suspend fun getClientById(businessId: Uuid, id: Uuid): Client?
+    suspend fun getClientForUpdate(businessId: Uuid, id: Uuid): Client?
     suspend fun getClientByUserId(businessId: Uuid, userId: Uuid): Client?
     suspend fun getOrCreateIntegratedClient(businessId: Uuid, client: Client.Integrated): Client
     suspend fun takeOverClient(businessId: Uuid, detachedClientId: Uuid, profile: Client.Integrated): Client?

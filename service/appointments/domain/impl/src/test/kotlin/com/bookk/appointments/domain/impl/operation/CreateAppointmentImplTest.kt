@@ -13,6 +13,7 @@ import com.bookk.appointments.domain.datasource.AppointmentPermissionDataSource
 import com.bookk.appointments.domain.datasource.AppointmentRequestDataSource
 import com.bookk.appointments.domain.datasource.AppointmentSettingsDataSource
 import com.bookk.appointments.domain.datasource.AppointmentSubscriptionDataSource
+import com.bookk.appointments.domain.datasource.DeletedClientDataSource
 import com.bookk.appointments.domain.datasource.DeletedUserDataSource
 import com.bookk.core.data.eventstreaming.StandardEventProducer
 import com.bookk.core.domain.datasource.transaction.TransactionManager
@@ -49,6 +50,7 @@ internal class CreateAppointmentImplTest {
         val transactionManager = mockk<TransactionManager>()
         val eventProducer = mockk<StandardEventProducer>()
         val deletedUserDataSource = mockk<DeletedUserDataSource> { coEvery { isDeletedForShare(any()) } returns false }
+        val deletedClientDataSource = mockk<DeletedClientDataSource> { coEvery { isDeletedForShare(any(), any()) } returns false }
 
         val sut = CreateAppointmentImpl(
             appointmentDataSource,
@@ -58,7 +60,8 @@ internal class CreateAppointmentImplTest {
             subscriptionDataSource,
             transactionManager,
             eventProducer,
-            deletedUserDataSource
+            deletedUserDataSource,
+            deletedClientDataSource
         )
     }
 
@@ -766,4 +769,52 @@ internal class CreateAppointmentImplTest {
         coVerify(exactly = 1) { fixture.requestDataSource.getForUpdate(request.id) }
         coVerify(exactly = 0) { fixture.requestDataSource.get(any()) }
     }
+
+    @Test
+    fun `should reject an instant appointment for a client the business deleted`() = runUnitTest {
+        given()
+        val userId = Uuid.random()
+        val appointment = Appointment.stub(initiatorUserId = userId, date = futureDate)
+        val fixture = SutFixture()
+        with(fixture) {
+            coEvery { deletedClientDataSource.isDeletedForShare(appointment.businessId, appointment.client.id) } returns true
+            transactionManager.mockTransaction()
+        }
+
+        whenn()
+        val result = fixture.sut.invoke(userId, appointment, isInstant = true)
+
+        then()
+        assertTrue(result.exceptionOrNull() is com.bookk.core.domain.entity.Error.OperationNotAllowed)
+        coVerify(exactly = 0) { fixture.appointmentDataSource.create(any<Appointment>()) }
+    }
+
+
+    @Test
+    fun `should check the client before locking the business settings for an instant appointment`() = runUnitTest {
+        given()
+        val userId = Uuid.random()
+        val appointment = Appointment.stub(initiatorUserId = userId, date = futureDate)
+        val settings = mockk<AppointmentSettings>()
+        val fixture = SutFixture()
+        with(fixture) {
+            coEvery { settingsDataSource.getForUpdate(appointment.businessId) } returns settings
+            coEvery { settings.isInWorkday(appointment.date) } returns true
+            coEvery { settings.isInWorktime(appointment.date, appointment.dateEnd) } returns true
+            coEvery { appointmentDataSource.hasOverlapsWith(any()) } returns false
+            coEvery { appointmentDataSource.create(any<Appointment>()) } answers { firstArg() }
+            transactionManager.mockTransaction()
+        }
+
+        whenn()
+        fixture.sut.invoke(userId, appointment, isInstant = true)
+
+        then()
+        coVerifyOrder {
+            fixture.deletedUserDataSource.isDeletedForShare(userId)
+            fixture.deletedClientDataSource.isDeletedForShare(appointment.businessId, appointment.client.id)
+            fixture.settingsDataSource.getForUpdate(appointment.businessId)
+        }
+    }
+
 }

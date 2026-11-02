@@ -79,6 +79,13 @@ transaction's first statement, so a deletion running at the same moment
 either finishes first (and the booking is rejected) or waits for the
 booking to commit and then erases it by `client_user_id`.
 
+A booking for a client the business has deleted is rejected the same way
+(the client id from the booking context, checked in `deleted_client` with a shared lock right after the
+account): the business may have deleted the client after handing out its
+details and before the booking reached appointments. A client deletion
+running at the same moment either finishes first or waits for the booking
+and then erases it by `client_id`.
+
 ```mermaid
 flowchart TD
     Start([POST /api/appointments/request]) --> Auth{JWT valid?}
@@ -114,7 +121,9 @@ flowchart TD
     DurationCheck -- Yes --> Tx[[Begin transaction]]
     Tx --> Deleted["DeletedUserDataSource.isDeletedForShare userId - LOCK IN SHARE MODE, first statement"]
     Deleted -- deleted --> R404del([404 Error.OperationNotAllowed - the account was deleted])
-    Deleted -- not deleted --> Settings[AppointmentSettingsDataSource.getForUpdate businessId]
+    Deleted -- not deleted --> ClientDeleted["DeletedClientDataSource.isDeletedForShare businessId request.client.id - LOCK IN SHARE MODE"]
+    ClientDeleted -- deleted --> R404client([404 Error.OperationNotAllowed - the business deleted the client])
+    ClientDeleted -- not deleted --> Settings[AppointmentSettingsDataSource.getForUpdate businessId]
     Settings -- not found --> R404a([404 Error.NotFound])
     Settings -- found --> AutoApproval{settings.automaticApproval?}
     AutoApproval -- Yes --> Delegate[Delegate to CreateAppointment userId request]

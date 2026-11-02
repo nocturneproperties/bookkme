@@ -1,8 +1,10 @@
 package com.bookk.appointments.domain.impl.operation
 
+import com.bookk.appointments.domain.api.operation.DeleteClientAppointmentData
 import com.bookk.appointments.domain.api.operation.DeleteUserAppointmentData
 import com.bookk.appointments.domain.datasource.AppointmentDataSource
 import com.bookk.appointments.domain.datasource.AppointmentRequestDataSource
+import com.bookk.appointments.domain.datasource.DeletedClientDataSource
 import com.bookk.appointments.domain.datasource.DeletedUserDataSource
 import com.bookk.core.domain.datasource.transaction.TransactionManager
 import com.bookk.core.domain.datasource.transaction.mockTransaction
@@ -26,6 +28,8 @@ internal class LinkClientUserTest {
         val appointmentDataSource = mockk<AppointmentDataSource>()
         val appointmentRequestDataSource = mockk<AppointmentRequestDataSource>()
         val deleteUserAppointmentData = mockk<DeleteUserAppointmentData>()
+        val deletedClientDataSource = mockk<DeletedClientDataSource>()
+        val deleteClientAppointmentData = mockk<DeleteClientAppointmentData>()
         val transactionManager = mockk<TransactionManager>()
         val writesInTransaction = mutableListOf<Boolean>()
         val sut = LinkClientUser(
@@ -33,12 +37,16 @@ internal class LinkClientUserTest {
             appointmentDataSource,
             appointmentRequestDataSource,
             deleteUserAppointmentData,
+            deletedClientDataSource,
+            deleteClientAppointmentData,
             transactionManager
         )
 
-        fun stubLink(businessId: Uuid, clientId: Uuid, userId: Uuid, userDeleted: Boolean) {
+        fun stubLink(businessId: Uuid, clientId: Uuid, userId: Uuid, userDeleted: Boolean, clientDeleted: Boolean = false) {
             transactionManager.mockTransaction()
             coEvery { deletedUserDataSource.isDeletedForShare(userId) } returns userDeleted
+            coEvery { deletedClientDataSource.isDeletedForShare(businessId, clientId) } returns clientDeleted
+            coEvery { deleteClientAppointmentData(businessId, clientId) } returns Result.success(Unit)
             coEvery { appointmentDataSource.reassignClient(businessId, any(), clientId) } returns Unit
             coEvery { appointmentRequestDataSource.reassignClient(businessId, any(), clientId) } returns Unit
             coEvery { appointmentDataSource.linkClientUser(businessId, clientId, userId) } coAnswers {
@@ -145,6 +153,70 @@ internal class LinkClientUserTest {
         val userId = Uuid.random()
         fixture.stubLink(businessId, clientId, userId, userDeleted = true)
         coEvery { fixture.deleteUserAppointmentData(userId) } returns Result.failure(IllegalStateException("database down"))
+
+        whenn()
+        val result = fixture.sut(businessId, clientId, userId, mergedClientIds = emptyList())
+
+        then()
+        assertTrue(result.isFailure)
+    }
+
+    @Test
+    fun `should check whether the client was deleted before linking anything`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val businessId = Uuid.random()
+        val clientId = Uuid.random()
+        val userId = Uuid.random()
+        fixture.stubLink(businessId, clientId, userId, userDeleted = false)
+
+        whenn()
+        val result = fixture.sut(businessId, clientId, userId, mergedClientIds = listOf(Uuid.random()))
+
+        then()
+        assertTrue(result.isSuccess)
+        coVerifyOrder {
+            fixture.deletedUserDataSource.isDeletedForShare(userId)
+            fixture.deletedClientDataSource.isDeletedForShare(businessId, clientId)
+            fixture.appointmentDataSource.reassignClient(businessId, any(), clientId)
+            fixture.appointmentDataSource.linkClientUser(businessId, clientId, userId)
+        }
+        coVerify(exactly = 0) { fixture.deleteClientAppointmentData(any(), any()) }
+    }
+
+    @Test
+    fun `should erase the moved and linked rows when the business already deleted the client`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val businessId = Uuid.random()
+        val clientId = Uuid.random()
+        val userId = Uuid.random()
+        val merged = Uuid.random()
+        fixture.stubLink(businessId, clientId, userId, userDeleted = false, clientDeleted = true)
+
+        whenn()
+        val result = fixture.sut(businessId, clientId, userId, mergedClientIds = listOf(merged))
+
+        then()
+        assertTrue(result.isSuccess)
+        coVerifyOrder {
+            fixture.appointmentDataSource.reassignClient(businessId, merged, clientId)
+            fixture.appointmentDataSource.linkClientUser(businessId, clientId, userId)
+            fixture.appointmentRequestDataSource.linkClientUser(businessId, clientId, userId)
+            fixture.deleteClientAppointmentData(businessId, clientId)
+        }
+        coVerify(exactly = 0) { fixture.deleteUserAppointmentData(any()) }
+    }
+
+    @Test
+    fun `should fail so the event is retried when erasing a deleted client's rows fails`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val businessId = Uuid.random()
+        val clientId = Uuid.random()
+        val userId = Uuid.random()
+        fixture.stubLink(businessId, clientId, userId, userDeleted = false, clientDeleted = true)
+        coEvery { fixture.deleteClientAppointmentData(businessId, clientId) } returns Result.failure(IllegalStateException("database down"))
 
         whenn()
         val result = fixture.sut(businessId, clientId, userId, mergedClientIds = emptyList())

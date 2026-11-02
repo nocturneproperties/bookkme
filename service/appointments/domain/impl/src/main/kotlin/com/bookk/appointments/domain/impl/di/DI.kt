@@ -6,6 +6,7 @@ import com.bookk.appointments.domain.api.operation.CompleteAppointment
 import com.bookk.appointments.domain.api.operation.CreateAppointment
 import com.bookk.appointments.domain.api.operation.CreateAppointmentRequest
 import com.bookk.appointments.domain.api.operation.DeclineAppointmentRequest
+import com.bookk.appointments.domain.api.operation.DeleteClientAppointmentData
 import com.bookk.appointments.domain.api.operation.DeleteModule
 import com.bookk.appointments.domain.api.operation.DeleteOutdatedRequests
 import com.bookk.appointments.domain.api.operation.DeleteUserAppointmentData
@@ -27,6 +28,7 @@ import com.bookk.appointments.domain.impl.operation.CompleteAppointmentImpl
 import com.bookk.appointments.domain.impl.operation.CreateAppointmentImpl
 import com.bookk.appointments.domain.impl.operation.CreateAppointmentRequestImpl
 import com.bookk.appointments.domain.impl.operation.DeclineAppointmentRequestImpl
+import com.bookk.appointments.domain.impl.operation.DeleteClientAppointmentDataImpl
 import com.bookk.appointments.domain.impl.operation.DeleteModuleImpl
 import com.bookk.appointments.domain.impl.operation.DeleteOutdatedRequestsImpl
 import com.bookk.appointments.domain.impl.operation.DeleteUserAppointmentDataImpl
@@ -80,5 +82,6 @@ fun appointmentsDomainModule() = module {
         scopedOf(::MarkAppointmentsCompletedImpl) bind MarkAppointmentsCompleted::class
         scopedOf(::DeleteOutdatedRequestsImpl) bind DeleteOutdatedRequests::class
         scopedOf(::DeleteUserAppointmentDataImpl) bind DeleteUserAppointmentData::class
+        scopedOf(::DeleteClientAppointmentDataImpl) bind DeleteClientAppointmentData::class
     }
 }

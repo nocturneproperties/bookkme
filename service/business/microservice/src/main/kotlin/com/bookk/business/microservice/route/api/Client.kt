@@ -143,11 +143,11 @@ fun Route.clientCrud() {
 
         /**
          * Summary: Delete client
-         * Description: Delete client by id
+         * Description: Delete client by id and erase them from the business's appointments. Only the owner may delete a client with an account
          * Tag: business
          * Security: jwt
          * Response: 204 application/x-protobuf Entity deleted
-         * Response: 404 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Client not found or user is not allowed to delete it
+         * Response: 404 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Client not found, or user is not allowed to delete it (a client with an account can be deleted only by the owner)
          * Response: 403 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Caller is a suspended employee of this business<br>BUSINESS_EMPLOYEE_ACCESS_SUSPENDED (200034) Your access to this business is suspended
          * See: docs/operations/business/delete-client.md
          */

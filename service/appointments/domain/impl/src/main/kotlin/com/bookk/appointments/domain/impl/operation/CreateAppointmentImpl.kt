@@ -9,6 +9,7 @@ import com.bookk.appointments.domain.datasource.AppointmentPermissionDataSource
 import com.bookk.appointments.domain.datasource.AppointmentRequestDataSource
 import com.bookk.appointments.domain.datasource.AppointmentSettingsDataSource
 import com.bookk.appointments.domain.datasource.AppointmentSubscriptionDataSource
+import com.bookk.appointments.domain.datasource.DeletedClientDataSource
 import com.bookk.appointments.domain.datasource.DeletedUserDataSource
 import com.bookk.core.data.eventstreaming.StandardEventProducer
 import com.bookk.core.data.eventstreaming.send
@@ -32,7 +33,8 @@ internal class CreateAppointmentImpl(
     private val subscriptionDataSource: AppointmentSubscriptionDataSource,
     private val transactionManager: TransactionManager,
     private val eventProducer: StandardEventProducer,
-    private val deletedUserDataSource: DeletedUserDataSource
+    private val deletedUserDataSource: DeletedUserDataSource,
+    private val deletedClientDataSource: DeletedClientDataSource
 ) : CreateAppointment {
 
     override suspend fun invoke(
@@ -57,6 +59,7 @@ internal class CreateAppointmentImpl(
         val stored = if (isInstant) appointment.copy(client = appointment.client.copy(userId = userId)) else appointment
         return transactionManager.transaction {
             if (isInstant && deletedUserDataSource.isDeletedForShare(userId)) throw Error.OperationNotAllowed()
+            if (isInstant && deletedClientDataSource.isDeletedForShare(stored.businessId, stored.client.id)) throw Error.OperationNotAllowed()
             createAppointment(stored)
         }
     }

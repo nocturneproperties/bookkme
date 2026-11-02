@@ -32,6 +32,8 @@ interface AppointmentDataSource {
     suspend fun anonymizeEmployee(employeeUserId: Uuid)
     suspend fun anonymizeClientUser(clientUserId: Uuid)
     suspend fun cancelUpcomingForClientUser(clientUserId: Uuid, startingAfter: Instant, reason: String): List<Appointment>
+    suspend fun cancelUpcomingForClient(businessId: Uuid, clientId: Uuid, startingAfter: Instant, reason: String): List<Appointment>
+    suspend fun anonymizeClient(businessId: Uuid, clientId: Uuid)
     suspend fun reassignClient(businessId: Uuid, fromClientId: Uuid, toClientId: Uuid)
     suspend fun linkClientUser(businessId: Uuid, clientId: Uuid, userId: Uuid)
 }

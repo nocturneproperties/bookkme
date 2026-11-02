@@ -540,4 +540,40 @@ internal class AppointmentRequestDataSourceImplTest {
         assertEquals(unrelated.client.id, suspendTransaction { fixture.sut.get(unrelated.id) }?.client?.id)
         assertEquals(fromClientId, suspendTransaction { fixture.sut.get(inOtherBusiness.id) }?.client?.id)
     }
+
+    @Test
+    fun `should delete the deleted client's requests in the business`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val created = suspendTransaction { fixture.sut.create(fixture.buildRequest()) }
+
+        whenn()
+        suspendTransaction { fixture.sut.deleteForClient(fixture.businessId, created.client.id) }
+        val found = suspendTransaction { fixture.sut.get(created.id) }
+
+        then()
+        assertNull(found)
+    }
+
+    @Test
+    fun `should keep requests of other clients and of another business when deleting a client's`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val deleted = suspendTransaction { fixture.sut.create(fixture.buildRequest()) }
+        val otherClient = suspendTransaction { fixture.sut.create(fixture.buildRequest()) }
+        val otherBusiness = BusinessSnapshot.stub()
+        suspendTransaction { fixture.subscriptionSut.attachBusiness(otherBusiness) }
+        val inOtherBusiness = suspendTransaction {
+            fixture.sut.create(fixture.buildRequest().copy(businessId = otherBusiness.id, client = deleted.client))
+        }
+
+        whenn()
+        suspendTransaction { fixture.sut.deleteForClient(fixture.businessId, deleted.client.id) }
+
+        then()
+        assertNotNull(suspendTransaction { fixture.sut.get(otherClient.id) })
+        assertNotNull(suspendTransaction { fixture.sut.get(inOtherBusiness.id) })
+    }
 }

@@ -21,6 +21,7 @@ import com.bookk.appointments.domain.datasource.AppointmentDataSource
 import com.bookk.appointments.domain.datasource.AppointmentRequestDataSource
 import com.bookk.appointments.domain.datasource.AppointmentSettingsDataSource
 import com.bookk.appointments.domain.datasource.AppointmentSubscriptionDataSource
+import com.bookk.appointments.domain.datasource.DeletedClientDataSource
 import com.bookk.appointments.domain.datasource.DeletedUserDataSource
 import com.bookk.business.domain.api.appointment.entity.AppointmentBookingContext
 import com.bookk.core.data.eventstreaming.StandardEventProducer
@@ -62,7 +63,8 @@ internal class CreateAppointmentRequestImpl(
     private val transactionManager: TransactionManager,
     private val tokenValidatorFactory: TokenValidatorFactory,
     private val businessClient: BusinessClient,
-    private val deletedUserDataSource: DeletedUserDataSource
+    private val deletedUserDataSource: DeletedUserDataSource,
+    private val deletedClientDataSource: DeletedClientDataSource
 ) : CreateAppointmentRequest {
 
     override suspend fun invoke(userId: Uuid, draft: AppointmentRequestDraft): Result<Unit> = runSuspendCatching {
@@ -156,6 +158,7 @@ internal class CreateAppointmentRequestImpl(
     private suspend fun createOrRequestAppointment(userId: Uuid, request: AppointmentRequest): Result<Unit> =
         transactionManager.transaction<Unit> {
             if (deletedUserDataSource.isDeletedForShare(userId)) throw Error.OperationNotAllowed()
+            if (deletedClientDataSource.isDeletedForShare(request.businessId, request.client.id)) throw Error.OperationNotAllowed()
             val settings = settingsDataSource.getForUpdate(request.businessId) ?: throw Error.NotFound()
 
             if (settings.automaticApproval) {

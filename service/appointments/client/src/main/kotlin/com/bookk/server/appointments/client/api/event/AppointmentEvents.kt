@@ -106,7 +106,8 @@ interface AppointmentEvent : EventStreaming.Event<String> {
         @ProtoNumber(3) val to: Instant,
         @ProtoNumber(4) val timeZone: TimeZone,
         @ProtoNumber(5) val businessName: String,
-        @ProtoNumber(6) override val idempotencyKey: String = Uuid.random().toString()
+        @ProtoNumber(6) override val idempotencyKey: String = Uuid.random().toString(),
+        @ProtoNumber(8) val cause: ClientDeletionCause = ClientDeletionCause.ACCOUNT_DELETED
     ) : AppointmentEvent {
         @ProtoNumber(7)
         override val topic: String = TOPIC
@@ -115,4 +116,10 @@ interface AppointmentEvent : EventStreaming.Event<String> {
             const val TOPIC = "appointment.cancelled_for_deleted_client"
         }
     }
+}
+
+@Serializable
+enum class ClientDeletionCause {
+    @ProtoNumber(1) ACCOUNT_DELETED,
+    @ProtoNumber(2) REMOVED_BY_BUSINESS
 }

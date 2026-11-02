@@ -1,14 +1,22 @@
-# React to an appointment cancelled by a client's account deletion
+# React to an appointment cancelled by a client's deletion
 
 Kafka topic `AppointmentEvent.CancelledForDeletedClient` → `NotificationEventHandler` → `SendNotification`
 
-Produced by [React to user deletion (appointments)](../appointments/on-user-deleted.md),
-once per upcoming appointment it cancelled because the client deleted their
-account. The same erasure also runs from [React to a client getting an
-account](../appointments/on-client-linked.md) when the account turns out to
-be deleted already. Tells the employee assigned to the appointment that it
-was cancelled and the time is free again. The event carries no client
-name: the client's details are already erased when it is sent.
+Produced once per upcoming appointment cancelled because its client is gone:
+
+- by [React to user deletion (appointments)](../appointments/on-user-deleted.md),
+  when the client deleted their account (`cause = ACCOUNT_DELETED`);
+- by [React to client deletion](../appointments/on-client-deleted.md), when
+  the business deleted the client (`cause = REMOVED_BY_BUSINESS`);
+- by [React to a client getting an account](../appointments/on-client-linked.md),
+  which runs either erasure when the account or the client turns out to be
+  deleted already.
+
+Tells the employee assigned to the appointment that it was cancelled and the
+time is free again. `cause` picks the wording (`appointment.cancelled_for_deleted_client.*`
+or `appointment.cancelled_for_removed_client.*`, English and Ukrainian). The
+event carries no client name: the client's details are already erased when
+it is sent.
 
 ```mermaid
 flowchart TD
@@ -22,5 +30,5 @@ flowchart TD
     TypeAllowed -- Yes --> Channels["For each enabled channel, outside that transaction - senderMap.channel.send employeeUserId notification"]
     Channels --> Processed([markProcessed - kept 1 hour])
     GetSettings -- not found or throws --> Release[Release the claim] --> Dlt["Retried through appointment.cancelled_for_deleted_client_notifications_dlt, up to 3 attempts"]
-    Dlt -- every attempt failed --> Parked([Saved to exhausted_event - replayed only by hand])
+    Dlt -- every attempt failed --> Parked(["Saved to exhausted_event - EventsExhausted alert, replayed on the next start or when replay_requested is set"])
 ```

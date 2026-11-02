@@ -2,7 +2,7 @@
 
 Kafka topic `AppointmentEvent.Cancelled` → `NotificationEventHandler` → `SendNotification`
 
-Produced by [Cancel appointment](../appointments/cancel-appointment.md).
+Produced by [Cancel appointment](../appointments/cancel-appointment.md), and by [React to client deletion](../appointments/on-client-deleted.md) for a client with an account, with the reason "Client was removed by the business".
 Notifies the client their appointment was cancelled.
 
 ```mermaid

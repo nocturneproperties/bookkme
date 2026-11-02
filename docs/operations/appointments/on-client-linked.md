@@ -43,6 +43,14 @@ shared lock:
 
 `DeletedUserLockMariaDbTest` pins both waits against a real MariaDB.
 
+`BusinessEvent.ClientDeleted` has the same problem: business can link a row
+and the owner delete it right after, and the deletion may be handled first.
+So this also reads `deleted_client` for `clientId` with a shared lock, and
+when the client is already deleted it erases the rows it just moved and
+linked (`DeleteClientAppointmentData`, see [React to client
+deletion](on-client-deleted.md)). `DeletedClientLockMariaDbTest` pins those
+waits.
+
 ```mermaid
 flowchart TD
     Start([Consume BusinessEvent.ClientLinked]) --> Claim{"IdempotentDelivery.claim event:appointments:topic:idempotencyKey"}
@@ -50,17 +58,24 @@ flowchart TD
     Claim -- held by another delivery --> Wait[Re-claim every second, up to the 1-minute claim TTL] --> Claim
     Claim -- claimed --> Tx[[Begin transaction]]
     Tx --> Deleted["DeletedUserDataSource.isDeletedForShare userId - LOCK IN SHARE MODE"]
-    Deleted --> Move["Per merged id - AppointmentDataSource.reassignClient + AppointmentRequestDataSource.reassignClient businessId mergedId clientId"]
+    Deleted --> ClientDeleted["DeletedClientDataSource.isDeletedForShare businessId clientId - LOCK IN SHARE MODE"]
+    ClientDeleted --> Move["Per merged id - AppointmentDataSource.reassignClient + AppointmentRequestDataSource.reassignClient businessId mergedId clientId"]
     Move --> LinkA["AppointmentDataSource.linkClientUser businessId clientId userId - client_user_id = userId"]
     LinkA --> LinkR["AppointmentRequestDataSource.linkClientUser businessId clientId userId"]
     LinkR --> Was{account already deleted?}
-    Was -- No --> Processed([markProcessed - kept 1 hour])
+    Was -- No --> WasClient
     Was -- Yes --> Erase["DeleteUserAppointmentData userId - same transaction, see on-user-deleted"]
-    Erase --> Processed
+    Erase --> WasClient{client already deleted?}
+    WasClient -- No --> Processed([markProcessed - kept 1 hour])
+    WasClient -- Yes --> EraseClient["DeleteClientAppointmentData businessId clientId - same transaction, see on-client-deleted"]
+    EraseClient --> Processed
     Erase -- throws, rolled back --> Release[Release the claim]
+    EraseClient -- throws, rolled back --> Release
     LinkR -- throws, rolled back --> Release
     Release --> Dlt["Retried through business.client_linked_appointments_dlt, up to 3 attempts"]
-    Dlt -- every attempt failed --> Parked([Saved to exhausted_event - replayed only by hand])
+    Dlt -- every attempt failed --> Parked(["Saved to exhausted_event - EventsExhausted alert, replayed on the next start or when replay_requested is set"])
 ```
 
-**Consumed by:** `AppointmentEvent.CancelledForDeletedClient`, sent by the erasure when the account was already deleted → [notifications: tell the employee](../notifications/on-appointment-cancelled-for-deleted-client.md).
+**Consumed by:**
+- `AppointmentEvent.CancelledForDeletedClient`, sent by either erasure when the account or the client was already deleted → [notifications: tell the employee](../notifications/on-appointment-cancelled-for-deleted-client.md).
+- `AppointmentEvent.Cancelled`, sent by the client erasure to a client with an account → [notifications: tell the client](../notifications/on-appointment-cancelled.md).
