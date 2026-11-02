@@ -1,0 +1,13 @@
+- name: Copy the encrypted backups from the backup node
+  hosts: managers:workers
+  gather_facts: false
+  tasks:
+    - name: Mirror the backup directory into the local backups directory
+      ansible.posix.synchronize:
+        mode: pull
+        src: "{{ backup_host_dir }}/"
+        dest: "{{ backup_fetch_dir }}/"
+        delete: true
+        rsync_opts:
+          - "--exclude=*.partial"
+      when: (swarm_labels | default({})).get('backup') == 'true'

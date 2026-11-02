@@ -158,3 +158,23 @@ groups:
         annotations:
           summary: "{{ $value }} {{ $labels.topic }} event(s) parked for {{ $labels.consumer_group }}"
           description: "These events failed every delivery attempt and wait in the exhausted_event table of the consumer's schema (auth_group is authorization, every other group its service's name). Nothing applies them until they are replayed. Find the cause in the logs ('Error while processing event for topic'), fix it, then deploy (every start replays all parked events) or run UPDATE exhausted_event SET replay_requested = TRUE WHERE original_topic = '{{ $labels.topic }}' in that schema, which replays them within a minute. An event that fails again is parked again. One the app can't replay any more is kept and logged as 'Cannot replay a parked event'; handle it by hand, then delete its row."
+
+  - name: backup_alerts
+    rules:
+      - alert: BackupDumpMissing
+        expr: (time() - max(bookk_backup_dump_last_success_timestamp_seconds) > 26 * 3600) or absent(bookk_backup_dump_last_success_timestamp_seconds)
+        for: 1h
+        labels:
+          severity: critical
+        annotations:
+          summary: "No database dump for more than a day"
+          description: "The backup stack's dump service writes one encrypted dump of the five schemas every night at 03:00 UTC, and point-in-time restores start from it. Check 'docker service logs backup_dump' on the manager: 'The dump failed' lines give the cause (database unreachable, wrong password, disk full). The service retries every 10 minutes by itself; after 03:00 UTC, 'docker service update --force backup_dump' takes today's dump right away."
+
+      - alert: BinlogShippingStalled
+        expr: (time() - max(bookk_backup_binlog_healthy_timestamp_seconds) > 900) or absent(bookk_backup_binlog_healthy_timestamp_seconds)
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Database changes have not been backed up for 20 minutes"
+          description: "The backup stack's binlog service streams the database's binary log and stores it encrypted every 5 minutes; while it is behind, a restore loses everything since the last binlog it stored. Check 'docker service logs backup_binlog' on the manager. The database keeps its binlogs for 2 days, so a fix within that time loses nothing; after that the service logs that the next binlog is gone, and restores can only start from a dump taken after the gap."

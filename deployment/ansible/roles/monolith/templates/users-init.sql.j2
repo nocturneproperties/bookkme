@@ -6,3 +6,9 @@ ALTER USER 'nocodb_reader'@'%' IDENTIFIED BY '{{ vault_monolith_db_nocodb_passwo
 {% for schema in ['user', 'authorization', 'business', 'appointments', 'notifications'] %}
 GRANT SELECT ON `{{ schema }}`.* TO 'nocodb_reader'@'%';
 {% endfor %}
+CREATE USER IF NOT EXISTS 'backup'@'%' IDENTIFIED BY '{{ vault_monolith_db_backup_password }}' WITH MAX_USER_CONNECTIONS 4;
+ALTER USER 'backup'@'%' IDENTIFIED BY '{{ vault_monolith_db_backup_password }}' WITH MAX_USER_CONNECTIONS 4;
+GRANT REPLICATION SLAVE, BINLOG MONITOR, RELOAD ON *.* TO 'backup'@'%';
+{% for schema in ['user', 'authorization', 'business', 'appointments', 'notifications'] %}
+GRANT SELECT, SHOW VIEW, TRIGGER ON `{{ schema }}`.* TO 'backup'@'%';
+{% endfor %}

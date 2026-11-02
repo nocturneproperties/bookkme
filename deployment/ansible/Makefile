@@ -3,8 +3,9 @@ SHELL := /bin/bash
 VAULT := inventory/group_vars/all/vault.yml
 ANSIBLE_PYTHON := $(shell head -1 "$$(command -v ansible)" | sed 's/^\#!//')
 TAGS_ARG := $(if $(tags),--tags $(tags))
+BACKUPS := backups
 
-.PHONY: check bootstrap infra deploy deploy-check vault-import vault-update vault-edit vault-view syntax lint
+.PHONY: check bootstrap infra deploy deploy-check fetch-backups restore-drill vault-import vault-update vault-edit vault-view syntax lint
 
 check:
 	ansible-playbook playbooks/site.yml --check --diff $(TAGS_ARG)
@@ -23,6 +24,12 @@ deploy-check:
 	@test -n "$(v)" || (echo "usage: make deploy-check v=<version>" && exit 1)
 	ansible-playbook playbooks/deploy.yml -e version=$(v) --check --diff
 
+fetch-backups:
+	ansible-playbook playbooks/fetch-backups.yml
+
+restore-drill:
+	scripts/backup-restore.sh drill $(BACKUPS) $(if $(until),--until "$(until)")
+
 vault-import:
 	@test ! -e $(VAULT) || (echo "$(VAULT) already exists, use 'make vault-edit'" && exit 1)
 	$(ANSIBLE_PYTHON) scripts/import-secrets.py | ansible-vault encrypt --output $(VAULT)
@@ -40,6 +47,7 @@ vault-view:
 syntax:
 	ansible-playbook playbooks/site.yml --syntax-check
 	ansible-playbook playbooks/deploy.yml --syntax-check
+	ansible-playbook playbooks/fetch-backups.yml --syntax-check
 
 lint:
 	ansible-lint playbooks roles

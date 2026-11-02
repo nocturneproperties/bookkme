@@ -1,0 +1,98 @@
+version: "3.9"
+
+networks:
+  storage:
+    external: true
+
+secrets:
+  backup_db_password:
+    name: backup-db-password-v1
+    file: ./backup_db_password
+
+configs:
+  backup_script:
+    name: backup-script-v2
+    file: ./backup.sh
+  backup_public_key:
+    name: backup-public-key-v1
+    file: ./backup-public-key.asc
+
+x-templates:
+  backup-service: &backup-service
+    image: mariadb:11.8.3-ubi9
+    user: "999:999"
+    entrypoint: ["bash", "/usr/local/bin/backup.sh"]
+    networks:
+      - storage
+    environment:
+      TZ: UTC
+    secrets:
+      - source: backup_db_password
+        target: backup_db_password
+        uid: "999"
+        gid: "999"
+        mode: 0400
+    configs:
+      - source: backup_script
+        target: /usr/local/bin/backup.sh
+        mode: 0555
+      - source: backup_public_key
+        target: /run/configs/backup-public-key.asc
+        mode: 0444
+    logging:
+      options:
+        max-size: 10m
+        max-file: 5
+
+  backup-deploy: &backup-deploy
+    replicas: 1
+    placement:
+      constraints: [ node.labels.backup == true ]
+    update_config:
+      parallelism: 1
+      order: stop-first
+      failure_action: rollback
+      delay: 10s
+    rollback_config:
+      parallelism: 1
+      order: stop-first
+    restart_policy:
+      condition: any
+      delay: 30s
+
+services:
+  binlog:
+    <<: *backup-service
+    command: ["binlog"]
+    volumes:
+      - type: bind
+        source: ${BACKUP_HOST_DIR}
+        target: /backups
+      - type: bind
+        source: ${NODE_EXPORTER_TEXTFILE_DIR}
+        target: /metrics
+      - type: tmpfs
+        target: /spool
+        tmpfs:
+          size: 268435456
+    deploy:
+      <<: *backup-deploy
+      resources:
+        limits:
+          memory: 512M
+
+  dump:
+    <<: *backup-service
+    command: ["dump"]
+    volumes:
+      - type: bind
+        source: ${BACKUP_HOST_DIR}
+        target: /backups
+      - type: bind
+        source: ${NODE_EXPORTER_TEXTFILE_DIR}
+        target: /metrics
+    deploy:
+      <<: *backup-deploy
+      resources:
+        limits:
+          memory: 256M
