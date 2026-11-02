@@ -52,7 +52,7 @@ internal class GetAppointmentsForDateTest {
             },
             routeUnderTest = {
                 appointment()
-            }
+            },
         )
 
         whenn()
@@ -90,7 +90,7 @@ internal class GetAppointmentsForDateTest {
             },
             routeUnderTest = {
                 appointment()
-            }
+            },
         )
 
         whenn()
@@ -120,7 +120,7 @@ internal class GetAppointmentsForDateTest {
             },
             routeUnderTest = {
                 appointment()
-            }
+            },
         )
 
         whenn()
@@ -156,7 +156,7 @@ internal class GetAppointmentsForDateTest {
             },
             routeUnderTest = {
                 appointment()
-            }
+            },
         )
 
         whenn()

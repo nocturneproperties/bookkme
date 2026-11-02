@@ -24,7 +24,7 @@ import kotlinx.coroutines.coroutineScope
 internal class FinishAssertionImpl(
     private val passKeyDataSource: PassKeyDataSource,
     private val credentialRepository: CacheableCredentialRepository,
-    private val transactionManager: TransactionManager
+    private val transactionManager: TransactionManager,
 ) : FinishAssertion {
     override suspend fun invoke(request: FinishAssertionRequest): Result<PasskeyCredential> = runSuspendCatching {
         val cachedRequest = passKeyDataSource.getCachedChallenge(request.requestId) ?: throw Error.ChallengeWindowExpired()
@@ -39,7 +39,7 @@ internal class FinishAssertionImpl(
                         FinishAssertionOptions.builder()
                             .request(challenge)
                             .response(response)
-                            .build()
+                            .build(),
                     )
             }.recover {
                 throw when (it) {
@@ -50,7 +50,7 @@ internal class FinishAssertionImpl(
             if (result.isSuccess) {
                 val credentials = passKeyDataSource.getCredentialBy(
                     userHandle = result.credential.userHandle.bytes.toUUID(),
-                    credentialId = result.credential.credentialId.bytes
+                    credentialId = result.credential.credentialId.bytes,
                 )
                 if (credentials == null) throw Error.PasskeyOwnerNotFound()
                 passKeyDataSource.markAsUsed(credentials.id)
@@ -62,12 +62,12 @@ internal class FinishAssertionImpl(
     }
 
     private suspend fun cacheRepositoryData(
-        response: PublicKeyCredential<AuthenticatorAssertionResponse, ClientAssertionExtensionOutputs>
+        response: PublicKeyCredential<AuthenticatorAssertionResponse, ClientAssertionExtensionOutputs>,
     ) {
         coroutineScope {
             listOf(
                 async { credentialRepository.cacheUsername(handle = response.response.userHandle.get()) },
-                async { credentialRepository.lookupCache(response.id, response.response.userHandle.get()) }
+                async { credentialRepository.lookupCache(response.id, response.response.userHandle.get()) },
             )
         }.awaitAll()
     }

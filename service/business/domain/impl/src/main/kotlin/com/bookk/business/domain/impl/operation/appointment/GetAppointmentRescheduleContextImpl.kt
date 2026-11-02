@@ -14,16 +14,16 @@ import kotlin.uuid.Uuid
 internal class GetAppointmentRescheduleContextImpl(
     private val employeeDataSource: EmployeeDataSource,
     private val serviceDataSource: ServiceDataSource,
-    private val transactionManager: TransactionManager
+    private val transactionManager: TransactionManager,
 ) : GetAppointmentRescheduleContext {
     override suspend fun invoke(
         businessId: Uuid,
         employeeId: Uuid?,
-        serviceIds: List<Uuid>
+        serviceIds: List<Uuid>,
     ): Result<AppointmentRescheduleContext> = transactionManager.transaction {
         AppointmentRescheduleContext(
             employee = employeeId?.let { resolveEmployee(businessId, it) },
-            services = resolveServices(businessId, serviceIds)
+            services = resolveServices(businessId, serviceIds),
         )
     }
 

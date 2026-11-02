@@ -9,11 +9,10 @@ import io.ktor.client.plugins.resources.get
 import kotlin.uuid.Uuid
 
 internal class DeleteUserClientImpl(
-    private val httpClient: HttpClient
+    private val httpClient: HttpClient,
 ) : DeleteUser {
 
     override suspend fun invoke(userId: Uuid): Result<Unit> = runSuspendCatching {
         httpClient.get(UserRouting.Api.Internal.User.Id(id = userId)).throwOnFailure()
     }
-
 }

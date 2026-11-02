@@ -33,7 +33,7 @@ fun appointmentsModule() = module {
         cacheModule(),
         eventStreamingTransportModule(AppointmentsScope, APPOINTMENTS_SERVICE_NAME),
         outboxModule(AppointmentsScope),
-        businessClientModule(AppointmentsScope, APPOINTMENTS_SERVICE_NAME)
+        businessClientModule(AppointmentsScope, APPOINTMENTS_SERVICE_NAME),
     )
 }
 
@@ -44,7 +44,7 @@ fun appointmentsEmbeddedModule() = module {
         cacheModule(),
         embeddedEventStreamingTransportModule(AppointmentsScope, APPOINTMENTS_SERVICE_NAME),
         outboxModule(AppointmentsScope),
-        businessClientModule(AppointmentsScope, APPOINTMENTS_SERVICE_NAME)
+        businessClientModule(AppointmentsScope, APPOINTMENTS_SERVICE_NAME),
     )
 }
 

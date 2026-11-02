@@ -91,15 +91,14 @@ internal class BusinessDataSourceImpl : DataSource(), BusinessDataSource {
             ?.let { BusinessEntity.findById(it)?.toDomain() }
     }
 
-    private fun isSuspendedEmployee(userId: Uuid, businessId: Uuid): Boolean =
-        EmployeeTable.select(EmployeeTable.id)
-            .where {
-                (EmployeeTable.userId eq userId) and
-                    (EmployeeTable.businessId eq businessId) and
-                    EmployeeTable.suspendedAt.isNotNull()
-            }
-            .empty()
-            .not()
+    private fun isSuspendedEmployee(userId: Uuid, businessId: Uuid): Boolean = EmployeeTable.select(EmployeeTable.id)
+        .where {
+            (EmployeeTable.userId eq userId) and
+                (EmployeeTable.businessId eq businessId) and
+                EmployeeTable.suspendedAt.isNotNull()
+        }
+        .empty()
+        .not()
 
     override suspend fun setDashboardBusiness(userId: Uuid, businessId: Uuid): Unit = dbQuery {
         BusinessDashboardTable.upsert {
@@ -125,7 +124,7 @@ internal class BusinessDataSourceImpl : DataSource(), BusinessDataSource {
             .map { it.toDomain() }
         UserBusinesses(
             dashboardId = dashboardId?.takeIf { id -> businesses.any { it.id == id } },
-            businesses = businesses
+            businesses = businesses,
         )
     }
 
@@ -135,7 +134,7 @@ internal class BusinessDataSourceImpl : DataSource(), BusinessDataSource {
             .select(BusinessTable.id, BusinessTable.timezone)
             .groupBy(
                 keySelector = { it[BusinessTable.timezone] },
-                valueTransform = { it[BusinessTable.id].value }
+                valueTransform = { it[BusinessTable.id].value },
             )
 
         businessIdsByTimeZone.forEach { (timeZone, businessIds) ->

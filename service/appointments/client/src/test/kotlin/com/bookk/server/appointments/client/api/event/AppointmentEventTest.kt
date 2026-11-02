@@ -22,7 +22,7 @@ internal class AppointmentEventTest {
         from = Instant.parse("2099-03-05T14:30:00Z"),
         to = Instant.parse("2099-03-05T15:00:00Z"),
         timeZone = TimeZone.of("Europe/Kyiv"),
-        businessName = "Barbershop"
+        businessName = "Barbershop",
     )
 
     @Test
@@ -33,7 +33,7 @@ internal class AppointmentEventTest {
         whenn()
         val decoded = protoBuf.decodeFromByteArray(
             AppointmentEvent.CancelledForDeletedClient.serializer(),
-            protoBuf.encodeToByteArray(AppointmentEvent.CancelledForDeletedClient.serializer(), event)
+            protoBuf.encodeToByteArray(AppointmentEvent.CancelledForDeletedClient.serializer(), event),
         )
 
         then()
@@ -52,13 +52,13 @@ internal class AppointmentEventTest {
             timeZone = event.timeZone,
             businessName = event.businessName,
             idempotencyKey = "key",
-            topic = AppointmentEvent.CancelledForDeletedClient.TOPIC
+            topic = AppointmentEvent.CancelledForDeletedClient.TOPIC,
         )
 
         whenn()
         val decoded = protoBuf.decodeFromByteArray(
             AppointmentEvent.CancelledForDeletedClient.serializer(),
-            protoBuf.encodeToByteArray(PinnedCancelledForDeletedClient.serializer(), pinned)
+            protoBuf.encodeToByteArray(PinnedCancelledForDeletedClient.serializer(), pinned),
         )
 
         then()
@@ -74,5 +74,5 @@ private data class PinnedCancelledForDeletedClient(
     @ProtoNumber(4) val timeZone: TimeZone,
     @ProtoNumber(5) val businessName: String,
     @ProtoNumber(6) val idempotencyKey: String,
-    @ProtoNumber(7) val topic: String
+    @ProtoNumber(7) val topic: String,
 )

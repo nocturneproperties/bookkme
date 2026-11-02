@@ -79,7 +79,10 @@ internal class BusinessEventHandlerImplEventTest {
         val arrived = CountDownLatch(1)
         coEvery {
             fixture.syncUserProfile(userId, any(), any(), any(), any(), any())
-        } answers { arrived.countDown(); Result.success(Unit) }
+        } answers {
+            arrived.countDown()
+            Result.success(Unit)
+        }
 
         whenn()
         withContext(Dispatchers.IO) {
@@ -91,8 +94,8 @@ internal class BusinessEventHandlerImplEventTest {
                     lastName = "Smith",
                     email = "jane@example.com",
                     phone = "+10000000000",
-                    updatedAt = updatedAt
-                )
+                    updatedAt = updatedAt,
+                ),
             )
             arrived.await(20, TimeUnit.SECONDS)
         }
@@ -113,7 +116,10 @@ internal class BusinessEventHandlerImplEventTest {
         val arrived = CountDownLatch(1)
         coEvery {
             fixture.syncUserProfile(userId, any(), any(), any(), any(), any())
-        } answers { arrived.countDown(); Result.success(Unit) }
+        } answers {
+            arrived.countDown()
+            Result.success(Unit)
+        }
 
         whenn()
         withContext(Dispatchers.IO) {
@@ -125,8 +131,8 @@ internal class BusinessEventHandlerImplEventTest {
                     lastName = "Smith",
                     email = "jane@example.com",
                     phone = null,
-                    updatedAt = updatedAt
-                )
+                    updatedAt = updatedAt,
+                ),
             )
             arrived.await(20, TimeUnit.SECONDS)
         }
@@ -147,7 +153,10 @@ internal class BusinessEventHandlerImplEventTest {
         coEvery { fixture.deleteBusiness(userId) } returns Result.success(Unit)
         coEvery {
             fixture.anonymizeUserProfile(userId)
-        } answers { arrived.countDown(); Result.success(Unit) }
+        } answers {
+            arrived.countDown()
+            Result.success(Unit)
+        }
 
         whenn()
         withContext(Dispatchers.IO) {

@@ -12,7 +12,7 @@ import kotlin.uuid.Uuid
 internal class IsAppointmentsEnabledImpl(
     private val subscriptionDataSource: AppointmentSubscriptionDataSource,
     private val appointmentPermissionDataSource: AppointmentPermissionDataSource,
-    private val transactionManager: TransactionManager
+    private val transactionManager: TransactionManager,
 ) : IsAppointmentsEnabled {
     override suspend fun invoke(userId: Uuid, businessId: Uuid): Result<Boolean> = transactionManager.transaction {
         appointmentPermissionDataSource.getPermission(userId, businessId).assert(PermissionAction.VIEW)

@@ -26,7 +26,7 @@ internal class AppointmentRequestCreatedNotificationTest {
         timeZone = TimeZone.UTC,
         businessName = "Barbershop",
         address = "1 Main St",
-        price = "USD 20.00"
+        price = "USD 20.00",
     )
 
     @Test

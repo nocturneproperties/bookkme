@@ -40,7 +40,7 @@ internal class StepUpTest {
         publicKeyCredentialJson = "{}",
         action = StepUpAction.DELETE_CLIENT,
         businessId = Uuid.random(),
-        targetId = Uuid.random()
+        targetId = Uuid.random(),
     )
 
     @Test
@@ -56,7 +56,7 @@ internal class StepUpTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { stepUp() }
+            routeUnderTest = { stepUp() },
         )
 
         whenn()
@@ -78,7 +78,7 @@ internal class StepUpTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { stepUp() }
+            routeUnderTest = { stepUp() },
         )
         return createTestClient().post(AuthRouting.Api.Auth.PassKey.StepUp()) { setBody(request()) }
     }
@@ -142,7 +142,7 @@ internal class StepUpTest {
         setupApplication(
             extension = { install(Authentication) { bearer { authenticate { null } } } },
             diModule = module { single { useCase } },
-            routeUnderTest = { stepUp() }
+            routeUnderTest = { stepUp() },
         )
 
         whenn()

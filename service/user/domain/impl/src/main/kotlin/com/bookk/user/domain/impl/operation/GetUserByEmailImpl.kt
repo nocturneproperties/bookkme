@@ -9,11 +9,10 @@ import com.bookk.user.domain.datasource.UserDataSource
 
 internal class GetUserByEmailImpl(
     private val userDataSource: UserDataSource,
-    private val transactionManager: TransactionManager
+    private val transactionManager: TransactionManager,
 ) : GetUserByEmail {
 
     override suspend fun invoke(body: EmailBody): Result<User> = transactionManager.transaction {
         userDataSource.getUserByEmail(body.email) ?: throw Error.UserNotFound()
     }
-
 }

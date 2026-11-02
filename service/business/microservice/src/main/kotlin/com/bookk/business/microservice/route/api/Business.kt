@@ -34,13 +34,13 @@ fun Route.businessCrud() {
          * Response: 422 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Create business errors<br>BUSINESS_ALREADY_EXIST (200001) Business already exist<br>BUSINESS_NAME_VALIDATION_ERROR (200002) Business name invalid<br>BUSINESS_INVALID_CURRENCY (200035) Currency code is not a supported ISO 4217 currency
          * See: docs/operations/business/create-business.md
          */
-         post<Api.Business> {
+        post<Api.Business> {
             val principal = requireNotNull(call.principal<AppPrincipal>())
             val body = call.receive<BusinessCreateRequest>()
             val createBusiness by application.injectScoped<CreateBusiness>(BusinessScope)
 
             call.respondWith(createBusiness(userId = principal.userId, request = body))
-         }
+        }
         /**
          * Summary: Update business
          * Description: Partially update business. The currency can only change while the business has no services, sending the stored currency again is always accepted

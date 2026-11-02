@@ -11,10 +11,12 @@ interface GetUserById {
     suspend operator fun invoke(userId: Uuid): Result<User>
 
     sealed interface Error {
-        class UserNotFound : BusinessError(
-            statusCode = HttpStatusCode.NotFound.value,
-            code = UserErrorCodes.USER_NOT_EXIST,
-            message = "User not found"
-        ), Error
+        class UserNotFound :
+            BusinessError(
+                statusCode = HttpStatusCode.NotFound.value,
+                code = UserErrorCodes.USER_NOT_EXIST,
+                message = "User not found",
+            ),
+            Error
     }
 }

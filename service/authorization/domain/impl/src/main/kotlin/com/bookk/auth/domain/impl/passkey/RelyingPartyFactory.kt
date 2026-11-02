@@ -10,14 +10,14 @@ internal fun createRelyingParty(credentialRepository: CredentialRepository) = Re
         RelyingPartyIdentity.builder()
             .id(AppLevelConstants.domainName)
             .name(AppLevelConstants.APP_NAME)
-            .build()
+            .build(),
     )
     .credentialRepository(credentialRepository)
     .origins(
         setOf(
             "android:apk-key-hash:l63z2UoYmCmoJ2V8Z9CfAxPkbhd7IjZvUrihusXdt10",
             "android:apk-key-hash:OCIXBZS_NbVj7Rr8TSctbrMGlxoMyZ0wl6ajVa7Yry4",
-            "https://bookkme.app"
-        )
+            "https://bookkme.app",
+        ),
     )
     .build()

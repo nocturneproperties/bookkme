@@ -14,12 +14,11 @@ import kotlin.uuid.Uuid
 internal class GetClientsImpl(
     private val clientsDataSource: ClientDataSource,
     private val businessPermissionDataSource: BusinessPermissionDataSource,
-    private val transactionManager: TransactionManager
-): GetClients {
-    override suspend fun invoke(requestUserId: Uuid, businessId: Uuid): Result<List<ClientRemote>> =
-        transactionManager.transaction {
-            businessPermissionDataSource.getPermission(requestUserId, businessId, BusinessResource.CLIENTS)
-                .assert(PermissionAction.VIEW)
-            clientsDataSource.getClients(businessId).map { it.toRemote() }
-        }
+    private val transactionManager: TransactionManager,
+) : GetClients {
+    override suspend fun invoke(requestUserId: Uuid, businessId: Uuid): Result<List<ClientRemote>> = transactionManager.transaction {
+        businessPermissionDataSource.getPermission(requestUserId, businessId, BusinessResource.CLIENTS)
+            .assert(PermissionAction.VIEW)
+        clientsDataSource.getClients(businessId).map { it.toRemote() }
+    }
 }

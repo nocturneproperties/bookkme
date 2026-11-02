@@ -19,7 +19,7 @@ interface EmployeeDataSource {
         lastName: String,
         email: String,
         phone: String?,
-        updatedAt: Instant
+        updatedAt: Instant,
     ): Int
 
     suspend fun getServiceIds(employeeId: Uuid): List<Uuid>

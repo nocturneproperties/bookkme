@@ -232,12 +232,11 @@ private suspend fun storeResponse(
 
 private fun getRequestIdentity(call: ApplicationCall) = "${call.request.httpMethod.value} ${call.request.uri}"
 
-private suspend fun getStoredResponseContent(content: OutgoingContent) =
-    when (content) {
-        is OutgoingContent.ByteArrayContent -> content.bytes()
-        is OutgoingContent.ReadChannelContent -> content.readFrom().toByteArray()
-        else -> null
-    }
+private suspend fun getStoredResponseContent(content: OutgoingContent) = when (content) {
+    is OutgoingContent.ByteArrayContent -> content.bytes()
+    is OutgoingContent.ReadChannelContent -> content.readFrom().toByteArray()
+    else -> null
+}
 
 private const val IDEMPOTENCY_KEY_HEADER = "Idempotency-Key"
 

@@ -29,7 +29,7 @@ internal class GetAppointmentRescheduleContextTest {
     private val businessId = Uuid.random()
 
     private fun resource() = BusinessRouting.Api.Internal.Business.Id.AppointmentRescheduleContext(
-        parent = BusinessRouting.Api.Internal.Business.Id(id = businessId)
+        parent = BusinessRouting.Api.Internal.Business.Id(id = businessId),
     )
 
     @Test
@@ -42,7 +42,7 @@ internal class GetAppointmentRescheduleContextTest {
 
         setupApplication(
             diModule = module { single { useCase } },
-            routeUnderTest = { getAppointmentRescheduleContext() }
+            routeUnderTest = { getAppointmentRescheduleContext() },
         )
 
         whenn()
@@ -66,7 +66,7 @@ internal class GetAppointmentRescheduleContextTest {
 
         setupApplication(
             diModule = module { single { useCase } },
-            routeUnderTest = { getAppointmentRescheduleContext() }
+            routeUnderTest = { getAppointmentRescheduleContext() },
         )
 
         whenn()
@@ -103,7 +103,7 @@ internal class GetAppointmentRescheduleContextTest {
 
         setupApplication(
             diModule = module { single { useCase } },
-            routeUnderTest = { getAppointmentRescheduleContext() }
+            routeUnderTest = { getAppointmentRescheduleContext() },
         )
 
         whenn()

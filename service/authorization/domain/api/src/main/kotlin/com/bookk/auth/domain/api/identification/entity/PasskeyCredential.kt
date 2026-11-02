@@ -24,7 +24,7 @@ data class PasskeyCredential(
     val attestationObject: ByteArray,
     val clientData: String,
     val createdAt: Instant,
-    val lastUsedAt: Instant
+    val lastUsedAt: Instant,
 ) {
 
     /**
@@ -33,7 +33,7 @@ data class PasskeyCredential(
     class CredentialDescriptor(
         val id: ByteArray,
         val type: String,
-        val transports: Set<String>
+        val transports: Set<String>,
     )
 
     companion object {
@@ -44,7 +44,7 @@ data class PasskeyCredential(
             credDescriptor: CredentialDescriptor = CredentialDescriptor(
                 id = ByteArray(24) { it.toByte() },
                 type = "public-key",
-                transports = setOf("internal")
+                transports = setOf("internal"),
             ),
             publicKey: String = "base64pubkey==",
             signatureCount: Long = 0L,
@@ -52,7 +52,7 @@ data class PasskeyCredential(
             isBackupEligible: Boolean = false,
             isBackedUp: Boolean = false,
             attestationObject: ByteArray = ByteArray(32) { 0 },
-            clientData: String = "{}"
+            clientData: String = "{}",
         ) = PasskeyCredential(
             id = id,
             authId = authInfo.id,
@@ -68,7 +68,7 @@ data class PasskeyCredential(
             attestationObject = attestationObject,
             clientData = clientData,
             createdAt = Instant.fromEpochMilliseconds(0),
-            lastUsedAt = Instant.fromEpochMilliseconds(0)
+            lastUsedAt = Instant.fromEpochMilliseconds(0),
         )
     }
 }

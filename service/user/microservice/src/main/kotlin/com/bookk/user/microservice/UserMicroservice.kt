@@ -22,7 +22,7 @@ fun userModule() = module {
         userDataModule(),
         cacheModule(),
         eventStreamingTransportModule(UserScope, USER_SERVICE_NAME),
-        outboxModule(UserScope)
+        outboxModule(UserScope),
     )
 }
 
@@ -32,7 +32,7 @@ fun userEmbeddedModule() = module {
         userDataModule(),
         cacheModule(),
         embeddedEventStreamingTransportModule(UserScope, USER_SERVICE_NAME),
-        outboxModule(UserScope)
+        outboxModule(UserScope),
     )
 }
 

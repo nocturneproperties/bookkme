@@ -45,7 +45,7 @@ internal class CreateAppointmentRequestImpl(
     private val tokenValidatorFactory: TokenValidatorFactory,
     private val businessClient: BusinessClient,
     private val deletedUserDataSource: DeletedUserDataSource,
-    private val deletedClientDataSource: DeletedClientDataSource
+    private val deletedClientDataSource: DeletedClientDataSource,
 ) : CreateAppointmentRequest {
 
     private val quoteVerifier = BookingQuoteVerifier(tokenValidatorFactory)
@@ -65,7 +65,7 @@ internal class CreateAppointmentRequestImpl(
                 businessId = draft.businessId,
                 employeeId = draft.employeeId,
                 userId = userId,
-                serviceIds = draft.services.map { it.serviceId }
+                serviceIds = draft.services.map { it.serviceId },
             )
             .getOrThrow()
 
@@ -75,24 +75,23 @@ internal class CreateAppointmentRequestImpl(
         createOrRequestAppointment(userId, request).getOrThrow()
     }
 
-    private suspend fun createOrRequestAppointment(userId: Uuid, request: AppointmentRequest): Result<Unit> =
-        transactionManager.transaction<Unit> {
-            if (deletedUserDataSource.isDeletedForShare(userId)) throw Error.OperationNotAllowed()
-            if (deletedClientDataSource.isDeletedForShare(request.businessId, request.client.id)) throw Error.OperationNotAllowed()
-            val settings = settingsDataSource.getForUpdate(request.businessId) ?: throw Error.NotFound()
+    private suspend fun createOrRequestAppointment(userId: Uuid, request: AppointmentRequest): Result<Unit> = transactionManager.transaction<Unit> {
+        if (deletedUserDataSource.isDeletedForShare(userId)) throw Error.OperationNotAllowed()
+        if (deletedClientDataSource.isDeletedForShare(request.businessId, request.client.id)) throw Error.OperationNotAllowed()
+        val settings = settingsDataSource.getForUpdate(request.businessId) ?: throw Error.NotFound()
 
-            if (settings.automaticApproval) {
-                return@transaction createAppointment.createBypassingPermissions(request)
-                    .map { Unit }
-                    .getOrThrow()
-            }
-
-            assertRequestIsSchedulable(request, settings)
-
-            requestDataSource.create(request).also {
-                sendRequestCreatedNotification(request)
-            }
+        if (settings.automaticApproval) {
+            return@transaction createAppointment.createBypassingPermissions(request)
+                .map { Unit }
+                .getOrThrow()
         }
+
+        assertRequestIsSchedulable(request, settings)
+
+        requestDataSource.create(request).also {
+            sendRequestCreatedNotification(request)
+        }
+    }
 
     private suspend fun releaseOfferTokenBestEffort(offerToken: String) {
         runSuspendCatching { requestDataSource.releaseOfferToken(offerToken) }
@@ -123,22 +122,21 @@ internal class CreateAppointmentRequestImpl(
                 timeZone = business.timeZone,
                 businessName = business.name,
                 address = business.address,
-                price = moneyFormatter.print(request.totalAmount)
-            )
+                price = moneyFormatter.print(request.totalAmount),
+            ),
         )
     }
 
-    private fun buildAppointmentRequest(userId: Uuid, draft: AppointmentRequestDraft, context: AppointmentBookingContext) =
-        AppointmentRequest(
-            id = Uuid.random(),
-            initiatorUserId = userId,
-            businessId = draft.businessId,
-            employee = context.employeeSnapshot(),
-            client = context.clientSnapshot(),
-            services = context.serviceSnapshots(draft.services),
-            status = AppointmentRequestStatus.PENDING,
-            date = draft.date,
-            note = draft.note,
-            declineReason = ""
-        )
+    private fun buildAppointmentRequest(userId: Uuid, draft: AppointmentRequestDraft, context: AppointmentBookingContext) = AppointmentRequest(
+        id = Uuid.random(),
+        initiatorUserId = userId,
+        businessId = draft.businessId,
+        employee = context.employeeSnapshot(),
+        client = context.clientSnapshot(),
+        services = context.serviceSnapshots(draft.services),
+        status = AppointmentRequestStatus.PENDING,
+        date = draft.date,
+        note = draft.note,
+        declineReason = "",
+    )
 }

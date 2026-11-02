@@ -4,17 +4,15 @@ plugins {
 }
 
 dependencies {
+    api(libs.ktor.protobuf)
+    api(projects.core.data.cache.api)
     implementation(libs.kotlin.coroutines)
     implementation(libs.kotlin.coroutines.reactive)
-    implementation(libs.ktor.protobuf)
     implementation(libs.redis.client)
     implementation(libs.redis.pool)
     implementation(projects.core)
-    implementation(projects.core.data.cache.api)
     implementation(projects.core.domain)
 
-    testFixturesImplementation(projects.core.data.cache.api)
-    testFixturesImplementation(libs.ktor.protobuf)
     testFixturesImplementation(libs.memcache)
 
     testImplementation(testFixtures(projects.core))

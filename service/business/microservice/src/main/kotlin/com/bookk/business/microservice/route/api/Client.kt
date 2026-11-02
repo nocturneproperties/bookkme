@@ -36,12 +36,12 @@ import kotlin.uuid.Uuid
 
 @Serializable
 internal class DeleteClientRequest(
-    @ProtoNumber(1) val stepUpToken: String?
+    @ProtoNumber(1) val stepUpToken: String?,
 )
 
 @Serializable
 internal class ClientImportRequest(
-    @ProtoNumber(1) val clients: List<ClientImportEntry>
+    @ProtoNumber(1) val clients: List<ClientImportEntry>,
 )
 
 @Serializable
@@ -50,7 +50,7 @@ internal class ClientImportEntry(
     @ProtoNumber(2) val lastName: String,
     @ProtoNumber(3) val phone: String?,
     @ProtoNumber(4) val email: String?,
-    @ProtoNumber(5) val description: String?
+    @ProtoNumber(5) val description: String?,
 ) {
     fun toDetachedClient() = Client.Detached(
         id = Uuid.random(),
@@ -58,7 +58,7 @@ internal class ClientImportEntry(
         lastName = lastName,
         phone = phone,
         email = email,
-        description = description
+        description = description,
     )
 }
 
@@ -85,8 +85,8 @@ fun Route.clientCrud() {
                 importClients(
                     requestUserId = principal.userId,
                     businessId = it.parent.businessId,
-                    clients = body.clients.map(ClientImportEntry::toDetachedClient)
-                )
+                    clients = body.clients.map(ClientImportEntry::toDetachedClient),
+                ),
             )
         }
 
@@ -111,8 +111,8 @@ fun Route.clientCrud() {
                 createClient(
                     requestUserId = principal.userId,
                     businessId = it.businessId,
-                    client = body.toDetachedClient()
-                )
+                    client = body.toDetachedClient(),
+                ),
             )
         }
 
@@ -168,8 +168,8 @@ fun Route.clientCrud() {
                     requestUserId = principal.userId,
                     businessId = it.parent.businessId,
                     id = it.id,
-                    stepUpToken = stepUpToken
-                )
+                    stepUpToken = stepUpToken,
+                ),
             )
         }
 
@@ -198,8 +198,8 @@ fun Route.clientCrud() {
                     updateClient(
                         requestUserId = principal.userId,
                         businessId = it.parent.businessId,
-                        model = body
-                    )
+                        model = body,
+                    ),
                 )
             }
         }

@@ -34,21 +34,19 @@ import kotlin.uuid.Uuid
 
 class PostValidateRegistrationTest {
 
-    private fun createSimpleRequest(): VerifyAccountCreationRequest {
-        return VerifyAccountCreationRequest(
-            requestId = "user_id",
-            deviceInfo = VerifyAccountCreationRequest.DeviceInfo(
-                deviceUUID = Uuid.random(),
-                deviceName = "example_device_name"
-            ),
-            userInfo = VerifyAccountCreationRequest.UserInfo(
-                name = "name",
-                lastName = "lastName",
-                email = "email"
-            ),
-            publicKeyCredentialJson = "mock"
-        )
-    }
+    private fun createSimpleRequest(): VerifyAccountCreationRequest = VerifyAccountCreationRequest(
+        requestId = "user_id",
+        deviceInfo = VerifyAccountCreationRequest.DeviceInfo(
+            deviceUUID = Uuid.random(),
+            deviceName = "example_device_name",
+        ),
+        userInfo = VerifyAccountCreationRequest.UserInfo(
+            name = "name",
+            lastName = "lastName",
+            email = "email",
+        ),
+        publicKeyCredentialJson = "mock",
+    )
 
     @Test
     fun `should return unprocessable entity when email format is invalid`() = routeTest {
@@ -61,7 +59,7 @@ class PostValidateRegistrationTest {
             diModule = module {
                 single<FinishRegistration> { useCase }
             },
-            routeUnderTest = { registration() }
+            routeUnderTest = { registration() },
         )
         whenn()
         val response = client.post(AuthRouting.Api.Auth.SignUp()) {
@@ -86,7 +84,7 @@ class PostValidateRegistrationTest {
             diModule = module {
                 single<FinishRegistration> { useCase }
             },
-            routeUnderTest = { registration() }
+            routeUnderTest = { registration() },
         )
         whenn()
         val response = client.post(AuthRouting.Api.Auth.SignUp()) {
@@ -111,7 +109,7 @@ class PostValidateRegistrationTest {
             diModule = module {
                 single<FinishRegistration> { useCase }
             },
-            routeUnderTest = { registration() }
+            routeUnderTest = { registration() },
         )
         whenn()
         val response = client.post(AuthRouting.Api.Auth.SignUp()) {
@@ -136,7 +134,7 @@ class PostValidateRegistrationTest {
             diModule = module {
                 single<FinishRegistration> { useCase }
             },
-            routeUnderTest = { registration() }
+            routeUnderTest = { registration() },
         )
         whenn()
         val response = client.post(AuthRouting.Api.Auth.SignUp()) {
@@ -161,7 +159,7 @@ class PostValidateRegistrationTest {
             diModule = module {
                 single<FinishRegistration> { useCase }
             },
-            routeUnderTest = { registration() }
+            routeUnderTest = { registration() },
         )
         whenn()
         val response = client.post(AuthRouting.Api.Auth.SignUp()) {
@@ -187,7 +185,7 @@ class PostValidateRegistrationTest {
             diModule = module {
                 single<FinishRegistration> { useCase }
             },
-            routeUnderTest = { registration() }
+            routeUnderTest = { registration() },
         )
         whenn()
         val response = client.post(AuthRouting.Api.Auth.SignUp()) {
@@ -212,7 +210,7 @@ class PostValidateRegistrationTest {
             diModule = module {
                 single<FinishRegistration> { useCase }
             },
-            routeUnderTest = { registration() }
+            routeUnderTest = { registration() },
         )
         whenn()
         client.post(AuthRouting.Api.Auth.SignUp()) {
@@ -235,7 +233,7 @@ class PostValidateRegistrationTest {
             diModule = module {
                 single<FinishRegistration> { useCase }
             },
-            routeUnderTest = { registration() }
+            routeUnderTest = { registration() },
         )
         whenn()
         client.post(AuthRouting.Api.Auth.SignUp()) {

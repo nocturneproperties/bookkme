@@ -6,5 +6,5 @@ import com.bookk.core.safeCapitalize
 class ServiceConfig(
     val version: String = AppLevelConstants.serviceVersion,
     val title: String = "${AppLevelConstants.serviceName.safeCapitalize()}Microservice",
-    val root: String = "api/${AppLevelConstants.serviceName}"
+    val root: String = "api/${AppLevelConstants.serviceName}",
 )

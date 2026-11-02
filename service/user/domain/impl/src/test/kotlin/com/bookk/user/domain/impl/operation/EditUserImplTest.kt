@@ -35,7 +35,7 @@ internal class EditUserImplTest {
         firstName: String? = null,
         lastName: String? = null,
         email: String? = null,
-        phone: String? = null
+        phone: String? = null,
     ) = UserEditModel(id = null, firstName = firstName, lastName = lastName, email = email, phone = phone)
 
     @Test
@@ -116,7 +116,7 @@ internal class EditUserImplTest {
                         it.lastName == "Smith" &&
                         it.email == "jane@example.com"
                 },
-                any()
+                any(),
             )
         }
     }
@@ -127,8 +127,11 @@ internal class EditUserImplTest {
         val fixture = SutFixture()
         val edit = editModel(phone = "+10000000000")
         val updated = User(
-            id = userId, name = "Jane", lastName = "Smith",
-            email = "jane@example.com", phone = "+10000000000"
+            id = userId,
+            name = "Jane",
+            lastName = "Smith",
+            email = "jane@example.com",
+            phone = "+10000000000",
         )
         with(fixture) {
             transactionManager.mockTransaction()

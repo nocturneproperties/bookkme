@@ -35,9 +35,9 @@ internal class AppointmentSubscriptionDataSourceImplTest {
     private fun saturdaySchedule(dayOffs: List<DayOffRange> = emptyList()) = Schedule(
         workingDays = listOf(DayOfWeek.SATURDAY),
         workingHours = mapOf(
-            DayOfWeek.SATURDAY to listOf(WorkHour(LocalTime(10, 0), LocalTime(14, 0)))
+            DayOfWeek.SATURDAY to listOf(WorkHour(LocalTime(10, 0), LocalTime(14, 0))),
         ),
-        dayOffs = dayOffs
+        dayOffs = dayOffs,
     )
 
     private val futureDayOff = DayOffRange(LocalDate(2099, 12, 30), LocalDate(2099, 12, 31))
@@ -73,7 +73,7 @@ internal class AppointmentSubscriptionDataSourceImplTest {
         assertEquals(listOf(DayOfWeek.SATURDAY), found!!.schedule.activeDays())
         assertEquals(
             listOf(WorkHour(LocalTime(10, 0), LocalTime(14, 0))),
-            found.schedule[DayOfWeek.SATURDAY].workingTime
+            found.schedule[DayOfWeek.SATURDAY].workingTime,
         )
         assertEquals(listOf(futureDayOff), found.schedule.dayOffs)
     }
@@ -100,7 +100,7 @@ internal class AppointmentSubscriptionDataSourceImplTest {
             name = "New Name",
             address = "New Address",
             timeZone = TimeZone.of("Europe/Kyiv"),
-            schedule = saturdaySchedule(dayOffs = listOf(futureDayOff))
+            schedule = saturdaySchedule(dayOffs = listOf(futureDayOff)),
         )
 
         whenn()
@@ -124,7 +124,7 @@ internal class AppointmentSubscriptionDataSourceImplTest {
         suspendTransaction {
             fixture.sut.updateBusiness(
                 snapshot.copy(name = "Newest", schedule = saturdaySchedule()),
-                Instant.fromEpochMilliseconds(2000)
+                Instant.fromEpochMilliseconds(2000),
             )
         }
 

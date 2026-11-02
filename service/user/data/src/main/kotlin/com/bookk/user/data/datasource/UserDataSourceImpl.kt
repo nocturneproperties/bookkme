@@ -20,7 +20,7 @@ import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
 internal class UserDataSourceImpl(
-    private val cacheClient: CacheClient<String>
+    private val cacheClient: CacheClient<String>,
 ) : DataSource(), UserDataSource {
 
     override suspend fun insertNewUser(user: User) = dbQuery {

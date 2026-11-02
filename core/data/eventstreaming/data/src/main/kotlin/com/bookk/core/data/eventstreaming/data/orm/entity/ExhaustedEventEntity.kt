@@ -19,7 +19,7 @@ internal class ExhaustedEventEntity(id: EntityID<Uuid>) : UuidEntity(id) {
         originalTopic = originalTopic,
         attempt = attempt,
         topic = originalTopic,
-        idempotencyKey = idempotencyKey
+        idempotencyKey = idempotencyKey,
     )
 
     fun exhaustedEvent(): ExhaustedEvent = ExhaustedEvent(id = id.value, event = domain())

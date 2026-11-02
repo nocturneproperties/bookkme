@@ -6,10 +6,8 @@ import com.bookk.auth.domain.api.token.operation.GenerateAuthToken.Source
 import com.bookk.auth.domain.api.token.operation.RefreshToken
 
 internal class RefreshTokenImpl(
-    private val generateAuthToken: GenerateAuthToken
+    private val generateAuthToken: GenerateAuthToken,
 ) : RefreshToken {
 
-    override suspend fun invoke(token: String): Result<AuthTokens> {
-        return generateAuthToken(Source.RefreshToken(token))
-    }
+    override suspend fun invoke(token: String): Result<AuthTokens> = generateAuthToken(Source.RefreshToken(token))
 }

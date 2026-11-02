@@ -53,5 +53,4 @@ object AuthRouting {
             class Account(val parent: Auth = Auth())
         }
     }
-
 }

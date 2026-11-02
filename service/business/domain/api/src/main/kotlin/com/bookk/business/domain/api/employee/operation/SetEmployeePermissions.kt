@@ -13,14 +13,16 @@ interface SetEmployeePermissions {
         requestUserId: Uuid,
         businessId: Uuid,
         employeeId: Uuid,
-        grants: Map<BusinessResource, ResourcePermission>
+        grants: Map<BusinessResource, ResourcePermission>,
     ): Result<Employee>
 
     sealed interface Error {
-        class OwnerPermissionsImmutable : BusinessError(
-            statusCode = HttpStatusCode.UnprocessableEntity.value,
-            code = BusinessErrorCodes.BUSINESS_OWNER_PERMISSIONS_IMMUTABLE,
-            message = "Business owner always has full permissions"
-        ), Error
+        class OwnerPermissionsImmutable :
+            BusinessError(
+                statusCode = HttpStatusCode.UnprocessableEntity.value,
+                code = BusinessErrorCodes.BUSINESS_OWNER_PERMISSIONS_IMMUTABLE,
+                message = "Business owner always has full permissions",
+            ),
+            Error
     }
 }

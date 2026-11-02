@@ -44,7 +44,7 @@ internal class AppointmentRequestId(
 
 @Serializable
 internal class CompleteAppointmentRequest(
-    @ProtoNumber(1) val priceAdjustment: PriceAdjustmentDraft?
+    @ProtoNumber(1) val priceAdjustment: PriceAdjustmentDraft?,
 )
 
 fun Routing.appointment() {
@@ -73,8 +73,8 @@ fun Routing.appointment() {
                 call.respondWith(
                     updateAppointment(
                         userId = principal.userId,
-                        update = body
-                    )
+                        update = body,
+                    ),
                 )
             }
         }
@@ -122,8 +122,8 @@ fun Routing.appointment() {
                     businessId = it.businessId,
                     limit = it.limit,
                     offset = it.offset,
-                    query = it.query
-                )
+                    query = it.query,
+                ),
             )
         }
 
@@ -146,8 +146,8 @@ fun Routing.appointment() {
             call.respondWith(
                 createAppointment(
                     userId = principal.userId,
-                    appointmentRequestId = body.requestId
-                )
+                    appointmentRequestId = body.requestId,
+                ),
             )
         }
 
@@ -194,8 +194,8 @@ fun Routing.appointment() {
                 call.respondWith(
                     cancelAppointment(
                         userId = principal.userId,
-                        cancellation = body
-                    )
+                        cancellation = body,
+                    ),
                 )
             }
         }

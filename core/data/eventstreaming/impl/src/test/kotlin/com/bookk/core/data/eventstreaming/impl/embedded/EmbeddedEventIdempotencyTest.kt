@@ -133,8 +133,14 @@ internal class EmbeddedEventIdempotencyTest {
         val businessConsumer = fixture.newConsumer(consumerGroup = "business_group")
         val userAttempts = AtomicInteger(0)
         val businessAttempts = AtomicInteger(0)
-        userConsumer.registerReceiver<KeyedTestEvent, String>(topic) { userAttempts.incrementAndGet(); throw RuntimeException("boom") }
-        businessConsumer.registerReceiver<KeyedTestEvent, String>(topic) { businessAttempts.incrementAndGet(); throw RuntimeException("boom") }
+        userConsumer.registerReceiver<KeyedTestEvent, String>(topic) {
+            userAttempts.incrementAndGet()
+            throw RuntimeException("boom")
+        }
+        businessConsumer.registerReceiver<KeyedTestEvent, String>(topic) {
+            businessAttempts.incrementAndGet()
+            throw RuntimeException("boom")
+        }
         userConsumer.start(backgroundScope)
         businessConsumer.start(backgroundScope)
 

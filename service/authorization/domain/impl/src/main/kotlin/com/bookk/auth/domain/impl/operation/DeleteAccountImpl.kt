@@ -18,12 +18,12 @@ internal class DeleteAccountImpl(
     private val accountDataSource: AccountDataSource,
     private val deviceDataSource: DeviceDataSource,
     private val eventProducer: StandardEventProducer,
-    private val transactionManager: TransactionManager
+    private val transactionManager: TransactionManager,
 ) : DeleteAccount {
 
     override suspend fun invoke(
         userId: Uuid,
-        request: FinishAssertionRequest
+        request: FinishAssertionRequest,
     ): Result<Unit> = transactionManager.transaction {
         finishAssertion.finishOwnedBy(userId, request).getOrThrow()
         val authRecord = accountDataSource.getAuthRecordByUserId(userId) ?: throw InvalidCredentials()
@@ -34,5 +34,4 @@ internal class DeleteAccountImpl(
         }
         accountDataSource.deleteAuthorization(authRecord.userId)
     }
-
 }

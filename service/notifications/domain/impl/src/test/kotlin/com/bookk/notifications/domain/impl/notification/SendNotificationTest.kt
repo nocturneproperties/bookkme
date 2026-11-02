@@ -41,8 +41,7 @@ internal class SendNotificationTest {
         text = { TextNotification(text = "Text") },
     )
 
-    private fun NotificationParameters.copyWithType(type: NotificationType) =
-        NotificationParameters(type = type, push = push, email = email, text = text)
+    private fun NotificationParameters.copyWithType(type: NotificationType) = NotificationParameters(type = type, push = push, email = email, text = text)
 
     @Test
     fun `should send to all enabled channels`() = runUnitTest {
@@ -56,7 +55,7 @@ internal class SendNotificationTest {
                 NotificationChannelSettings.stub(channel = CommunicationChannel.EMAIL, enabled = true),
                 NotificationChannelSettings.stub(channel = CommunicationChannel.TELEGRAM, enabled = true),
                 NotificationChannelSettings.stub(channel = CommunicationChannel.PUSH_NOTIFICATIONS, enabled = false),
-            )
+            ),
         )
         with(fixture) {
             coEvery { notificationDataSource.getByUserId(userId) } returns settings
@@ -85,7 +84,7 @@ internal class SendNotificationTest {
                 NotificationChannelSettings.stub(channel = CommunicationChannel.EMAIL, enabled = false),
                 NotificationChannelSettings.stub(channel = CommunicationChannel.TELEGRAM, enabled = false),
                 NotificationChannelSettings.stub(channel = CommunicationChannel.PUSH_NOTIFICATIONS, enabled = false),
-            )
+            ),
         )
         with(fixture) {
             coEvery { notificationDataSource.getByUserId(userId) } returns settings
@@ -113,7 +112,7 @@ internal class SendNotificationTest {
                 NotificationChannelSettings.stub(channel = CommunicationChannel.EMAIL, enabled = true),
                 NotificationChannelSettings.stub(channel = CommunicationChannel.TELEGRAM, enabled = true),
                 NotificationChannelSettings.stub(channel = CommunicationChannel.PUSH_NOTIFICATIONS, enabled = true),
-            )
+            ),
         )
         with(fixture) {
             coEvery { notificationDataSource.getByUserId(userId) } returns settings
@@ -141,7 +140,7 @@ internal class SendNotificationTest {
             channels = listOf(
                 NotificationChannelSettings.stub(channel = CommunicationChannel.EMAIL, enabled = true),
                 NotificationChannelSettings.stub(channel = CommunicationChannel.PUSH_NOTIFICATIONS, enabled = false),
-            )
+            ),
         )
         with(fixture) {
             coEvery { notificationDataSource.getByUserId(userId) } returns settings
@@ -169,7 +168,7 @@ internal class SendNotificationTest {
                 NotificationChannelSettings.stub(channel = CommunicationChannel.EMAIL, enabled = false),
                 NotificationChannelSettings.stub(channel = CommunicationChannel.TELEGRAM, enabled = false),
                 NotificationChannelSettings.stub(channel = CommunicationChannel.PUSH_NOTIFICATIONS, enabled = false),
-            )
+            ),
         )
         with(fixture) {
             coEvery { notificationDataSource.getByUserId(userId) } returns settings
@@ -230,7 +229,7 @@ internal class SendNotificationTest {
         val notification = notificationParams()
         val settings = NotificationSettings.stub(
             userId = userId,
-            channels = listOf(NotificationChannelSettings.stub(channel = CommunicationChannel.EMAIL, enabled = true))
+            channels = listOf(NotificationChannelSettings.stub(channel = CommunicationChannel.EMAIL, enabled = true)),
         )
         var sentInTransaction = true
         with(fixture) {

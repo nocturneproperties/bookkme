@@ -58,7 +58,7 @@ internal class DeclineAppointmentTest {
             },
             routeUnderTest = {
                 appointment()
-            }
+            },
         )
 
         whenn()
@@ -82,7 +82,7 @@ internal class DeclineAppointmentTest {
         coEvery {
             useCase.invoke(
                 userId,
-                cancellation
+                cancellation,
             )
         } returns Result.failure(AppointmentStatusError.AlreadyCancelled())
 
@@ -101,7 +101,7 @@ internal class DeclineAppointmentTest {
             },
             routeUnderTest = {
                 appointment()
-            }
+            },
         )
 
         whenn()
@@ -127,7 +127,7 @@ internal class DeclineAppointmentTest {
         coEvery {
             useCase.invoke(
                 userId,
-                cancellation
+                cancellation,
             )
         } returns Result.failure(AppointmentStatusError.AlreadyCompleted())
 
@@ -146,7 +146,7 @@ internal class DeclineAppointmentTest {
             },
             routeUnderTest = {
                 appointment()
-            }
+            },
         )
 
         whenn()
@@ -185,7 +185,7 @@ internal class DeclineAppointmentTest {
             },
             routeUnderTest = {
                 appointment()
-            }
+            },
         )
 
         whenn()
@@ -215,7 +215,7 @@ internal class DeclineAppointmentTest {
             },
             routeUnderTest = {
                 appointment()
-            }
+            },
         )
 
         whenn()
@@ -248,7 +248,7 @@ internal class DeclineAppointmentTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { appointment() }
+            routeUnderTest = { appointment() },
         )
 
         whenn()
@@ -266,5 +266,5 @@ internal class DeclineAppointmentTest {
 private class LegacyCancelAppointmentBody(
     @ProtoNumber(1) val id: Uuid,
     @ProtoNumber(2) val businessId: Uuid,
-    @ProtoNumber(3) val reason: String
+    @ProtoNumber(3) val reason: String,
 )

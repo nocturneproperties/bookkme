@@ -26,7 +26,7 @@ internal class ExhaustedEventDataSourceImplTest {
         originalTopic = originalTopic,
         attempt = attempt,
         topic = originalTopic,
-        idempotencyKey = Uuid.random().toString()
+        idempotencyKey = Uuid.random().toString(),
     )
 
     @Test

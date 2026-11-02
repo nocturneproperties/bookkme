@@ -15,13 +15,13 @@ internal class GetStaffBookingContextImpl(
     private val employeeDataSource: EmployeeDataSource,
     private val clientDataSource: ClientDataSource,
     private val serviceDataSource: ServiceDataSource,
-    private val transactionManager: TransactionManager
+    private val transactionManager: TransactionManager,
 ) : GetStaffBookingContext {
     override suspend fun invoke(
         businessId: Uuid,
         employeeId: Uuid,
         clientId: Uuid,
-        serviceIds: List<Uuid>
+        serviceIds: List<Uuid>,
     ): Result<AppointmentBookingContext> {
         if (serviceIds.isEmpty()) return Result.failure(Error.EmptyServiceList())
         return transactionManager.transaction {

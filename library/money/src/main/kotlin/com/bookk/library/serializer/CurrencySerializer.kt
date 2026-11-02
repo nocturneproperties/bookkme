@@ -12,9 +12,7 @@ import org.joda.money.Money
 object CurrencySerializer : KSerializer<CurrencyUnit> {
     override val descriptor: SerialDescriptor = PrimitiveSerialDescriptor("CurrencyUnit", PrimitiveKind.STRING)
 
-    override fun deserialize(decoder: Decoder): CurrencyUnit {
-        return CurrencyUnit.of(decoder.decodeString())
-    }
+    override fun deserialize(decoder: Decoder): CurrencyUnit = CurrencyUnit.of(decoder.decodeString())
 
     override fun serialize(encoder: Encoder, value: CurrencyUnit) {
         encoder.encodeString(value.code)
@@ -24,9 +22,7 @@ object CurrencySerializer : KSerializer<CurrencyUnit> {
 object MoneySerializer : KSerializer<Money> {
     override val descriptor: SerialDescriptor = PrimitiveSerialDescriptor("Money", PrimitiveKind.STRING)
 
-    override fun deserialize(decoder: Decoder): Money {
-        return Money.parse(decoder.decodeString())
-    }
+    override fun deserialize(decoder: Decoder): Money = Money.parse(decoder.decodeString())
 
     override fun serialize(encoder: Encoder, value: Money) {
         encoder.encodeString(value.toString())

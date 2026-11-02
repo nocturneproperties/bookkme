@@ -119,7 +119,7 @@ internal class GetAppointmentBookingContextImplTest {
                 businessId,
                 match<Client.Integrated> {
                     it.name == user.name && it.lastName == user.lastName && it.phone == user.phone && it.email == user.email && it.userId == userId
-                }
+                },
             )
         }
     }
@@ -154,7 +154,7 @@ internal class GetAppointmentBookingContextImplTest {
                 businessId,
                 match<Client.Integrated> {
                     it.name == user.name && it.lastName == user.lastName && it.phone == null && it.email == user.email && it.userId == userId
-                }
+                },
             )
         }
     }
@@ -318,7 +318,7 @@ internal class GetAppointmentBookingContextImplTest {
             fixture.clientDataSource.takeOverClient(
                 businessId,
                 detached.id,
-                match { it.userId == user.id && it.name == user.name && it.email == user.email && it.phone == user.phone }
+                match { it.userId == user.id && it.name == user.name && it.email == user.email && it.phone == user.phone },
             )
         }
         coVerify(exactly = 0) { fixture.clientDataSource.getOrCreateIntegratedClient(any(), any()) }
@@ -351,7 +351,7 @@ internal class GetAppointmentBookingContextImplTest {
                 match<BusinessEvent.ClientLinked> {
                     it.businessId == businessId && it.clientId == detached.id && it.userId == user.id && it.mergedClientIds.isEmpty()
                 },
-                any()
+                any(),
             )
         }
     }
@@ -431,7 +431,7 @@ internal class GetAppointmentBookingContextImplTest {
                     it.businessId == businessId && it.clientId == byEmail.id && it.userId == user.id &&
                         it.mergedClientIds == listOf(byPhone.id)
                 },
-                any()
+                any(),
             )
         }
     }

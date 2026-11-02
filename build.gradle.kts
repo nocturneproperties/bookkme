@@ -12,6 +12,7 @@ plugins {
     alias(libs.plugins.bookk.domain.impl).apply(false)
     alias(libs.plugins.bookk.client).apply(false)
     alias(libs.plugins.bookk.microservice)
+    alias(libs.plugins.spotless)
 }
 
 group = "com.bookk.server"
@@ -58,6 +59,19 @@ dependencies {
     testImplementation(testFixtures(projects.library.scheduler))
 }
 
+spotless {
+    kotlin {
+        target("**/*.kt")
+        targetExclude("**/build/**", ".gradle/**", ".kotlin/**")
+        ktlint(libs.versions.ktlint.get())
+    }
+    kotlinGradle {
+        target("**/*.gradle.kts")
+        targetExclude("**/build/**", ".gradle/**", ".kotlin/**")
+        ktlint(libs.versions.ktlint.get())
+    }
+}
+
 includeLocalProperties(providers.gradleProperty("local.propertiesFile").get())
 
 tasks.withType<JibTask> {
@@ -73,8 +87,8 @@ subprojects {
         environment(
             mapOf(
                 "APPLICATION_SERVICE_NAME" to "test",
-                "APPLICATION_SERVICE_VERSION" to "test"
-            )
+                "APPLICATION_SERVICE_VERSION" to "test",
+            ),
         )
     }
 }

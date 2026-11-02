@@ -12,7 +12,7 @@ data class EmployeeInvitation(
     @ProtoNumber(3) val invitedBy: Uuid,
     @ProtoNumber(4) val code: String?,
     @ProtoNumber(5) val status: EmployeeInvitationStatus,
-    @ProtoNumber(6) val createdAt: Instant
+    @ProtoNumber(6) val createdAt: Instant,
 ) {
     companion object {
         fun stub(
@@ -21,14 +21,14 @@ data class EmployeeInvitation(
             invitedBy: Uuid = Uuid.random(),
             code: String? = "STUBCODE",
             status: EmployeeInvitationStatus = EmployeeInvitationStatus.PENDING,
-            createdAt: Instant = Instant.fromEpochMilliseconds(0)
+            createdAt: Instant = Instant.fromEpochMilliseconds(0),
         ) = EmployeeInvitation(
             id = id,
             businessId = businessId,
             invitedBy = invitedBy,
             code = code,
             status = status,
-            createdAt = createdAt
+            createdAt = createdAt,
         )
     }
 }

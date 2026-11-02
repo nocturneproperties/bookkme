@@ -9,7 +9,7 @@ import com.bookk.business.domain.api.appointment.entity.AppointmentBookingContex
 internal fun AppointmentBookingContext.employeeSnapshot() = EmployeeSnapshot(
     id = employee.id,
     userId = employee.userId,
-    fullName = "${employee.name} ${employee.lastName}".trim()
+    fullName = "${employee.name} ${employee.lastName}".trim(),
 )
 
 internal fun AppointmentBookingContext.clientSnapshot() = ClientSnapshot(
@@ -17,7 +17,7 @@ internal fun AppointmentBookingContext.clientSnapshot() = ClientSnapshot(
     fullName = "${client.name} ${client.lastName}".trim(),
     phone = client.phone,
     email = client.email,
-    userId = client.userId
+    userId = client.userId,
 )
 
 internal fun AppointmentBookingContext.serviceSnapshots(requested: List<RequestedService>): List<ServiceSnapshot> {

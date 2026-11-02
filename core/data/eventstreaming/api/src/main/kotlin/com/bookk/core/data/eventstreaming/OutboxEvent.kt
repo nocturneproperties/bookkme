@@ -4,7 +4,7 @@ class OutboxEvent(
     val id: Long,
     val topic: String,
     val partitionKey: String?,
-    val payload: ByteArray
+    val payload: ByteArray,
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -28,7 +28,7 @@ class OutboxEvent(
             id: Long = 1,
             topic: String = "topic",
             partitionKey: String? = null,
-            payload: ByteArray = byteArrayOf()
+            payload: ByteArray = byteArrayOf(),
         ) = OutboxEvent(id = id, topic = topic, partitionKey = partitionKey, payload = payload)
     }
 }

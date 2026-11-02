@@ -7,11 +7,10 @@ import kotlin.uuid.Uuid
 
 internal class DeleteUserImpl(
     private val userDataSource: UserDataSource,
-    private val transactionManager: TransactionManager
+    private val transactionManager: TransactionManager,
 ) : DeleteUser {
 
     override suspend fun invoke(userId: Uuid): Result<Unit> = transactionManager.transaction {
         userDataSource.deleteUser(userId)
     }
-
 }

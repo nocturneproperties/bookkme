@@ -14,15 +14,11 @@ object UserCacheStrategy {
         set(cacheKeyFrom(user.id), user, cacheExpiration)
     }
 
-    suspend fun CacheClient<String>.getUser(id: Uuid): User? {
-        return get(cacheKeyFrom(id))
-    }
+    suspend fun CacheClient<String>.getUser(id: Uuid): User? = get(cacheKeyFrom(id))
 
     suspend fun CacheClient<String>.deleteUser(id: Uuid) {
         delete(cacheKeyFrom(id))
     }
 
-    private fun cacheKeyFrom(id: Uuid): String {
-        return "user_$id"
-    }
+    private fun cacheKeyFrom(id: Uuid): String = "user_$id"
 }

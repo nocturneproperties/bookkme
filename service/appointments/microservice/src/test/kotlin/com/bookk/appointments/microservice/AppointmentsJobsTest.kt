@@ -49,9 +49,9 @@ internal class AppointmentsJobsTest {
         assertEquals(
             mapOf(
                 "appointments-markAppointmentsAsCompleted" to 5.minutes,
-                "appointments-deleteOutdatedRequests" to 1.hours
+                "appointments-deleteOutdatedRequests" to 1.hours,
             ),
-            fixture.scheduler.registeredJobs()
+            fixture.scheduler.registeredJobs(),
         )
     }
 

@@ -20,7 +20,7 @@ internal class SignInImpl(
     private val generateAuthToken: GenerateAuthToken,
     private val deviceDataSource: DeviceDataSource,
     private val transactionManager: TransactionManager,
-    private val producer: StandardEventProducer
+    private val producer: StandardEventProducer,
 ) : SignIn {
 
     override suspend fun invoke(request: VerifySignInRequest, language: Language): Result<AuthTokens> = transactionManager.transaction {
@@ -31,8 +31,8 @@ internal class SignInImpl(
         generateAuthToken(
             Source.InitialAuthentication(
                 credentials.authInfo.id,
-                request.deviceInfo.deviceUUID
-            )
+                request.deviceInfo.deviceUUID,
+            ),
         ).getOrThrow()
     }
 
@@ -41,7 +41,7 @@ internal class SignInImpl(
             authId = ownerId,
             uuid = deviceInfo.deviceUUID,
             name = deviceInfo.deviceName,
-            language = language
+            language = language,
         )
         if (newId != null) {
             producer.send(AuthEvent.DeviceCreated(ownerId, userId, deviceInfo.deviceUUID, language))

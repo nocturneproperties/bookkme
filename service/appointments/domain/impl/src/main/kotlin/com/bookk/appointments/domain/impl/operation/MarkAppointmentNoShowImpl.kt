@@ -13,7 +13,7 @@ import kotlin.uuid.Uuid
 internal class MarkAppointmentNoShowImpl(
     private val appointmentDataSource: AppointmentDataSource,
     private val appointmentPermissionDataSource: AppointmentPermissionDataSource,
-    private val transactionManager: TransactionManager
+    private val transactionManager: TransactionManager,
 ) : MarkAppointmentNoShow {
 
     override suspend fun invoke(userId: Uuid, appointmentId: Uuid): Result<Appointment> = transactionManager.transaction {

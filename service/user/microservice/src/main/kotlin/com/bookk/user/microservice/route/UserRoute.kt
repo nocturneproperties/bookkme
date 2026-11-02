@@ -9,7 +9,6 @@ import com.bookk.user.microservice.route.api.patchUser
 import com.bookk.user.microservice.route.api.postContactForm
 import io.ktor.server.routing.Routing
 
-
 fun Routing.userRoute() {
     getHealthCheck()
     getUserById()

@@ -54,11 +54,13 @@ fun businessClientModule(qualifier: Qualifier, clientTag: String) = module {
                 install(ContentNegotiation) {
                     when (AppLevelConstants.SERIALIZER) {
                         SupportedSerializers.JSON.STR -> {
-                            json(Json {
-                                prettyPrint = true
-                                encodeDefaults = true
-                                explicitNulls = false
-                            })
+                            json(
+                                Json {
+                                    prettyPrint = true
+                                    encodeDefaults = true
+                                    explicitNulls = false
+                                },
+                            )
                         }
 
                         SupportedSerializers.PROTOBUF.STR -> {

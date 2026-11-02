@@ -51,7 +51,7 @@ fun notificationsDomainModule() = module {
             mapOf(
                 CommunicationChannel.EMAIL to get<EmailNotificationSender>(),
                 CommunicationChannel.TELEGRAM to get<TelegramNotificationSender>(),
-                CommunicationChannel.PUSH_NOTIFICATIONS to get<FirebaseNotificationSender>()
+                CommunicationChannel.PUSH_NOTIFICATIONS to get<FirebaseNotificationSender>(),
             )
         }
         scoped { FirebaseMessaging.getInstance() }

@@ -85,7 +85,7 @@ internal class AppointmentEventHandlerEventTest {
             deleteUserAppointmentData,
             syncEmployeePermission,
             linkClientUser,
-            deleteClientAppointmentData
+            deleteClientAppointmentData,
         )
         private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -103,7 +103,7 @@ internal class AppointmentEventHandlerEventTest {
         name = "Salon",
         address = "1 Main St",
         timeZone = TimeZone.of("Europe/Kyiv"),
-        schedule = schedule
+        schedule = schedule,
     )
 
     @Test
@@ -114,12 +114,15 @@ internal class AppointmentEventHandlerEventTest {
         val schedule = Schedule(
             workingDays = listOf(DayOfWeek.SATURDAY),
             workingHours = mapOf(DayOfWeek.SATURDAY to listOf(WorkHour(LocalTime(10, 0), LocalTime(14, 0)))),
-            dayOffs = listOf(DayOffRange(LocalDate(2099, 12, 30), LocalDate(2099, 12, 31)))
+            dayOffs = listOf(DayOffRange(LocalDate(2099, 12, 30), LocalDate(2099, 12, 31))),
         )
         val arrived = CountDownLatch(1)
         coEvery {
             fixture.updateBusinessInformation(any(), any())
-        } answers { arrived.countDown(); Result.success(Unit) }
+        } answers {
+            arrived.countDown()
+            Result.success(Unit)
+        }
 
         whenn()
         withContext(Dispatchers.IO) {
@@ -133,7 +136,7 @@ internal class AppointmentEventHandlerEventTest {
         coVerify(exactly = 1) {
             fixture.updateBusinessInformation(
                 match { it.id == businessId && it.schedule == schedule && it.timeZone == TimeZone.of("Europe/Kyiv") },
-                updatedAt
+                updatedAt,
             )
         }
     }
@@ -148,7 +151,10 @@ internal class AppointmentEventHandlerEventTest {
         val arrived = CountDownLatch(1)
         coEvery {
             fixture.updateBusinessInformation(any(), any())
-        } answers { arrived.countDown(); Result.success(Unit) }
+        } answers {
+            arrived.countDown()
+            Result.success(Unit)
+        }
 
         whenn()
         withContext(Dispatchers.IO) {
@@ -170,7 +176,10 @@ internal class AppointmentEventHandlerEventTest {
         val fixture = SutFixture()
         val businessId = Uuid.random()
         val arrived = CountDownLatch(1)
-        coEvery { fixture.deleteModule(businessId) } answers { arrived.countDown(); Result.success(Unit) }
+        coEvery { fixture.deleteModule(businessId) } answers {
+            arrived.countDown()
+            Result.success(Unit)
+        }
 
         whenn()
         withContext(Dispatchers.IO) {
@@ -190,7 +199,10 @@ internal class AppointmentEventHandlerEventTest {
         val fixture = SutFixture()
         val userId = Uuid.random()
         val arrived = CountDownLatch(1)
-        coEvery { fixture.deleteUserAppointmentData(userId) } answers { arrived.countDown(); Result.success(Unit) }
+        coEvery { fixture.deleteUserAppointmentData(userId) } answers {
+            arrived.countDown()
+            Result.success(Unit)
+        }
 
         whenn()
         withContext(Dispatchers.IO) {
@@ -214,7 +226,10 @@ internal class AppointmentEventHandlerEventTest {
         val arrived = CountDownLatch(1)
         coEvery {
             fixture.syncEmployeePermission(employeeUserId, businessId, permissions.appointments, false)
-        } answers { arrived.countDown(); Result.success(Unit) }
+        } answers {
+            arrived.countDown()
+            Result.success(Unit)
+        }
 
         whenn()
         withContext(Dispatchers.IO) {
@@ -238,7 +253,10 @@ internal class AppointmentEventHandlerEventTest {
         val arrived = CountDownLatch(1)
         coEvery {
             fixture.syncEmployeePermission(employeeUserId, businessId, permissions.appointments, true)
-        } answers { arrived.countDown(); Result.success(Unit) }
+        } answers {
+            arrived.countDown()
+            Result.success(Unit)
+        }
 
         whenn()
         withContext(Dispatchers.IO) {
@@ -261,7 +279,10 @@ internal class AppointmentEventHandlerEventTest {
         val userId = Uuid.random()
         val mergedClientIds = listOf(Uuid.random())
         val arrived = CountDownLatch(1)
-        coEvery { fixture.linkClientUser(businessId, clientId, userId, mergedClientIds) } answers { arrived.countDown(); Result.success(Unit) }
+        coEvery { fixture.linkClientUser(businessId, clientId, userId, mergedClientIds) } answers {
+            arrived.countDown()
+            Result.success(Unit)
+        }
 
         whenn()
         withContext(Dispatchers.IO) {
@@ -282,7 +303,10 @@ internal class AppointmentEventHandlerEventTest {
         val businessId = Uuid.random()
         val clientId = Uuid.random()
         val arrived = CountDownLatch(1)
-        coEvery { fixture.deleteClientAppointmentData(businessId, clientId) } answers { arrived.countDown(); Result.success(Unit) }
+        coEvery { fixture.deleteClientAppointmentData(businessId, clientId) } answers {
+            arrived.countDown()
+            Result.success(Unit)
+        }
 
         whenn()
         withContext(Dispatchers.IO) {

@@ -20,7 +20,7 @@ class OutboxRelay(
     private val transactionManager: TransactionManager,
     private val rawProducer: EventStreaming.RawProducer<String>,
     private val batchSize: Int = DEFAULT_BATCH_SIZE,
-    private val idleDelay: Duration = DEFAULT_IDLE_DELAY
+    private val idleDelay: Duration = DEFAULT_IDLE_DELAY,
 ) : EventHandler {
 
     private val logger = KtorSimpleLogger("OutboxRelay")

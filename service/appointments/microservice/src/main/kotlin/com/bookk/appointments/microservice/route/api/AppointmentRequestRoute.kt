@@ -40,16 +40,16 @@ fun Routing.requests() {
             call.respondWith(getRequests(principal.userId, it.businessId))
         }.describe {
             responses {
-               response(HttpStatusCode.OK.value) {
-                   schema = jsonSchema<List<AppointmentRequest>>()
-                   description = "List of appointment requests"
-                   ContentType.Application.ProtoBuf()
-               }
-               response(HttpStatusCode.Forbidden.value) {
-                   schema = jsonSchema<SimpleServerError>()
-                   description = "Caller is a suspended employee of this business - BUSINESS_EMPLOYEE_ACCESS_SUSPENDED (200034)"
-                   ContentType.Application.ProtoBuf()
-               }
+                response(HttpStatusCode.OK.value) {
+                    schema = jsonSchema<List<AppointmentRequest>>()
+                    description = "List of appointment requests"
+                    ContentType.Application.ProtoBuf()
+                }
+                response(HttpStatusCode.Forbidden.value) {
+                    schema = jsonSchema<SimpleServerError>()
+                    description = "Caller is a suspended employee of this business - BUSINESS_EMPLOYEE_ACCESS_SUSPENDED (200034)"
+                    ContentType.Application.ProtoBuf()
+                }
             }
         }
 
@@ -94,8 +94,8 @@ fun Routing.requests() {
             call.respondWith(
                 createRequest(
                     userId = principal.userId,
-                    draft = body
-                )
+                    draft = body,
+                ),
             )
         }
 
@@ -121,8 +121,8 @@ fun Routing.requests() {
                 call.respondWith(
                     cancelRequest(
                         userId = principal.userId,
-                        cancellation = body
-                    )
+                        cancellation = body,
+                    ),
                 )
             }
         }

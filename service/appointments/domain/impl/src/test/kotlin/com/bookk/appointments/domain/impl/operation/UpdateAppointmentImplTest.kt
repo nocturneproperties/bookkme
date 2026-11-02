@@ -51,13 +51,13 @@ internal class UpdateAppointmentImplTest {
             settingsDataSource,
             appointmentPermissionDataSource,
             businessClient,
-            transactionManager
+            transactionManager,
         )
 
         fun givenValidUpdate(
             userId: Uuid,
             stored: Appointment,
-            permission: ResourcePermission = ResourcePermission(view = false, update = true, delete = false)
+            permission: ResourcePermission = ResourcePermission(view = false, update = true, delete = false),
         ) {
             transactionManager.mockTransaction()
             coEvery { appointmentDataSource.get(stored.id) } returns stored
@@ -79,7 +79,7 @@ internal class UpdateAppointmentImplTest {
         date = date,
         note = "Updated note",
         employeeId = stored.employee.id,
-        services = stored.services.map { RequestedService(serviceId = it.id, count = 1) }
+        services = stored.services.map { RequestedService(serviceId = it.id, count = 1) },
     )
 
     @Test
@@ -145,7 +145,7 @@ internal class UpdateAppointmentImplTest {
         val storedService = stored.services.single()
         val added = Service.stub(businessId = stored.businessId, price = Money.parse("USD 25"))
         val update = keepingEverything(stored).copy(
-            services = listOf(RequestedService(serviceId = storedService.id, count = 1), RequestedService(serviceId = added.id, count = 1))
+            services = listOf(RequestedService(serviceId = storedService.id, count = 1), RequestedService(serviceId = added.id, count = 1)),
         )
         with(fixture) {
             givenValidUpdate(userId, stored)
@@ -259,7 +259,7 @@ internal class UpdateAppointmentImplTest {
         whenn()
         val result = fixture.sut(
             Uuid.random(),
-            AppointmentUpdate.stub(services = listOf(RequestedService.stub(serviceId = serviceId), RequestedService.stub(serviceId = serviceId)))
+            AppointmentUpdate.stub(services = listOf(RequestedService.stub(serviceId = serviceId), RequestedService.stub(serviceId = serviceId))),
         )
 
         then()
@@ -353,7 +353,7 @@ internal class UpdateAppointmentImplTest {
             givenValidUpdate(userId, stored)
             coEvery { appointmentPermissionDataSource.getPermission(userId, stored.businessId) } returnsMany listOf(
                 ResourcePermission(view = false, update = true, delete = false),
-                ResourcePermission.NONE
+                ResourcePermission.NONE,
             )
         }
 

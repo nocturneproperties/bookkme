@@ -52,7 +52,7 @@ import kotlin.uuid.Uuid
 @Serializable
 private data class LenientSchedule(
     val days: Map<DayOfWeek, DayOfWeekSchedule>,
-    val dayOffs: List<DayOffRange> = emptyList()
+    val dayOffs: List<DayOffRange> = emptyList(),
 )
 
 @Serializable
@@ -65,7 +65,7 @@ private data class LenientUpdateModel(
     val currencyCode: String?,
     val timeZone: TimeZone?,
     val socials: List<Business.Social>?,
-    val schedule: LenientSchedule?
+    val schedule: LenientSchedule?,
 )
 
 internal class BusinessCrudTest {
@@ -77,7 +77,7 @@ internal class BusinessCrudTest {
         id: Uuid = businessId,
         name: String? = null,
         schedule: Schedule? = null,
-        dayOffs: List<DayOffRange> = emptyList()
+        dayOffs: List<DayOffRange> = emptyList(),
     ) = BusinessUpdateModel(
         id = id,
         name = name,
@@ -87,7 +87,7 @@ internal class BusinessCrudTest {
         currencyCode = null,
         timeZone = null,
         socials = emptyList(),
-        schedule = schedule?.copy(dayOffs = dayOffs)
+        schedule = schedule?.copy(dayOffs = dayOffs),
     )
 
     private fun lenientUpdateModel(schedule: LenientSchedule) = LenientUpdateModel(
@@ -99,14 +99,14 @@ internal class BusinessCrudTest {
         currencyCode = null,
         timeZone = null,
         socials = emptyList(),
-        schedule = schedule
+        schedule = schedule,
     )
 
     private fun createTestBusiness(id: Uuid = businessId) = Business.stub(
         id = id,
         name = "Test Business",
         description = "Test Description",
-        address = "Test Address"
+        address = "Test Address",
     )
 
     @Test
@@ -120,7 +120,7 @@ internal class BusinessCrudTest {
         val request = BusinessCreateRequest(name, currencyCode, timeZone)
 
         coEvery { useCase.invoke(userId, request) } returns Result.success(business)
-        
+
         setupApplication(
             extension = {
                 install(Authentication) {
@@ -132,9 +132,9 @@ internal class BusinessCrudTest {
             diModule = module {
                 single { useCase }
             },
-            routeUnderTest = { businessCrud() }
+            routeUnderTest = { businessCrud() },
         )
-        
+
         whenn()
         val client = createTestClient()
         val response = client.post(BusinessRouting.Api.Business()) {
@@ -152,7 +152,7 @@ internal class BusinessCrudTest {
         val updateModel = updateModel(name = "New Name")
 
         coEvery { useCase.invoke(userId, updateModel) } returns Result.success(Unit)
-        
+
         setupApplication(
             extension = {
                 install(Authentication) {
@@ -164,15 +164,15 @@ internal class BusinessCrudTest {
             diModule = module {
                 single { useCase }
             },
-            routeUnderTest = { businessCrud() }
+            routeUnderTest = { businessCrud() },
         )
-        
+
         whenn()
         val client = createTestClient()
         val response = client.put(BusinessRouting.Api.Business.Id(id = businessId)) {
             setBody(updateModel)
         }
-        
+
         then()
         assertEquals(HttpStatusCode.NoContent, response.status)
     }
@@ -182,9 +182,9 @@ internal class BusinessCrudTest {
         given()
         val useCase: GetUserBusinesses = mockk()
         val userBusinesses = UserBusinesses(businessId, listOf(createTestBusiness()))
-        
+
         coEvery { useCase.invoke(userId) } returns Result.success(userBusinesses)
-        
+
         setupApplication(
             extension = {
                 install(Authentication) {
@@ -196,13 +196,13 @@ internal class BusinessCrudTest {
             diModule = module {
                 single { useCase }
             },
-            routeUnderTest = { businessCrud() }
+            routeUnderTest = { businessCrud() },
         )
-        
+
         whenn()
         val client = createTestClient()
         val response = client.get(BusinessRouting.Api.Business.Mine())
-        
+
         then()
         assertEquals(HttpStatusCode.OK, response.status)
     }
@@ -226,7 +226,7 @@ internal class BusinessCrudTest {
             diModule = module {
                 single { useCase }
             },
-            routeUnderTest = { businessCrud() }
+            routeUnderTest = { businessCrud() },
         )
 
         whenn()
@@ -257,7 +257,7 @@ internal class BusinessCrudTest {
             diModule = module {
                 single { useCase }
             },
-            routeUnderTest = { businessCrud() }
+            routeUnderTest = { businessCrud() },
         )
 
         whenn()
@@ -286,7 +286,7 @@ internal class BusinessCrudTest {
             diModule = module {
                 single { useCase }
             },
-            routeUnderTest = { businessCrud() }
+            routeUnderTest = { businessCrud() },
         )
 
         whenn()
@@ -314,7 +314,7 @@ internal class BusinessCrudTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { businessCrud() }
+            routeUnderTest = { businessCrud() },
         )
 
         whenn()
@@ -343,7 +343,7 @@ internal class BusinessCrudTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { businessCrud() }
+            routeUnderTest = { businessCrud() },
         )
 
         whenn()
@@ -372,7 +372,7 @@ internal class BusinessCrudTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { businessCrud() }
+            routeUnderTest = { businessCrud() },
         )
 
         whenn()
@@ -392,7 +392,7 @@ internal class BusinessCrudTest {
         setupApplication(
             extension = { install(Authentication) { bearer { authenticate { null } } } },
             diModule = module { single { useCase } },
-            routeUnderTest = { businessCrud() }
+            routeUnderTest = { businessCrud() },
         )
 
         whenn()
@@ -413,7 +413,7 @@ internal class BusinessCrudTest {
         setupApplication(
             extension = { install(Authentication) { bearer { authenticate { null } } } },
             diModule = module { single { useCase } },
-            routeUnderTest = { businessCrud() }
+            routeUnderTest = { businessCrud() },
         )
 
         whenn()
@@ -432,7 +432,7 @@ internal class BusinessCrudTest {
         setupApplication(
             extension = { install(Authentication) { bearer { authenticate { null } } } },
             diModule = module { single { useCase } },
-            routeUnderTest = { businessCrud() }
+            routeUnderTest = { businessCrud() },
         )
 
         whenn()
@@ -450,7 +450,7 @@ internal class BusinessCrudTest {
         val completeSchedule = LenientSchedule(
             days = DayOfWeek.entries.associateWith {
                 DayOfWeekSchedule(listOf(WorkHour(LocalTime(9, 0), LocalTime(17, 0))), isActive = true)
-            }
+            },
         )
         val body = lenientUpdateModel(completeSchedule)
         coEvery { useCase.invoke(any(), any()) } returns Result.success(Unit)
@@ -464,7 +464,7 @@ internal class BusinessCrudTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { businessCrud() }
+            routeUnderTest = { businessCrud() },
         )
 
         whenn()
@@ -486,9 +486,9 @@ internal class BusinessCrudTest {
             days = mapOf(
                 DayOfWeek.MONDAY to DayOfWeekSchedule(
                     workingTime = listOf(WorkHour(LocalTime(9, 0), LocalTime(17, 0))),
-                    isActive = true
-                )
-            )
+                    isActive = true,
+                ),
+            ),
         )
         val body = lenientUpdateModel(incompleteSchedule)
 
@@ -501,7 +501,7 @@ internal class BusinessCrudTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { businessCrud() }
+            routeUnderTest = { businessCrud() },
         )
 
         whenn()
@@ -522,12 +522,12 @@ internal class BusinessCrudTest {
         val schedule = Schedule(
             workingDays = listOf(DayOfWeek.SATURDAY),
             workingHours = mapOf(
-                DayOfWeek.SATURDAY to listOf(WorkHour(LocalTime(10, 0), LocalTime(14, 0)))
-            )
+                DayOfWeek.SATURDAY to listOf(WorkHour(LocalTime(10, 0), LocalTime(14, 0))),
+            ),
         )
         val updateModel = updateModel(
             schedule = schedule,
-            dayOffs = listOf(DayOffRange(LocalDate(2099, 12, 30), LocalDate(2099, 12, 31)))
+            dayOffs = listOf(DayOffRange(LocalDate(2099, 12, 30), LocalDate(2099, 12, 31))),
         )
         coEvery { useCase.invoke(userId, updateModel) } returns Result.success(Unit)
 
@@ -540,7 +540,7 @@ internal class BusinessCrudTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { businessCrud() }
+            routeUnderTest = { businessCrud() },
         )
 
         whenn()
@@ -569,7 +569,7 @@ internal class BusinessCrudTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { businessCrud() }
+            routeUnderTest = { businessCrud() },
         )
 
         whenn()
@@ -582,7 +582,7 @@ internal class BusinessCrudTest {
         assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
         assertEquals(
             BusinessErrorCodes.BUSINESS_ACTIVE_DAY_WITHOUT_WORK_HOURS,
-            response.body<SimpleServerError>().errorCode
+            response.body<SimpleServerError>().errorCode,
         )
     }
 
@@ -601,7 +601,7 @@ internal class BusinessCrudTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { businessCrud() }
+            routeUnderTest = { businessCrud() },
         )
 
         whenn()
@@ -614,7 +614,7 @@ internal class BusinessCrudTest {
         assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
         assertEquals(
             BusinessErrorCodes.BUSINESS_INVALID_DAY_OFF_RANGE,
-            response.body<SimpleServerError>().errorCode
+            response.body<SimpleServerError>().errorCode,
         )
     }
 
@@ -633,7 +633,7 @@ internal class BusinessCrudTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { businessCrud() }
+            routeUnderTest = { businessCrud() },
         )
 
         whenn()
@@ -660,7 +660,7 @@ internal class BusinessCrudTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { businessCrud() }
+            routeUnderTest = { businessCrud() },
         )
 
         whenn()
@@ -682,7 +682,7 @@ internal class BusinessCrudTest {
         setupApplication(
             extension = { install(Authentication) { bearer { authenticate { null } } } },
             diModule = module { single { useCase } },
-            routeUnderTest = { businessCrud() }
+            routeUnderTest = { businessCrud() },
         )
 
         whenn()
@@ -710,7 +710,7 @@ internal class BusinessCrudTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { businessCrud() }
+            routeUnderTest = { businessCrud() },
         )
 
         whenn()
@@ -736,7 +736,7 @@ internal class BusinessCrudTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { businessCrud() }
+            routeUnderTest = { businessCrud() },
         )
 
         whenn()
@@ -755,7 +755,7 @@ internal class BusinessCrudTest {
         setupApplication(
             extension = { install(Authentication) { bearer { authenticate { null } } } },
             diModule = module { single { useCase } },
-            routeUnderTest = { businessCrud() }
+            routeUnderTest = { businessCrud() },
         )
 
         whenn()
@@ -781,7 +781,7 @@ internal class BusinessCrudTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { businessCrud() }
+            routeUnderTest = { businessCrud() },
         )
 
         whenn()
@@ -810,7 +810,7 @@ internal class BusinessCrudTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { businessCrud() }
+            routeUnderTest = { businessCrud() },
         )
 
         whenn()
@@ -839,7 +839,7 @@ internal class BusinessCrudTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { businessCrud() }
+            routeUnderTest = { businessCrud() },
         )
 
         whenn()

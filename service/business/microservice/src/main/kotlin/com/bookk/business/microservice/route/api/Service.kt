@@ -46,7 +46,7 @@ fun Route.serviceCrud() {
                 call.respond(HttpStatusCode.BadRequest, "Bad request")
             } else {
                 call.respondWith(
-                    createService(requestUserId = principal.userId, service = body)
+                    createService(requestUserId = principal.userId, service = body),
                 )
             }
         }
@@ -73,7 +73,7 @@ fun Route.serviceCrud() {
                 call.respond(HttpStatusCode.BadRequest, "Bad request")
             } else {
                 call.respondWith(
-                    updateService(requestUserId = principal.userId, service = body)
+                    updateService(requestUserId = principal.userId, service = body),
                 )
             }
         }
@@ -115,8 +115,8 @@ fun Route.serviceCrud() {
                 deleteService(
                     requestUserId = principal.userId,
                     businessId = it.parent.businessId,
-                    id = it.id
-                )
+                    id = it.id,
+                ),
             )
         }
     }

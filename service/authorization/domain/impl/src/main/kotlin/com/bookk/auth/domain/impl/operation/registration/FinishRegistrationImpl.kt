@@ -27,7 +27,7 @@ internal class FinishRegistrationImpl(
     private val generateAuthToken: GenerateAuthToken,
     private val eventProducer: StandardEventProducer,
     private val transactionManager: TransactionManager,
-    private val finishPasskeyRegistration: FinishPasskeyRegistration
+    private val finishPasskeyRegistration: FinishPasskeyRegistration,
 ) : FinishRegistration {
 
     override suspend fun invoke(request: VerifyAccountCreationRequest, language: Language): Result<AuthTokens> = runSuspendCatching {
@@ -46,7 +46,7 @@ internal class FinishRegistrationImpl(
                 authId = owner.id,
                 uuid = deviceUuid,
                 name = deviceName,
-                language = language
+                language = language,
             ) ?: throw FinishRegistration.Error.AccountCreationFailed()
             eventProducer.send(AuthEvent.DeviceCreated(owner.id, userId, deviceUuid, language))
             generateAuthToken(Source.InitialAuthentication(owner.id, deviceUuid)).getOrThrow()
@@ -61,6 +61,6 @@ internal class FinishRegistrationImpl(
     private fun createUserFrom(info: UserInfo): CreateUserRequest = CreateUserRequest(
         name = info.name,
         lastName = info.lastName,
-        email = info.email
+        email = info.email,
     )
 }

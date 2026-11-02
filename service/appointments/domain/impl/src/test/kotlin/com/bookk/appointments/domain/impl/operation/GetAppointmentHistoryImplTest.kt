@@ -38,7 +38,7 @@ internal class GetAppointmentHistoryImplTest {
         val appointments = listOf(Appointment.stub(initiatorUserId = userId, businessId = businessId))
         val pagination = AppointmentPagination(
             data = appointments,
-            metadata = PaginationMetadata(total = 1L, page = 0L, pageSize = 50)
+            metadata = PaginationMetadata(total = 1L, page = 0L, pageSize = 50),
         )
 
         with(fixture) {
@@ -64,7 +64,7 @@ internal class GetAppointmentHistoryImplTest {
         val appointments = listOf(Appointment.stub(initiatorUserId = userId, businessId = businessId))
         val pagination = AppointmentPagination(
             data = appointments,
-            metadata = PaginationMetadata(total = 1L, page = 0L, pageSize = 50)
+            metadata = PaginationMetadata(total = 1L, page = 0L, pageSize = 50),
         )
 
         with(fixture) {
@@ -81,7 +81,7 @@ internal class GetAppointmentHistoryImplTest {
             businessId,
             limit = 50,
             offset = 0,
-            query = "John"
+            query = "John",
         )
 
         then()

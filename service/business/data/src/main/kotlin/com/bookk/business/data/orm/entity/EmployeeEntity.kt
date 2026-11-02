@@ -42,26 +42,24 @@ internal class EmployeeEntity(id: EntityID<Uuid>) : UuidEntity(id) {
     val dayOffs by EmployeeDayOffEntity referrersOn EmployeeDayOffTable.employeeId
     val grants by BusinessPermissionGrantEntity referrersOn BusinessPermissionGrantsTable.employeeId
 
-    fun toDomain(): Employee {
-        return Employee(
-            id = id.value,
-            businessId = businessId.value,
-            name = name,
-            lastName = lastName,
-            phone = phone,
-            email = email,
-            userId = userId,
-            services = services.map(ServiceEntity::toDomain),
-            schedule = Schedule(
-                workingDays = workingDays.toWorkingDays(),
-                workingHours = workingHours.toWorkingHours(),
-                dayOffs = dayOffs.map { it.domain() }
-            ),
-            createdAt = createdAt,
-            permissions = BusinessPermissions.from(grants.associate { it.resource to it.permission() }),
-            suspendedAt = suspendedAt
-        )
-    }
+    fun toDomain(): Employee = Employee(
+        id = id.value,
+        businessId = businessId.value,
+        name = name,
+        lastName = lastName,
+        phone = phone,
+        email = email,
+        userId = userId,
+        services = services.map(ServiceEntity::toDomain),
+        schedule = Schedule(
+            workingDays = workingDays.toWorkingDays(),
+            workingHours = workingHours.toWorkingHours(),
+            dayOffs = dayOffs.map { it.domain() },
+        ),
+        createdAt = createdAt,
+        permissions = BusinessPermissions.from(grants.associate { it.resource to it.permission() }),
+        suspendedAt = suspendedAt,
+    )
 
     private fun replaceSchedule(schedule: Schedule) {
         workingDays = schedule.activeDays().toWorkingDaysMask()
@@ -74,7 +72,7 @@ internal class EmployeeEntity(id: EntityID<Uuid>) : UuidEntity(id) {
             employeeId = id.value,
             userId = userId,
             businessId = businessId.value,
-            grants = BusinessResource.entries.associateWith(permissions::get)
+            grants = BusinessResource.entries.associateWith(permissions::get),
         )
     }
 

@@ -53,13 +53,12 @@ internal class CreateInstantAppointmentTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { appointment() }
+            routeUnderTest = { appointment() },
         )
         return createTestClient()
     }
 
-    private suspend fun HttpClient.postDraft(): HttpResponse =
-        post(AppointmentsRouting.Api.Appointment.Instant()) { setBody(draft) }
+    private suspend fun HttpClient.postDraft(): HttpResponse = post(AppointmentsRouting.Api.Appointment.Instant()) { setBody(draft) }
 
     private suspend fun ApplicationTestBuilder.respondsWithError(error: Throwable): HttpResponse {
         val useCase: CreateInstantAppointment = mockk()
@@ -289,7 +288,7 @@ internal class CreateInstantAppointmentTest {
         setupApplication(
             extension = { install(Authentication) { bearer { authenticate { null } } } },
             diModule = module { single { useCase } },
-            routeUnderTest = { appointment() }
+            routeUnderTest = { appointment() },
         )
 
         whenn()

@@ -7,5 +7,5 @@ import kotlinx.serialization.protobuf.ProtoNumber
 @Serializable
 class AppointmentPagination(
     @ProtoNumber(1) val data: List<Appointment>,
-    @ProtoNumber(2) val metadata: PaginationMetadata
+    @ProtoNumber(2) val metadata: PaginationMetadata,
 )

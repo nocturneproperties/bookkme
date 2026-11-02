@@ -10,7 +10,6 @@ import com.bookk.notifications.domain.impl.notification.renderer.message
 import com.bookk.server.appointments.client.api.event.AppointmentEvent
 import com.bookk.server.appointments.client.api.event.ClientDeletionCause
 
-
 private val ClientDeletionCause.keyPrefix: String
     get() = when (this) {
         ClientDeletionCause.ACCOUNT_DELETED -> "appointment.cancelled_for_deleted_client"
@@ -24,18 +23,18 @@ internal val AppointmentEvent.CancelledForDeletedClient.notification: Notificati
             val whenText = from.formatLocalized(timeZone, language)
             PushNotification(
                 title = message(language, "${cause.keyPrefix}.push.title"),
-                body = message(language, "${cause.keyPrefix}.push.body", businessName, whenText)
+                body = message(language, "${cause.keyPrefix}.push.body", businessName, whenText),
             )
         },
         email = { language ->
             val whenText = from.formatLocalized(timeZone, language)
             EmailNotification(
                 subject = message(language, "${cause.keyPrefix}.email.subject", businessName),
-                body = message(language, "${cause.keyPrefix}.email.body", businessName, whenText)
+                body = message(language, "${cause.keyPrefix}.email.body", businessName, whenText),
             )
         },
         text = { language ->
             val whenText = from.formatLocalized(timeZone, language)
             TextNotification(message(language, "${cause.keyPrefix}.text.body", businessName, whenText))
-        }
+        },
     )

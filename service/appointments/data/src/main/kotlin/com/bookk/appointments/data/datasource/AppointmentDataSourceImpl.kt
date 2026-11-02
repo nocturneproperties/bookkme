@@ -60,80 +60,74 @@ internal class AppointmentDataSourceImpl : DataSource(), AppointmentDataSource {
             .map { it.domain() }
     }
 
-    override suspend fun getAllForDate(businessId: Uuid, range: ClosedRange<Instant>, employeeId: Uuid?): List<Appointment> {
-        return dbQuery {
-            val withinRange = AppointmentTable.businessId.eq(businessId)
-                .and(AppointmentTable.dateStart.greaterEq(range.start))
-                .and(AppointmentTable.dateEnd.lessEq(range.endInclusive))
-            AppointmentEntity
-                .find {
-                    employeeId?.let { withinRange.and(AppointmentTable.employeeId.eq(it)) } ?: withinRange
-                }
-                .orderBy(AppointmentTable.dateStart to SortOrder.ASC)
-                .toList()
-                .withDetails()
-                .map { it.domain() }
-        }
+    override suspend fun getAllForDate(businessId: Uuid, range: ClosedRange<Instant>, employeeId: Uuid?): List<Appointment> = dbQuery {
+        val withinRange = AppointmentTable.businessId.eq(businessId)
+            .and(AppointmentTable.dateStart.greaterEq(range.start))
+            .and(AppointmentTable.dateEnd.lessEq(range.endInclusive))
+        AppointmentEntity
+            .find {
+                employeeId?.let { withinRange.and(AppointmentTable.employeeId.eq(it)) } ?: withinRange
+            }
+            .orderBy(AppointmentTable.dateStart to SortOrder.ASC)
+            .toList()
+            .withDetails()
+            .map { it.domain() }
     }
 
     override suspend fun getAllPaginated(
         businessId: Uuid,
         limit: Int,
         offset: Long,
-        query: String?
-    ): AppointmentPagination {
-        return dbQuery {
-            var condition = AppointmentTable.businessId.eq(businessId)
+        query: String?,
+    ): AppointmentPagination = dbQuery {
+        var condition = AppointmentTable.businessId.eq(businessId)
 
-            if (!query.isNullOrBlank()) {
-                val pattern = "%${query.lowercase()}%"
-                val matchingServiceAppointmentIds = AppointmentServicesTable
-                    .select(AppointmentServicesTable.appointmentId)
-                    .where { AppointmentServicesTable.serviceName.lowerCase() like pattern }
+        if (!query.isNullOrBlank()) {
+            val pattern = "%${query.lowercase()}%"
+            val matchingServiceAppointmentIds = AppointmentServicesTable
+                .select(AppointmentServicesTable.appointmentId)
+                .where { AppointmentServicesTable.serviceName.lowerCase() like pattern }
 
-                condition = condition.and(
-                    AppointmentTable.clientName.lowerCase().like(pattern)
-                        .or(AppointmentTable.id.inSubQuery(matchingServiceAppointmentIds))
-                )
-            }
-
-            val appointmentsQuery = AppointmentEntity
-                .find { condition }
-                .orderBy(AppointmentTable.dateStart to SortOrder.DESC)
-
-            val total = appointmentsQuery.count()
-            val result = appointmentsQuery
-                .limit(limit)
-                .offset(offset)
-                .toList()
-                .withDetails()
-                .map { it.domain() }
-            AppointmentPagination(
-                data = result,
-                metadata = PaginationMetadata(
-                    total = total,
-                    pageSize = limit,
-                    page = (offset / limit) + 1
-                ),
+            condition = condition.and(
+                AppointmentTable.clientName.lowerCase().like(pattern)
+                    .or(AppointmentTable.id.inSubQuery(matchingServiceAppointmentIds)),
             )
         }
+
+        val appointmentsQuery = AppointmentEntity
+            .find { condition }
+            .orderBy(AppointmentTable.dateStart to SortOrder.DESC)
+
+        val total = appointmentsQuery.count()
+        val result = appointmentsQuery
+            .limit(limit)
+            .offset(offset)
+            .toList()
+            .withDetails()
+            .map { it.domain() }
+        AppointmentPagination(
+            data = result,
+            metadata = PaginationMetadata(
+                total = total,
+                pageSize = limit,
+                page = (offset / limit) + 1,
+            ),
+        )
     }
 
-    override suspend fun hasOverlapsWith(appointment: AppointmentRepresentation): Boolean {
-        return dbQuery {
-            AppointmentTable.select(AppointmentTable.id)
-                .where {
-                    (AppointmentTable.businessId eq appointment.businessId)
-                        .and(AppointmentTable.initiatorUserId eq appointment.initiatorUserId)
-                        .and(AppointmentTable.dateStart.less(appointment.dateEnd))
-                        .and(AppointmentTable.dateEnd.greater(appointment.date))
-                        .and(AppointmentTable.id neq appointment.id)
-                        .and(AppointmentTable.status eq AppointmentStatus.SCHEDULED)
-                }
-                .limit(1)
-                .empty()
-                .not()
-        }
+    override suspend fun hasOverlapsWith(appointment: AppointmentRepresentation): Boolean = dbQuery {
+        AppointmentTable.select(AppointmentTable.id)
+            .where {
+                (AppointmentTable.businessId eq appointment.businessId)
+                    .and(AppointmentTable.initiatorUserId eq appointment.initiatorUserId)
+                    .and(AppointmentTable.dateStart.less(appointment.dateEnd))
+                    .and(AppointmentTable.dateEnd.greater(appointment.date))
+                    .and(AppointmentTable.id neq appointment.id)
+                    .and(AppointmentTable.status eq AppointmentStatus.SCHEDULED)
+            }
+            .limit(1)
+            .empty()
+            .not()
     }
 
     override suspend fun create(request: AppointmentRequest): Appointment = dbQuery {
@@ -186,7 +180,7 @@ internal class AppointmentDataSourceImpl : DataSource(), AppointmentDataSource {
                 AppointmentTable.status.eq(AppointmentStatus.SCHEDULED)
                     .and(AppointmentTable.dateEnd.less(before))
                     .and(AppointmentTable.businessId.inSubQuery(autoCompletingBusinessIds))
-            }
+            },
         ) {
             it[AppointmentTable.status] = AppointmentStatus.COMPLETED
             it[AppointmentTable.completedBy] = AppointmentCompletedBy.SYSTEM

@@ -231,8 +231,12 @@ internal class ClientDataSourceImplTest {
         val client = Client.Detached.stub()
         val created = suspendTransaction { fixture.sut.createDetachedClient(fixture.businessId, client) }
         val model = ClientUpdateModel(
-            id = created.id, name = "Grant2", lastName = "Hill2",
-            phone = "+7778889998", email = "grant2@test.com", description = "Allergic to nut-based products"
+            id = created.id,
+            name = "Grant2",
+            lastName = "Hill2",
+            phone = "+7778889998",
+            email = "grant2@test.com",
+            description = "Allergic to nut-based products",
         )
 
         whenn()
@@ -255,7 +259,12 @@ internal class ClientDataSourceImplTest {
         val client = Client.Detached.stub(description = "Old notes")
         val created = suspendTransaction { fixture.sut.createDetachedClient(fixture.businessId, client) }
         val model = ClientUpdateModel(
-            id = created.id, name = null, lastName = null, phone = null, email = null, description = "New notes"
+            id = created.id,
+            name = null,
+            lastName = null,
+            phone = null,
+            email = null,
+            description = "New notes",
         )
 
         whenn()
@@ -340,7 +349,12 @@ internal class ClientDataSourceImplTest {
         whenn()
         suspendTransaction {
             fixture.sut.updateIntegratedClients(
-                userId, "New", "Surname", "new@test.com", "+2222222222", Instant.fromEpochMilliseconds(1000)
+                userId,
+                "New",
+                "Surname",
+                "new@test.com",
+                "+2222222222",
+                Instant.fromEpochMilliseconds(1000),
             )
         }
 
@@ -361,7 +375,12 @@ internal class ClientDataSourceImplTest {
         whenn()
         suspendTransaction {
             fixture.sut.updateIntegratedClients(
-                userId, "New", "Surname", "new@test.com", null, Instant.fromEpochMilliseconds(1000)
+                userId,
+                "New",
+                "Surname",
+                "new@test.com",
+                null,
+                Instant.fromEpochMilliseconds(1000),
             )
         }
 
@@ -736,7 +755,7 @@ internal class ClientDataSourceImplTest {
         fixture.setup()
         val clients = listOf(
             Client.Detached.stub(name = "Ann", phone = "+1111", email = null, description = "Regular"),
-            Client.Detached.stub(name = "Ben", phone = null, email = "ben@client.com")
+            Client.Detached.stub(name = "Ben", phone = null, email = "ben@client.com"),
         )
 
         whenn()
@@ -757,7 +776,7 @@ internal class ClientDataSourceImplTest {
         fixture.setup()
         val clients = listOf(
             Client.Detached.stub(phone = "+1111", email = null),
-            Client.Detached.stub(phone = "+1111", email = null)
+            Client.Detached.stub(phone = "+1111", email = null),
         )
 
         whenn()
@@ -854,9 +873,9 @@ internal class ClientDataSourceImplTest {
         assertEquals(
             setOf(
                 ClientMerge(fixture.businessId, fromClientId = byPhone.id, toClientId = integrated.id),
-                ClientMerge(fixture.businessId, fromClientId = byEmail.id, toClientId = integrated.id)
+                ClientMerge(fixture.businessId, fromClientId = byEmail.id, toClientId = integrated.id),
             ),
-            merges.toSet()
+            merges.toSet(),
         )
     }
 
@@ -912,7 +931,7 @@ internal class ClientDataSourceImplTest {
             suspendTransaction {
                 fixture.sut.updateClient(
                     fixture.businessId,
-                    ClientUpdateModel(id = other.id, name = null, lastName = null, phone = "+1111", email = null, description = null)
+                    ClientUpdateModel(id = other.id, name = null, lastName = null, phone = "+1111", email = null, description = null),
                 )
             }
         }
@@ -932,7 +951,7 @@ internal class ClientDataSourceImplTest {
         val updated = suspendTransaction {
             fixture.sut.updateClient(
                 fixture.businessId,
-                ClientUpdateModel(id = client.id, name = null, lastName = null, phone = "+1111", email = "own@client.com", description = "notes")
+                ClientUpdateModel(id = client.id, name = null, lastName = null, phone = "+1111", email = "own@client.com", description = "notes"),
             )
         }
 

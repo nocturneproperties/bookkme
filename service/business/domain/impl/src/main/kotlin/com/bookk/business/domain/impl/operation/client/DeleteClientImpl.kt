@@ -30,7 +30,7 @@ internal class DeleteClientImpl(
     private val businessDataSource: BusinessDataSource,
     private val eventProducer: StandardEventProducer,
     private val stepUpVerifier: StepUpVerifier,
-    private val stepUpDataSource: StepUpDataSource
+    private val stepUpDataSource: StepUpDataSource,
 ) : DeleteClient {
     override suspend fun invoke(requestUserId: Uuid, businessId: Uuid, id: Uuid, stepUpToken: String): Result<Unit> = runSuspendCatching {
         val proof = stepUpVerifier.verify(
@@ -38,7 +38,7 @@ internal class DeleteClientImpl(
             userId = requestUserId,
             action = StepUpClaims.ACTION_DELETE_CLIENT,
             businessId = businessId,
-            targetId = id
+            targetId = id,
         ) ?: throw DeleteClient.Error.StepUpInvalid()
 
         if (!stepUpDataSource.reserve(proof.tokenId, proof.remainingLifetime)) throw DeleteClient.Error.StepUpInvalid()
@@ -48,16 +48,15 @@ internal class DeleteClientImpl(
         }
     }
 
-    private suspend fun deleteClient(requestUserId: Uuid, businessId: Uuid, id: Uuid): Result<Unit> =
-        transactionManager.transaction {
-            val client = clientDataSource.getClientForUpdate(businessId, id)
-            businessPermissionDataSource.getPermission(requestUserId, businessId, BusinessResource.CLIENTS)
-                .assert(PermissionAction.DELETE)
-            if (client == null) throw DeleteClient.Error.NotFound()
-            if (client is Client.Integrated && !businessDataSource.isOwner(requestUserId, businessId)) throw Error.OperationNotAllowed()
-            if (!clientDataSource.deleteClient(businessId, id)) throw DeleteClient.Error.NotFound()
-            eventProducer.send(BusinessEvent.ClientDeleted(businessId = businessId, clientId = id))
-        }
+    private suspend fun deleteClient(requestUserId: Uuid, businessId: Uuid, id: Uuid): Result<Unit> = transactionManager.transaction {
+        val client = clientDataSource.getClientForUpdate(businessId, id)
+        businessPermissionDataSource.getPermission(requestUserId, businessId, BusinessResource.CLIENTS)
+            .assert(PermissionAction.DELETE)
+        if (client == null) throw DeleteClient.Error.NotFound()
+        if (client is Client.Integrated && !businessDataSource.isOwner(requestUserId, businessId)) throw Error.OperationNotAllowed()
+        if (!clientDataSource.deleteClient(businessId, id)) throw DeleteClient.Error.NotFound()
+        eventProducer.send(BusinessEvent.ClientDeleted(businessId = businessId, clientId = id))
+    }
 
     private suspend fun releaseBestEffort(tokenId: String) {
         runSuspendCatching { stepUpDataSource.release(tokenId) }

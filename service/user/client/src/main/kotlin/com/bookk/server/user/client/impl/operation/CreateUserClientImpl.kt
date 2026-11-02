@@ -11,7 +11,7 @@ import io.ktor.client.plugins.resources.post
 import io.ktor.client.request.setBody
 
 internal class CreateUserClientImpl(
-    private val httpClient: HttpClient
+    private val httpClient: HttpClient,
 ) : CreateUser {
 
     override suspend fun invoke(user: User) = runSuspendCatching {

@@ -5,5 +5,5 @@ import kotlinx.serialization.protobuf.ProtoNumber
 
 @Serializable
 data class StepUpToken(
-    @ProtoNumber(1) val token: String
+    @ProtoNumber(1) val token: String,
 )

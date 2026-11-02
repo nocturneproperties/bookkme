@@ -67,7 +67,10 @@ internal class UserEventHandlerEventTest {
         val fixture = SutFixture()
         val userId = Uuid.random()
         val arrived = CountDownLatch(1)
-        coEvery { fixture.deleteUser(userId) } answers { arrived.countDown(); Result.success(Unit) }
+        coEvery { fixture.deleteUser(userId) } answers {
+            arrived.countDown()
+            Result.success(Unit)
+        }
 
         whenn()
         withContext(Dispatchers.IO) {

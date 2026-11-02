@@ -11,5 +11,5 @@ class PasskeyResponse(
     @ProtoNumber(2) val name: String,
     @ProtoNumber(3) val createdAt: Instant,
     @ProtoNumber(4) val lastUsedAt: Instant,
-    @ProtoNumber(5) val isBackedUp: Boolean
+    @ProtoNumber(5) val isBackedUp: Boolean,
 )

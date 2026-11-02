@@ -10,7 +10,7 @@ data class User(
     @ProtoNumber(2) val name: String,
     @ProtoNumber(3) val lastName: String,
     @ProtoNumber(4) val email: String,
-    @ProtoNumber(5) val phone: String?
+    @ProtoNumber(5) val phone: String?,
 ) {
     companion object {
         fun stub(
@@ -18,7 +18,7 @@ data class User(
             name: String = "Alice",
             lastName: String = "Smith",
             email: String = "user@example.com",
-            phone: String? = null
+            phone: String? = null,
         ) = User(id, name, lastName, email, phone)
     }
 }

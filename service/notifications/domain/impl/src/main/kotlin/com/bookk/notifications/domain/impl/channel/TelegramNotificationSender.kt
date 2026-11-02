@@ -7,9 +7,7 @@ import kotlin.uuid.Uuid
 
 internal class TelegramNotificationSender(
     private val transactionManager: TransactionManager,
-    private val targetDataSource: NotificationTargetDataSource
+    private val targetDataSource: NotificationTargetDataSource,
 ) : NotificationSender {
-    override suspend fun send(toUserId: Uuid, params: NotificationParameters): Result<Unit> {
-        return Result.failure(UnsupportedOperationException("Not implemented yet"))
-    }
+    override suspend fun send(toUserId: Uuid, params: NotificationParameters): Result<Unit> = Result.failure(UnsupportedOperationException("Not implemented yet"))
 }

@@ -10,16 +10,20 @@ interface EditUser {
     suspend operator fun invoke(id: Uuid, user: UserEditModel): Result<Unit>
 
     sealed interface Error {
-        class UserNotFound : BusinessError(
-            statusCode = HttpStatusCode.NotFound.value,
-            code = UserErrorCodes.USER_NOT_EXIST,
-            message = "User not found"
-        ), Error
+        class UserNotFound :
+            BusinessError(
+                statusCode = HttpStatusCode.NotFound.value,
+                code = UserErrorCodes.USER_NOT_EXIST,
+                message = "User not found",
+            ),
+            Error
 
-        class ContactTaken : BusinessError(
-            statusCode = HttpStatusCode.UnprocessableEntity.value,
-            code = UserErrorCodes.USER_CONTACT_TAKEN,
-            message = "Phone or email is already used by another account"
-        ), Error
+        class ContactTaken :
+            BusinessError(
+                statusCode = HttpStatusCode.UnprocessableEntity.value,
+                code = UserErrorCodes.USER_CONTACT_TAKEN,
+                message = "Phone or email is already used by another account",
+            ),
+            Error
     }
 }

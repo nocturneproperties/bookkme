@@ -8,5 +8,5 @@ interface TransactionManager {
 
 enum class TransactionIsolation {
     READ_COMMITTED,
-    REPEATABLE_READ
+    REPEATABLE_READ,
 }

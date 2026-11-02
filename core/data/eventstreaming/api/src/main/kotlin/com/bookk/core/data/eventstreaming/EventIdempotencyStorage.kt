@@ -15,5 +15,5 @@ interface EventIdempotencyStorage {
 enum class EventClaim {
     CLAIMED,
     IN_PROGRESS,
-    ALREADY_PROCESSED
+    ALREADY_PROCESSED,
 }

@@ -9,7 +9,7 @@ import kotlin.coroutines.cancellation.CancellationException
 inline fun <R, reified T> Result<R>.handle(
     onSuccess: (result: R) -> Unit,
     onBusinessError: (error: T) -> Unit,
-    onUnexpectedError: (error: Error) -> Unit
+    onUnexpectedError: (error: Error) -> Unit,
 ) {
     onSuccess {
         onSuccess(it)
@@ -41,11 +41,10 @@ suspend inline fun <R> runCatchingUnlessCancelled(block: () -> R): Result<R> = t
     Result.failure(failure)
 }
 
-inline fun <R, T : R> Result<T>.recoverSuspendCatching(transform: (Throwable) -> R): Result<R> =
-    when (val failure = exceptionOrNull()) {
-        null -> this
-        else -> runSuspendCatching { transform(failure) }
-    }
+inline fun <R, T : R> Result<T>.recoverSuspendCatching(transform: (Throwable) -> R): Result<R> = when (val failure = exceptionOrNull()) {
+    null -> this
+    else -> runSuspendCatching { transform(failure) }
+}
 
 suspend inline fun <R> runCleaningUpOnFailure(crossinline cleanUp: suspend () -> Unit, block: () -> R): R = try {
     block()

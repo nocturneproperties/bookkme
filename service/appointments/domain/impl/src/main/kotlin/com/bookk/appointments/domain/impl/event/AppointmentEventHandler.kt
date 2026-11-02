@@ -20,7 +20,7 @@ internal class AppointmentEventHandler(
     private val deleteUserAppointmentData: DeleteUserAppointmentData,
     private val syncEmployeePermission: SyncEmployeePermission,
     private val linkClientUser: LinkClientUser,
-    private val deleteClientAppointmentData: DeleteClientAppointmentData
+    private val deleteClientAppointmentData: DeleteClientAppointmentData,
 ) : EventHandler {
     override fun start(scope: CoroutineScope) {
         consumer

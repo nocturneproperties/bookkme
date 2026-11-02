@@ -43,7 +43,7 @@ internal class DeletedClientLockMariaDbTest {
                 dbUrl = "mariadb://${container.host}",
                 dbPort = container.getMappedPort(PORT).toString(),
                 dbUsername = "root",
-                dbPassword = PASSWORD
+                dbPassword = PASSWORD,
             )
         }
     }
@@ -53,7 +53,7 @@ internal class DeletedClientLockMariaDbTest {
 
         suspend fun <T> secondWhileFirstHolds(
             first: suspend DeletedClientDataSourceImpl.() -> Unit,
-            second: suspend DeletedClientDataSourceImpl.() -> T
+            second: suspend DeletedClientDataSourceImpl.() -> T,
         ): Result<T> {
             val firstHeld = CompletableDeferred<Unit>()
             val secondFinished = CompletableDeferred<Unit>()
@@ -87,7 +87,7 @@ internal class DeletedClientLockMariaDbTest {
         whenn()
         val link = fixture.secondWhileFirstHolds(
             first = { markDeleted(businessId, clientId) },
-            second = { isDeletedForShare(businessId, clientId) }
+            second = { isDeletedForShare(businessId, clientId) },
         )
 
         then()
@@ -104,7 +104,7 @@ internal class DeletedClientLockMariaDbTest {
         whenn()
         val deletion = fixture.secondWhileFirstHolds(
             first = { check(!isDeletedForShare(businessId, clientId)) },
-            second = { markDeleted(businessId, clientId) }
+            second = { markDeleted(businessId, clientId) },
         )
 
         then()
@@ -121,8 +121,14 @@ internal class DeletedClientLockMariaDbTest {
 
         whenn()
         val secondLink = fixture.secondWhileFirstHolds(
-            first = { check(isDeletedForShare(businessId, clientId)); markDeleted(businessId, clientId) },
-            second = { check(isDeletedForShare(businessId, clientId)); markDeleted(businessId, clientId) }
+            first = {
+                check(isDeletedForShare(businessId, clientId))
+                markDeleted(businessId, clientId)
+            },
+            second = {
+                check(isDeletedForShare(businessId, clientId))
+                markDeleted(businessId, clientId)
+            },
         )
 
         then()

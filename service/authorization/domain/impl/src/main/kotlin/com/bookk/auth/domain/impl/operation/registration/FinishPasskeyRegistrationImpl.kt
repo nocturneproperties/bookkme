@@ -30,19 +30,17 @@ private typealias PKS = PublicKeyCredential<AuthenticatorAttestationResponse, Cl
 internal class FinishPasskeyRegistrationImpl(
     private val passKeyDS: PassKeyDataSource,
     private val credentialRepo: CacheableCredentialRepository,
-    private val transactionManager: TransactionManager
+    private val transactionManager: TransactionManager,
 ) : FinishPasskeyRegistration {
-    override suspend fun verifyRequest(request: FinishRegistrationRequest): Result<PasskeyCredential> {
-        return transactionManager.transaction {
-            val pkc = PublicKeyCredential.parseRegistrationResponseJson(request.publicKeyCredentialJson)
-            val challengeJson = passKeyDS.getCachedChallenge(request.requestId) ?: throw ChallengeWindowExpired()
-            val challenge = PublicKeyCredentialCreationOptions.fromJson(challengeJson)
-            validateRegistrationChallenge(request, challenge, pkc).asPasskeyCredential(pkc, challenge)
-        }.recoverSuspendCatching {
-            when (it) {
-                is RegistrationFailedException -> throw VerificationFailed()
-                else -> throw it
-            }
+    override suspend fun verifyRequest(request: FinishRegistrationRequest): Result<PasskeyCredential> = transactionManager.transaction {
+        val pkc = PublicKeyCredential.parseRegistrationResponseJson(request.publicKeyCredentialJson)
+        val challengeJson = passKeyDS.getCachedChallenge(request.requestId) ?: throw ChallengeWindowExpired()
+        val challenge = PublicKeyCredentialCreationOptions.fromJson(challengeJson)
+        validateRegistrationChallenge(request, challenge, pkc).asPasskeyCredential(pkc, challenge)
+    }.recoverSuspendCatching {
+        when (it) {
+            is RegistrationFailedException -> throw VerificationFailed()
+            else -> throw it
         }
     }
 
@@ -54,7 +52,7 @@ internal class FinishPasskeyRegistrationImpl(
     private suspend fun validateRegistrationChallenge(
         request: FinishRegistrationRequest,
         challenge: PublicKeyCredentialCreationOptions,
-        response: PKS
+        response: PKS,
     ): RegistrationResult {
         passKeyDS.deleteCachedChallenge(request.requestId)
         cacheRepositoryData(response)
@@ -63,7 +61,7 @@ internal class FinishPasskeyRegistrationImpl(
                 FinishRegistrationOptions.builder()
                     .request(challenge)
                     .response(response)
-                    .build()
+                    .build(),
             )
     }
 
@@ -71,29 +69,27 @@ internal class FinishPasskeyRegistrationImpl(
         credentialRepo.lookupAllCache(response.id)
     }
 
-    //This is actually OptIn for not yet mature FIDO standards
+    // This is actually OptIn for not yet mature FIDO standards
     @Suppress("DEPRECATION")
-    private fun RegistrationResult.asPasskeyCredential(pkc: PKS, challenge: PublicKeyCredentialCreationOptions): PasskeyCredential {
-        return PasskeyCredential(
-            id = Uuid.random(),
-            authId = Uuid.random(),
-            authInfo = Authentication(Uuid.random(), Uuid.random(), Uuid.random()), //Ignored
-            name = challenge.user.displayName,
-            credDescriptor = CredentialDescriptor(
-                id = keyId.id.bytes,
-                type = keyId.type.id,
-                transports = keyId.transports.getOrNull()?.map { it.id }.orEmpty().toSet()
-            ),
-            publicKey = publicKeyCose.base64,
-            signatureCount = signatureCount,
-            isDiscoverable = isDiscoverable.getOrElse { false },
-            isBackupEligible = isBackupEligible,
-            isBackedUp = isBackedUp,
-            attestationObject = pkc.response.attestationObject.bytes,
-            clientData = pkc.response.clientDataJSON.bytes.decodeToString(),
-            handle = challenge.user.id.bytes.toUUID(),
-            createdAt = Clock.System.now(),
-            lastUsedAt = Clock.System.now()
-        )
-    }
+    private fun RegistrationResult.asPasskeyCredential(pkc: PKS, challenge: PublicKeyCredentialCreationOptions): PasskeyCredential = PasskeyCredential(
+        id = Uuid.random(),
+        authId = Uuid.random(),
+        authInfo = Authentication(Uuid.random(), Uuid.random(), Uuid.random()), // Ignored
+        name = challenge.user.displayName,
+        credDescriptor = CredentialDescriptor(
+            id = keyId.id.bytes,
+            type = keyId.type.id,
+            transports = keyId.transports.getOrNull()?.map { it.id }.orEmpty().toSet(),
+        ),
+        publicKey = publicKeyCose.base64,
+        signatureCount = signatureCount,
+        isDiscoverable = isDiscoverable.getOrElse { false },
+        isBackupEligible = isBackupEligible,
+        isBackedUp = isBackedUp,
+        attestationObject = pkc.response.attestationObject.bytes,
+        clientData = pkc.response.clientDataJSON.bytes.decodeToString(),
+        handle = challenge.user.id.bytes.toUUID(),
+        createdAt = Clock.System.now(),
+        lastUsedAt = Clock.System.now(),
+    )
 }

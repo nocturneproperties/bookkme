@@ -48,7 +48,7 @@ internal class BusinessPermissionDataSourceImplTest {
             EmployeeWorkingHoursTable,
             EmployeeDayOffTable,
             BusinessPermissionGrantsTable,
-            ClientTable
+            ClientTable,
         )
         val businessDataSource = BusinessDataSourceImpl()
         val employeeDataSource = EmployeeDataSourceImpl()
@@ -104,8 +104,8 @@ internal class BusinessPermissionDataSourceImplTest {
                 employee,
                 mapOf(
                     BusinessResource.CLIENTS to ResourcePermission.FULL,
-                    BusinessResource.SERVICES to ResourcePermission(view = true, update = true, delete = false)
-                )
+                    BusinessResource.SERVICES to ResourcePermission(view = true, update = true, delete = false),
+                ),
             )
         }
         val permissions = suspendTransaction { fixture.sut.getViewer(employee.userId, employee.businessId) }.permissions
@@ -115,9 +115,9 @@ internal class BusinessPermissionDataSourceImplTest {
             BusinessPermissions.stub(
                 business = ResourcePermission(view = true, update = false, delete = false),
                 clients = ResourcePermission.FULL,
-                services = ResourcePermission(view = true, update = true, delete = false)
+                services = ResourcePermission(view = true, update = true, delete = false),
             ),
-            permissions
+            permissions,
         )
     }
 
@@ -187,11 +187,11 @@ internal class BusinessPermissionDataSourceImplTest {
         then()
         assertEquals(
             ResourcePermission.NONE,
-            suspendTransaction { fixture.sut.getPermission(userId, ownEmployee.businessId, BusinessResource.CLIENTS) }
+            suspendTransaction { fixture.sut.getPermission(userId, ownEmployee.businessId, BusinessResource.CLIENTS) },
         )
         assertEquals(
             ResourcePermission.NONE,
-            suspendTransaction { fixture.sut.getPermission(userId, otherEmployee.businessId, BusinessResource.CLIENTS) }
+            suspendTransaction { fixture.sut.getPermission(userId, otherEmployee.businessId, BusinessResource.CLIENTS) },
         )
     }
 

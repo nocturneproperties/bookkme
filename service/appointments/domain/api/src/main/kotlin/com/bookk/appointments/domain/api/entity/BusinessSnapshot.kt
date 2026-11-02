@@ -13,7 +13,7 @@ data class BusinessSnapshot(
     @ProtoNumber(3) val address: String,
     @ProtoNumber(4) val timeZone: TimeZone,
     @ProtoNumber(5) val isEnabled: Boolean,
-    @ProtoNumber(6) val schedule: Schedule
+    @ProtoNumber(6) val schedule: Schedule,
 ) {
     companion object {
         fun stub(
@@ -22,14 +22,14 @@ data class BusinessSnapshot(
             address: String = "Business address",
             timeZone: TimeZone = TimeZone.UTC,
             isEnabled: Boolean = true,
-            schedule: Schedule = Schedule()
+            schedule: Schedule = Schedule(),
         ) = BusinessSnapshot(
             id = id,
             name = name,
             address = address,
             timeZone = timeZone,
             isEnabled = isEnabled,
-            schedule = schedule
+            schedule = schedule,
         )
     }
 }

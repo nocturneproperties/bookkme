@@ -24,14 +24,16 @@ internal class EventHandlingStartTest {
 
         fun serviceScopes(vararg services: String, withReplayer: Boolean = true): List<Scope> {
             val koin = koinApplication {
-                modules(services.map { service ->
-                    module {
-                        scope(named(service)) {
-                            scoped<EventHandler> { handler(service) }
-                            if (withReplayer) scoped<ExhaustedEventReplayer> { replayer(service) }
+                modules(
+                    services.map { service ->
+                        module {
+                            scope(named(service)) {
+                                scoped<EventHandler> { handler(service) }
+                                if (withReplayer) scoped<ExhaustedEventReplayer> { replayer(service) }
+                            }
                         }
-                    }
-                })
+                    },
+                )
             }.koin
             return services.map { koin.createScope("$it-scope", named(it)) }
         }

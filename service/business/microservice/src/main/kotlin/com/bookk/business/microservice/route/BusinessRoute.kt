@@ -19,7 +19,6 @@ import com.bookk.business.microservice.route.api.serviceGroupCrud
 import io.ktor.server.routing.Routing
 import library.signing.route.jwks
 
-
 fun Routing.businessRoute() {
     healthCheck()
     jwks(BusinessScope)

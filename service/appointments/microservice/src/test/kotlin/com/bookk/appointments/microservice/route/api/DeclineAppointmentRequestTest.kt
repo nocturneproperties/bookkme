@@ -57,7 +57,7 @@ internal class DeclineAppointmentRequestTest {
             },
             routeUnderTest = {
                 requests()
-            }
+            },
         )
 
         whenn()
@@ -81,7 +81,7 @@ internal class DeclineAppointmentRequestTest {
         coEvery {
             useCase.invoke(
                 userId,
-                cancellation
+                cancellation,
             )
         } returns Result.failure(AppointmentRequestStatusError.AlreadyDeclined())
 
@@ -100,7 +100,7 @@ internal class DeclineAppointmentRequestTest {
             },
             routeUnderTest = {
                 requests()
-            }
+            },
         )
 
         whenn()
@@ -126,7 +126,7 @@ internal class DeclineAppointmentRequestTest {
         coEvery {
             useCase.invoke(
                 userId,
-                cancellation
+                cancellation,
             )
         } returns Result.failure(AppointmentRequestStatusError.AlreadyApproved())
 
@@ -145,7 +145,7 @@ internal class DeclineAppointmentRequestTest {
             },
             routeUnderTest = {
                 requests()
-            }
+            },
         )
 
         whenn()
@@ -176,7 +176,7 @@ internal class DeclineAppointmentRequestTest {
             },
             routeUnderTest = {
                 requests()
-            }
+            },
         )
 
         whenn()
@@ -208,7 +208,7 @@ internal class DeclineAppointmentRequestTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { requests() }
+            routeUnderTest = { requests() },
         )
 
         whenn()
@@ -226,5 +226,5 @@ internal class DeclineAppointmentRequestTest {
 private class LegacyDeclineRequestBody(
     @ProtoNumber(1) val id: Uuid,
     @ProtoNumber(2) val businessId: Uuid,
-    @ProtoNumber(3) val reason: String
+    @ProtoNumber(3) val reason: String,
 )

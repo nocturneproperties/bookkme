@@ -19,13 +19,13 @@ internal class CompleteAppointmentImpl(
     private val appointmentDataSource: AppointmentDataSource,
     private val appointmentPermissionDataSource: AppointmentPermissionDataSource,
     private val businessClient: BusinessClient,
-    private val transactionManager: TransactionManager
+    private val transactionManager: TransactionManager,
 ) : CompleteAppointment {
 
     override suspend fun invoke(
         userId: Uuid,
         appointmentId: Uuid,
-        priceAdjustment: PriceAdjustmentDraft?
+        priceAdjustment: PriceAdjustmentDraft?,
     ): Result<Appointment> = runSuspendCatching {
         priceAdjustment?.throwIfInvalid()
         return transactionManager.transaction {
@@ -59,7 +59,7 @@ internal class CompleteAppointmentImpl(
         return PriceAdjustment(
             additionalServices = resolveAdditionalServices(appointment.businessId, draft.additionalServiceIds),
             price = draft.price,
-            reason = draft.reason?.takeIf { it.isNotBlank() }
+            reason = draft.reason?.takeIf { it.isNotBlank() },
         )
     }
 

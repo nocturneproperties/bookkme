@@ -38,7 +38,7 @@ internal class ClientDataSourceImpl : DataSource(), ClientDataSource {
             it[description] = client.description?.trim()
         }
         client.copy(
-            id = id.value
+            id = id.value,
         )
     }
 
@@ -63,11 +63,11 @@ internal class ClientDataSourceImpl : DataSource(), ClientDataSource {
     override suspend fun getClientsByContacts(
         businessId: Uuid,
         phones: Collection<String>,
-        emails: Collection<String>
+        emails: Collection<String>,
     ): List<Client> = dbQuery {
         val contactMatches = listOfNotNull<Op<Boolean>>(
             phones.takeIf { it.isNotEmpty() }?.let { ClientTable.phone inList it },
-            emails.takeIf { it.isNotEmpty() }?.let { ClientTable.email inList it }
+            emails.takeIf { it.isNotEmpty() }?.let { ClientTable.email inList it },
         )
         if (contactMatches.isEmpty()) return@dbQuery emptyList()
         ClientEntity.find {
@@ -109,7 +109,7 @@ internal class ClientDataSourceImpl : DataSource(), ClientDataSource {
         userId: Uuid,
         phone: String?,
         email: String,
-        updatedAt: Instant
+        updatedAt: Instant,
     ): List<ClientMerge> = dbQuery {
         val integrated = ClientTable.alias("integrated")
         val phoneMatch = phone?.let { ClientTable.phone eq it.trim() } ?: Op.FALSE
@@ -125,17 +125,16 @@ internal class ClientDataSourceImpl : DataSource(), ClientDataSource {
                 ClientMerge(
                     businessId = it[ClientTable.businessId].value,
                     fromClientId = it[ClientTable.id].value,
-                    toClientId = it[integrated[ClientTable.id]].value
+                    toClientId = it[integrated[ClientTable.id]].value,
                 )
             }
     }
 
-    private fun findIntegratedClient(businessId: Uuid, userId: Uuid): Client? =
-        ClientEntity.find {
-            (ClientTable.businessId eq businessId) and (ClientTable.userId eq userId)
-        }
-            .map(ClientEntity::toDomain)
-            .firstOrNull()
+    private fun findIntegratedClient(businessId: Uuid, userId: Uuid): Client? = ClientEntity.find {
+        (ClientTable.businessId eq businessId) and (ClientTable.userId eq userId)
+    }
+        .map(ClientEntity::toDomain)
+        .firstOrNull()
 
     private fun insertIntegratedClient(businessId: Uuid, client: Client.Integrated): Client {
         val id = ClientTable.insertAndGetId {
@@ -166,13 +165,13 @@ internal class ClientDataSourceImpl : DataSource(), ClientDataSource {
         lastName: String,
         email: String,
         phone: String?,
-        updatedAt: Instant
+        updatedAt: Instant,
     ): Int = dbQuery {
         ClientTable.update(
             where = {
                 (ClientTable.userId eq userId) and
                     (ClientTable.sourceUpdatedAt.isNull() or (ClientTable.sourceUpdatedAt less updatedAt))
-            }
+            },
         ) {
             it[this.name] = name.trim()
             it[this.lastName] = lastName.trim()

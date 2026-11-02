@@ -29,11 +29,5 @@ dependencies {
     implementation(projects.library.signing.api)
     implementation(projects.library.signing.impl)
     api(projects.service.authorization.client)
-    testFixturesImplementation(libs.ktor.server.resources)
-    testFixturesImplementation(libs.ktor.protobuf)
-    testFixturesImplementation(platform(libs.koin.bom))
-    testFixturesImplementation(libs.koin.core)
-    testFixturesImplementation(libs.koin.ktor)
-    testFixturesImplementation(testFixtures(projects.core))
-    testImplementation(testFixtures(projects.core))
+    testFixturesApi(testFixtures(projects.core))
 }

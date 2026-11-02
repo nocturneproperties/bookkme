@@ -25,7 +25,7 @@ internal class CancelAppointmentImpl(
     private val appointmentPermissionDataSource: AppointmentPermissionDataSource,
     private val subscriptionDataSource: AppointmentSubscriptionDataSource,
     private val eventProducer: StandardEventProducer,
-    private val transactionManager: TransactionManager
+    private val transactionManager: TransactionManager,
 ) : CancelAppointment {
 
     override suspend fun invoke(userId: Uuid, cancellation: AppointmentCancellation): Result<Appointment> = transactionManager.transaction {
@@ -37,7 +37,7 @@ internal class CancelAppointmentImpl(
         sendAppointmentCancelledEvent(cancelled)
         appointment.copy(
             status = AppointmentStatus.CANCELLED,
-            cancellationReason = cancellation.reason
+            cancellationReason = cancellation.reason,
         )
     }
 
@@ -58,8 +58,8 @@ internal class CancelAppointmentImpl(
                 employeeName = appointment.employee.fullName,
                 address = business.address,
                 price = moneyFormatter.print(appointment.totalAmount),
-                reason = appointment.cancellationReason
-            )
+                reason = appointment.cancellationReason,
+            ),
         )
     }
 }

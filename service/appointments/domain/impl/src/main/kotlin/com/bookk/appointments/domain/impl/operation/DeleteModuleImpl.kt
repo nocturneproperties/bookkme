@@ -7,7 +7,7 @@ import kotlin.uuid.Uuid
 
 internal class DeleteModuleImpl(
     private val dataSource: AppointmentSubscriptionDataSource,
-    private val transactionManager: TransactionManager
+    private val transactionManager: TransactionManager,
 ) : DeleteModule {
     override suspend fun invoke(businessId: Uuid): Result<Unit> = transactionManager.transaction {
         dataSource.detachBusiness(businessId)

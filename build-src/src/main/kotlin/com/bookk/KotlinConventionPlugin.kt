@@ -1,6 +1,7 @@
 package com.bookk
 
 import com.bookk.build_src.convention.applyConvention
+import com.bookk.build_src.convention.applyTestFixturesConvention
 import com.bookk.build_src.tools.libs
 import org.gradle.api.Plugin
 import org.gradle.api.Project
@@ -15,6 +16,7 @@ class KotlinConventionPlugin : Plugin<Project> {
             pluginManager.apply(libs.plugins.kotlin.jvm.get().pluginId)
 
             extensions.getByType<JavaPluginExtension>().applyConvention()
+            applyTestFixturesConvention()
             extensions.getByType<KotlinJvmProjectExtension>().applyConvention(target)
         }
     }

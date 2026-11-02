@@ -46,11 +46,10 @@ import org.koin.ktor.plugin.Koin
 import org.slf4j.event.Level
 import kotlin.time.Duration.Companion.milliseconds
 
-
 fun startServer(
     diModules: List<Module> = emptyList(),
     config: ServiceConfig = ServiceConfig(),
-    modules: (Routing) -> Unit
+    modules: (Routing) -> Unit,
 ) {
     embeddedServer(
         factory = CIO,
@@ -67,14 +66,14 @@ fun startServer(
                     *diModules.toTypedArray(),
                     commonModule(),
                     tokenValidatorModule(),
-                    meterRegistryModule(prometheusRegistry)
+                    meterRegistryModule(prometheusRegistry),
                 )
             }
             installRequestLogging()
             install(Resources)
             install(IdempotencyPlugin) {
                 idempotentResponseRepository = get()
-                cleanUpWorkerEnabled = false //We use Redis expiration time for cache management
+                cleanUpWorkerEnabled = false // We use Redis expiration time for cache management
             }
             installAuthPlugin()
             routing {
@@ -83,12 +82,12 @@ fun startServer(
                 }
                 val contact = OpenApiInfo.Contact(
                     name = "Michael Antiufieiev",
-                    email = "antufeevmichael@gmail.com"
+                    email = "antufeevmichael@gmail.com",
                 )
                 val apiInfo = OpenApiInfo(
                     config.title,
                     config.version,
-                    contact = contact
+                    contact = contact,
                 )
                 swaggerUI("/${config.root}/internal/swagger") {
                     info = apiInfo
@@ -104,7 +103,7 @@ fun startServer(
                 }
                 modules(this)
             }
-        }
+        },
     ).start(wait = true)
 }
 
@@ -155,11 +154,13 @@ fun Routing.installNegotiation() {
     install(ContentNegotiation) {
         when (AppLevelConstants.SERIALIZER) {
             SupportedSerializers.JSON.STR -> {
-                json(Json {
-                    prettyPrint = true
-                    encodeDefaults = true
-                    explicitNulls = false
-                })
+                json(
+                    Json {
+                        prettyPrint = true
+                        encodeDefaults = true
+                        explicitNulls = false
+                    },
+                )
             }
 
             SupportedSerializers.PROTOBUF.STR -> {

@@ -10,10 +10,12 @@ interface GetServicesByIds {
     suspend operator fun invoke(businessId: Uuid, serviceIds: List<Uuid>): Result<List<Service>>
 
     sealed interface Error {
-        class ServiceNotFound : BusinessError(
-            statusCode = HttpStatusCode.UnprocessableEntity.value,
-            code = BusinessErrorCodes.BUSINESS_QUOTE_SERVICE_NOT_FOUND,
-            message = "One or more services not found"
-        ), Error
+        class ServiceNotFound :
+            BusinessError(
+                statusCode = HttpStatusCode.UnprocessableEntity.value,
+                code = BusinessErrorCodes.BUSINESS_QUOTE_SERVICE_NOT_FOUND,
+                message = "One or more services not found",
+            ),
+            Error
     }
 }

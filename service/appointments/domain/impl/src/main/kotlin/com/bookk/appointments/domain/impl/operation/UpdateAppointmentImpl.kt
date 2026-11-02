@@ -25,7 +25,7 @@ internal class UpdateAppointmentImpl(
     private val settingsDataSource: AppointmentSettingsDataSource,
     private val appointmentPermissionDataSource: AppointmentPermissionDataSource,
     private val businessClient: BusinessClient,
-    private val transactionManager: TransactionManager
+    private val transactionManager: TransactionManager,
 ) : UpdateAppointment {
     override suspend fun invoke(userId: Uuid, update: AppointmentUpdate): Result<Appointment> = runSuspendCatching {
         if (!update.hasValidServiceSelection()) throw UpdateAppointment.Error.InvalidServiceSelection()
@@ -71,7 +71,7 @@ internal class UpdateAppointmentImpl(
             employee = context.employee?.toSnapshot() ?: existing.employee,
             services = update.services.flatMap { requested -> List(requested.count) { availableServices.getValue(requested.serviceId) } },
             date = update.date,
-            note = update.note
+            note = update.note,
         )
     }
 

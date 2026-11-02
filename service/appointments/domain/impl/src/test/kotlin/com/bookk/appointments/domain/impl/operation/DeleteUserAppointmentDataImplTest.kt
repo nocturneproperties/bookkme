@@ -48,7 +48,7 @@ internal class DeleteUserAppointmentDataImplTest {
             appointmentPermissionDataSource,
             subscriptionDataSource,
             eventProducer,
-            transactionManager
+            transactionManager,
         )
 
         fun stubWrites(userId: Uuid, cancelled: List<Appointment> = emptyList()) {
@@ -165,7 +165,7 @@ internal class DeleteUserAppointmentDataImplTest {
                 to = it.dateEnd,
                 timeZone = business.timeZone,
                 businessName = business.name,
-                idempotencyKey = ""
+                idempotencyKey = "",
             )
         }
         assertEquals(expected, fixture.sentEvents.map { it.withoutIdempotencyKey() })

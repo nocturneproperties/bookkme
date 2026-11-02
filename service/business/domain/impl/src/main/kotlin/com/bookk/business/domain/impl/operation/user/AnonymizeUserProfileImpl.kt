@@ -11,7 +11,7 @@ internal class AnonymizeUserProfileImpl(
     private val transactionManager: TransactionManager,
     private val clientDataSource: ClientDataSource,
     private val employeeDataSource: EmployeeDataSource,
-    private val businessPermissionDataSource: BusinessPermissionDataSource
+    private val businessPermissionDataSource: BusinessPermissionDataSource,
 ) : AnonymizeUserProfile {
     override suspend fun invoke(userId: Uuid): Result<Unit> = transactionManager.transaction {
         clientDataSource.anonymizeClientsByUserId(userId)

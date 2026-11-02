@@ -23,18 +23,16 @@ internal class PriceAdjustmentServiceEntity(id: EntityID<Uuid>) : UuidEntity(id)
     var priceScale by PriceAdjustmentServicesTable.priceScale
     var durationMinutes by PriceAdjustmentServicesTable.durationMinutes
 
-    fun domain(): ServiceSnapshot {
-        return ServiceSnapshot(
-            id = serviceId,
-            name = serviceName,
-            groupId = serviceGroupId,
-            price = Money.of(
-                CurrencyUnit.of(priceCurrency),
-                BigDecimal(BigInteger.valueOf(priceUnscaled), priceScale)
-            ),
-            duration = durationMinutes.minutes
-        )
-    }
+    fun domain(): ServiceSnapshot = ServiceSnapshot(
+        id = serviceId,
+        name = serviceName,
+        groupId = serviceGroupId,
+        price = Money.of(
+            CurrencyUnit.of(priceCurrency),
+            BigDecimal(BigInteger.valueOf(priceUnscaled), priceScale),
+        ),
+        duration = durationMinutes.minutes,
+    )
 
     companion object : DecoratorUuidEntityClass<PriceAdjustmentServiceEntity>(PriceAdjustmentServicesTable) {
         fun new(ownerId: EntityID<Uuid>, service: ServiceSnapshot): PriceAdjustmentServiceEntity = new {

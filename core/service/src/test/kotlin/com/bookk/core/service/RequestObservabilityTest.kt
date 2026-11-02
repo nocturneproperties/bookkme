@@ -41,7 +41,7 @@ internal class RequestObservabilityTest {
         setupApplication(
             extension = { installRequestMetrics(fixture.registry) },
             diModule = module { },
-            routeUnderTest = { get("/ping") { call.respond(HttpStatusCode.NoContent) } }
+            routeUnderTest = { get("/ping") { call.respond(HttpStatusCode.NoContent) } },
         )
 
         whenn()
@@ -79,7 +79,7 @@ internal class RequestObservabilityTest {
         setupApplication(
             extension = { installRequestLogging() },
             diModule = module { },
-            routeUnderTest = { get("/ping") { call.respond(HttpStatusCode.NoContent) } }
+            routeUnderTest = { get("/ping") { call.respond(HttpStatusCode.NoContent) } },
         )
 
         whenn()

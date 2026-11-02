@@ -70,7 +70,7 @@ internal class LogbackConfigurationTest {
         whenn()
         fixture.relyingPartyLogger.warn(
             "Allowed origin is not a valid URL, it will match only by exact string equality: {}",
-            "android:apk-key-hash:l63z2UoYmCmoJ2V8Z9CfAxPkbhd7IjZvUrihusXdt10"
+            "android:apk-key-hash:l63z2UoYmCmoJ2V8Z9CfAxPkbhd7IjZvUrihusXdt10",
         )
 
         then()

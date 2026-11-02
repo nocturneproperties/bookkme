@@ -6,7 +6,7 @@ import com.bookk.core.domain.datasource.transaction.TransactionManager
 
 internal class DeleteDayOffsInThePastImpl(
     private val businessDataSource: BusinessDataSource,
-    private val transactionManager: TransactionManager
+    private val transactionManager: TransactionManager,
 ) : DeleteDayOffsInThePast {
     override suspend fun invoke(): Result<Unit> = transactionManager.transaction {
         businessDataSource.deleteDayOffsInThePast()

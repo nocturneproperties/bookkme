@@ -19,7 +19,7 @@ internal class EnableAppointmentsForBusinessImpl(
     private val settingsDataSource: AppointmentSettingsDataSource,
     private val appointmentPermissionDataSource: AppointmentPermissionDataSource,
     private val businessClient: BusinessClient,
-    private val transactionManager: TransactionManager
+    private val transactionManager: TransactionManager,
 ) : EnableAppointmentsForBusiness {
     override suspend fun invoke(userId: Uuid, businessId: Uuid): Result<Unit> {
         val permission = businessClient.getPermission(userId, businessId, BusinessResource.BUSINESS).getOrElse { return Result.failure(it) }
@@ -33,8 +33,8 @@ internal class EnableAppointmentsForBusinessImpl(
                     address = business.address,
                     timeZone = business.timeZone,
                     isEnabled = true,
-                    schedule = business.schedule
-                )
+                    schedule = business.schedule,
+                ),
             )
             appointmentPermissionDataSource.setPermission(userId, businessId, ResourcePermission.FULL, suspended = false)
             settingsDataSource.create(AppointmentSettings(businessId, business.timeZone))

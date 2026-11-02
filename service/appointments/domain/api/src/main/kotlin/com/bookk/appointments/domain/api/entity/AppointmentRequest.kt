@@ -32,9 +32,12 @@ data class AppointmentRequest(
     fun requirePending() {
         when (status) {
             AppointmentRequestStatus.PENDING -> Unit
+
             AppointmentRequestStatus.APPROVED -> throw AppointmentRequestStatusError.AlreadyApproved()
+
             AppointmentRequestStatus.DECLINED,
-            AppointmentRequestStatus.CANCELLED -> throw AppointmentRequestStatusError.AlreadyDeclined()
+            AppointmentRequestStatus.CANCELLED,
+            -> throw AppointmentRequestStatusError.AlreadyDeclined()
         }
     }
 
@@ -44,7 +47,7 @@ data class AppointmentRequest(
             initiatorUserId: Uuid = Uuid.random(),
             businessId: Uuid = Uuid.random(),
             date: Instant = Instant.fromEpochMilliseconds(0),
-            employee: EmployeeSnapshot = EmployeeSnapshot.stub()
+            employee: EmployeeSnapshot = EmployeeSnapshot.stub(),
         ) = AppointmentRequest(
             id = id,
             initiatorUserId = initiatorUserId,
@@ -55,7 +58,7 @@ data class AppointmentRequest(
             status = AppointmentRequestStatus.PENDING,
             date = date,
             note = "Note",
-            declineReason = ""
+            declineReason = "",
         )
     }
 }

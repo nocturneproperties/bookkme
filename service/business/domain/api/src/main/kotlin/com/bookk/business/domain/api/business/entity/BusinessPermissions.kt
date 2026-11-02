@@ -10,7 +10,7 @@ data class BusinessPermissions(
     @ProtoNumber(2) val employees: ResourcePermission,
     @ProtoNumber(3) val clients: ResourcePermission,
     @ProtoNumber(4) val services: ResourcePermission,
-    @ProtoNumber(5) val appointments: ResourcePermission
+    @ProtoNumber(5) val appointments: ResourcePermission,
 ) {
     operator fun get(resource: BusinessResource): ResourcePermission = when (resource) {
         BusinessResource.BUSINESS -> business
@@ -20,8 +20,7 @@ data class BusinessPermissions(
         BusinessResource.APPOINTMENTS -> appointments
     }
 
-    fun with(grants: Map<BusinessResource, ResourcePermission>): BusinessPermissions =
-        from(BusinessResource.entries.associateWith(::get) + grants)
+    fun with(grants: Map<BusinessResource, ResourcePermission>): BusinessPermissions = from(BusinessResource.entries.associateWith(::get) + grants)
 
     companion object {
         fun from(grants: Map<BusinessResource, ResourcePermission>) = BusinessPermissions(
@@ -29,7 +28,7 @@ data class BusinessPermissions(
             employees = grants[BusinessResource.EMPLOYEES] ?: ResourcePermission.NONE,
             clients = grants[BusinessResource.CLIENTS] ?: ResourcePermission.NONE,
             services = grants[BusinessResource.SERVICES] ?: ResourcePermission.NONE,
-            appointments = grants[BusinessResource.APPOINTMENTS] ?: ResourcePermission.NONE
+            appointments = grants[BusinessResource.APPOINTMENTS] ?: ResourcePermission.NONE,
         )
 
         val NONE = BusinessPermissions(
@@ -37,7 +36,7 @@ data class BusinessPermissions(
             employees = ResourcePermission.NONE,
             clients = ResourcePermission.NONE,
             services = ResourcePermission.NONE,
-            appointments = ResourcePermission.NONE
+            appointments = ResourcePermission.NONE,
         )
 
         val VIEW_ONLY = BusinessPermissions(
@@ -45,7 +44,7 @@ data class BusinessPermissions(
             employees = ResourcePermission(view = true, update = false, delete = false),
             clients = ResourcePermission(view = true, update = false, delete = false),
             services = ResourcePermission(view = true, update = false, delete = false),
-            appointments = ResourcePermission(view = true, update = false, delete = false)
+            appointments = ResourcePermission(view = true, update = false, delete = false),
         )
 
         val FULL = BusinessPermissions(
@@ -53,7 +52,7 @@ data class BusinessPermissions(
             employees = ResourcePermission.FULL,
             clients = ResourcePermission.FULL,
             services = ResourcePermission.FULL,
-            appointments = ResourcePermission.FULL
+            appointments = ResourcePermission.FULL,
         )
 
         fun stub(
@@ -61,13 +60,13 @@ data class BusinessPermissions(
             employees: ResourcePermission = ResourcePermission.NONE,
             clients: ResourcePermission = ResourcePermission.NONE,
             services: ResourcePermission = ResourcePermission.NONE,
-            appointments: ResourcePermission = ResourcePermission.NONE
+            appointments: ResourcePermission = ResourcePermission.NONE,
         ) = BusinessPermissions(
             business = business,
             employees = employees,
             clients = clients,
             services = services,
-            appointments = appointments
+            appointments = appointments,
         )
     }
 }

@@ -20,24 +20,24 @@ data class Business(
     @ProtoNumber(10) val permissions: BusinessPermissions,
     @ProtoNumber(11) val ownerId: Uuid,
     @ProtoNumber(12) val employeeId: Uuid?,
-    @ProtoNumber(13) val clientId: Uuid?
+    @ProtoNumber(13) val clientId: Uuid?,
 ) {
     fun viewedBy(viewer: BusinessViewer): Business = copy(
         permissions = viewer.permissions,
         employeeId = viewer.employeeId,
-        clientId = viewer.clientId
+        clientId = viewer.clientId,
     )
 
     @Serializable
     class Location(
         @ProtoNumber(1) val lat: Double,
-        @ProtoNumber(2) val lng: Double
+        @ProtoNumber(2) val lng: Double,
     )
 
     @Serializable
     data class Social(
         @ProtoNumber(1) val kind: SocialKind,
-        @ProtoNumber(2) val value: String?
+        @ProtoNumber(2) val value: String?,
     )
 
     enum class SocialKind {
@@ -45,7 +45,7 @@ data class Business(
         INSTAGRAM,
         TELEGRAM,
         VIBER,
-        WHATSAPP
+        WHATSAPP,
     }
 
     companion object {
@@ -67,7 +67,7 @@ data class Business(
             permissions: BusinessPermissions = BusinessPermissions.NONE,
             ownerId: Uuid = Uuid.random(),
             employeeId: Uuid? = null,
-            clientId: Uuid? = null
+            clientId: Uuid? = null,
         ) = Business(
             id = id,
             name = name,
@@ -81,7 +81,7 @@ data class Business(
             permissions = permissions,
             ownerId = ownerId,
             employeeId = employeeId,
-            clientId = clientId
+            clientId = clientId,
         )
     }
 }

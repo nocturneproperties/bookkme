@@ -29,8 +29,8 @@ internal fun Route.getAppointmentRescheduleContext() {
             getAppointmentRescheduleContext(
                 businessId = resource.parent.id,
                 employeeId = body.employeeId,
-                serviceIds = body.serviceIds
-            )
+                serviceIds = body.serviceIds,
+            ),
         )
     }
 }

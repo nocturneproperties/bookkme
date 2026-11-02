@@ -35,7 +35,7 @@ internal class CreateInstantAppointmentImpl(
     tokenValidatorFactory: TokenValidatorFactory,
     private val businessClient: BusinessClient,
     private val deletedUserDataSource: DeletedUserDataSource,
-    private val deletedClientDataSource: DeletedClientDataSource
+    private val deletedClientDataSource: DeletedClientDataSource,
 ) : CreateInstantAppointment {
 
     private val quoteVerifier = BookingQuoteVerifier(tokenValidatorFactory)
@@ -55,7 +55,7 @@ internal class CreateInstantAppointmentImpl(
                 businessId = draft.businessId,
                 employeeId = draft.employeeId,
                 clientId = draft.clientId,
-                serviceIds = draft.services.map { it.serviceId }
+                serviceIds = draft.services.map { it.serviceId },
             )
             .getOrThrow()
 
@@ -91,7 +91,7 @@ internal class CreateInstantAppointmentImpl(
     private fun buildAppointment(
         userId: Uuid,
         draft: InstantAppointmentDraft,
-        context: AppointmentBookingContext
+        context: AppointmentBookingContext,
     ) = Appointment(
         id = Uuid.random(),
         initiatorUserId = userId,
@@ -104,7 +104,7 @@ internal class CreateInstantAppointmentImpl(
         note = draft.note,
         cancellationReason = "",
         completedBy = null,
-        priceAdjustment = null
+        priceAdjustment = null,
     )
 
     private suspend fun releaseOfferTokenBestEffort(offerToken: String) {

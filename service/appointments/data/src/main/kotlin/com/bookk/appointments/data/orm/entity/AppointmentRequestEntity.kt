@@ -39,41 +39,39 @@ internal class AppointmentRequestEntity(id: EntityID<Uuid>) : UuidEntity(id) {
     var declineReason by AppointmentRequestTable.declineReason
     var updatedAt by AppointmentRequestTable.updatedAt
 
-    fun domain(): AppointmentRequest {
-        return AppointmentRequest(
-            id = id.value,
-            initiatorUserId = initiatorUserId,
-            businessId = businessId.value,
-            employee = EmployeeSnapshot(
-                id = employeeId,
-                userId = employeeUserId,
-                fullName = employeeName
-            ),
-            client = ClientSnapshot(
-                id = clientId,
-                fullName = clientName,
-                phone = clientPhone,
-                email = clientEmail,
-                userId = clientUserId
-            ),
-            services = services.map {
-                ServiceSnapshot(
-                    id = it.serviceId,
-                    name = it.serviceName,
-                    groupId = it.serviceGroupId,
-                    price = Money.of(
-                        CurrencyUnit.of(it.priceCurrency),
-                        BigDecimal(BigInteger.valueOf(it.priceUnscaled), it.priceScale)
-                    ),
-                    duration = it.durationMinutes.minutes
-                )
-            },
-            date = dateStart,
-            note = note,
-            status = status,
-            declineReason = declineReason
-        )
-    }
+    fun domain(): AppointmentRequest = AppointmentRequest(
+        id = id.value,
+        initiatorUserId = initiatorUserId,
+        businessId = businessId.value,
+        employee = EmployeeSnapshot(
+            id = employeeId,
+            userId = employeeUserId,
+            fullName = employeeName,
+        ),
+        client = ClientSnapshot(
+            id = clientId,
+            fullName = clientName,
+            phone = clientPhone,
+            email = clientEmail,
+            userId = clientUserId,
+        ),
+        services = services.map {
+            ServiceSnapshot(
+                id = it.serviceId,
+                name = it.serviceName,
+                groupId = it.serviceGroupId,
+                price = Money.of(
+                    CurrencyUnit.of(it.priceCurrency),
+                    BigDecimal(BigInteger.valueOf(it.priceUnscaled), it.priceScale),
+                ),
+                duration = it.durationMinutes.minutes,
+            )
+        },
+        date = dateStart,
+        note = note,
+        status = status,
+        declineReason = declineReason,
+    )
 
     companion object : DecoratorUuidEntityClass<AppointmentRequestEntity>(AppointmentRequestTable) {
 

@@ -52,7 +52,10 @@ internal class RunCleaningUpOnFailureTest {
         var thrown: Throwable? = null
         val job = launch {
             try {
-                runCleaningUpOnFailure(cleanUp = { delay(1.seconds); cleanedUp = true }) { awaitCancellation() }
+                runCleaningUpOnFailure(cleanUp = {
+                    delay(1.seconds)
+                    cleanedUp = true
+                }) { awaitCancellation() }
             } catch (failure: Throwable) {
                 thrown = failure
                 throw failure

@@ -25,7 +25,7 @@ import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
 internal class AppointmentRequestDataSourceImpl(
-    private val cacheClient: CacheClient<String>
+    private val cacheClient: CacheClient<String>,
 ) : DataSource(), AppointmentRequestDataSource {
     override suspend fun get(id: Uuid): AppointmentRequest? = dbQuery {
         AppointmentRequestEntity.findById(id)
@@ -100,20 +100,18 @@ internal class AppointmentRequestDataSourceImpl(
         }?.domain() ?: throw Error.NotFound()
     }
 
-    override suspend fun hasOverlapsWith(request: AppointmentRequest): Boolean {
-        return dbQuery {
-            AppointmentRequestTable.select(AppointmentRequestTable.id)
-                .where {
-                    (AppointmentRequestTable.businessId eq request.businessId)
-                        .and(AppointmentRequestTable.initiatorUserId eq request.initiatorUserId)
-                        .and(AppointmentRequestTable.dateStart.less(request.dateEnd))
-                        .and(AppointmentRequestTable.dateEnd.greater(request.date))
-                        .and(AppointmentRequestTable.status eq AppointmentRequestStatus.PENDING)
-                }
-                .limit(1)
-                .empty()
-                .not()
-        }
+    override suspend fun hasOverlapsWith(request: AppointmentRequest): Boolean = dbQuery {
+        AppointmentRequestTable.select(AppointmentRequestTable.id)
+            .where {
+                (AppointmentRequestTable.businessId eq request.businessId)
+                    .and(AppointmentRequestTable.initiatorUserId eq request.initiatorUserId)
+                    .and(AppointmentRequestTable.dateStart.less(request.dateEnd))
+                    .and(AppointmentRequestTable.dateEnd.greater(request.date))
+                    .and(AppointmentRequestTable.status eq AppointmentRequestStatus.PENDING)
+            }
+            .limit(1)
+            .empty()
+            .not()
     }
 
     override suspend fun cancelOutdated(before: Instant) = dbQuery<Unit> {
@@ -121,7 +119,7 @@ internal class AppointmentRequestDataSourceImpl(
             where = {
                 AppointmentRequestTable.status.eq(AppointmentRequestStatus.PENDING)
                     .and(AppointmentRequestTable.dateEnd.less(before))
-            }
+            },
         ) {
             it[AppointmentRequestTable.status] = AppointmentRequestStatus.CANCELLED
             it[AppointmentRequestTable.updatedAt] = Clock.System.now()

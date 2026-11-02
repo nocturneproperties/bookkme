@@ -23,7 +23,7 @@ internal class AppointmentCancelledForDeletedClientNotificationTest {
         to = Instant.parse("2026-03-05T15:00:00Z"),
         timeZone = TimeZone.UTC,
         businessName = "Barbershop",
-        cause = cause
+        cause = cause,
     )
 
     @Test
@@ -79,7 +79,7 @@ internal class AppointmentCancelledForDeletedClientNotificationTest {
         assertEquals("Appointment at Barbershop cancelled", email.subject)
         assertEquals(
             "A client deleted their account, so the appointment at Barbershop on $whenText was cancelled. The time is free again.",
-            email.body
+            email.body,
         )
     }
 
@@ -96,7 +96,7 @@ internal class AppointmentCancelledForDeletedClientNotificationTest {
         assertEquals("Запис до Barbershop скасовано", email.subject)
         assertEquals(
             "Клієнт видалив свій акаунт, тож запис до Barbershop на $whenText скасовано. Цей час знову вільний.",
-            email.body
+            email.body,
         )
     }
 

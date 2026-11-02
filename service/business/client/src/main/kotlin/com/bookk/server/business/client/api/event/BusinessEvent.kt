@@ -13,7 +13,7 @@ interface BusinessEvent : EventStreaming.Event<String> {
     @Serializable
     data class Deleted(
         @ProtoNumber(1) val businessId: Uuid,
-        @ProtoNumber(2) override val idempotencyKey: String = Uuid.random().toString()
+        @ProtoNumber(2) override val idempotencyKey: String = Uuid.random().toString(),
     ) : BusinessEvent {
         @ProtoNumber(3)
         override val topic: String = TOPIC
@@ -28,7 +28,7 @@ interface BusinessEvent : EventStreaming.Event<String> {
     data class Updated(
         @ProtoNumber(1) val business: BusinessDTO,
         @ProtoNumber(2) val updatedAt: Instant,
-        @ProtoNumber(3) override val idempotencyKey: String = Uuid.random().toString()
+        @ProtoNumber(3) override val idempotencyKey: String = Uuid.random().toString(),
     ) : BusinessEvent {
         @ProtoNumber(4)
         override val topic: String = TOPIC
@@ -46,7 +46,7 @@ interface BusinessEvent : EventStreaming.Event<String> {
         @ProtoNumber(3) val employeeName: String,
         @ProtoNumber(4) val businessId: Uuid,
         @ProtoNumber(5) val businessName: String,
-        @ProtoNumber(6) override val idempotencyKey: String = Uuid.random().toString()
+        @ProtoNumber(6) override val idempotencyKey: String = Uuid.random().toString(),
     ) : BusinessEvent {
         @ProtoNumber(7)
         override val topic: String = TOPIC
@@ -62,7 +62,7 @@ interface BusinessEvent : EventStreaming.Event<String> {
         @ProtoNumber(2) val businessId: Uuid,
         @ProtoNumber(3) val permissions: BusinessPermissions,
         @ProtoNumber(4) override val idempotencyKey: String = Uuid.random().toString(),
-        @ProtoNumber(6) val suspended: Boolean = false
+        @ProtoNumber(6) val suspended: Boolean = false,
     ) : BusinessEvent {
         @ProtoNumber(5)
         override val topic: String = TOPIC
@@ -79,7 +79,7 @@ interface BusinessEvent : EventStreaming.Event<String> {
         @ProtoNumber(2) val clientId: Uuid,
         @ProtoNumber(3) val userId: Uuid,
         @ProtoNumber(4) val mergedClientIds: List<Uuid> = emptyList(),
-        @ProtoNumber(5) override val idempotencyKey: String = Uuid.random().toString()
+        @ProtoNumber(5) override val idempotencyKey: String = Uuid.random().toString(),
     ) : BusinessEvent {
         @ProtoNumber(6)
         override val topic: String = TOPIC
@@ -94,7 +94,7 @@ interface BusinessEvent : EventStreaming.Event<String> {
     data class ClientDeleted(
         @ProtoNumber(1) val businessId: Uuid,
         @ProtoNumber(2) val clientId: Uuid,
-        @ProtoNumber(3) override val idempotencyKey: String = Uuid.random().toString()
+        @ProtoNumber(3) override val idempotencyKey: String = Uuid.random().toString(),
     ) : BusinessEvent {
         @ProtoNumber(4)
         override val topic: String = TOPIC

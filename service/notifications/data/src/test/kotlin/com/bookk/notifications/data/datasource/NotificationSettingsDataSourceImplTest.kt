@@ -115,7 +115,7 @@ internal class NotificationSettingsDataSourceImplTest {
         whenn()
         suspendTransaction {
             fixture.sut.upsert(
-                NotificationChannelSettings(channelId, CommunicationChannel.EMAIL, enabled = false, availableToClients = false)
+                NotificationChannelSettings(channelId, CommunicationChannel.EMAIL, enabled = false, availableToClients = false),
             )
         }
         val found = suspendTransaction { fixture.sut.getByUserId(userId) }

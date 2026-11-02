@@ -34,7 +34,7 @@ fun businessModule() = module {
         cacheModule(),
         eventStreamingTransportModule(BusinessScope, BUSINESS_SERVICE_NAME),
         outboxModule(BusinessScope),
-        signingModule(BusinessScope)
+        signingModule(BusinessScope),
     )
 }
 
@@ -45,7 +45,7 @@ fun businessEmbeddedModule() = module {
         cacheModule(),
         embeddedEventStreamingTransportModule(BusinessScope, BUSINESS_SERVICE_NAME),
         outboxModule(BusinessScope),
-        signingModule(BusinessScope)
+        signingModule(BusinessScope),
     )
 }
 

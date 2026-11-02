@@ -37,12 +37,11 @@ internal class MonolithJobsTest {
         suspend fun start(builder: ApplicationTestBuilder): Application = builder.startScopedApplication(
             AuthScope to { scoped { authRotateSigningKeys } },
             BusinessScope to { scoped { businessRotateSigningKeys } },
-            AppointmentsScope to {}
+            AppointmentsScope to {},
         )
     }
 
-    private fun Application.jobsRegisteredBy(register: Application.(SchedulerConfiguration) -> Unit) =
-        SchedulerConfiguration().also { register(it) }.registeredJobs()
+    private fun Application.jobsRegisteredBy(register: Application.(SchedulerConfiguration) -> Unit) = SchedulerConfiguration().also { register(it) }.registeredJobs()
 
     @Test
     fun `should register every service's jobs in one scheduler without name clashes`() = routeTest {
@@ -70,7 +69,7 @@ internal class MonolithJobsTest {
         val jobNamesByService = mapOf(
             AUTH_SERVICE_NAME to application.jobsRegisteredBy { registerAuthJobs(it) }.keys,
             BUSINESS_SERVICE_NAME to application.jobsRegisteredBy { registerBusinessJobs(it) }.keys,
-            APPOINTMENTS_SERVICE_NAME to application.jobsRegisteredBy { registerAppointmentsJobs(it) }.keys
+            APPOINTMENTS_SERVICE_NAME to application.jobsRegisteredBy { registerAppointmentsJobs(it) }.keys,
         )
 
         then()

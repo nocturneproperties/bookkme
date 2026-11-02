@@ -14,13 +14,13 @@ fun createDatabase(
     dbPort: String = AppLevelConstants.dbPort,
     dbUsername: String = AppLevelConstants.dbUsername,
     dbPassword: String = AppLevelConstants.dbPassword,
-    maxPoolSize: Int = AppLevelConstants.dbPoolSize
+    maxPoolSize: Int = AppLevelConstants.dbPoolSize,
 ): Database {
     val migration = Flyway.configure()
         .dataSource(
             "jdbc:$dbUrl:$dbPort/$schemaName?createDatabaseIfNotExist=true&$VERIFIED_TLS",
             dbUsername,
-            dbPassword
+            dbPassword,
         )
         .baselineOnMigrate(true)
         .createSchemas(true)
@@ -39,7 +39,7 @@ internal fun poolConfig(
     dbPort: String,
     dbUsername: String,
     dbPassword: String,
-    maxPoolSize: Int
+    maxPoolSize: Int,
 ): HikariConfig = HikariConfig().apply {
     poolName = schemaName
     jdbcUrl = "jdbc:$dbUrl:$dbPort/$schemaName?rewriteBatchedStatements=true&$VERIFIED_TLS"

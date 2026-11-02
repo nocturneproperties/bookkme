@@ -64,7 +64,7 @@ internal class OutboxRelayMariaDbTest {
             dbUrl = "mariadb://${container.host}",
             dbPort = container.getMappedPort(PORT).toString(),
             dbUsername = "root",
-            dbPassword = PASSWORD
+            dbPassword = PASSWORD,
         )
         val transactionManager = ExposedTransactionManager(database)
         val outboxEventDataSource = OutboxEventDataSourceImpl()
@@ -73,8 +73,7 @@ internal class OutboxRelayMariaDbTest {
             transaction(database) { SchemaUtils.create(OutboxEventTable) }
         }
 
-        fun relay(rawProducer: EventStreaming.RawProducer<String>) =
-            OutboxRelay(outboxEventDataSource, transactionManager, rawProducer)
+        fun relay(rawProducer: EventStreaming.RawProducer<String>) = OutboxRelay(outboxEventDataSource, transactionManager, rawProducer)
 
         suspend fun enqueue(vararg topics: String) = topics.forEach { topic ->
             suspendTransaction(db = database) {

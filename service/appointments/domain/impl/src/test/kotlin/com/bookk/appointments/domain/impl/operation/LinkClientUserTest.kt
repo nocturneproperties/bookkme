@@ -39,7 +39,7 @@ internal class LinkClientUserTest {
             deleteUserAppointmentData,
             deletedClientDataSource,
             deleteClientAppointmentData,
-            transactionManager
+            transactionManager,
         )
 
         fun stubLink(businessId: Uuid, clientId: Uuid, userId: Uuid, userDeleted: Boolean, clientDeleted: Boolean = false) {

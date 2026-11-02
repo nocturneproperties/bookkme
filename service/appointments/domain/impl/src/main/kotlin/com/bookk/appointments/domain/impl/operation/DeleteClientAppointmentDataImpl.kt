@@ -33,7 +33,7 @@ internal class DeleteClientAppointmentDataImpl(
             businessId,
             clientId,
             Clock.System.now(),
-            CLIENT_REMOVED_CANCELLATION_REASON
+            CLIENT_REMOVED_CANCELLATION_REASON,
         )
         appointmentDataSource.anonymizeClient(businessId, clientId)
         requestDataSource.deleteForClient(businessId, clientId)
@@ -53,30 +53,28 @@ internal class DeleteClientAppointmentDataImpl(
 
     private fun Appointment.isOwnBookingOfEmployee() = client.userId == employee.userId
 
-    private fun employeeNotification(appointment: Appointment, business: BusinessSnapshot) =
-        AppointmentEvent.CancelledForDeletedClient(
-            employeeUserId = appointment.employee.userId,
-            from = appointment.date,
-            to = appointment.dateEnd,
-            timeZone = business.timeZone,
-            businessName = business.name,
-            cause = ClientDeletionCause.REMOVED_BY_BUSINESS
-        )
+    private fun employeeNotification(appointment: Appointment, business: BusinessSnapshot) = AppointmentEvent.CancelledForDeletedClient(
+        employeeUserId = appointment.employee.userId,
+        from = appointment.date,
+        to = appointment.dateEnd,
+        timeZone = business.timeZone,
+        businessName = business.name,
+        cause = ClientDeletionCause.REMOVED_BY_BUSINESS,
+    )
 
-    private fun clientNotification(appointment: Appointment, business: BusinessSnapshot) =
-        AppointmentEvent.Cancelled(
-            clientUserId = appointment.client.userId,
-            clientName = appointment.client.fullName,
-            employeeUserId = appointment.employee.userId,
-            employeeName = appointment.employee.fullName,
-            from = appointment.date,
-            to = appointment.dateEnd,
-            timeZone = business.timeZone,
-            address = business.address,
-            businessName = business.name,
-            price = moneyFormatter.print(appointment.totalAmount),
-            reason = appointment.cancellationReason
-        )
+    private fun clientNotification(appointment: Appointment, business: BusinessSnapshot) = AppointmentEvent.Cancelled(
+        clientUserId = appointment.client.userId,
+        clientName = appointment.client.fullName,
+        employeeUserId = appointment.employee.userId,
+        employeeName = appointment.employee.fullName,
+        from = appointment.date,
+        to = appointment.dateEnd,
+        timeZone = business.timeZone,
+        address = business.address,
+        businessName = business.name,
+        price = moneyFormatter.print(appointment.totalAmount),
+        reason = appointment.cancellationReason,
+    )
 
     companion object {
         const val CLIENT_REMOVED_CANCELLATION_REASON = "Client was removed by the business"

@@ -56,9 +56,9 @@ internal class BusinessJobsTest {
                 "business-rotateSigningKeys" to 7.days,
                 "business-deleteDayOffsInThePast" to 1.days,
                 "business-expireEmployeeInvitations" to 1.days,
-                "business-deleteProcessedEmployeeInvitations" to 1.days
+                "business-deleteProcessedEmployeeInvitations" to 1.days,
             ),
-            fixture.scheduler.registeredJobs()
+            fixture.scheduler.registeredJobs(),
         )
     }
 

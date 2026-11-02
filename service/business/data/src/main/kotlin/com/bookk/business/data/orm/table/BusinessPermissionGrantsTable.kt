@@ -35,6 +35,6 @@ object BusinessPermissionGrantsTable : UuidTable("business_permission_grants") {
     }
 
     fun permissionsOf(rows: Iterable<ResultRow>): BusinessPermissions = BusinessPermissions.from(
-        rows.associate { it[resource] to ResourcePermission(view = it[canView], update = it[canUpdate], delete = it[canDelete]) }
+        rows.associate { it[resource] to ResourcePermission(view = it[canView], update = it[canUpdate], delete = it[canDelete]) },
     )
 }

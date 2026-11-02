@@ -5,8 +5,7 @@ import com.ibm.icu.text.MessageFormat
 import java.util.Locale
 import java.util.ResourceBundle
 
-fun formatPlural(pattern: String, locale: Locale, arguments: Map<String, Any>): String =
-    MessageFormat(pattern, locale).format(arguments)
+fun formatPlural(pattern: String, locale: Locale, arguments: Map<String, Any>): String = MessageFormat(pattern, locale).format(arguments)
 
 class LocalizedStrings(baseName: String) {
 

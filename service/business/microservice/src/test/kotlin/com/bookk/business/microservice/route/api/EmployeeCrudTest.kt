@@ -57,33 +57,33 @@ internal class EmployeeCrudTest {
     private fun ApplicationTestBuilder.authenticatedApplication(useCase: UpdateEmployee) = setupApplication(
         extension = jwtAuthentication(),
         diModule = module { single { useCase } },
-        routeUnderTest = { employeeCrud() }
+        routeUnderTest = { employeeCrud() },
     )
 
     private fun ApplicationTestBuilder.authenticatedApplication(useCase: SetEmployeePermissions) = setupApplication(
         extension = jwtAuthentication(),
         diModule = module { single { useCase } },
-        routeUnderTest = { employeeCrud() }
+        routeUnderTest = { employeeCrud() },
     )
 
     private fun ApplicationTestBuilder.authenticatedApplication(useCase: GetEmployees) = setupApplication(
         extension = jwtAuthentication(),
         diModule = module { single { useCase } },
-        routeUnderTest = { employeeCrud() }
+        routeUnderTest = { employeeCrud() },
     )
 
     private fun ApplicationTestBuilder.authenticatedApplication(useCase: SetEmployeeSuspension) = setupApplication(
         extension = jwtAuthentication(),
         diModule = module { single { useCase } },
-        routeUnderTest = { employeeCrud() }
+        routeUnderTest = { employeeCrud() },
     )
 
     private fun suspensionResource(id: Uuid) = BusinessRouting.Api.Employee.Id.Suspension(
-        BusinessRouting.Api.Employee.Id(BusinessRouting.Api.Employee(businessId = businessId), id)
+        BusinessRouting.Api.Employee.Id(BusinessRouting.Api.Employee(businessId = businessId), id),
     )
 
     private fun permissionsResource(id: Uuid) = BusinessRouting.Api.Employee.Id.Permissions(
-        BusinessRouting.Api.Employee.Id(BusinessRouting.Api.Employee(businessId = businessId), id)
+        BusinessRouting.Api.Employee.Id(BusinessRouting.Api.Employee(businessId = businessId), id),
     )
 
     @Test
@@ -222,7 +222,7 @@ internal class EmployeeCrudTest {
         setupApplication(
             extension = { install(Authentication) { bearer { authenticate { null } } } },
             diModule = module { single { useCase } },
-            routeUnderTest = { employeeCrud() }
+            routeUnderTest = { employeeCrud() },
         )
 
         whenn()
@@ -280,12 +280,12 @@ internal class EmployeeCrudTest {
         val clients = ResourcePermission(view = true, update = true, delete = false)
         val grants = mapOf(
             BusinessResource.CLIENTS to clients,
-            BusinessResource.SERVICES to ResourcePermission.FULL
+            BusinessResource.SERVICES to ResourcePermission.FULL,
         )
         val updated = Employee.stub(
             id = id,
             businessId = businessId,
-            permissions = BusinessPermissions.stub(clients = ResourcePermission(view = true, update = true, delete = false), services = ResourcePermission.FULL)
+            permissions = BusinessPermissions.stub(clients = ResourcePermission(view = true, update = true, delete = false), services = ResourcePermission.FULL),
         )
         coEvery { useCase.invoke(userId, businessId, id, grants) } returns Result.success(updated)
         authenticatedApplication(useCase)
@@ -316,7 +316,7 @@ internal class EmployeeCrudTest {
             BusinessResource.EMPLOYEES to employees,
             BusinessResource.CLIENTS to clients,
             BusinessResource.SERVICES to services,
-            BusinessResource.APPOINTMENTS to appointments
+            BusinessResource.APPOINTMENTS to appointments,
         )
         coEvery { useCase.invoke(userId, businessId, id, grants) } returns Result.success(Employee.stub(id = id, businessId = businessId))
         authenticatedApplication(useCase)
@@ -418,7 +418,7 @@ internal class EmployeeCrudTest {
         setupApplication(
             extension = { install(Authentication) { bearer { authenticate { null } } } },
             diModule = module { single { useCase } },
-            routeUnderTest = { employeeCrud() }
+            routeUnderTest = { employeeCrud() },
         )
 
         whenn()
@@ -523,7 +523,7 @@ internal class EmployeeCrudTest {
         setupApplication(
             extension = { install(Authentication) { bearer { authenticate { null } } } },
             diModule = module { single { useCase } },
-            routeUnderTest = { employeeCrud() }
+            routeUnderTest = { employeeCrud() },
         )
 
         whenn()
@@ -540,7 +540,7 @@ internal class EmployeeCrudTest {
         val useCase: GetEmployees = mockk()
         val employees = listOf(
             createTestEmployee().copy(permissions = BusinessPermissions.FULL),
-            createTestEmployee().copy(permissions = BusinessPermissions.VIEW_ONLY)
+            createTestEmployee().copy(permissions = BusinessPermissions.VIEW_ONLY),
         )
         coEvery { useCase.invoke(userId, businessId) } returns Result.success(employees)
         authenticatedApplication(useCase)
@@ -593,7 +593,7 @@ internal class EmployeeCrudTest {
         setupApplication(
             extension = { install(Authentication) { bearer { authenticate { null } } } },
             diModule = module { single { useCase } },
-            routeUnderTest = { employeeCrud() }
+            routeUnderTest = { employeeCrud() },
         )
 
         whenn()
@@ -612,7 +612,7 @@ internal class EmployeeCrudTest {
         phone = employee.phone,
         email = employee.email,
         services = employee.services,
-        schedule = employee.schedule
+        schedule = employee.schedule,
     )
 
     private fun permissionsRequest(
@@ -620,12 +620,12 @@ internal class EmployeeCrudTest {
         employees: ResourcePermission? = null,
         clients: ResourcePermission? = null,
         services: ResourcePermission? = null,
-        appointments: ResourcePermission? = null
+        appointments: ResourcePermission? = null,
     ) = EmployeePermissionsRequest(
         business = business,
         employees = employees,
         clients = clients,
         services = services,
-        appointments = appointments
+        appointments = appointments,
     )
 }

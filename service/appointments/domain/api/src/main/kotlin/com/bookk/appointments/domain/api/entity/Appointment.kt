@@ -22,7 +22,7 @@ data class Appointment(
     @ProtoNumber(9) val note: String,
     @ProtoNumber(10) val cancellationReason: String,
     @ProtoNumber(11) val completedBy: AppointmentCompletedBy?,
-    @ProtoNumber(12) val priceAdjustment: PriceAdjustment?
+    @ProtoNumber(12) val priceAdjustment: PriceAdjustment?,
 ) : AppointmentRepresentation {
     @Transient
     override val dateEnd = date + services.fold(0.minutes) { acc, service ->
@@ -69,7 +69,7 @@ data class Appointment(
             id: Uuid = Uuid.random(),
             initiatorUserId: Uuid = Uuid.random(),
             businessId: Uuid = Uuid.random(),
-            date: Instant = Instant.fromEpochMilliseconds(0)
+            date: Instant = Instant.fromEpochMilliseconds(0),
         ) = Appointment(
             id = id,
             initiatorUserId = initiatorUserId,
@@ -82,7 +82,7 @@ data class Appointment(
             note = "Note",
             cancellationReason = "",
             completedBy = null,
-            priceAdjustment = null
+            priceAdjustment = null,
         )
     }
 }

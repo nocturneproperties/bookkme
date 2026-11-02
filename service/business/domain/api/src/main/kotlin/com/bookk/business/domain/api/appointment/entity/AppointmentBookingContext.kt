@@ -10,13 +10,13 @@ import kotlinx.serialization.protobuf.ProtoNumber
 data class AppointmentBookingContext(
     @ProtoNumber(1) val employee: Employee,
     @ProtoNumber(2) val client: ClientRemote,
-    @ProtoNumber(3) val services: List<Service>
+    @ProtoNumber(3) val services: List<Service>,
 ) {
     companion object {
         fun stub(
             employee: Employee = Employee.stub(),
             client: ClientRemote = ClientRemote.stub(),
-            services: List<Service> = listOf(Service.stub(businessId = employee.businessId))
+            services: List<Service> = listOf(Service.stub(businessId = employee.businessId)),
         ) = AppointmentBookingContext(employee = employee, client = client, services = services)
     }
 }

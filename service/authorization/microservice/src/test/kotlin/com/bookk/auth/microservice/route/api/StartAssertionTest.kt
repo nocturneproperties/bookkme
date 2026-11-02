@@ -28,7 +28,7 @@ internal class StartAssertionTest {
         val useCase: StartAssertion = mockk()
         setupApplication(
             diModule = module { single { useCase } },
-            routeUnderTest = { signIn() }
+            routeUnderTest = { signIn() },
         )
         val client = createTestClient()
         val answer = AssertionStartResponse(Uuid.random().toString(), "mock", "mock")

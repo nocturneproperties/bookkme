@@ -46,7 +46,7 @@ class EmbeddedEventConsumer(
     override fun <T : Event<String>> registerReceiver(
         topic: String,
         type: KType,
-        onEvent: suspend (T) -> Unit
+        onEvent: suspend (T) -> Unit,
     ): Consumer<String> {
         types[topic] = type
         receivers[topic] = { event, attempt -> deliver(topic, event as T, attempt, onEvent) }
@@ -78,13 +78,12 @@ class EmbeddedEventConsumer(
         }
     }
 
-    private fun eventsOf(topic: String): Flow<Event<String>> =
-        topicQueueHolder.subscribe(topic)
-            .receiveAsFlow()
-            .onEach { event ->
-                logger.debug("Event received: topic:{}, event:{}", event.topic, event)
-                dispatch(event)
-            }
+    private fun eventsOf(topic: String): Flow<Event<String>> = topicQueueHolder.subscribe(topic)
+        .receiveAsFlow()
+        .onEach { event ->
+            logger.debug("Event received: topic:{}, event:{}", event.topic, event)
+            dispatch(event)
+        }
 
     private suspend fun dispatch(event: Event<String>) {
         runCatchingUnlessCancelled { decoded(event)?.let { receivers[event.topic]?.invoke(it, FIRST_ATTEMPT) } }
@@ -122,7 +121,7 @@ class EmbeddedEventConsumer(
             originalTopic = originalEvent.topic,
             attempt = dltEvent.attempt,
             topic = originalEvent.topic,
-            idempotencyKey = dltEvent.idempotencyKey
+            idempotencyKey = dltEvent.idempotencyKey,
         )
         transactionManager.transaction { exhaustedEventDataSource.save(record) }
             .onFailure {
@@ -146,11 +145,9 @@ class EmbeddedEventConsumer(
     }
 
     @Suppress("UNCHECKED_CAST")
-    private fun decode(type: KType, payload: ByteArray): Event<String> =
-        protoBuf.decodeFromByteArray(protoBuf.serializersModule.serializer(type), payload) as Event<String>
+    private fun decode(type: KType, payload: ByteArray): Event<String> = protoBuf.decodeFromByteArray(protoBuf.serializersModule.serializer(type), payload) as Event<String>
 
-    private fun encode(type: KType, event: Event<String>): ByteArray =
-        protoBuf.encodeToByteArray(protoBuf.serializersModule.serializer(type), event)
+    private fun encode(type: KType, event: Event<String>): ByteArray = protoBuf.encodeToByteArray(protoBuf.serializersModule.serializer(type), event)
 
     private companion object {
         const val FIRST_ATTEMPT = 0

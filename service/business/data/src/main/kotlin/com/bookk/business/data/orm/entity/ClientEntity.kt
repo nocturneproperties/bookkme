@@ -18,49 +18,45 @@ internal class ClientEntity(id: EntityID<Uuid>) : UuidEntity(id) {
     var description by ClientTable.description
 
     companion object : DecoratorUuidEntityClass<ClientEntity>(ClientTable) {
-        fun findByIdAndUpdate(businessId: Uuid, model: ClientUpdateModel): ClientEntity? =
-            findByIdAndUpdate(model.id) {
-                if (it.businessId.value == businessId) {
-                    model.name?.let { name -> it.name = name }
-                    model.lastName?.let { lastName -> it.lastName = lastName }
-                    model.phone?.let { phone -> it.phone = phone }
-                    model.email?.let { email -> it.email = email }
-                    model.description?.let { description -> it.description = description }
-                }
-            }?.takeIf { it.businessId.value == businessId }
+        fun findByIdAndUpdate(businessId: Uuid, model: ClientUpdateModel): ClientEntity? = findByIdAndUpdate(model.id) {
+            if (it.businessId.value == businessId) {
+                model.name?.let { name -> it.name = name }
+                model.lastName?.let { lastName -> it.lastName = lastName }
+                model.phone?.let { phone -> it.phone = phone }
+                model.email?.let { email -> it.email = email }
+                model.description?.let { description -> it.description = description }
+            }
+        }?.takeIf { it.businessId.value == businessId }
 
-        fun takeOver(businessId: Uuid, detachedClientId: Uuid, profile: Client.Integrated): ClientEntity? =
-            findById(detachedClientId)
-                ?.takeIf { it.businessId.value == businessId && it.userId == null }
-                ?.apply {
-                    userId = profile.userId
-                    name = profile.name.trim()
-                    lastName = profile.lastName.trim()
-                    profile.phone?.let { phone = it.trim() }
-                    profile.email?.let { email = it.trim() }
-                }
+        fun takeOver(businessId: Uuid, detachedClientId: Uuid, profile: Client.Integrated): ClientEntity? = findById(detachedClientId)
+            ?.takeIf { it.businessId.value == businessId && it.userId == null }
+            ?.apply {
+                userId = profile.userId
+                name = profile.name.trim()
+                lastName = profile.lastName.trim()
+                profile.phone?.let { phone = it.trim() }
+                profile.email?.let { email = it.trim() }
+            }
     }
 
-    fun toDomain(): Client {
-        return when (val userId = userId) {
-            null -> Client.Detached(
-                id = id.value,
-                name = name,
-                lastName = lastName,
-                phone = phone,
-                email = email,
-                description = description
-            )
+    fun toDomain(): Client = when (val userId = userId) {
+        null -> Client.Detached(
+            id = id.value,
+            name = name,
+            lastName = lastName,
+            phone = phone,
+            email = email,
+            description = description,
+        )
 
-            else -> Client.Integrated(
-                id = id.value,
-                name = name,
-                lastName = lastName,
-                phone = phone,
-                email = email,
-                userId = userId,
-                description = description
-            )
-        }
+        else -> Client.Integrated(
+            id = id.value,
+            name = name,
+            lastName = lastName,
+            phone = phone,
+            email = email,
+            userId = userId,
+            description = description,
+        )
     }
 }

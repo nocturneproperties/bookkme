@@ -43,8 +43,8 @@ internal class DeleteAccountImplTest {
             refreshToken = null,
             previousRefreshToken = null,
             deviceName = "Test Device",
-            isSignedIn = true
-        )
+            isSignedIn = true,
+        ),
     )
 
     private fun makeRequest(): FinishAssertionRequest = object : FinishAssertionRequest {

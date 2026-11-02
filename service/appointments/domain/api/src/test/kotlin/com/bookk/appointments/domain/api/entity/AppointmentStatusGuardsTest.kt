@@ -16,8 +16,7 @@ internal class AppointmentStatusGuardsTest {
     private val started = now - 1.minutes
     private val notStarted = now + 1.minutes
 
-    private fun appointment(status: AppointmentStatus, date: Instant = started) =
-        Appointment.stub(date = date).copy(status = status)
+    private fun appointment(status: AppointmentStatus, date: Instant = started) = Appointment.stub(date = date).copy(status = status)
 
     @Test
     fun `should allow a scheduled appointment to be changed`() = runUnitTest {

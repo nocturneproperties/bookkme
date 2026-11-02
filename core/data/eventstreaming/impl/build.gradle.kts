@@ -5,19 +5,15 @@ plugins {
 }
 
 dependencies {
+    api(libs.kafka.client)
+    api(libs.ktor.protobuf)
+    api(projects.core.data.eventstreaming.api)
+    api(projects.core.domain.datasource)
     implementation(libs.kotlin.coroutines)
-    implementation(libs.ktor.protobuf)
-    implementation(libs.kafka.client)
     implementation(libs.micrometer.core)
-    implementation(projects.core.data.eventstreaming.api)
     implementation(projects.core)
     implementation(projects.core.domain)
-    implementation(projects.core.domain.datasource)
 
-    testFixturesApi(projects.core.data.eventstreaming.api)
-    testFixturesApi(projects.core.domain.datasource)
-    testFixturesApi(libs.kafka.client)
-    testFixturesApi(libs.ktor.protobuf)
     testFixturesApi(libs.testcontainers.kafka)
     testFixturesImplementation(projects.core.data)
     testFixturesImplementation(projects.core.data.cache.api)

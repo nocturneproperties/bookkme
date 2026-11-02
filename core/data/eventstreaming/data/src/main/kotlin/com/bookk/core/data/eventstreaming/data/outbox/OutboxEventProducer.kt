@@ -10,7 +10,7 @@ import kotlin.reflect.KType
 class OutboxEventProducer(
     private val outboxEventDataSource: OutboxEventDataSource,
     private val transactionManager: TransactionManager,
-    private val protoBuf: ProtoBuf
+    private val protoBuf: ProtoBuf,
 ) : EventStreaming.Producer<String> {
 
     override suspend fun <T : EventStreaming.Event<String>> send(data: T, kType: KType) {

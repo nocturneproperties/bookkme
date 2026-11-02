@@ -34,22 +34,22 @@ internal class InternalUserTest {
         given()
         val useCase: CreateUser = mockk()
         val user = User.stub(email = email)
-        
+
         coEvery { useCase.invoke(user) } returns Result.success(UserId(userId))
-        
+
         setupApplication(
             diModule = module {
                 single { useCase }
             },
-            routeUnderTest = { postCreateUser() }
+            routeUnderTest = { postCreateUser() },
         )
-        
+
         whenn()
         val client = createTestClient()
         val response = client.post(UserRouting.Api.Internal.User()) {
             setBody(user)
         }
-        
+
         then()
         assertEquals(HttpStatusCode.OK, response.status)
     }
@@ -60,22 +60,22 @@ internal class InternalUserTest {
         val useCase: GetUserByEmail = mockk()
         val user = User.stub(id = userId, email = email)
         val emailBody = EmailBody(email)
-        
+
         coEvery { useCase.invoke(emailBody) } returns Result.success(user)
-        
+
         setupApplication(
             diModule = module {
                 single { useCase }
             },
-            routeUnderTest = { getUserByEmail() }
+            routeUnderTest = { getUserByEmail() },
         )
-        
+
         whenn()
         val client = createTestClient()
         val response = client.get(UserRouting.Api.Internal.User.Email()) {
             setBody(emailBody)
         }
-        
+
         then()
         assertEquals(HttpStatusCode.OK, response.status)
     }
@@ -85,20 +85,20 @@ internal class InternalUserTest {
         given()
         val useCase: GetUserById = mockk()
         val user = User.stub(id = userId, email = email)
-        
+
         coEvery { useCase.invoke(userId) } returns Result.success(user)
-        
+
         setupApplication(
             diModule = module {
                 single { useCase }
             },
-            routeUnderTest = { getUserById() }
+            routeUnderTest = { getUserById() },
         )
-        
+
         whenn()
         val client = createTestClient()
         val response = client.get(UserRouting.Api.Internal.User.Id(id = userId))
-        
+
         then()
         assertEquals(HttpStatusCode.OK, response.status)
     }

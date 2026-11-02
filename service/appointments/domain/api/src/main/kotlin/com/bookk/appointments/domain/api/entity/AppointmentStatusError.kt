@@ -6,7 +6,7 @@ import io.ktor.http.HttpStatusCode
 sealed class AppointmentStatusError(code: Int, message: String) : BusinessError(
     statusCode = HttpStatusCode.UnprocessableEntity.value,
     code = code,
-    message = message
+    message = message,
 ) {
     class AlreadyCancelled : AppointmentStatusError(AppointmentErrorCodes.APPOINTMENT_ALREADY_CANCELED, "Appointment already cancelled")
 

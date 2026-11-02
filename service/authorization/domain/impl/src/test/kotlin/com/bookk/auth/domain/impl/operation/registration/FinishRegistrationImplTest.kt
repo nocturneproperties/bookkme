@@ -45,7 +45,7 @@ internal class FinishRegistrationImplTest {
             generateAuthToken,
             eventProducer,
             transactionManager,
-            finishPasskeyRegistration
+            finishPasskeyRegistration,
         )
     }
 
@@ -53,7 +53,7 @@ internal class FinishRegistrationImplTest {
         requestId = "req-id",
         publicKeyCredentialJson = "{}",
         deviceInfo = VerifyAccountCreationRequest.DeviceInfo(deviceUUID = deviceId, deviceName = "Test Device"),
-        userInfo = VerifyAccountCreationRequest.UserInfo(name = "John", lastName = "Doe", email = "john@example.com")
+        userInfo = VerifyAccountCreationRequest.UserInfo(name = "John", lastName = "Doe", email = "john@example.com"),
     )
 
     private fun makePasskeyCredential(handle: Uuid = Uuid.random()): PasskeyCredential {
@@ -73,7 +73,7 @@ internal class FinishRegistrationImplTest {
             attestationObject = ByteArray(0),
             clientData = "{}",
             createdAt = now,
-            lastUsedAt = now
+            lastUsedAt = now,
         )
     }
 
@@ -192,7 +192,7 @@ internal class FinishRegistrationImplTest {
         val request = makeRequest()
         with(fixture) {
             coEvery { finishPasskeyRegistration.verifyRequest(request) } returns Result.failure(
-                FinishPasskeyRegistration.Error.ChallengeWindowExpired()
+                FinishPasskeyRegistration.Error.ChallengeWindowExpired(),
             )
         }
 

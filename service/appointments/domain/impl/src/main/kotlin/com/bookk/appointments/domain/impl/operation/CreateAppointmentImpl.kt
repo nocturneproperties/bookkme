@@ -31,12 +31,12 @@ internal class CreateAppointmentImpl(
     private val appointmentPermissionDataSource: AppointmentPermissionDataSource,
     private val subscriptionDataSource: AppointmentSubscriptionDataSource,
     private val transactionManager: TransactionManager,
-    private val eventProducer: StandardEventProducer
+    private val eventProducer: StandardEventProducer,
 ) : CreateAppointment {
 
     override suspend fun invoke(
         userId: Uuid,
-        appointmentRequestId: Uuid
+        appointmentRequestId: Uuid,
     ): Result<Appointment> = transactionManager.transaction {
         val request = requestDataSource.getForUpdate(appointmentRequestId) ?: throw Error.NotFound()
         val settings = lockSettings(request.businessId)
@@ -46,13 +46,11 @@ internal class CreateAppointmentImpl(
         createAppointment(request, settings)
     }
 
-    override suspend fun createBypassingPermissions(request: AppointmentRequest): Result<Appointment> =
-        transactionManager.transaction {
-            createAppointment(request, lockSettings(request.businessId))
-        }
+    override suspend fun createBypassingPermissions(request: AppointmentRequest): Result<Appointment> = transactionManager.transaction {
+        createAppointment(request, lockSettings(request.businessId))
+    }
 
-    private suspend fun lockSettings(businessId: Uuid): AppointmentSettings =
-        settingsDataSource.getForUpdate(businessId) ?: throw Error.NotFound()
+    private suspend fun lockSettings(businessId: Uuid): AppointmentSettings = settingsDataSource.getForUpdate(businessId) ?: throw Error.NotFound()
 
     private suspend fun createAppointment(request: AppointmentRequest, settings: AppointmentSettings): Appointment {
         verifyAppointment(request, settings)
@@ -85,8 +83,8 @@ internal class CreateAppointmentImpl(
                 timeZone = business.timeZone,
                 businessName = business.name,
                 address = business.address,
-                price = moneyFormatter.print(request.totalAmount)
-            )
+                price = moneyFormatter.print(request.totalAmount),
+            ),
         )
     }
 }

@@ -32,22 +32,21 @@ object KafkaTestBroker {
         }
     }
 
-    fun drain(topic: String, expected: Int): List<ConsumerRecord<String, ByteArray>> =
-        awaitRecords(topic, expected) { true }
+    fun drain(topic: String, expected: Int): List<ConsumerRecord<String, ByteArray>> = awaitRecords(topic, expected) { true }
 
     fun awaitRecords(
         topic: String,
         expected: Int,
-        matching: (ConsumerRecord<String, ByteArray>) -> Boolean
+        matching: (ConsumerRecord<String, ByteArray>) -> Boolean,
     ): List<ConsumerRecord<String, ByteArray>> {
         val consumer = KafkaConsumer(
             mapOf<String, Any>(
                 ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG to servers.single(),
                 ConsumerConfig.GROUP_ID_CONFIG to "drain-${Uuid.random()}",
-                ConsumerConfig.AUTO_OFFSET_RESET_CONFIG to "earliest"
+                ConsumerConfig.AUTO_OFFSET_RESET_CONFIG to "earliest",
             ),
             StringDeserializer(),
-            ByteArrayDeserializer()
+            ByteArrayDeserializer(),
         )
         consumer.use {
             it.subscribe(listOf(topic))

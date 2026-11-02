@@ -7,7 +7,7 @@ import kotlin.uuid.Uuid
 
 class Device(
     val authRecord: Authentication,
-    val deviceInfo: DeviceInfo
+    val deviceInfo: DeviceInfo,
 )
 
 class DeviceInfo(
@@ -17,5 +17,5 @@ class DeviceInfo(
     val previousRefreshToken: SafeRefreshToken?,
     val deviceName: String,
     val isSignedIn: Boolean,
-    val lastLogInAt: Instant? = null
+    val lastLogInAt: Instant? = null,
 )

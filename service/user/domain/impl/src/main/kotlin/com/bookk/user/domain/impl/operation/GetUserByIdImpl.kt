@@ -9,11 +9,10 @@ import kotlin.uuid.Uuid
 
 internal class GetUserByIdImpl(
     private val userDataSource: UserDataSource,
-    private val transactionManager: TransactionManager
+    private val transactionManager: TransactionManager,
 ) : GetUserById {
 
     override suspend fun invoke(userId: Uuid): Result<User> = transactionManager.transaction {
         userDataSource.getUserById(userId) ?: throw Error.UserNotFound()
     }
-
 }

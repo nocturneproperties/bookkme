@@ -51,7 +51,7 @@ internal class UpdateBusinessImplEventTest {
         val eventProducer = KafkaEventProducer(
             servers = KafkaTestBroker.servers,
             client = "update-business-test",
-            protoBuf = KafkaTestBroker.protoBuf
+            protoBuf = KafkaTestBroker.protoBuf,
         )
         val sut = UpdateBusinessImpl(businessDataSource, serviceDataSource, businessPermissionDataSource, transactionManager, eventProducer)
 
@@ -64,7 +64,7 @@ internal class UpdateBusinessImplEventTest {
 
     private fun updateModel(id: Uuid, schedule: Schedule) = BusinessUpdateModel(
         id = id, name = "Salon", description = null, address = null, location = null,
-        currencyCode = null, timeZone = null, socials = null, schedule = schedule
+        currencyCode = null, timeZone = null, socials = null, schedule = schedule,
     )
 
     private fun publishedFor(businessId: Uuid) = KafkaTestBroker
@@ -79,7 +79,7 @@ internal class UpdateBusinessImplEventTest {
         val schedule = Schedule(
             workingDays = listOf(DayOfWeek.SATURDAY),
             workingHours = mapOf(DayOfWeek.SATURDAY to listOf(WorkHour(LocalTime(10, 0), LocalTime(14, 0)))),
-            dayOffs = listOf(DayOffRange(LocalDate(2099, 12, 30), LocalDate(2099, 12, 31)))
+            dayOffs = listOf(DayOffRange(LocalDate(2099, 12, 30), LocalDate(2099, 12, 31))),
         )
         with(fixture) {
             transactionManager.mockTransaction()
@@ -99,7 +99,7 @@ internal class UpdateBusinessImplEventTest {
         assertEquals(schedule, event.business.schedule)
         assertEquals(
             listOf(WorkHour(LocalTime(10, 0), LocalTime(14, 0))),
-            event.business.schedule[DayOfWeek.SATURDAY].workingTime
+            event.business.schedule[DayOfWeek.SATURDAY].workingTime,
         )
     }
 

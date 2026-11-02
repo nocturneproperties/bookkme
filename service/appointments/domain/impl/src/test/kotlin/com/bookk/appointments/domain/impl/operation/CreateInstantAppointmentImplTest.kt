@@ -70,14 +70,14 @@ internal class CreateInstantAppointmentImplTest {
         val context = AppointmentBookingContext.stub(
             employee = Employee.stub(businessId = businessId, userId = callerId),
             client = ClientRemote.stub(userId = clientUserId),
-            services = listOf(service)
+            services = listOf(service),
         )
         val draft = InstantAppointmentDraft.stub(
             businessId = businessId,
             employeeId = context.employee.id,
             clientId = context.client.id,
             services = listOf(RequestedService.stub(serviceId = service.id, count = 2)),
-            date = Instant.parse("2099-01-01T10:00:00Z")
+            date = Instant.parse("2099-01-01T10:00:00Z"),
         )
         val stored = mutableListOf<Appointment>()
         val storedInTransaction = mutableListOf<Boolean>()
@@ -92,7 +92,7 @@ internal class CreateInstantAppointmentImplTest {
             tokenValidatorFactory,
             businessClient,
             deletedUserDataSource,
-            deletedClientDataSource
+            deletedClientDataSource,
         )
 
         init {
@@ -171,7 +171,7 @@ internal class CreateInstantAppointmentImplTest {
         assertEquals(EmployeeSnapshot(fixture.context.employee.id, fixture.callerId, "stub-name stub-lastname"), appointment.employee)
         assertEquals(
             ClientSnapshot(fixture.context.client.id, "stub-name stub-lastname", "+10000000000", "stub@client.com", fixture.clientUserId),
-            appointment.client
+            appointment.client,
         )
         val serviceSnapshot = ServiceSnapshot(fixture.service.id, fixture.service.name, fixture.service.group.id, fixture.service.price, fixture.service.duration)
         assertEquals(listOf(serviceSnapshot, serviceSnapshot), appointment.services)

@@ -15,33 +15,23 @@ internal class UserClientImpl(
     private val getUserById: GetUserById,
     private val getUserByEmail: GetUserByEmail,
     private val createUser: CreateUser,
-    private val deleteUser: DeleteUser
+    private val deleteUser: DeleteUser,
 ) : UserClient {
-    override suspend fun getUserById(userId: Uuid): Result<UserSnapshot> {
-        return getUserById.invoke(userId)
-            .map { UserSnapshot.fromUser(it) }
-    }
+    override suspend fun getUserById(userId: Uuid): Result<UserSnapshot> = getUserById.invoke(userId)
+        .map { UserSnapshot.fromUser(it) }
 
-    override suspend fun getUserByEmail(email: String): Result<UserSnapshot> {
-        return getUserByEmail.invoke(EmailBody(email))
-            .map { UserSnapshot.fromUser(it) }
-    }
+    override suspend fun getUserByEmail(email: String): Result<UserSnapshot> = getUserByEmail.invoke(EmailBody(email))
+        .map { UserSnapshot.fromUser(it) }
 
-    override suspend fun createUser(request: CreateUserRequest): Result<Uuid> {
-        return createUser.invoke(
-            user = User(
-                id = Uuid.random(),
-                name = request.name,
-                email = request.email,
-                lastName = request.lastName,
-                phone = null
-            )
-        ).map { it.id }
-    }
+    override suspend fun createUser(request: CreateUserRequest): Result<Uuid> = createUser.invoke(
+        user = User(
+            id = Uuid.random(),
+            name = request.name,
+            email = request.email,
+            lastName = request.lastName,
+            phone = null,
+        ),
+    ).map { it.id }
 
-    override suspend fun deleteUser(userId: Uuid): Result<Unit> {
-        return deleteUser.invoke(userId)
-    }
-
-
+    override suspend fun deleteUser(userId: Uuid): Result<Unit> = deleteUser.invoke(userId)
 }

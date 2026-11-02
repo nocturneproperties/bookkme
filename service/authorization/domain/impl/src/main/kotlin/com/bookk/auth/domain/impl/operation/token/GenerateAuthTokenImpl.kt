@@ -16,7 +16,7 @@ import kotlin.uuid.Uuid
 internal class GenerateAuthTokenImpl(
     private val deviceDataSource: DeviceDataSource,
     private val transactionManager: TransactionManager,
-    private val tokenIssuer: TokenIssuer
+    private val tokenIssuer: TokenIssuer,
 ) : GenerateAuthToken {
 
     override suspend fun invoke(source: Source): Result<AuthTokens> = transactionManager.transaction {
@@ -27,33 +27,29 @@ internal class GenerateAuthTokenImpl(
             is Source.RefreshToken -> deviceDataSource.rotateRefreshToken(
                 deviceRecord.deviceInfo.id,
                 refreshToken.id,
-                refreshToken.secretHash
+                refreshToken.secretHash,
             )
 
             is Source.InitialAuthentication -> deviceDataSource.attachRefreshTokenToDevice(
                 deviceRecord.deviceInfo.id,
                 refreshToken.id,
-                refreshToken.secretHash
+                refreshToken.secretHash,
             )
         }
         AuthTokens(accessToken, refreshToken.token)
     }
 
-    private suspend fun createAccessToken(record: Device): String {
-        return tokenIssuer.issue(ACCESS_TTL) {
-            withJWTId(Uuid.random().toString())
-                .withAudience(AppLevelConstants.domainName)
-                .withClaim(AuthClaim.AUTH_ID.key, record.authRecord.id.toString())
-                .withClaim(AuthClaim.USER_ID.key, record.authRecord.userId.toString())
-                .withClaim(AuthClaim.DEVICE_ID.key, record.deviceInfo.id.toString())
-        }
+    private suspend fun createAccessToken(record: Device): String = tokenIssuer.issue(ACCESS_TTL) {
+        withJWTId(Uuid.random().toString())
+            .withAudience(AppLevelConstants.domainName)
+            .withClaim(AuthClaim.AUTH_ID.key, record.authRecord.id.toString())
+            .withClaim(AuthClaim.USER_ID.key, record.authRecord.userId.toString())
+            .withClaim(AuthClaim.DEVICE_ID.key, record.deviceInfo.id.toString())
     }
 
-    private suspend fun Source.getDevice(): Device? {
-        return when (this) {
-            is Source.RefreshToken -> validateRefreshToken(token)
-            is Source.InitialAuthentication -> deviceDataSource.getDeviceByAuthIdAndUUID(authId, deviceUUID)
-        }
+    private suspend fun Source.getDevice(): Device? = when (this) {
+        is Source.RefreshToken -> validateRefreshToken(token)
+        is Source.InitialAuthentication -> deviceDataSource.getDeviceByAuthIdAndUUID(authId, deviceUUID)
     }
 
     private suspend fun validateRefreshToken(token: String): Device? {

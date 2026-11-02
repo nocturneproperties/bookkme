@@ -5,5 +5,6 @@ import kotlinx.serialization.protobuf.ProtoNumber
 
 @Serializable
 enum class StepUpAction {
-    @ProtoNumber(0) DELETE_CLIENT
+    @ProtoNumber(0)
+    DELETE_CLIENT,
 }

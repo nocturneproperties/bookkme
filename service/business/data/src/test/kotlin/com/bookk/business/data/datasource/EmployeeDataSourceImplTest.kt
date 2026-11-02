@@ -47,7 +47,7 @@ internal class EmployeeDataSourceImplTest {
         val db = createTestDatabase(
             BusinessTable, BusinessDashboardTable, BusinessPermissionGrantsTable, BusinessWorkingHoursTable, BusinessDayOffTable,
             ServiceGroupTable, ServiceTable, EmployeeTable, EmployeeCanProvideServiceTable,
-            EmployeeWorkingHoursTable, EmployeeDayOffTable
+            EmployeeWorkingHoursTable, EmployeeDayOffTable,
         )
         val sut = EmployeeDataSourceImpl()
         val businessSut = BusinessDataSourceImpl()
@@ -81,7 +81,7 @@ internal class EmployeeDataSourceImplTest {
             name = "Alice",
             lastName = "Smith",
             phone = "+1234567890",
-            email = "alice@test.com"
+            email = "alice@test.com",
         )
 
         whenn()
@@ -107,7 +107,7 @@ internal class EmployeeDataSourceImplTest {
             name = "Bob",
             lastName = "Jones",
             phone = null,
-            email = null
+            email = null,
         )
 
         whenn()
@@ -209,8 +209,8 @@ internal class EmployeeDataSourceImplTest {
                     lastName = "Name",
                     phone = "+1111111111",
                     email = "old@test.com",
-                    userId = userId
-                )
+                    userId = userId,
+                ),
             )
         }
 
@@ -241,8 +241,8 @@ internal class EmployeeDataSourceImplTest {
                     businessId = fixture.businessId,
                     name = "Keep",
                     lastName = "Me",
-                    userId = Uuid.random()
-                )
+                    userId = Uuid.random(),
+                ),
             )
         }
 
@@ -312,7 +312,7 @@ internal class EmployeeDataSourceImplTest {
         assertEquals(1, employees.size)
         assertEquals(
             setOf(first.id, second.id),
-            employees.first().services.map { it.id }.toSet()
+            employees.first().services.map { it.id }.toSet(),
         )
     }
 
@@ -326,7 +326,7 @@ internal class EmployeeDataSourceImplTest {
         whenn()
         val created = suspendTransaction {
             fixture.sut.createEmployee(
-                Employee.stub(businessId = fixture.businessId, services = listOf(service))
+                Employee.stub(businessId = fixture.businessId, services = listOf(service)),
             )
         }
         val found = suspendTransaction { fixture.sut.getEmployee(fixture.businessId, created.id) }
@@ -534,7 +534,7 @@ internal class EmployeeDataSourceImplTest {
         fixture.setup()
         val schedule = Schedule(
             workingDays = listOf(DayOfWeek.MONDAY, DayOfWeek.TUESDAY),
-            workingHours = mapOf(DayOfWeek.MONDAY to listOf(WorkHour(LocalTime(9, 0), LocalTime(13, 0))))
+            workingHours = mapOf(DayOfWeek.MONDAY to listOf(WorkHour(LocalTime(9, 0), LocalTime(13, 0)))),
         )
         val employee = Employee.stub(businessId = fixture.businessId, schedule = schedule)
 
@@ -574,14 +574,14 @@ internal class EmployeeDataSourceImplTest {
         fixture.setup()
         val created = suspendTransaction {
             fixture.sut.createEmployee(
-                Employee.stub(businessId = fixture.businessId, name = "Old", lastName = "Name", phone = "+1000", email = "old@test.com")
+                Employee.stub(businessId = fixture.businessId, name = "Old", lastName = "Name", phone = "+1000", email = "old@test.com"),
             )
         }
 
         whenn()
         val updated = suspendTransaction {
             fixture.sut.updateEmployee(
-                updateModel(created).copy(name = "New", lastName = "Surname", phone = "+2000", email = "new@test.com")
+                updateModel(created).copy(name = "New", lastName = "Surname", phone = "+2000", email = "new@test.com"),
             )
         }
         val found = suspendTransaction { fixture.sut.getEmployee(fixture.businessId, created.id) }
@@ -608,7 +608,7 @@ internal class EmployeeDataSourceImplTest {
         val schedule = Schedule(
             workingDays = listOf(DayOfWeek.WEDNESDAY),
             workingHours = mapOf(DayOfWeek.WEDNESDAY to listOf(WorkHour(LocalTime(8, 0), LocalTime(12, 0)))),
-            dayOffs = listOf(DayOffRange(LocalDate(2026, 2, 1), LocalDate(2026, 2, 2)))
+            dayOffs = listOf(DayOffRange(LocalDate(2026, 2, 1), LocalDate(2026, 2, 2))),
         )
 
         whenn()
@@ -670,7 +670,7 @@ internal class EmployeeDataSourceImplTest {
         val schedule = Schedule(
             workingDays = listOf(DayOfWeek.WEDNESDAY),
             workingHours = mapOf(DayOfWeek.WEDNESDAY to listOf(WorkHour(LocalTime(9, 0), LocalTime(17, 0)))),
-            dayOffs = listOf(DayOffRange(LocalDate(2099, 1, 1), LocalDate(2099, 1, 2)))
+            dayOffs = listOf(DayOffRange(LocalDate(2099, 1, 1), LocalDate(2099, 1, 2))),
         )
         val created = suspendTransaction {
             fixture.sut.createEmployee(
@@ -682,8 +682,8 @@ internal class EmployeeDataSourceImplTest {
                     phone = "+1234567890",
                     email = "alice@test.com",
                     services = listOf(service),
-                    schedule = schedule
-                )
+                    schedule = schedule,
+                ),
             )
         }
 
@@ -744,7 +744,7 @@ internal class EmployeeDataSourceImplTest {
         }
         val viewer = suspendTransaction {
             fixture.sut.createEmployee(
-                Employee.stub(businessId = fixture.businessId, permissions = BusinessPermissions.stub(services = ResourcePermission(view = true, update = false, delete = false)))
+                Employee.stub(businessId = fixture.businessId, permissions = BusinessPermissions.stub(services = ResourcePermission(view = true, update = false, delete = false))),
             )
         }
 
@@ -786,7 +786,7 @@ internal class EmployeeDataSourceImplTest {
         }.id
         suspendTransaction {
             fixture.sut.createEmployee(
-                Employee.stub(businessId = otherBusinessId, userId = userId, permissions = BusinessPermissions.FULL)
+                Employee.stub(businessId = otherBusinessId, userId = userId, permissions = BusinessPermissions.FULL),
             )
         }
         val permissions = BusinessPermissions.stub(appointments = ResourcePermission(view = true, update = false, delete = false))
@@ -852,7 +852,7 @@ internal class EmployeeDataSourceImplTest {
         val permissions = BusinessPermissions.stub(services = ResourcePermission(view = true, update = false, delete = false))
         suspendTransaction {
             fixture.sut.createEmployee(
-                Employee.stub(businessId = fixture.businessId, services = listOf(service), permissions = permissions)
+                Employee.stub(businessId = fixture.businessId, services = listOf(service), permissions = permissions),
             )
         }
 
@@ -946,6 +946,6 @@ internal class EmployeeDataSourceImplTest {
         phone = employee.phone,
         email = employee.email,
         services = employee.services,
-        schedule = employee.schedule
+        schedule = employee.schedule,
     )
 }

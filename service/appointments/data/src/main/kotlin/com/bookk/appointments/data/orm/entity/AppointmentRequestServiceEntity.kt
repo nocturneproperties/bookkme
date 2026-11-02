@@ -23,18 +23,16 @@ internal class AppointmentRequestServiceEntity(id: EntityID<Uuid>) : UuidEntity(
     var priceScale by AppointmentRequestServicesTable.priceScale
     var durationMinutes by AppointmentRequestServicesTable.durationMinutes
 
-    fun domain(): ServiceSnapshot {
-        return ServiceSnapshot(
-            id = serviceId,
-            name = serviceName,
-            groupId = serviceGroupId,
-            price = Money.of(
-                CurrencyUnit.of(priceCurrency),
-                BigDecimal(BigInteger.valueOf(priceUnscaled), priceScale)
-            ),
-            duration = durationMinutes.minutes
-        )
-    }
+    fun domain(): ServiceSnapshot = ServiceSnapshot(
+        id = serviceId,
+        name = serviceName,
+        groupId = serviceGroupId,
+        price = Money.of(
+            CurrencyUnit.of(priceCurrency),
+            BigDecimal(BigInteger.valueOf(priceUnscaled), priceScale),
+        ),
+        duration = durationMinutes.minutes,
+    )
 
     companion object : DecoratorUuidEntityClass<AppointmentRequestServiceEntity>(AppointmentRequestServicesTable) {
         fun new(ownerId: EntityID<Uuid>, service: ServiceSnapshot): AppointmentRequestServiceEntity = new {

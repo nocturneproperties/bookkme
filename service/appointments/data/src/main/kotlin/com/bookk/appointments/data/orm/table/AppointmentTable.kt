@@ -6,7 +6,7 @@ import com.bookk.core.data.database.BaseUUIDTable
 import org.jetbrains.exposed.v1.core.ReferenceOption
 import org.jetbrains.exposed.v1.datetime.timestamp
 
-object AppointmentTable: BaseUUIDTable("appointment") {
+object AppointmentTable : BaseUUIDTable("appointment") {
     val initiatorUserId = uuid("initiator_user_id")
     val businessId = reference("business_id", AppointmentBusinessTable.id, onDelete = ReferenceOption.CASCADE)
     val employeeId = uuid("employee_id")
@@ -19,9 +19,9 @@ object AppointmentTable: BaseUUIDTable("appointment") {
     val clientEmail = varchar("client_email", 512).nullable()
     val dateStart = timestamp("date_start")
     val dateEnd = timestamp("date_end").index()
-    val note = varchar("note",2048)
+    val note = varchar("note", 2048)
     val status = enumeration("status", AppointmentStatus::class).index()
-    val cancellationReason = varchar("cancellation_reason",2048)
+    val cancellationReason = varchar("cancellation_reason", 2048)
     val completedBy = enumeration("completed_by", AppointmentCompletedBy::class).nullable()
 
     init {

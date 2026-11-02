@@ -7,5 +7,5 @@ import kotlinx.serialization.protobuf.ProtoNumber
 class CreateUserRequest(
     @ProtoNumber(1) val name: String,
     @ProtoNumber(2) val lastName: String,
-    @ProtoNumber(3) val email: String
+    @ProtoNumber(3) val email: String,
 )

@@ -22,7 +22,7 @@ private data class LegacyEmployeePermissionsChanged(
     val employeeUserId: Uuid,
     val businessId: Uuid,
     val permissions: BusinessPermissions,
-    val idempotencyKey: String
+    val idempotencyKey: String,
 ) {
     val topic: String = BusinessEvent.EmployeePermissionsChanged.TOPIC
 }
@@ -38,7 +38,7 @@ internal class BusinessEventTest {
         name = "Business name",
         address = "Business address",
         timeZone = TimeZone.UTC,
-        schedule = Schedule()
+        schedule = Schedule(),
     )
 
     @Test
@@ -116,7 +116,7 @@ internal class BusinessEventTest {
         then()
         assertEquals(
             BusinessEvent.EmployeePermissionsChanged(legacy.employeeUserId, businessId, BusinessPermissions.VIEW_ONLY, "key", suspended = false),
-            decoded
+            decoded,
         )
         assertEquals(BusinessEvent.EmployeePermissionsChanged.TOPIC, decoded.topic)
     }
@@ -143,7 +143,7 @@ internal class BusinessEventTest {
         whenn()
         val decoded = protoBuf.decodeFromByteArray(
             BusinessEvent.EmployeePermissionsChanged.serializer(),
-            protoBuf.encodeToByteArray(BusinessEvent.EmployeePermissionsChanged.serializer(), event)
+            protoBuf.encodeToByteArray(BusinessEvent.EmployeePermissionsChanged.serializer(), event),
         )
 
         then()
@@ -166,13 +166,18 @@ internal class BusinessEventTest {
     fun `should decode the client linked event from its pinned field numbers`() = runUnitTest {
         given()
         val pinned = PinnedClientLinked(
-            businessId, Uuid.random(), Uuid.random(), listOf(Uuid.random(), Uuid.random()), "key", BusinessEvent.ClientLinked.TOPIC
+            businessId,
+            Uuid.random(),
+            Uuid.random(),
+            listOf(Uuid.random(), Uuid.random()),
+            "key",
+            BusinessEvent.ClientLinked.TOPIC,
         )
 
         whenn()
         val decoded = protoBuf.decodeFromByteArray(
             BusinessEvent.ClientLinked.serializer(),
-            protoBuf.encodeToByteArray(PinnedClientLinked.serializer(), pinned)
+            protoBuf.encodeToByteArray(PinnedClientLinked.serializer(), pinned),
         )
 
         then()
@@ -188,7 +193,7 @@ internal class BusinessEventTest {
         whenn()
         val decoded = protoBuf.decodeFromByteArray(
             BusinessEvent.ClientLinked.serializer(),
-            protoBuf.encodeToByteArray(BusinessEvent.ClientLinked.serializer(), event)
+            protoBuf.encodeToByteArray(BusinessEvent.ClientLinked.serializer(), event),
         )
 
         then()
@@ -203,5 +208,5 @@ private data class PinnedClientLinked(
     @ProtoNumber(3) val userId: Uuid,
     @ProtoNumber(4) val mergedClientIds: List<Uuid>,
     @ProtoNumber(5) val idempotencyKey: String,
-    @ProtoNumber(6) val topic: String
+    @ProtoNumber(6) val topic: String,
 )

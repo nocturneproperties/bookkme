@@ -73,7 +73,7 @@ internal class MigrationMariaDbTest {
         fun migrate(
             maxPoolSize: Int = DEFAULT_POOL_SIZE,
             dbPassword: String = password,
-            dbPort: Int = container.getMappedPort(PORT)
+            dbPort: Int = container.getMappedPort(PORT),
         ): Database = capturingWarnings {
             createDatabase(
                 schemaName = schemaName,
@@ -81,7 +81,7 @@ internal class MigrationMariaDbTest {
                 dbPort = dbPort.toString(),
                 dbUsername = username,
                 dbPassword = dbPassword,
-                maxPoolSize = maxPoolSize
+                maxPoolSize = maxPoolSize,
             )
         }
 
@@ -104,7 +104,7 @@ internal class MigrationMariaDbTest {
             DriverManager.getConnection(
                 "jdbc:mariadb://${container.host}:${container.getMappedPort(PORT)}",
                 "root",
-                ROOT_PASSWORD
+                ROOT_PASSWORD,
             ).use { connection -> connection.createStatement().use(statements) }
         }
     }
@@ -137,8 +137,7 @@ internal class MigrationMariaDbTest {
     }
 
     private class WarningsOnly : Filter<ILoggingEvent>() {
-        override fun decide(event: ILoggingEvent) =
-            if (event.level.isGreaterOrEqual(Level.WARN)) FilterReply.NEUTRAL else FilterReply.DENY
+        override fun decide(event: ILoggingEvent) = if (event.level.isGreaterOrEqual(Level.WARN)) FilterReply.NEUTRAL else FilterReply.DENY
     }
 
     @Test

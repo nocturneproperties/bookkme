@@ -23,47 +23,33 @@ internal class BusinessClientImpl(
     private val getAppointmentRescheduleContext: GetAppointmentRescheduleContext,
     private val getClientBusinessIds: GetClientBusinessIds,
     private val getServicesByIds: GetServicesByIds,
-    private val getStaffBookingContext: GetStaffBookingContext
+    private val getStaffBookingContext: GetStaffBookingContext,
 ) : BusinessClient {
-    override suspend fun getBusinessById(id: Uuid): Result<BusinessDTO> {
-        return getBusinessDetails.invoke(id).map(BusinessDTO::from)
-    }
+    override suspend fun getBusinessById(id: Uuid): Result<BusinessDTO> = getBusinessDetails.invoke(id).map(BusinessDTO::from)
 
-    override suspend fun getPermission(userId: Uuid, businessId: Uuid, resource: BusinessResource): Result<ResourcePermission> {
-        return getBusinessPermission.invoke(userId, businessId, resource)
-    }
+    override suspend fun getPermission(userId: Uuid, businessId: Uuid, resource: BusinessResource): Result<ResourcePermission> = getBusinessPermission.invoke(userId, businessId, resource)
 
     override suspend fun getAppointmentBookingContext(
         businessId: Uuid,
         employeeId: Uuid,
         userId: Uuid,
-        serviceIds: List<Uuid>
-    ): Result<AppointmentBookingContext> {
-        return getAppointmentBookingContext.invoke(businessId, employeeId, userId, serviceIds)
-    }
+        serviceIds: List<Uuid>,
+    ): Result<AppointmentBookingContext> = getAppointmentBookingContext.invoke(businessId, employeeId, userId, serviceIds)
 
     override suspend fun getStaffBookingContext(
         businessId: Uuid,
         employeeId: Uuid,
         clientId: Uuid,
-        serviceIds: List<Uuid>
-    ): Result<AppointmentBookingContext> {
-        return getStaffBookingContext.invoke(businessId, employeeId, clientId, serviceIds)
-    }
+        serviceIds: List<Uuid>,
+    ): Result<AppointmentBookingContext> = getStaffBookingContext.invoke(businessId, employeeId, clientId, serviceIds)
 
     override suspend fun getAppointmentRescheduleContext(
         businessId: Uuid,
         employeeId: Uuid?,
-        serviceIds: List<Uuid>
-    ): Result<AppointmentRescheduleContext> {
-        return getAppointmentRescheduleContext.invoke(businessId, employeeId, serviceIds)
-    }
+        serviceIds: List<Uuid>,
+    ): Result<AppointmentRescheduleContext> = getAppointmentRescheduleContext.invoke(businessId, employeeId, serviceIds)
 
-    override suspend fun getClientBusinessIds(userId: Uuid): Result<List<Uuid>> {
-        return getClientBusinessIds.invoke(userId)
-    }
+    override suspend fun getClientBusinessIds(userId: Uuid): Result<List<Uuid>> = getClientBusinessIds.invoke(userId)
 
-    override suspend fun getServicesByIds(businessId: Uuid, serviceIds: List<Uuid>): Result<List<Service>> {
-        return getServicesByIds.invoke(businessId, serviceIds)
-    }
+    override suspend fun getServicesByIds(businessId: Uuid, serviceIds: List<Uuid>): Result<List<Service>> = getServicesByIds.invoke(businessId, serviceIds)
 }

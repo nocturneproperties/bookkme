@@ -48,19 +48,21 @@ internal class CreateAppointmentTest {
             businessId = Uuid.random(),
             employee = EmployeeSnapshot.stub(),
             client = ClientSnapshot(Uuid.random(), "Full Name", "123456789", "test@example.com", Uuid.random()),
-            services = listOf(ServiceSnapshot(
-                Uuid.random(),
-                "Service Name",
-                Uuid.random(),
-                Money.parse("USD 100"),
-                duration = 30.minutes
-            )),
+            services = listOf(
+                ServiceSnapshot(
+                    Uuid.random(),
+                    "Service Name",
+                    Uuid.random(),
+                    Money.parse("USD 100"),
+                    duration = 30.minutes,
+                ),
+            ),
             date = Instant.fromEpochMilliseconds(0),
             note = "test",
             status = AppointmentStatus.SCHEDULED,
             cancellationReason = "",
             completedBy = null,
-            priceAdjustment = null
+            priceAdjustment = null,
         )
 
         coEvery { useCase.invoke(userId, requestId) } returns Result.success(appointment)
@@ -80,7 +82,7 @@ internal class CreateAppointmentTest {
             },
             routeUnderTest = {
                 appointment()
-            }
+            },
         )
 
         whenn()
@@ -103,7 +105,7 @@ internal class CreateAppointmentTest {
         coEvery {
             useCase.invoke(
                 userId,
-                requestId
+                requestId,
             )
         } returns Result.failure(CreateAppointment.Error.AppointmentForThisTimeExists())
 
@@ -122,7 +124,7 @@ internal class CreateAppointmentTest {
             },
             routeUnderTest = {
                 appointment()
-            }
+            },
         )
 
         whenn()
@@ -147,7 +149,7 @@ internal class CreateAppointmentTest {
         coEvery {
             useCase.invoke(
                 userId,
-                requestId
+                requestId,
             )
         } returns Result.failure(CreateAppointment.Error.RequestForThisTimeNotAllowed())
 
@@ -166,7 +168,7 @@ internal class CreateAppointmentTest {
             },
             routeUnderTest = {
                 appointment()
-            }
+            },
         )
 
         whenn()
@@ -191,7 +193,7 @@ internal class CreateAppointmentTest {
         coEvery {
             useCase.invoke(
                 userId,
-                requestId
+                requestId,
             )
         } returns Result.failure(CreateAppointment.Error.RequestForThisDateNotAllowed())
 
@@ -210,7 +212,7 @@ internal class CreateAppointmentTest {
             },
             routeUnderTest = {
                 appointment()
-            }
+            },
         )
 
         whenn()
@@ -241,7 +243,7 @@ internal class CreateAppointmentTest {
             },
             routeUnderTest = {
                 appointment()
-            }
+            },
         )
 
         whenn()
@@ -273,7 +275,7 @@ internal class CreateAppointmentTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { appointment() }
+            routeUnderTest = { appointment() },
         )
 
         whenn()
@@ -306,7 +308,7 @@ internal class CreateAppointmentTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { appointment() }
+            routeUnderTest = { appointment() },
         )
 
         whenn()

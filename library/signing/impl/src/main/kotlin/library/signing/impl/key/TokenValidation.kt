@@ -8,7 +8,7 @@ import library.signing.TokenValidator
 internal class TokenValidation(
     issuer: String,
     audience: String,
-    algorithm: Algorithm
+    algorithm: Algorithm,
 ) : TokenValidator {
 
     constructor(issuer: String, audience: String, remoteProviderHostname: String) :
@@ -19,5 +19,4 @@ internal class TokenValidation(
         .withIssuer(issuer)
         .withAudience(audience)
         .build()
-
 }

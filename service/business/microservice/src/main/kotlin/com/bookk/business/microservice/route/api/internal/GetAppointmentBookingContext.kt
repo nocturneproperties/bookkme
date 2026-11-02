@@ -31,8 +31,8 @@ internal fun Route.getAppointmentBookingContext() {
                 businessId = resource.parent.id,
                 employeeId = body.employeeId,
                 userId = body.userId,
-                serviceIds = body.serviceIds
-            )
+                serviceIds = body.serviceIds,
+            ),
         )
     }
 }

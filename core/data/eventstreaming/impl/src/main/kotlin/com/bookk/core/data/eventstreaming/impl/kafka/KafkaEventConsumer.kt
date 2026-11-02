@@ -55,17 +55,17 @@ class KafkaEventConsumer(
             ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG to servers.joinToString { it },
             ConsumerConfig.GROUP_ID_CONFIG to consumerGroup,
             ConsumerConfig.AUTO_OFFSET_RESET_CONFIG to "earliest",
-            ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG to "false"
+            ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG to "false",
         ),
         StringDeserializer(),
-        ByteArrayDeserializer()
+        ByteArrayDeserializer(),
     )
 
     @Suppress("UNCHECKED_CAST")
     override fun <T : Event<String>> registerReceiver(
         topic: String,
         type: KType,
-        onEvent: suspend (T) -> Unit
+        onEvent: suspend (T) -> Unit,
     ): EventStreaming.Consumer<String> {
         receivers[topic] = { rawBytes, attempt ->
             runCatching {
@@ -92,8 +92,8 @@ class KafkaEventConsumer(
             DltEvent(
                 payload = exhausted.payload,
                 originalTopic = exhausted.originalTopic,
-                topic = DltRetry.dltTopic(exhausted.originalTopic, consumerGroup)
-            )
+                topic = DltRetry.dltTopic(exhausted.originalTopic, consumerGroup),
+            ),
         )
         return true
     }

@@ -12,19 +12,19 @@ import io.ktor.client.request.setBody
 import kotlin.uuid.Uuid
 
 internal class GetStaffBookingContextClientImpl(
-    private val httpClient: HttpClient
+    private val httpClient: HttpClient,
 ) : GetStaffBookingContext {
 
     override suspend fun invoke(
         businessId: Uuid,
         employeeId: Uuid,
         clientId: Uuid,
-        serviceIds: List<Uuid>
+        serviceIds: List<Uuid>,
     ): Result<AppointmentBookingContext> = runSuspendCatching {
         httpClient.post(
             BusinessRouting.Api.Internal.Business.Id.StaffBookingContext(
-                parent = BusinessRouting.Api.Internal.Business.Id(id = businessId)
-            )
+                parent = BusinessRouting.Api.Internal.Business.Id(id = businessId),
+            ),
         ) {
             setBody(StaffBookingContextRequest(employeeId = employeeId, clientId = clientId, serviceIds = serviceIds))
         }.bodyOrThrow()

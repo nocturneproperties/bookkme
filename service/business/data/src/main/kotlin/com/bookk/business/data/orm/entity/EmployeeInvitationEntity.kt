@@ -18,14 +18,12 @@ internal class EmployeeInvitationEntity(id: EntityID<Uuid>) : UuidEntity(id) {
 
     companion object : DecoratorUuidEntityClass<EmployeeInvitationEntity>(EmployeeInvitationTable)
 
-    fun toDomain(): EmployeeInvitation {
-        return EmployeeInvitation(
-            id = id.value,
-            businessId = businessId.value,
-            invitedBy = invitedBy,
-            code = null,
-            status = status,
-            createdAt = createdAt
-        )
-    }
+    fun toDomain(): EmployeeInvitation = EmployeeInvitation(
+        id = id.value,
+        businessId = businessId.value,
+        invitedBy = invitedBy,
+        code = null,
+        status = status,
+        createdAt = createdAt,
+    )
 }

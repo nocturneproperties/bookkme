@@ -31,7 +31,11 @@ internal class AppointmentRequestDataSourceImplTest {
 
     private class SutFixture {
         val db = createTestDatabase(
-            AppointmentBusinessTable, WorkingHoursTable, DayOffsTable, AppointmentRequestTable, AppointmentRequestServicesTable
+            AppointmentBusinessTable,
+            WorkingHoursTable,
+            DayOffsTable,
+            AppointmentRequestTable,
+            AppointmentRequestServicesTable,
         )
         val cacheClient = InMemoryCacheClient()
         val sut = AppointmentRequestDataSourceImpl(cacheClient)
@@ -46,7 +50,7 @@ internal class AppointmentRequestDataSourceImplTest {
 
         fun buildRequest(
             userId: Uuid = Uuid.random(),
-            date: Instant = Instant.fromEpochMilliseconds(0)
+            date: Instant = Instant.fromEpochMilliseconds(0),
         ) = AppointmentRequest.stub(initiatorUserId = userId, businessId = businessId, date = date)
     }
 

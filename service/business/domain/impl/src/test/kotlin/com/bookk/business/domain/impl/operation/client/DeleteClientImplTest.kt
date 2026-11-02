@@ -51,7 +51,7 @@ internal class DeleteClientImplTest {
             businessDataSource,
             eventProducer,
             stepUpVerifier,
-            stepUpDataSource
+            stepUpDataSource,
         )
 
         init {

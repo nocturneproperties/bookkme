@@ -16,5 +16,5 @@ data class BusinessUpdateModel(
     @ProtoNumber(6) val currencyCode: String?,
     @ProtoNumber(7) val timeZone: TimeZone?,
     @ProtoNumber(8) val socials: List<Business.Social>?,
-    @ProtoNumber(9) val schedule: Schedule?
+    @ProtoNumber(9) val schedule: Schedule?,
 )

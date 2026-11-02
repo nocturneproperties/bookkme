@@ -20,7 +20,7 @@ internal class UserEventTest {
         lastName = "Last name",
         email = "user@example.com",
         phone = null,
-        updatedAt = Instant.fromEpochMilliseconds(1000)
+        updatedAt = Instant.fromEpochMilliseconds(1000),
     )
 
     @Test

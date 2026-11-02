@@ -15,7 +15,7 @@ import kotlin.uuid.Uuid
 internal class IssueQuoteImpl(
     private val serviceDataSource: ServiceDataSource,
     private val transactionManager: TransactionManager,
-    private val tokenIssuer: TokenIssuer
+    private val tokenIssuer: TokenIssuer,
 ) : IssueServiceQuote {
 
     override suspend fun invoke(businessId: Uuid, serviceIds: List<Uuid>): Result<ServiceQuote> {
@@ -36,11 +36,11 @@ internal class IssueQuoteImpl(
         val totalDuration = services.map { it.duration }.reduce { acc, duration -> acc + duration }
         return tokenIssuer.issue(QUOTE_TTL) {
             withJWTId(quoteId.toString())
-            .withAudience(AppLevelConstants.domainName)
-            .withClaim(QuoteClaims.CLAIM_BUSINESS_ID, businessId.toString())
-            .withClaim(QuoteClaims.CLAIM_SERVICES, QuoteClaims.encodeServiceCounts(serviceIds))
-            .withClaim(QuoteClaims.CLAIM_TOTAL, total.toString())
-            .withClaim(QuoteClaims.CLAIM_DURATION, totalDuration.toString())
+                .withAudience(AppLevelConstants.domainName)
+                .withClaim(QuoteClaims.CLAIM_BUSINESS_ID, businessId.toString())
+                .withClaim(QuoteClaims.CLAIM_SERVICES, QuoteClaims.encodeServiceCounts(serviceIds))
+                .withClaim(QuoteClaims.CLAIM_TOTAL, total.toString())
+                .withClaim(QuoteClaims.CLAIM_DURATION, totalDuration.toString())
         }
     }
 

@@ -31,8 +31,8 @@ internal fun Route.getStaffBookingContext() {
                 businessId = resource.parent.id,
                 employeeId = body.employeeId,
                 clientId = body.clientId,
-                serviceIds = body.serviceIds
-            )
+                serviceIds = body.serviceIds,
+            ),
         )
     }
 }

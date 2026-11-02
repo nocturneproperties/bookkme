@@ -18,19 +18,15 @@ import kotlin.uuid.Uuid
 
 internal class NotificationTargetDataSourceImpl : DataSource(), NotificationTargetDataSource {
 
-    override suspend fun getEmail(userId: Uuid): String? {
-        return NotificationEmailTargetTable.select(NotificationEmailTargetTable.email)
-            .where { NotificationEmailTargetTable.userId eq userId }
-            .singleOrNull()
-            ?.get(NotificationEmailTargetTable.email)
-    }
+    override suspend fun getEmail(userId: Uuid): String? = NotificationEmailTargetTable.select(NotificationEmailTargetTable.email)
+        .where { NotificationEmailTargetTable.userId eq userId }
+        .singleOrNull()
+        ?.get(NotificationEmailTargetTable.email)
 
-    override suspend fun getTelegram(userId: Uuid): String? {
-        return NotificationTelegramTargetTable.select(NotificationTelegramTargetTable.telegramTag)
-            .where { NotificationTelegramTargetTable.userId eq userId }
-            .singleOrNull()
-            ?.get(NotificationTelegramTargetTable.telegramTag)
-    }
+    override suspend fun getTelegram(userId: Uuid): String? = NotificationTelegramTargetTable.select(NotificationTelegramTargetTable.telegramTag)
+        .where { NotificationTelegramTargetTable.userId eq userId }
+        .singleOrNull()
+        ?.get(NotificationTelegramTargetTable.telegramTag)
 
     override suspend fun insertEmail(userId: Uuid, email: String, updatedAt: Instant) = dbQuery<Unit> {
         NotificationEmailTargetTable.insert {
@@ -48,7 +44,7 @@ internal class NotificationTargetDataSourceImpl : DataSource(), NotificationTarg
                         NotificationEmailTargetTable.sourceUpdatedAt.isNull() or
                             (NotificationEmailTargetTable.sourceUpdatedAt less updatedAt)
                         )
-            }
+            },
         ) {
             it[NotificationEmailTargetTable.email] = email
             it[NotificationEmailTargetTable.sourceUpdatedAt] = updatedAt
@@ -64,7 +60,7 @@ internal class NotificationTargetDataSourceImpl : DataSource(), NotificationTarg
 
     override suspend fun updateTelegram(userId: Uuid, telegramTag: String): Boolean = dbQuery {
         NotificationTelegramTargetTable.update(
-            where = { NotificationTelegramTargetTable.userId eq userId }
+            where = { NotificationTelegramTargetTable.userId eq userId },
         ) {
             it[NotificationTelegramTargetTable.telegramTag] = telegramTag
         } > 0

@@ -16,20 +16,19 @@ internal class LinkClientUser(
     private val deleteUserAppointmentData: DeleteUserAppointmentData,
     private val deletedClientDataSource: DeletedClientDataSource,
     private val deleteClientAppointmentData: DeleteClientAppointmentData,
-    private val transactionManager: TransactionManager
+    private val transactionManager: TransactionManager,
 ) {
 
-    suspend operator fun invoke(businessId: Uuid, clientId: Uuid, userId: Uuid, mergedClientIds: List<Uuid>): Result<Unit> =
-        transactionManager.transaction {
-            val accountAlreadyDeleted = deletedUserDataSource.isDeletedForShare(userId)
-            val clientAlreadyDeleted = deletedClientDataSource.isDeletedForShare(businessId, clientId)
-            mergedClientIds.forEach { mergedClientId ->
-                appointmentDataSource.reassignClient(businessId, mergedClientId, clientId)
-                appointmentRequestDataSource.reassignClient(businessId, mergedClientId, clientId)
-            }
-            appointmentDataSource.linkClientUser(businessId, clientId, userId)
-            appointmentRequestDataSource.linkClientUser(businessId, clientId, userId)
-            if (accountAlreadyDeleted) deleteUserAppointmentData(userId).getOrThrow()
-            if (clientAlreadyDeleted) deleteClientAppointmentData(businessId, clientId).getOrThrow()
+    suspend operator fun invoke(businessId: Uuid, clientId: Uuid, userId: Uuid, mergedClientIds: List<Uuid>): Result<Unit> = transactionManager.transaction {
+        val accountAlreadyDeleted = deletedUserDataSource.isDeletedForShare(userId)
+        val clientAlreadyDeleted = deletedClientDataSource.isDeletedForShare(businessId, clientId)
+        mergedClientIds.forEach { mergedClientId ->
+            appointmentDataSource.reassignClient(businessId, mergedClientId, clientId)
+            appointmentRequestDataSource.reassignClient(businessId, mergedClientId, clientId)
         }
+        appointmentDataSource.linkClientUser(businessId, clientId, userId)
+        appointmentRequestDataSource.linkClientUser(businessId, clientId, userId)
+        if (accountAlreadyDeleted) deleteUserAppointmentData(userId).getOrThrow()
+        if (clientAlreadyDeleted) deleteClientAppointmentData(businessId, clientId).getOrThrow()
+    }
 }

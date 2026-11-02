@@ -40,8 +40,8 @@ fun Routing.appointmentInit() {
             call.respondWith(
                 enableAppointments(
                     userId = principal.userId,
-                    businessId = it.businessId
-                )
+                    businessId = it.businessId,
+                ),
             )
         }
 
@@ -60,8 +60,8 @@ fun Routing.appointmentInit() {
             call.respondWith(
                 isEnabled(
                     userId = principal.userId,
-                    businessId = it.businessId
-                )
+                    businessId = it.businessId,
+                ),
             )
         }
 

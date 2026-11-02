@@ -76,13 +76,13 @@ internal class EmployeeDataSourceImpl : DataSource(), EmployeeDataSource {
         lastName: String,
         email: String,
         phone: String?,
-        updatedAt: Instant
+        updatedAt: Instant,
     ): Int = dbQuery {
         EmployeeTable.update(
             where = {
                 (EmployeeTable.userId eq userId) and
                     (EmployeeTable.sourceUpdatedAt.isNull() or (EmployeeTable.sourceUpdatedAt less updatedAt))
-            }
+            },
         ) {
             it[this.name] = name.trim()
             it[this.lastName] = lastName.trim()

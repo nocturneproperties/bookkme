@@ -21,7 +21,7 @@ interface AppointmentEvent : EventStreaming.Event<String> {
         @ProtoNumber(8) val businessName: String,
         @ProtoNumber(9) val address: String,
         @ProtoNumber(10) val price: String,
-        @ProtoNumber(11) override val idempotencyKey: String = Uuid.random().toString()
+        @ProtoNumber(11) override val idempotencyKey: String = Uuid.random().toString(),
     ) : AppointmentEvent {
         @ProtoNumber(12)
         override val topic: String = TOPIC
@@ -43,7 +43,7 @@ interface AppointmentEvent : EventStreaming.Event<String> {
         @ProtoNumber(8) val businessName: String,
         @ProtoNumber(9) val address: String,
         @ProtoNumber(10) val price: String,
-        @ProtoNumber(11) override val idempotencyKey: String = Uuid.random().toString()
+        @ProtoNumber(11) override val idempotencyKey: String = Uuid.random().toString(),
     ) : AppointmentEvent {
         @ProtoNumber(12)
         override val topic: String = TOPIC
@@ -66,7 +66,7 @@ interface AppointmentEvent : EventStreaming.Event<String> {
         @ProtoNumber(9) val businessName: String,
         @ProtoNumber(10) val price: String,
         @ProtoNumber(11) val declineReason: String,
-        @ProtoNumber(12) override val idempotencyKey: String = Uuid.random().toString()
+        @ProtoNumber(12) override val idempotencyKey: String = Uuid.random().toString(),
     ) : AppointmentEvent {
         @ProtoNumber(13)
         override val topic: String = TOPIC
@@ -89,7 +89,7 @@ interface AppointmentEvent : EventStreaming.Event<String> {
         @ProtoNumber(9) val businessName: String,
         @ProtoNumber(10) val price: String,
         @ProtoNumber(11) val reason: String,
-        @ProtoNumber(12) override val idempotencyKey: String = Uuid.random().toString()
+        @ProtoNumber(12) override val idempotencyKey: String = Uuid.random().toString(),
     ) : AppointmentEvent {
         @ProtoNumber(13)
         override val topic: String = TOPIC
@@ -107,7 +107,7 @@ interface AppointmentEvent : EventStreaming.Event<String> {
         @ProtoNumber(4) val timeZone: TimeZone,
         @ProtoNumber(5) val businessName: String,
         @ProtoNumber(6) override val idempotencyKey: String = Uuid.random().toString(),
-        @ProtoNumber(8) val cause: ClientDeletionCause = ClientDeletionCause.ACCOUNT_DELETED
+        @ProtoNumber(8) val cause: ClientDeletionCause = ClientDeletionCause.ACCOUNT_DELETED,
     ) : AppointmentEvent {
         @ProtoNumber(7)
         override val topic: String = TOPIC
@@ -120,6 +120,9 @@ interface AppointmentEvent : EventStreaming.Event<String> {
 
 @Serializable
 enum class ClientDeletionCause {
-    @ProtoNumber(1) ACCOUNT_DELETED,
-    @ProtoNumber(2) REMOVED_BY_BUSINESS
+    @ProtoNumber(1)
+    ACCOUNT_DELETED,
+
+    @ProtoNumber(2)
+    REMOVED_BY_BUSINESS,
 }

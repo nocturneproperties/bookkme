@@ -48,7 +48,7 @@ internal class NotificationEventHandlerTest {
             updateTargetInformation,
             updateDeviceLanguage,
             sendNotification,
-            deleteUserNotificationData
+            deleteUserNotificationData,
         )
 
         @Suppress("UNCHECKED_CAST")
@@ -90,7 +90,7 @@ internal class NotificationEventHandlerTest {
             employeeUserId = Uuid.random(),
             employeeName = "Alice",
             businessId = Uuid.random(),
-            businessName = "Barbershop"
+            businessName = "Barbershop",
         )
         val params = slot<NotificationParameters>()
         coEvery { fixture.sendNotification.invoke(any(), capture(params)) } returns Result.success(Unit)
@@ -114,7 +114,7 @@ internal class NotificationEventHandlerTest {
         val fixture = SutFixture()
         val event = AppointmentEvent.RequestApproved(
             clientUserId = null, clientName = "Client", employeeUserId = Uuid.random(), employeeName = "Employee",
-            from = from, to = to, timeZone = TimeZone.UTC, businessName = "Salon", address = "1 Main St", price = "10 USD"
+            from = from, to = to, timeZone = TimeZone.UTC, businessName = "Salon", address = "1 Main St", price = "10 USD",
         )
         fixture.start(this)
 
@@ -132,7 +132,7 @@ internal class NotificationEventHandlerTest {
         val event = AppointmentEvent.RequestRejected(
             clientUserId = null, clientName = "Client", employeeUserId = Uuid.random(), employeeName = "Employee",
             from = from, to = to, timeZone = TimeZone.UTC, address = "1 Main St", businessName = "Salon",
-            price = "10 USD", declineReason = "busy"
+            price = "10 USD", declineReason = "busy",
         )
         fixture.start(this)
 
@@ -150,7 +150,7 @@ internal class NotificationEventHandlerTest {
         val event = AppointmentEvent.Cancelled(
             clientUserId = null, clientName = "Client", employeeUserId = Uuid.random(), employeeName = "Employee",
             from = from, to = to, timeZone = TimeZone.UTC, address = "1 Main St", businessName = "Salon",
-            price = "10 USD", reason = "changed plans"
+            price = "10 USD", reason = "changed plans",
         )
         fixture.start(this)
 

@@ -8,7 +8,7 @@ import kotlin.uuid.Uuid
 
 internal class GetServiceGroupsImpl(
     private val dataSource: ServiceDataSource,
-    private val transactionManager: TransactionManager
+    private val transactionManager: TransactionManager,
 ) : GetServiceGroups {
     override suspend fun invoke(businessId: Uuid): Result<List<ServiceGroup>> = transactionManager.transaction {
         dataSource.getServiceGroups(businessId)

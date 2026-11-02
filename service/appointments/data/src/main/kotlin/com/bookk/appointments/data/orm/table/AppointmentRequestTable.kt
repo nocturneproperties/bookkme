@@ -18,7 +18,7 @@ object AppointmentRequestTable : BaseUUIDTable("appointment_request") {
     val clientEmail = varchar("client_email", 512).nullable()
     val dateStart = timestamp("date_start")
     val dateEnd = timestamp("date_end")
-    val note = varchar("note",2048)
+    val note = varchar("note", 2048)
     val status = enumeration("status", AppointmentRequestStatus::class)
     val declineReason = varchar("decline_reason", 2048)
 

@@ -14,8 +14,7 @@ internal class AuthEventTest {
 
     private val deviceUuid = Uuid.random()
 
-    private fun languageUpdated(device: Uuid = deviceUuid, language: Language = Language.EN) =
-        AuthEvent.DeviceLanguageUpdated(deviceUuid = device, language = language)
+    private fun languageUpdated(device: Uuid = deviceUuid, language: Language = Language.EN) = AuthEvent.DeviceLanguageUpdated(deviceUuid = device, language = language)
 
     @Test
     fun `should key the device language updated event by device id`() = runUnitTest {

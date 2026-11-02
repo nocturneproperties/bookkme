@@ -17,8 +17,8 @@ internal class UpdateServiceImpl(
     private val dataSource: ServiceDataSource,
     private val businessDataSource: BusinessDataSource,
     private val businessPermissionDataSource: BusinessPermissionDataSource,
-    private val transactionManager: TransactionManager
-): UpdateService {
+    private val transactionManager: TransactionManager,
+) : UpdateService {
     override suspend fun invoke(requestUserId: Uuid, service: Service): Result<Service> {
         if (service.name.isBlank()) return Result.failure(CreateService.Error.ValidationError())
         return transactionManager.transaction {

@@ -77,7 +77,9 @@ internal class KafkaDltRetryTest {
         val latch = CountDownLatch(1)
         val sut = consumer(topic)
         sut.registerReceiver<KeyedTestEvent, String>(topic) { event ->
-            if (attempts.getAndIncrement() < 2) throw RuntimeException("boom") else {
+            if (attempts.getAndIncrement() < 2) {
+                throw RuntimeException("boom")
+            } else {
                 received += event
                 latch.countDown()
             }

@@ -13,7 +13,7 @@ interface EventStreaming {
         fun <T : Event<K>> registerReceiver(
             topic: K,
             type: KType,
-            onEvent: suspend (T) -> Unit
+            onEvent: suspend (T) -> Unit,
         ): Consumer<K>
 
         fun start(scope: CoroutineScope): Job
@@ -36,7 +36,7 @@ interface EventStreaming {
     class RawRecord<K>(
         val topic: K,
         val partitionKey: String?,
-        val payload: ByteArray
+        val payload: ByteArray,
     )
 
     interface Event<K> {
@@ -55,17 +55,13 @@ suspend inline fun <reified T : Event<K>, K> Producer<K>.send(data: T) {
 
 inline fun <reified T : Any, K> Consumer<K>.registerReceiver(
     topic: K,
-    noinline onEvent: suspend (T) -> Unit
-): Consumer<K> {
-    return registerReceiver(topic, typeOf<T>(), onEvent)
-}
+    noinline onEvent: suspend (T) -> Unit,
+): Consumer<K> = registerReceiver(topic, typeOf<T>(), onEvent)
 
 inline fun <reified T : Any, K, R> Consumer<K>.registerResultReceiver(
     topic: K,
-    noinline onEvent: suspend (T) -> Result<R>
-): Consumer<K> {
-    return registerReceiver(topic, typeOf<T>()) { it: T -> onEvent(it).getOrThrow() }
-}
+    noinline onEvent: suspend (T) -> Result<R>,
+): Consumer<K> = registerReceiver(topic, typeOf<T>()) { it: T -> onEvent(it).getOrThrow() }
 
 typealias StandardEventProducer = Producer<String>
 

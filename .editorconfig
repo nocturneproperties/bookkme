@@ -1,0 +1,20 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+
+[*.bat]
+end_of_line = crlf
+
+[*.{kt,kts}]
+indent_style = space
+indent_size = 4
+trim_trailing_whitespace = true
+ktlint_code_style = intellij_idea
+ktlint_standard_kdoc = disabled
+ktlint_standard_class-signature = disabled
+
+[{build-src/**/build_src/**.kt,service/authorization/domain/api/**/delete_account/**.kt}]
+ktlint_standard_package-name = disabled

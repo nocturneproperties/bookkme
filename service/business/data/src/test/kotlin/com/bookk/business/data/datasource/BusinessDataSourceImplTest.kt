@@ -51,7 +51,7 @@ internal class BusinessDataSourceImplTest {
             EmployeeTable,
             EmployeeCanProvideServiceTable,
             EmployeeWorkingHoursTable,
-            EmployeeDayOffTable
+            EmployeeDayOffTable,
         )
         val sut = BusinessDataSourceImpl()
         val employeeSut = EmployeeDataSourceImpl()
@@ -61,7 +61,7 @@ internal class BusinessDataSourceImplTest {
         id: Uuid,
         name: String? = null,
         schedule: Schedule? = null,
-        dayOffs: List<DayOffRange> = emptyList()
+        dayOffs: List<DayOffRange> = emptyList(),
     ) = BusinessUpdateModel(
         id = id,
         name = name,
@@ -71,7 +71,7 @@ internal class BusinessDataSourceImplTest {
         currencyCode = null,
         timeZone = null,
         socials = null,
-        schedule = schedule?.copy(dayOffs = dayOffs)
+        schedule = schedule?.copy(dayOffs = dayOffs),
     )
 
     @Test
@@ -229,11 +229,11 @@ internal class BusinessDataSourceImplTest {
         then()
         assertEquals(
             DayOfWeek.entries.filter { it < DayOfWeek.SATURDAY },
-            created.schedule.activeDays().sorted()
+            created.schedule.activeDays().sorted(),
         )
         assertEquals(
             listOf(WorkHour(LocalTime(9, 0), LocalTime(17, 0))),
-            created.schedule[DayOfWeek.MONDAY].workingTime
+            created.schedule[DayOfWeek.MONDAY].workingTime,
         )
         assertTrue(created.schedule.dayOffs.isEmpty())
     }
@@ -246,8 +246,8 @@ internal class BusinessDataSourceImplTest {
         val schedule = Schedule(
             workingDays = listOf(DayOfWeek.SATURDAY),
             workingHours = mapOf(
-                DayOfWeek.SATURDAY to listOf(WorkHour(LocalTime(10, 0), LocalTime(14, 0)))
-            )
+                DayOfWeek.SATURDAY to listOf(WorkHour(LocalTime(10, 0), LocalTime(14, 0))),
+            ),
         )
         val dayOffs = listOf(DayOffRange(LocalDate(2099, 12, 30), LocalDate(2099, 12, 31)))
 
@@ -271,7 +271,7 @@ internal class BusinessDataSourceImplTest {
         val created = suspendTransaction { fixture.sut.createBusiness(Uuid.random(), "Salon", "USD", TimeZone.UTC) }
         val schedule = Schedule(
             workingDays = listOf(DayOfWeek.MONDAY),
-            workingHours = mapOf(DayOfWeek.MONDAY to listOf(WorkHour(LocalTime(10, 0), LocalTime(14, 0))))
+            workingHours = mapOf(DayOfWeek.MONDAY to listOf(WorkHour(LocalTime(10, 0), LocalTime(14, 0)))),
         )
 
         whenn()
@@ -318,7 +318,7 @@ internal class BusinessDataSourceImplTest {
         assertEquals(created.schedule.activeDays().sorted(), found.schedule.activeDays().sorted())
         assertEquals(
             created.schedule[DayOfWeek.MONDAY].workingTime,
-            found.schedule[DayOfWeek.MONDAY].workingTime
+            found.schedule[DayOfWeek.MONDAY].workingTime,
         )
     }
 
@@ -333,9 +333,9 @@ internal class BusinessDataSourceImplTest {
                 updateModel(
                     created.id,
                     schedule = created.schedule,
-                    dayOffs = listOf(DayOffRange(LocalDate(2020, 1, 1), LocalDate(2020, 1, 2)), future)
+                    dayOffs = listOf(DayOffRange(LocalDate(2020, 1, 1), LocalDate(2020, 1, 2)), future),
                 ),
-                Clock.System.now()
+                Clock.System.now(),
             )
         }
 

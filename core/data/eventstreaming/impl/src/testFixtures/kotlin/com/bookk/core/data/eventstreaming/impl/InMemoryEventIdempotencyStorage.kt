@@ -5,5 +5,4 @@ import com.bookk.core.data.eventstreaming.EventIdempotencyStorage
 import com.bookk.core.data.repository.CacheEventIdempotencyStorage
 import kotlin.time.TimeSource
 
-fun inMemoryEventIdempotencyStorage(timeSource: TimeSource = TimeSource.Monotonic): EventIdempotencyStorage =
-    CacheEventIdempotencyStorage(InMemoryCacheClient(timeSource = timeSource))
+fun inMemoryEventIdempotencyStorage(timeSource: TimeSource = TimeSource.Monotonic): EventIdempotencyStorage = CacheEventIdempotencyStorage(InMemoryCacheClient(timeSource = timeSource))

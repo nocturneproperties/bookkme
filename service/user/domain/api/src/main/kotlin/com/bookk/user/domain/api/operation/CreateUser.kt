@@ -6,5 +6,4 @@ import com.bookk.user.domain.api.entity.UserId
 interface CreateUser {
 
     suspend operator fun invoke(user: User): Result<UserId>
-
 }

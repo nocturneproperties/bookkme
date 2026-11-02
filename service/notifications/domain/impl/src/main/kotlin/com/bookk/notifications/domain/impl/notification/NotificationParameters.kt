@@ -6,7 +6,7 @@ internal class NotificationParameters(
     val type: NotificationType,
     val push: (Language) -> PushNotification,
     val email: (Language) -> EmailNotification,
-    val text: (Language) -> TextNotification
+    val text: (Language) -> TextNotification,
 )
 
 internal class PushNotification(
@@ -20,10 +20,10 @@ internal class EmailNotification(
 )
 
 internal class TextNotification(
-    val text: String
+    val text: String,
 )
 
 internal enum class NotificationType {
     APPOINTMENT,
-    EMPLOYEE
+    EMPLOYEE,
 }

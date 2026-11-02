@@ -11,25 +11,23 @@ class UserSnapshot(
     @ProtoNumber(2) val name: String,
     @ProtoNumber(3) val lastName: String,
     @ProtoNumber(4) val email: String,
-    @ProtoNumber(5) val phone: String?
+    @ProtoNumber(5) val phone: String?,
 ) {
     companion object {
-        internal fun fromUser(user: User): UserSnapshot {
-            return UserSnapshot(
-                id = user.id,
-                name = user.name,
-                lastName = user.lastName,
-                email = user.email,
-                phone = user.phone
-            )
-        }
+        internal fun fromUser(user: User): UserSnapshot = UserSnapshot(
+            id = user.id,
+            name = user.name,
+            lastName = user.lastName,
+            email = user.email,
+            phone = user.phone,
+        )
 
         fun stub(
             id: Uuid = Uuid.random(),
             name: String = "Alice",
             lastName: String = "Smith",
             email: String = "user@example.com",
-            phone: String? = null
+            phone: String? = null,
         ) = UserSnapshot(id = id, name = name, lastName = lastName, email = email, phone = phone)
     }
 }

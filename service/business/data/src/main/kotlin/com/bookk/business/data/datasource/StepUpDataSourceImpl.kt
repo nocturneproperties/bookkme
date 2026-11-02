@@ -7,7 +7,7 @@ import com.bookk.core.data.cache.setIfAbsent
 import kotlin.time.Duration
 
 internal class StepUpDataSourceImpl(
-    private val cacheClient: CacheClient<String>
+    private val cacheClient: CacheClient<String>,
 ) : DataSource(), StepUpDataSource {
 
     override suspend fun reserve(tokenId: String, lifetime: Duration): Boolean = mapExceptions {

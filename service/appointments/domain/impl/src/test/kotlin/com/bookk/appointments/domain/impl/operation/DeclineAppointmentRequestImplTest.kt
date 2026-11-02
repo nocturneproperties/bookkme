@@ -42,7 +42,7 @@ internal class DeclineAppointmentRequestImplTest {
             appointmentPermissionDataSource,
             subscriptionDataSource,
             eventProducer,
-            transactionManager
+            transactionManager,
         )
     }
 
@@ -50,7 +50,7 @@ internal class DeclineAppointmentRequestImplTest {
     private val testBusinessId = Uuid.random()
     private val testCancellation = AppointmentCancellation(
         id = Uuid.random(),
-        reason = "User declined"
+        reason = "User declined",
     )
 
     @Test

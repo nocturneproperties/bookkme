@@ -57,7 +57,7 @@ object AppointmentsRouting {
             val parent: Api = Api(),
             val businessId: Uuid,
             val date: LocalDate,
-            val employeeId: Uuid? = null
+            val employeeId: Uuid? = null,
         )
 
         @Resource("/appointments/history/{businessId}")
@@ -66,8 +66,7 @@ object AppointmentsRouting {
             val businessId: Uuid,
             val limit: Int,
             val offset: Long,
-            val query: String? = null
+            val query: String? = null,
         )
     }
-
 }

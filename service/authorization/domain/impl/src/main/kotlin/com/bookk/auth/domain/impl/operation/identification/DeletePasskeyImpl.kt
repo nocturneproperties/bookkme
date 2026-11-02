@@ -7,14 +7,12 @@ import kotlin.uuid.Uuid
 
 internal class DeletePasskeyImpl(
     private val passKeyDataSource: PassKeyDataSource,
-    private val transactionManager: TransactionManager
+    private val transactionManager: TransactionManager,
 ) : DeletePasskey {
-    override suspend fun invoke(id: Uuid, authId: Uuid): Result<Unit> {
-        return transactionManager.transaction {
-            val deletedRowCount = passKeyDataSource.deletePasskey(id, authId)
-            if (deletedRowCount == 0) {
-                throw DeletePasskey.Error.LastPasskey()
-            }
+    override suspend fun invoke(id: Uuid, authId: Uuid): Result<Unit> = transactionManager.transaction {
+        val deletedRowCount = passKeyDataSource.deletePasskey(id, authId)
+        if (deletedRowCount == 0) {
+            throw DeletePasskey.Error.LastPasskey()
         }
     }
 }

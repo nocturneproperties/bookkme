@@ -36,7 +36,7 @@ private fun diModules() = listOf(
     userEmbeddedModule(),
     businessEmbeddedModule(),
     appointmentsEmbeddedModule(),
-    notificationsEmbeddedModule()
+    notificationsEmbeddedModule(),
 )
 
 fun main() {

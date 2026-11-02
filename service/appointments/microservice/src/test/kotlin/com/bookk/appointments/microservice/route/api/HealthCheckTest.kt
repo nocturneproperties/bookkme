@@ -21,7 +21,7 @@ internal class HealthCheckTest {
             diModule = module { },
             routeUnderTest = {
                 healthCheck()
-            }
+            },
         )
         whenn()
         val client = createTestClient()

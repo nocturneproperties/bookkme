@@ -10,7 +10,7 @@ import kotlin.uuid.Uuid
 internal class GetClientBusinessesAppointmentsStatusImpl(
     private val businessClient: BusinessClient,
     private val subscriptionDataSource: AppointmentSubscriptionDataSource,
-    private val transactionManager: TransactionManager
+    private val transactionManager: TransactionManager,
 ) : GetClientBusinessesAppointmentsStatus {
     override suspend fun invoke(userId: Uuid): Result<List<BusinessAppointmentsEnabled>> {
         val businessIds = businessClient.getClientBusinessIds(userId).getOrElse { return Result.failure(it) }
@@ -19,7 +19,7 @@ internal class GetClientBusinessesAppointmentsStatusImpl(
             businessIds.map { businessId ->
                 BusinessAppointmentsEnabled(
                     businessId = businessId,
-                    enabled = subscriptionDataSource.isBusinessEnabled(businessId)
+                    enabled = subscriptionDataSource.isBusinessEnabled(businessId),
                 )
             }
         }

@@ -8,10 +8,9 @@ import kotlin.uuid.Uuid
 
 internal class GetEmployeeInvitationsImpl(
     private val invitationDataSource: EmployeeInvitationDataSource,
-    private val transactionManager: TransactionManager
+    private val transactionManager: TransactionManager,
 ) : GetEmployeeInvitations {
-    override suspend fun invoke(userId: Uuid, businessId: Uuid): Result<List<EmployeeInvitation>> =
-        transactionManager.transaction {
-            invitationDataSource.getInvitationsByInviter(businessId, userId)
-        }
+    override suspend fun invoke(userId: Uuid, businessId: Uuid): Result<List<EmployeeInvitation>> = transactionManager.transaction {
+        invitationDataSource.getInvitationsByInviter(businessId, userId)
+    }
 }

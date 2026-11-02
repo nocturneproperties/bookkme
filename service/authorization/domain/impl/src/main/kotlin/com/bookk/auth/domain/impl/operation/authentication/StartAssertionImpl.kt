@@ -14,7 +14,7 @@ import kotlin.uuid.Uuid
 internal class StartAssertionImpl(
     private val passKeyDataSource: PassKeyDataSource,
     private val credentialsRepository: CacheableCredentialRepository,
-    private val transactionManager: TransactionManager
+    private val transactionManager: TransactionManager,
 ) : StartAssertion {
     override suspend fun invoke(): Result<AssertionStartResponse> = transactionManager.transaction {
         val requestUUID = Uuid.random().toString()
@@ -24,13 +24,13 @@ internal class StartAssertionImpl(
                     .builder()
                     .userVerification(UserVerificationRequirement.REQUIRED)
                     .timeout(5.minutes.inWholeMilliseconds)
-                    .build()
+                    .build(),
             )
         passKeyDataSource.saveChallengeToCache(requestUUID, request.toJson())
         AssertionStartResponse(
             requestId = requestUUID,
             challengeJson = request.toCredentialsGetJson(),
-            challenge = request.publicKeyCredentialRequestOptions.challenge.base64Url
+            challenge = request.publicKeyCredentialRequestOptions.challenge.base64Url,
         )
     }
 }

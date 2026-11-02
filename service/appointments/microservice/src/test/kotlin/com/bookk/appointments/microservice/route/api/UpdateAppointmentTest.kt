@@ -50,7 +50,7 @@ internal class UpdateAppointmentTest {
         status = AppointmentStatus.SCHEDULED,
         cancellationReason = "",
         completedBy = null,
-        priceAdjustment = null
+        priceAdjustment = null,
     )
 
     private val testUpdate = AppointmentUpdate.stub(id = testAppointment.id)
@@ -78,7 +78,7 @@ internal class UpdateAppointmentTest {
             },
             routeUnderTest = {
                 appointment()
-            }
+            },
         )
 
         whenn()
@@ -108,7 +108,7 @@ internal class UpdateAppointmentTest {
             },
             routeUnderTest = {
                 appointment()
-            }
+            },
         )
 
         whenn()
@@ -130,7 +130,7 @@ internal class UpdateAppointmentTest {
         coEvery {
             useCase.invoke(
                 userId,
-                any()
+                any(),
             )
         } returns Result.failure(UpdateAppointment.Error.AppointmentForThisTimeExists())
 
@@ -149,7 +149,7 @@ internal class UpdateAppointmentTest {
             },
             routeUnderTest = {
                 appointment()
-            }
+            },
         )
 
         whenn()
@@ -173,7 +173,7 @@ internal class UpdateAppointmentTest {
         coEvery {
             useCase.invoke(
                 userId,
-                any()
+                any(),
             )
         } returns Result.failure(UpdateAppointment.Error.RequestForThisTimeNotAllowed())
 
@@ -192,7 +192,7 @@ internal class UpdateAppointmentTest {
             },
             routeUnderTest = {
                 appointment()
-            }
+            },
         )
 
         whenn()
@@ -216,7 +216,7 @@ internal class UpdateAppointmentTest {
         coEvery {
             useCase.invoke(
                 userId,
-                any()
+                any(),
             )
         } returns Result.failure(AppointmentStatusError.AlreadyCancelled())
 
@@ -235,7 +235,7 @@ internal class UpdateAppointmentTest {
             },
             routeUnderTest = {
                 appointment()
-            }
+            },
         )
 
         whenn()
@@ -259,7 +259,7 @@ internal class UpdateAppointmentTest {
         coEvery {
             useCase.invoke(
                 userId,
-                any()
+                any(),
             )
         } returns Result.failure(AppointmentStatusError.AlreadyCompleted())
 
@@ -278,7 +278,7 @@ internal class UpdateAppointmentTest {
             },
             routeUnderTest = {
                 appointment()
-            }
+            },
         )
 
         whenn()
@@ -302,7 +302,7 @@ internal class UpdateAppointmentTest {
         coEvery {
             useCase.invoke(
                 userId,
-                any()
+                any(),
             )
         } returns Result.failure(AppointmentStatusError.MarkedNoShow())
 
@@ -321,7 +321,7 @@ internal class UpdateAppointmentTest {
             },
             routeUnderTest = {
                 appointment()
-            }
+            },
         )
 
         whenn()
@@ -336,7 +336,6 @@ internal class UpdateAppointmentTest {
         assertEquals(AppointmentErrorCodes.APPOINTMENT_MARKED_NO_SHOW, body.errorCode)
     }
 
-
     @Test
     fun `should return unprocessable entity when date not allowed`() = routeTest {
         given()
@@ -346,7 +345,7 @@ internal class UpdateAppointmentTest {
         coEvery {
             useCase.invoke(
                 userId,
-                any()
+                any(),
             )
         } returns Result.failure(UpdateAppointment.Error.RequestForThisDateNotAllowed())
 
@@ -365,7 +364,7 @@ internal class UpdateAppointmentTest {
             },
             routeUnderTest = {
                 appointment()
-            }
+            },
         )
 
         whenn()
@@ -398,7 +397,7 @@ internal class UpdateAppointmentTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { appointment() }
+            routeUnderTest = { appointment() },
         )
 
         whenn()
@@ -430,7 +429,7 @@ internal class UpdateAppointmentTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { appointment() }
+            routeUnderTest = { appointment() },
         )
 
         whenn()
@@ -462,7 +461,7 @@ internal class UpdateAppointmentTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { appointment() }
+            routeUnderTest = { appointment() },
         )
 
         whenn()
@@ -494,7 +493,7 @@ internal class UpdateAppointmentTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { appointment() }
+            routeUnderTest = { appointment() },
         )
 
         whenn()
@@ -525,7 +524,7 @@ internal class UpdateAppointmentTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { appointment() }
+            routeUnderTest = { appointment() },
         )
 
         whenn()

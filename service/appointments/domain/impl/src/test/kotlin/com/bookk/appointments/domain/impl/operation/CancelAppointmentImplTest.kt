@@ -43,7 +43,7 @@ internal class CancelAppointmentImplTest {
             appointmentPermissionDataSource,
             subscriptionDataSource,
             eventProducer,
-            transactionManager
+            transactionManager,
         )
     }
 
@@ -51,7 +51,7 @@ internal class CancelAppointmentImplTest {
     private val testBusinessId = Uuid.random()
     private val testCancellation = AppointmentCancellation(
         id = Uuid.random(),
-        reason = "User cancelled"
+        reason = "User cancelled",
     )
 
     @Test

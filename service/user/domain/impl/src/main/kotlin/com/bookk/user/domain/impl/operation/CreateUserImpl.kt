@@ -8,11 +8,10 @@ import com.bookk.user.domain.datasource.UserDataSource
 
 internal class CreateUserImpl(
     private val userDataSource: UserDataSource,
-    private val transactionManager: TransactionManager
+    private val transactionManager: TransactionManager,
 ) : CreateUser {
 
     override suspend fun invoke(user: User): Result<UserId> = transactionManager.transaction {
         UserId(userDataSource.insertNewUser(user).id)
     }
-
 }

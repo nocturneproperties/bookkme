@@ -140,7 +140,7 @@ internal class SyncUserProfileImplTest {
                     it.businessId == merge.businessId && it.clientId == merge.toClientId && it.userId == userId &&
                         it.mergedClientIds == listOf(merge.fromClientId)
                 },
-                any()
+                any(),
             )
             fixture.clientDataSource.updateIntegratedClients(userId, "John", "Doe", "john@doe.com", "+1555", updatedAt)
         }
@@ -172,9 +172,9 @@ internal class SyncUserProfileImplTest {
         assertEquals(
             setOf(
                 Triple(kept.businessId, kept.toClientId, listOf(kept.fromClientId, sameKept.fromClientId)),
-                Triple(elsewhere.businessId, elsewhere.toClientId, listOf(elsewhere.fromClientId))
+                Triple(elsewhere.businessId, elsewhere.toClientId, listOf(elsewhere.fromClientId)),
             ),
-            linked.map { Triple(it.businessId, it.clientId, it.mergedClientIds) }.toSet()
+            linked.map { Triple(it.businessId, it.clientId, it.mergedClientIds) }.toSet(),
         )
     }
 

@@ -47,7 +47,7 @@ internal class DeleteClientAppointmentDataImplTest {
             requestDataSource,
             subscriptionDataSource,
             eventProducer,
-            transactionManager
+            transactionManager,
         )
 
         fun stubWrites(businessId: Uuid, clientId: Uuid, cancelled: List<Appointment> = emptyList()) {
@@ -80,8 +80,7 @@ internal class DeleteClientAppointmentDataImplTest {
 
     private fun AppointmentEvent.Cancelled.withoutIdempotencyKey() = copy(idempotencyKey = "")
 
-    private fun Appointment.cancelledForRemoval() =
-        copy(cancellationReason = DeleteClientAppointmentDataImpl.CLIENT_REMOVED_CANCELLATION_REASON)
+    private fun Appointment.cancelledForRemoval() = copy(cancellationReason = DeleteClientAppointmentDataImpl.CLIENT_REMOVED_CANCELLATION_REASON)
 
     @Test
     fun `should erase the client from the business's appointments and requests in one transaction`() = runUnitTest {
@@ -169,7 +168,7 @@ internal class DeleteClientAppointmentDataImplTest {
                 timeZone = business.timeZone,
                 businessName = business.name,
                 idempotencyKey = "",
-                cause = ClientDeletionCause.REMOVED_BY_BUSINESS
+                cause = ClientDeletionCause.REMOVED_BY_BUSINESS,
             )
         }
         assertEquals(expected, fixture.employeeNotifications().map { it.withoutIdempotencyKey() })
@@ -205,7 +204,7 @@ internal class DeleteClientAppointmentDataImplTest {
             businessName = business.name,
             price = moneyFormatter.print(appointment.totalAmount),
             reason = "Client was removed by the business",
-            idempotencyKey = ""
+            idempotencyKey = "",
         )
         assertEquals(listOf(expected), fixture.clientNotifications().map { it.withoutIdempotencyKey() })
     }

@@ -14,7 +14,7 @@ internal class BusinessEventHandlerImpl(
     private val consumer: StandardEventConsumer,
     private val deleteBusiness: DeleteBusiness,
     private val syncUserProfile: SyncUserProfile,
-    private val anonymizeUserProfile: AnonymizeUserProfile
+    private val anonymizeUserProfile: AnonymizeUserProfile,
 ) : EventHandler {
     override fun start(scope: CoroutineScope) {
         consumer
@@ -29,7 +29,7 @@ internal class BusinessEventHandlerImpl(
                     lastName = event.lastName,
                     email = event.email,
                     phone = event.phone,
-                    updatedAt = event.updatedAt
+                    updatedAt = event.updatedAt,
                 )
             }
             .start(scope)

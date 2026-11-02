@@ -14,7 +14,7 @@ import org.slf4j.Logger
 internal class JobRunner(
     private val jobs: List<ScheduledJob>,
     dispatcher: CoroutineDispatcher,
-    private val logger: Logger
+    private val logger: Logger,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + dispatcher + CoroutineName("scheduler"))
 

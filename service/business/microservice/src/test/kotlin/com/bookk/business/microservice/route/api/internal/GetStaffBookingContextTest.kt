@@ -36,15 +36,14 @@ internal class GetStaffBookingContextTest {
         coEvery { useCase.invoke(businessId, request.employeeId, request.clientId, request.serviceIds) } returns result
         setupApplication(
             diModule = module { single { useCase } },
-            routeUnderTest = { getStaffBookingContext() }
+            routeUnderTest = { getStaffBookingContext() },
         )
         return createTestClient()
     }
 
-    private suspend fun HttpClient.postBody(): HttpResponse =
-        post(BusinessRouting.Api.Internal.Business.Id.StaffBookingContext(parent = BusinessRouting.Api.Internal.Business.Id(id = businessId))) {
-            setBody(request)
-        }
+    private suspend fun HttpClient.postBody(): HttpResponse = post(BusinessRouting.Api.Internal.Business.Id.StaffBookingContext(parent = BusinessRouting.Api.Internal.Business.Id(id = businessId))) {
+        setBody(request)
+    }
 
     @Test
     fun `should return the resolved booking context`() = routeTest {

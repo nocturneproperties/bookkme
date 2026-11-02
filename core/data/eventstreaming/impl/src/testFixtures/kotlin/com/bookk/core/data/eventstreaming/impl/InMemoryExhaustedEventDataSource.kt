@@ -22,8 +22,7 @@ class InMemoryExhaustedEventDataSource(
         }
     }
 
-    override suspend fun findByOriginalTopic(originalTopic: String): List<DltEvent> =
-        rows.map { it.exhausted.event }.filter { it.originalTopic == originalTopic }
+    override suspend fun findByOriginalTopic(originalTopic: String): List<DltEvent> = rows.map { it.exhausted.event }.filter { it.originalTopic == originalTopic }
 
     override suspend fun requestReplayOfAll() {
         requireTransaction()

@@ -13,13 +13,13 @@ interface CreateServiceGroup {
         class ServiceGroupExist : BusinessError(
             statusCode = HttpStatusCode.UnprocessableEntity.value,
             code = BusinessErrorCodes.BUSINESS_SERVICE_GROUP_EXISTS,
-            message = "Service group with this name already exists"
+            message = "Service group with this name already exists",
         )
 
         class ValidationError : BusinessError(
             statusCode = HttpStatusCode.UnprocessableEntity.value,
             code = BusinessErrorCodes.BUSINESS_SERVICE_GROUP_VALIDATION_ERROR,
-            message = "Invalid service group name"
+            message = "Invalid service group name",
         )
     }
 }

@@ -23,7 +23,7 @@ internal class OutboxEventProducerTest {
     private data class SampleEvent(
         @ProtoNumber(1) val value: String,
         @ProtoNumber(2) override val idempotencyKey: String,
-        @ProtoNumber(3) override val partitionKey: String?
+        @ProtoNumber(3) override val partitionKey: String?,
     ) : EventStreaming.Event<String> {
         @ProtoNumber(4)
         override val topic: String = "sample.topic"

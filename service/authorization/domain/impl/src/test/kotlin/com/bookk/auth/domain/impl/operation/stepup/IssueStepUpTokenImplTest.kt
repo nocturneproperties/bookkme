@@ -36,7 +36,7 @@ internal class IssueStepUpTokenImplTest {
             publicKeyCredentialJson = "{}",
             action = StepUpAction.DELETE_CLIENT,
             businessId = Uuid.random(),
-            targetId = Uuid.random()
+            targetId = Uuid.random(),
         )
 
         init {

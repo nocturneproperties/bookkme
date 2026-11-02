@@ -13,11 +13,11 @@ import kotlin.uuid.Uuid
 internal class GetSettingsImpl(
     private val settingsSource: AppointmentSettingsDataSource,
     private val permissionsSource: AppointmentPermissionDataSource,
-    private val transactionManager: TransactionManager
+    private val transactionManager: TransactionManager,
 ) : GetSettings {
     override suspend fun invoke(
         userId: Uuid,
-        businessId: Uuid
+        businessId: Uuid,
     ): Result<AppointmentSettings> = transactionManager.transaction {
         val permission = permissionsSource.getPermission(userId, businessId)
         permission.assert(PermissionAction.VIEW)

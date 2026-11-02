@@ -28,7 +28,7 @@ internal class GetServicesByIdsTest {
     private val businessId = Uuid.random()
 
     private fun resource() = BusinessRouting.Api.Internal.Business.Id.Services(
-        parent = BusinessRouting.Api.Internal.Business.Id(id = businessId)
+        parent = BusinessRouting.Api.Internal.Business.Id(id = businessId),
     )
 
     @Test
@@ -41,7 +41,7 @@ internal class GetServicesByIdsTest {
 
         setupApplication(
             diModule = module { single { useCase } },
-            routeUnderTest = { getServicesByIds() }
+            routeUnderTest = { getServicesByIds() },
         )
 
         whenn()
@@ -62,7 +62,7 @@ internal class GetServicesByIdsTest {
 
         setupApplication(
             diModule = module { single { useCase } },
-            routeUnderTest = { getServicesByIds() }
+            routeUnderTest = { getServicesByIds() },
         )
 
         whenn()

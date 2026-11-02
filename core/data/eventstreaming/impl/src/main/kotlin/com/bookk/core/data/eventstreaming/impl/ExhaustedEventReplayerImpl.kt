@@ -44,13 +44,11 @@ class ExhaustedEventReplayerImpl(
         }
         .launchIn(scope)
 
-    private suspend fun requestReplayOfParked(): Boolean {
-        return transactionManager.transaction {
-            exhaustedEventDataSource.requestReplayOfAll()
-        }.onFailure {
-            logger.error("Failed to request a replay of the events parked by {}, retrying in {}. Error: {}", consumerGroup, interval, it.message)
-        }.isSuccess
-    }
+    private suspend fun requestReplayOfParked(): Boolean = transactionManager.transaction {
+        exhaustedEventDataSource.requestReplayOfAll()
+    }.onFailure {
+        logger.error("Failed to request a replay of the events parked by {}, retrying in {}. Error: {}", consumerGroup, interval, it.message)
+    }.isSuccess
 
     private suspend fun replayRequested() {
         do {
@@ -78,7 +76,7 @@ class ExhaustedEventReplayerImpl(
 
     private fun parkedRow(topic: String, count: Long) = MultiGauge.Row.of(
         Tags.of(CONSUMER_GROUP_TAG, consumerGroup, TOPIC_TAG, topic),
-        count
+        count,
     )
 
     companion object {

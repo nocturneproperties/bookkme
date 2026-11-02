@@ -9,15 +9,15 @@ import io.ktor.client.plugins.resources.get
 import kotlin.uuid.Uuid
 
 internal class GetClientBusinessIdsClientImpl(
-    private val httpClient: HttpClient
+    private val httpClient: HttpClient,
 ) : GetClientBusinessIds {
 
     override suspend fun invoke(userId: Uuid): Result<List<Uuid>> = runSuspendCatching {
         httpClient.get(
             BusinessRouting.Api.Internal.Client.Businesses(
                 parent = BusinessRouting.Api.Internal.Client(),
-                userId = userId
-            )
+                userId = userId,
+            ),
         ).bodyOrThrow()
     }
 }

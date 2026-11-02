@@ -47,43 +47,41 @@ internal class AppointmentEntity(id: EntityID<Uuid>) : UuidEntity(id) {
     var completedBy by AppointmentTable.completedBy
     var updatedAt by AppointmentTable.updatedAt
 
-    fun domain(): Appointment {
-        return Appointment(
-            id = id.value,
-            initiatorUserId = initiatorUserId,
-            businessId = businessId.value,
-            employee = EmployeeSnapshot(
-                id = employeeId,
-                userId = employeeUserId,
-                fullName = employeeName
-            ),
-            client = ClientSnapshot(
-                id = clientId,
-                fullName = clientName,
-                phone = clientPhone,
-                email = clientEmail,
-                userId = clientUserId
-            ),
-            services = services.map {
-                ServiceSnapshot(
-                    id = it.serviceId,
-                    name = it.serviceName,
-                    groupId = it.serviceGroupId,
-                    price = Money.of(
-                        CurrencyUnit.of(it.priceCurrency),
-                        BigDecimal(BigInteger.valueOf(it.priceUnscaled), it.priceScale)
-                    ),
-                    duration = it.durationMinutes.minutes
-                )
-            },
-            date = dateStart,
-            note = note,
-            status = status,
-            cancellationReason = cancellationReason,
-            completedBy = completedBy,
-            priceAdjustment = priceAdjustments.singleOrNull()?.domain()
-        )
-    }
+    fun domain(): Appointment = Appointment(
+        id = id.value,
+        initiatorUserId = initiatorUserId,
+        businessId = businessId.value,
+        employee = EmployeeSnapshot(
+            id = employeeId,
+            userId = employeeUserId,
+            fullName = employeeName,
+        ),
+        client = ClientSnapshot(
+            id = clientId,
+            fullName = clientName,
+            phone = clientPhone,
+            email = clientEmail,
+            userId = clientUserId,
+        ),
+        services = services.map {
+            ServiceSnapshot(
+                id = it.serviceId,
+                name = it.serviceName,
+                groupId = it.serviceGroupId,
+                price = Money.of(
+                    CurrencyUnit.of(it.priceCurrency),
+                    BigDecimal(BigInteger.valueOf(it.priceUnscaled), it.priceScale),
+                ),
+                duration = it.durationMinutes.minutes,
+            )
+        },
+        date = dateStart,
+        note = note,
+        status = status,
+        cancellationReason = cancellationReason,
+        completedBy = completedBy,
+        priceAdjustment = priceAdjustments.singleOrNull()?.domain(),
+    )
 
     fun replacePriceAdjustment(adjustment: PriceAdjustment) {
         val entityId = id
@@ -148,5 +146,4 @@ internal class AppointmentEntity(id: EntityID<Uuid>) : UuidEntity(id) {
     }
 }
 
-internal fun List<AppointmentEntity>.withDetails(): List<AppointmentEntity> =
-    this.with(AppointmentEntity::services, AppointmentEntity::priceAdjustments, PriceAdjustmentEntity::additionalServices)
+internal fun List<AppointmentEntity>.withDetails(): List<AppointmentEntity> = this.with(AppointmentEntity::services, AppointmentEntity::priceAdjustments, PriceAdjustmentEntity::additionalServices)

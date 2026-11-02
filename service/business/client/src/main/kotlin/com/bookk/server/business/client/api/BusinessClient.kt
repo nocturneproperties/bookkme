@@ -14,18 +14,18 @@ interface BusinessClient {
         businessId: Uuid,
         employeeId: Uuid,
         userId: Uuid,
-        serviceIds: List<Uuid>
+        serviceIds: List<Uuid>,
     ): Result<AppointmentBookingContext>
     suspend fun getStaffBookingContext(
         businessId: Uuid,
         employeeId: Uuid,
         clientId: Uuid,
-        serviceIds: List<Uuid>
+        serviceIds: List<Uuid>,
     ): Result<AppointmentBookingContext>
     suspend fun getAppointmentRescheduleContext(
         businessId: Uuid,
         employeeId: Uuid?,
-        serviceIds: List<Uuid>
+        serviceIds: List<Uuid>,
     ): Result<AppointmentRescheduleContext>
     suspend fun getClientBusinessIds(userId: Uuid): Result<List<Uuid>>
     suspend fun getServicesByIds(businessId: Uuid, serviceIds: List<Uuid>): Result<List<Service>>

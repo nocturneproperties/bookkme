@@ -14,7 +14,7 @@ internal class SyncUserProfileImpl(
     private val transactionManager: TransactionManager,
     private val clientDataSource: ClientDataSource,
     private val employeeDataSource: EmployeeDataSource,
-    private val eventProducer: StandardEventProducer
+    private val eventProducer: StandardEventProducer,
 ) : SyncUserProfile {
     override suspend fun invoke(
         userId: Uuid,
@@ -22,7 +22,7 @@ internal class SyncUserProfileImpl(
         lastName: String,
         email: String,
         phone: String?,
-        updatedAt: Instant
+        updatedAt: Instant,
     ): Result<Unit> = transactionManager.transaction {
         val merges = clientDataSource.findClientMergesForUser(userId, phone, email, updatedAt)
         merges.forEach { merge -> clientDataSource.deleteClient(merge.businessId, merge.fromClientId) }
@@ -33,8 +33,8 @@ internal class SyncUserProfileImpl(
                     businessId,
                     clientId = keptClientId,
                     userId = userId,
-                    mergedClientIds = mergedInto.map { it.fromClientId }
-                )
+                    mergedClientIds = mergedInto.map { it.fromClientId },
+                ),
             )
         }
         clientDataSource.updateIntegratedClients(userId, name, lastName, email, phone, updatedAt)

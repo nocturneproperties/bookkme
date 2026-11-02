@@ -43,25 +43,27 @@ internal class BusinessEntity(id: EntityID<Uuid>) : UuidEntity(id) {
         description = description,
         location = if (latitude != null && longitude != null) {
             Business.Location(latitude ?: 0.0, longitude ?: 0.0)
-        } else null,
+        } else {
+            null
+        },
         currencyCode = currency,
         address = address,
         timeZone = TimeZone.of(timezone),
         schedule = Schedule(
             workingDays = workingDays.toWorkingDays(),
             workingHours = workingHours.toWorkingHours(),
-            dayOffs = dayOffs.map { it.domain() }
+            dayOffs = dayOffs.map { it.domain() },
         ),
         socials = listOf(
             Business.Social(Business.SocialKind.PHONE, phone.orEmpty()),
             Business.Social(Business.SocialKind.INSTAGRAM, instagram.orEmpty()),
             Business.Social(Business.SocialKind.TELEGRAM, telegram.orEmpty()),
             Business.Social(Business.SocialKind.WHATSAPP, whatsapp.orEmpty()),
-            Business.Social(Business.SocialKind.VIBER, viber.orEmpty())
+            Business.Social(Business.SocialKind.VIBER, viber.orEmpty()),
         ),
         permissions = BusinessPermissions.NONE,
         employeeId = null,
-        clientId = null
+        clientId = null,
     )
 
     private fun replaceSchedule(schedule: Schedule) {

@@ -24,9 +24,7 @@ internal class DeviceDataSourceImplTest {
         val sut = DeviceDataSourceImpl()
         val accountSut = AccountDataSourceImpl()
 
-        suspend fun insertAuth(): Authentication {
-            return suspendTransaction { accountSut.createAuthorization(Authentication.stub()) }
-        }
+        suspend fun insertAuth(): Authentication = suspendTransaction { accountSut.createAuthorization(Authentication.stub()) }
     }
 
     @Test

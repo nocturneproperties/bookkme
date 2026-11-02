@@ -51,16 +51,17 @@ internal class EmbeddedEventStreamingModuleTest {
             }
         }
 
-        fun scopeWith(eventStreaming: Module): Scope =
-            koinApplication { modules(topicQueueHolderModule(), sharedModule, serviceModule(qualifier), eventStreaming) }
-                .koin
-                .createScope("embedded-test-scope", qualifier)
+        fun scopeWith(eventStreaming: Module): Scope = koinApplication { modules(topicQueueHolderModule(), sharedModule, serviceModule(qualifier), eventStreaming) }
+            .koin
+            .createScope("embedded-test-scope", qualifier)
 
         fun scopesOf(vararg services: Pair<Qualifier, String>): List<Scope> {
             val koin = koinApplication {
-                modules(listOf(topicQueueHolderModule(), sharedModule) + services.flatMap { (qualifier, serviceName) ->
-                    listOf(serviceModule(qualifier), embeddedEventStreamingTransportModule(qualifier, serviceName))
-                })
+                modules(
+                    listOf(topicQueueHolderModule(), sharedModule) + services.flatMap { (qualifier, serviceName) ->
+                        listOf(serviceModule(qualifier), embeddedEventStreamingTransportModule(qualifier, serviceName))
+                    },
+                )
             }.koin
             return services.map { (qualifier, serviceName) -> koin.createScope("$serviceName-scope", qualifier) }
         }

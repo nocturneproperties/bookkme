@@ -11,7 +11,7 @@ private val MONDAY_TO_FRIDAY: Byte = DayOfWeek.entries
     .filter { it < DayOfWeek.SATURDAY }
     .fold(0) { acc, day -> acc or (1 shl day.isoDayNumber).toByte() }
 
-object BusinessTable: UuidTable("business") {
+object BusinessTable : UuidTable("business") {
     val userId = uuid("user_id").uniqueIndex()
     val name = varchar("name", 512)
     val description = varchar("description", 1024)

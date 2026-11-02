@@ -31,7 +31,7 @@ internal class DeleteUserAppointmentDataImpl(
         val cancelled = appointmentDataSource.cancelUpcomingForClientUser(
             userId,
             Clock.System.now(),
-            ACCOUNT_DELETED_CANCELLATION_REASON
+            ACCOUNT_DELETED_CANCELLATION_REASON,
         )
         appointmentDataSource.anonymizeClientUser(userId)
         appointmentDataSource.anonymizeEmployee(userId)
@@ -53,8 +53,8 @@ internal class DeleteUserAppointmentDataImpl(
                         from = appointment.date,
                         to = appointment.dateEnd,
                         timeZone = business.timeZone,
-                        businessName = business.name
-                    )
+                        businessName = business.name,
+                    ),
                 )
             }
         }

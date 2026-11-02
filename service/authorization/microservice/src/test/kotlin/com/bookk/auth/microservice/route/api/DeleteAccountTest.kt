@@ -41,7 +41,7 @@ internal class DeleteAccountTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { deleteAccount() }
+            routeUnderTest = { deleteAccount() },
         )
         return createTestClient().delete(AuthRouting.Api.Auth.Account()) { setBody(VerifyDeleteAccRequest("request-id", "{}")) }
     }
@@ -78,7 +78,7 @@ internal class DeleteAccountTest {
         setupApplication(
             extension = { install(Authentication) { bearer { authenticate { null } } } },
             diModule = module { single { useCase } },
-            routeUnderTest = { deleteAccount() }
+            routeUnderTest = { deleteAccount() },
         )
 
         whenn()

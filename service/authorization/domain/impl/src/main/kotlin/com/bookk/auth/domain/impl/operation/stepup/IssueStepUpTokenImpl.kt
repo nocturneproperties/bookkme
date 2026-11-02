@@ -15,7 +15,7 @@ import kotlin.uuid.Uuid
 
 internal class IssueStepUpTokenImpl(
     private val finishAssertion: FinishAssertion,
-    private val tokenIssuer: TokenIssuer
+    private val tokenIssuer: TokenIssuer,
 ) : IssueStepUpToken {
     override suspend fun invoke(userId: Uuid, request: StepUpRequest): Result<StepUpToken> = runSuspendCatching {
         finishAssertion.finishOwnedBy(userId, request).getOrThrow()

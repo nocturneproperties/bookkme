@@ -80,8 +80,13 @@ internal class NotificationEventHandlerEventTest {
             transactionManager = transactionManager,
         )
         val sut = NotificationEventHandler(
-            consumer, createDeviceEntry, deleteDeviceByUUID,
-            updateTargetInformation, updateDeviceLanguage, sendNotification, deleteUserNotificationData
+            consumer,
+            createDeviceEntry,
+            deleteDeviceByUUID,
+            updateTargetInformation,
+            updateDeviceLanguage,
+            sendNotification,
+            deleteUserNotificationData,
         )
         private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -101,16 +106,23 @@ internal class NotificationEventHandlerEventTest {
         val arrived = CountDownLatch(1)
         coEvery {
             fixture.updateTargetInformation(userId, any(), any())
-        } answers { arrived.countDown(); Result.success(Unit) }
+        } answers {
+            arrived.countDown()
+            Result.success(Unit)
+        }
 
         whenn()
         withContext(Dispatchers.IO) {
             fixture.start()
             producer().send(
                 UserEvent.Updated(
-                    userId = userId, name = "Jane", lastName = "Smith",
-                    email = "jane@example.com", phone = null, updatedAt = updatedAt
-                )
+                    userId = userId,
+                    name = "Jane",
+                    lastName = "Smith",
+                    email = "jane@example.com",
+                    phone = null,
+                    updatedAt = updatedAt,
+                ),
             )
             arrived.await(20, TimeUnit.SECONDS)
         }
@@ -123,7 +135,7 @@ internal class NotificationEventHandlerEventTest {
                 match<UpdateTargetInformation.Target> {
                     it is UpdateTargetInformation.Target.Email && it.newEmail == "jane@example.com"
                 },
-                updatedAt
+                updatedAt,
             )
         }
     }
@@ -136,7 +148,10 @@ internal class NotificationEventHandlerEventTest {
         val arrived = CountDownLatch(1)
         coEvery {
             fixture.updateDeviceLanguage(deviceUuid, any<Language>())
-        } answers { arrived.countDown(); Result.success(Unit) }
+        } answers {
+            arrived.countDown()
+            Result.success(Unit)
+        }
 
         whenn()
         withContext(Dispatchers.IO) {
@@ -155,7 +170,10 @@ internal class NotificationEventHandlerEventTest {
 
     private fun SutFixture.awaitNotificationTo(target: Uuid): CountDownLatch {
         val arrived = CountDownLatch(1)
-        coEvery { sendNotification(target, any()) } answers { arrived.countDown(); Result.success(Unit) }
+        coEvery { sendNotification(target, any()) } answers {
+            arrived.countDown()
+            Result.success(Unit)
+        }
         return arrived
     }
 
@@ -163,7 +181,7 @@ internal class NotificationEventHandlerEventTest {
         fixture: SutFixture,
         latch: CountDownLatch,
         event: T,
-        kType: kotlin.reflect.KType
+        kType: kotlin.reflect.KType,
     ) {
         withContext(Dispatchers.IO) {
             fixture.start()
@@ -176,25 +194,25 @@ internal class NotificationEventHandlerEventTest {
     private fun requestCreated(clientUserId: Uuid, employeeUserId: Uuid) = AppointmentEvent.RequestCreated(
         clientUserId = clientUserId, clientName = "Client", employeeUserId = employeeUserId,
         employeeName = "Employee", from = from, to = to, timeZone = TimeZone.UTC,
-        businessName = "Salon", address = "1 Main St", price = "10 USD"
+        businessName = "Salon", address = "1 Main St", price = "10 USD",
     )
 
     private fun requestApproved(clientUserId: Uuid, employeeUserId: Uuid) = AppointmentEvent.RequestApproved(
         clientUserId = clientUserId, clientName = "Client", employeeUserId = employeeUserId,
         employeeName = "Employee", from = from, to = to, timeZone = TimeZone.UTC,
-        businessName = "Salon", address = "1 Main St", price = "10 USD"
+        businessName = "Salon", address = "1 Main St", price = "10 USD",
     )
 
     private fun requestRejected(clientUserId: Uuid, employeeUserId: Uuid) = AppointmentEvent.RequestRejected(
         clientUserId = clientUserId, clientName = "Client", employeeUserId = employeeUserId,
         employeeName = "Employee", from = from, to = to, timeZone = TimeZone.UTC,
-        address = "1 Main St", businessName = "Salon", price = "10 USD", declineReason = "busy"
+        address = "1 Main St", businessName = "Salon", price = "10 USD", declineReason = "busy",
     )
 
     private fun cancelled(clientUserId: Uuid, employeeUserId: Uuid) = AppointmentEvent.Cancelled(
         clientUserId = clientUserId, clientName = "Client", employeeUserId = employeeUserId,
         employeeName = "Employee", from = from, to = to, timeZone = TimeZone.UTC,
-        address = "1 Main St", businessName = "Salon", price = "10 USD", reason = "changed plans"
+        address = "1 Main St", businessName = "Salon", price = "10 USD", reason = "changed plans",
     )
 
     @Test
@@ -207,13 +225,17 @@ internal class NotificationEventHandlerEventTest {
         val arrived = CountDownLatch(1)
         coEvery {
             fixture.createDeviceEntry(deviceUuid, authId, userId, any())
-        } answers { arrived.countDown(); Result.success(Device.stub(deviceId = deviceUuid)) }
+        } answers {
+            arrived.countDown()
+            Result.success(Device.stub(deviceId = deviceUuid))
+        }
 
         whenn()
         publishAndAwait(
-            fixture, arrived,
+            fixture,
+            arrived,
             AuthEvent.DeviceCreated(authId = authId, userId = userId, deviceUuid = deviceUuid, language = Language.EN),
-            typeOf<AuthEvent.DeviceCreated>()
+            typeOf<AuthEvent.DeviceCreated>(),
         )
 
         then()
@@ -226,13 +248,17 @@ internal class NotificationEventHandlerEventTest {
         val fixture = SutFixture()
         val deviceUuid = Uuid.random()
         val arrived = CountDownLatch(1)
-        coEvery { fixture.deleteDeviceByUUID(deviceUuid) } answers { arrived.countDown(); Result.success(Unit) }
+        coEvery { fixture.deleteDeviceByUUID(deviceUuid) } answers {
+            arrived.countDown()
+            Result.success(Unit)
+        }
 
         whenn()
         publishAndAwait(
-            fixture, arrived,
+            fixture,
+            arrived,
             AuthEvent.DeviceDeleted(deviceUuid = deviceUuid),
-            typeOf<AuthEvent.DeviceDeleted>()
+            typeOf<AuthEvent.DeviceDeleted>(),
         )
 
         then()
@@ -249,9 +275,10 @@ internal class NotificationEventHandlerEventTest {
 
         whenn()
         publishAndAwait(
-            fixture, arrived,
+            fixture,
+            arrived,
             requestCreated(clientUserId, employeeUserId),
-            typeOf<AppointmentEvent.RequestCreated>()
+            typeOf<AppointmentEvent.RequestCreated>(),
         )
 
         then()
@@ -269,9 +296,10 @@ internal class NotificationEventHandlerEventTest {
 
         whenn()
         publishAndAwait(
-            fixture, arrived,
+            fixture,
+            arrived,
             requestApproved(clientUserId, employeeUserId),
-            typeOf<AppointmentEvent.RequestApproved>()
+            typeOf<AppointmentEvent.RequestApproved>(),
         )
 
         then()
@@ -289,9 +317,10 @@ internal class NotificationEventHandlerEventTest {
 
         whenn()
         publishAndAwait(
-            fixture, arrived,
+            fixture,
+            arrived,
             requestRejected(clientUserId, employeeUserId),
-            typeOf<AppointmentEvent.RequestRejected>()
+            typeOf<AppointmentEvent.RequestRejected>(),
         )
 
         then()
@@ -309,9 +338,10 @@ internal class NotificationEventHandlerEventTest {
 
         whenn()
         publishAndAwait(
-            fixture, arrived,
+            fixture,
+            arrived,
             cancelled(clientUserId, employeeUserId),
-            typeOf<AppointmentEvent.Cancelled>()
+            typeOf<AppointmentEvent.Cancelled>(),
         )
 
         then()
@@ -328,12 +358,16 @@ internal class NotificationEventHandlerEventTest {
 
         whenn()
         publishAndAwait(
-            fixture, arrived,
+            fixture,
+            arrived,
             AppointmentEvent.CancelledForDeletedClient(
-                employeeUserId = employeeUserId, from = from, to = to, timeZone = TimeZone.UTC,
-                businessName = "Salon"
+                employeeUserId = employeeUserId,
+                from = from,
+                to = to,
+                timeZone = TimeZone.UTC,
+                businessName = "Salon",
             ),
-            typeOf<AppointmentEvent.CancelledForDeletedClient>()
+            typeOf<AppointmentEvent.CancelledForDeletedClient>(),
         )
 
         then()
@@ -350,12 +384,16 @@ internal class NotificationEventHandlerEventTest {
 
         whenn()
         publishAndAwait(
-            fixture, arrived,
+            fixture,
+            arrived,
             BusinessEvent.EmployeeInvitationRedeemed(
-                inviterUserId = inviterUserId, employeeUserId = employeeUserId, employeeName = "Employee",
-                businessId = Uuid.random(), businessName = "Salon"
+                inviterUserId = inviterUserId,
+                employeeUserId = employeeUserId,
+                employeeName = "Employee",
+                businessId = Uuid.random(),
+                businessName = "Salon",
             ),
-            typeOf<BusinessEvent.EmployeeInvitationRedeemed>()
+            typeOf<BusinessEvent.EmployeeInvitationRedeemed>(),
         )
 
         then()
@@ -371,7 +409,10 @@ internal class NotificationEventHandlerEventTest {
         val arrived = CountDownLatch(1)
         coEvery {
             fixture.deleteUserNotificationData(userId)
-        } answers { arrived.countDown(); Result.success(Unit) }
+        } answers {
+            arrived.countDown()
+            Result.success(Unit)
+        }
 
         whenn()
         withContext(Dispatchers.IO) {

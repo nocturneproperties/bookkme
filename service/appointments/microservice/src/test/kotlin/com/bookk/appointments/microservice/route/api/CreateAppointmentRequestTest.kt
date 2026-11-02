@@ -50,7 +50,7 @@ internal class CreateAppointmentRequestTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { requests() }
+            routeUnderTest = { requests() },
         )
 
         whenn()
@@ -82,7 +82,7 @@ internal class CreateAppointmentRequestTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { requests() }
+            routeUnderTest = { requests() },
         )
 
         whenn()
@@ -115,7 +115,7 @@ internal class CreateAppointmentRequestTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { requests() }
+            routeUnderTest = { requests() },
         )
 
         whenn()
@@ -148,7 +148,7 @@ internal class CreateAppointmentRequestTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { requests() }
+            routeUnderTest = { requests() },
         )
 
         whenn()
@@ -181,7 +181,7 @@ internal class CreateAppointmentRequestTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { requests() }
+            routeUnderTest = { requests() },
         )
 
         whenn()
@@ -214,7 +214,7 @@ internal class CreateAppointmentRequestTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { requests() }
+            routeUnderTest = { requests() },
         )
 
         whenn()
@@ -247,7 +247,7 @@ internal class CreateAppointmentRequestTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { requests() }
+            routeUnderTest = { requests() },
         )
 
         whenn()
@@ -280,7 +280,7 @@ internal class CreateAppointmentRequestTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { requests() }
+            routeUnderTest = { requests() },
         )
 
         whenn()
@@ -313,7 +313,7 @@ internal class CreateAppointmentRequestTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { requests() }
+            routeUnderTest = { requests() },
         )
 
         whenn()
@@ -346,7 +346,7 @@ internal class CreateAppointmentRequestTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { requests() }
+            routeUnderTest = { requests() },
         )
 
         whenn()
@@ -378,7 +378,7 @@ internal class CreateAppointmentRequestTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { requests() }
+            routeUnderTest = { requests() },
         )
 
         whenn()
@@ -410,7 +410,7 @@ internal class CreateAppointmentRequestTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { requests() }
+            routeUnderTest = { requests() },
         )
 
         whenn()
@@ -443,7 +443,7 @@ internal class CreateAppointmentRequestTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { requests() }
+            routeUnderTest = { requests() },
         )
 
         whenn()
@@ -465,7 +465,7 @@ internal class CreateAppointmentRequestTest {
         setupApplication(
             extension = { install(Authentication) { bearer { authenticate { null } } } },
             diModule = module { single { useCase } },
-            routeUnderTest = { requests() }
+            routeUnderTest = { requests() },
         )
 
         whenn()

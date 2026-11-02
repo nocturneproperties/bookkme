@@ -7,7 +7,7 @@ import kotlinx.serialization.protobuf.ProtoNumber
 @Serializable
 data class Schedule(
     @ProtoNumber(1) val days: Map<DayOfWeek, DayOfWeekSchedule>,
-    @ProtoNumber(2) val dayOffs: List<DayOffRange> = emptyList()
+    @ProtoNumber(2) val dayOffs: List<DayOffRange> = emptyList(),
 ) {
 
     init {
@@ -15,21 +15,21 @@ data class Schedule(
     }
 
     constructor() : this(
-        days = DayOfWeek.entries.associateWith { DayOfWeekSchedule.default(it) }
+        days = DayOfWeek.entries.associateWith { DayOfWeekSchedule.default(it) },
     )
 
     constructor(
         workingDays: List<DayOfWeek>,
         workingHours: Map<DayOfWeek, List<WorkHour>>,
-        dayOffs: List<DayOffRange> = emptyList()
+        dayOffs: List<DayOffRange> = emptyList(),
     ) : this(
         days = DayOfWeek.entries.associateWith { day ->
             DayOfWeekSchedule(
                 workingTime = workingHours[day].orEmpty(),
-                isActive = workingDays.contains(day)
+                isActive = workingDays.contains(day),
             )
         },
-        dayOffs = dayOffs
+        dayOffs = dayOffs,
     )
 
     operator fun get(dayOfWeek: DayOfWeek): DayOfWeekSchedule = days.getValue(dayOfWeek)

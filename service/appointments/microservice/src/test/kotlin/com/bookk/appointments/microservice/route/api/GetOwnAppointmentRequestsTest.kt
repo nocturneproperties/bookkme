@@ -45,7 +45,7 @@ internal class GetOwnAppointmentRequestsTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { requests() }
+            routeUnderTest = { requests() },
         )
 
         whenn()
@@ -69,7 +69,7 @@ internal class GetOwnAppointmentRequestsTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { requests() }
+            routeUnderTest = { requests() },
         )
 
         whenn()

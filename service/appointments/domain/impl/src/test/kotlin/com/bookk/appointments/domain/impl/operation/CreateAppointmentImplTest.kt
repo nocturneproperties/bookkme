@@ -55,7 +55,7 @@ internal class CreateAppointmentImplTest {
             appointmentPermissionDataSource,
             subscriptionDataSource,
             transactionManager,
-            eventProducer
+            eventProducer,
         )
     }
 

@@ -43,7 +43,7 @@ internal class DeletedUserLockMariaDbTest {
                 dbUrl = "mariadb://${container.host}",
                 dbPort = container.getMappedPort(PORT).toString(),
                 dbUsername = "root",
-                dbPassword = PASSWORD
+                dbPassword = PASSWORD,
             )
         }
     }
@@ -53,7 +53,7 @@ internal class DeletedUserLockMariaDbTest {
 
         suspend fun <T> secondWhileFirstHolds(
             first: suspend DeletedUserDataSourceImpl.() -> Unit,
-            second: suspend DeletedUserDataSourceImpl.() -> T
+            second: suspend DeletedUserDataSourceImpl.() -> T,
         ): Result<T> {
             val firstHeld = CompletableDeferred<Unit>()
             val secondFinished = CompletableDeferred<Unit>()
@@ -86,7 +86,7 @@ internal class DeletedUserLockMariaDbTest {
         whenn()
         val link = fixture.secondWhileFirstHolds(
             first = { markDeleted(userId) },
-            second = { isDeletedForShare(userId) }
+            second = { isDeletedForShare(userId) },
         )
 
         then()
@@ -102,7 +102,7 @@ internal class DeletedUserLockMariaDbTest {
         whenn()
         val deletion = fixture.secondWhileFirstHolds(
             first = { check(!isDeletedForShare(userId)) },
-            second = { markDeleted(userId) }
+            second = { markDeleted(userId) },
         )
 
         then()
@@ -118,8 +118,14 @@ internal class DeletedUserLockMariaDbTest {
 
         whenn()
         val secondLink = fixture.secondWhileFirstHolds(
-            first = { check(isDeletedForShare(userId)); markDeleted(userId) },
-            second = { check(isDeletedForShare(userId)); markDeleted(userId) }
+            first = {
+                check(isDeletedForShare(userId))
+                markDeleted(userId)
+            },
+            second = {
+                check(isDeletedForShare(userId))
+                markDeleted(userId)
+            },
         )
 
         then()

@@ -49,7 +49,7 @@ internal class UpdateClientImplTest {
         lastName: String? = null,
         phone: String? = null,
         email: String? = null,
-        description: String? = null
+        description: String? = null,
     ) = ClientUpdateModel(id = id, name = name, lastName = lastName, phone = phone, email = email, description = description)
 
     @Test

@@ -54,11 +54,9 @@ import kotlin.time.Duration
 import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
-private fun flattenedIds(draft: AppointmentRequestDraft): List<Uuid> =
-    draft.services.flatMap { requested -> List(requested.count) { requested.serviceId } }
+private fun flattenedIds(draft: AppointmentRequestDraft): List<Uuid> = draft.services.flatMap { requested -> List(requested.count) { requested.serviceId } }
 
-private fun distinctIds(draft: AppointmentRequestDraft): List<Uuid> =
-    draft.services.map { it.serviceId }
+private fun distinctIds(draft: AppointmentRequestDraft): List<Uuid> = draft.services.map { it.serviceId }
 
 private fun expand(context: AppointmentBookingContext, draft: AppointmentRequestDraft): List<Service> {
     val servicesById = context.services.associateBy { it.id }
@@ -93,7 +91,7 @@ internal class CreateAppointmentRequestImplTest {
             tokenValidatorFactory,
             businessClient,
             deletedUserDataSource,
-            deletedClientDataSource
+            deletedClientDataSource,
         )
 
         fun mockValidToken(draft: AppointmentRequestDraft, totalAmount: String, totalDuration: String) {
@@ -138,21 +136,19 @@ internal class CreateAppointmentRequestImplTest {
         context: AppointmentBookingContext,
         businessId: Uuid,
         date: Instant,
-        counts: Map<Uuid, Int> = context.services.associate { it.id to 1 }
+        counts: Map<Uuid, Int> = context.services.associate { it.id to 1 },
     ) = AppointmentRequestDraft(
         businessId = businessId,
         employeeId = context.employee.id,
         services = context.services.map { RequestedService(it.id, counts.getValue(it.id)) },
         date = date,
         note = "Note",
-        offerToken = "token"
+        offerToken = "token",
     )
 
-    private fun totalOf(services: List<Service>) =
-        services.map { it.price }.reduce { acc, price -> acc + price }.toString()
+    private fun totalOf(services: List<Service>) = services.map { it.price }.reduce { acc, price -> acc + price }.toString()
 
-    private fun durationOf(services: List<Service>) =
-        services.fold(Duration.ZERO) { acc, service -> acc + service.duration }.toString()
+    private fun durationOf(services: List<Service>) = services.fold(Duration.ZERO) { acc, service -> acc + service.duration }.toString()
 
     @Test
     fun `should create request successfully when valid request provided`() = runUnitTest {
@@ -253,7 +249,7 @@ internal class CreateAppointmentRequestImplTest {
         val draft = AppointmentRequestDraft.stub(
             businessId = businessId,
             services = listOf(RequestedService(Uuid.random(), 0)),
-            date = futureDate
+            date = futureDate,
         )
         coEvery { fixture.requestDataSource.reserveOfferToken("token") } returns true
         coEvery { fixture.requestDataSource.releaseOfferToken("token") } returns Unit
@@ -277,7 +273,7 @@ internal class CreateAppointmentRequestImplTest {
         val draft = AppointmentRequestDraft.stub(
             businessId = businessId,
             services = listOf(RequestedService(serviceId, 2), RequestedService(serviceId, 3)),
-            date = futureDate
+            date = futureDate,
         )
         coEvery { fixture.requestDataSource.reserveOfferToken("token") } returns true
         coEvery { fixture.requestDataSource.releaseOfferToken("token") } returns Unit
@@ -1075,7 +1071,6 @@ internal class CreateAppointmentRequestImplTest {
         coVerify(exactly = 0) { fixture.requestDataSource.create(any()) }
     }
 
-
     @Test
     fun `should check the client before locking the business settings for a booking request`() = runUnitTest {
         given()
@@ -1118,5 +1113,4 @@ internal class CreateAppointmentRequestImplTest {
             fixture.settingsDataSource.getForUpdate(businessId)
         }
     }
-
 }

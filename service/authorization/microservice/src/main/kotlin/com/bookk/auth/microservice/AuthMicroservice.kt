@@ -30,7 +30,7 @@ fun authModule() = module {
         authDataModule(),
         eventStreamingTransportModule(AuthScope, AUTH_SERVICE_NAME),
         outboxModule(AuthScope),
-        cacheModule()
+        cacheModule(),
     )
 }
 
@@ -40,7 +40,7 @@ fun authEmbeddedModule() = module {
         authDataModule(),
         embeddedEventStreamingTransportModule(AuthScope, AUTH_SERVICE_NAME),
         outboxModule(AuthScope),
-        cacheModule()
+        cacheModule(),
     )
 }
 

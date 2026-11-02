@@ -41,8 +41,14 @@ internal class AppointmentDataSourceImplTest {
 
     private class SutFixture {
         val db = createTestDatabase(
-            AppointmentBusinessTable, WorkingHoursTable, DayOffsTable, SettingsTable, AppointmentTable, AppointmentServicesTable,
-            PriceAdjustmentTable, PriceAdjustmentServicesTable
+            AppointmentBusinessTable,
+            WorkingHoursTable,
+            DayOffsTable,
+            SettingsTable,
+            AppointmentTable,
+            AppointmentServicesTable,
+            PriceAdjustmentTable,
+            PriceAdjustmentServicesTable,
         )
         val sut = AppointmentDataSourceImpl()
         val subscriptionSut = AppointmentSubscriptionDataSourceImpl()
@@ -65,7 +71,7 @@ internal class AppointmentDataSourceImplTest {
         fun buildRequest(
             userId: Uuid = Uuid.random(),
             date: Instant = Instant.fromEpochMilliseconds(0),
-            employee: EmployeeSnapshot = EmployeeSnapshot.stub()
+            employee: EmployeeSnapshot = EmployeeSnapshot.stub(),
         ) = AppointmentRequest.stub(initiatorUserId = userId, businessId = businessId, date = date, employee = employee)
     }
 
@@ -588,9 +594,6 @@ internal class AppointmentDataSourceImplTest {
         assertEquals(AppointmentCompletedBy.USER, found.completedBy)
     }
 
-
-
-
     @Test
     fun `should throw not found when user completes missing appointment`() = runUnitTest {
         given()
@@ -665,9 +668,6 @@ internal class AppointmentDataSourceImplTest {
         assertEquals(AppointmentStatus.NO_SHOW, marked.status)
         assertNull(marked.completedBy)
     }
-
-
-
 
     @Test
     fun `should throw not found when marking missing appointment as no-show`() = runUnitTest {
@@ -897,6 +897,7 @@ internal class AppointmentDataSourceImplTest {
         then()
         assertTrue(result.isSuccess)
     }
+
     @Test
     fun `should attach price adjustment with additional services to appointment`() = runUnitTest {
         given()
@@ -906,7 +907,7 @@ internal class AppointmentDataSourceImplTest {
         val adjustment = PriceAdjustment.stub(
             additionalServices = listOf(ServiceSnapshot.stub().copy(price = Money.parse("USD 12.50"))),
             price = Money.parse("USD 99.99"),
-            reason = "Extra wash"
+            reason = "Extra wash",
         )
 
         whenn()

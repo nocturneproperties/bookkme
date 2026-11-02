@@ -19,8 +19,7 @@ interface FinishAssertion {
     }
 }
 
-suspend fun FinishAssertion.finishOwnedBy(userId: Uuid, request: FinishAssertionRequest): Result<PasskeyCredential> =
-    invoke(request).mapCatching { credential ->
-        if (credential.authInfo.userId != userId) throw FinishAssertion.Error.PasskeyNotOwned()
-        credential
-    }
+suspend fun FinishAssertion.finishOwnedBy(userId: Uuid, request: FinishAssertionRequest): Result<PasskeyCredential> = invoke(request).mapCatching { credential ->
+    if (credential.authInfo.userId != userId) throw FinishAssertion.Error.PasskeyNotOwned()
+    credential
+}

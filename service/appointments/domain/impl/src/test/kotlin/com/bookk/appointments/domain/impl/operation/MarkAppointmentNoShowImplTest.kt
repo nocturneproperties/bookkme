@@ -36,7 +36,7 @@ internal class MarkAppointmentNoShowImplTest {
         val sut = MarkAppointmentNoShowImpl(
             appointmentDataSource,
             appointmentPermissionDataSource,
-            transactionManager
+            transactionManager,
         )
 
         fun givenLockedAppointment(userId: Uuid, appointment: Appointment, permission: ResourcePermission = updatePermission) {

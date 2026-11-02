@@ -48,9 +48,9 @@ internal class AuthJobsTest {
         assertEquals(
             mapOf(
                 "auth-rotateSigningKeys" to 1.days,
-                "auth-deleteInactiveDevices" to 1.days
+                "auth-deleteInactiveDevices" to 1.days,
             ),
-            fixture.scheduler.registeredJobs()
+            fixture.scheduler.registeredJobs(),
         )
     }
 

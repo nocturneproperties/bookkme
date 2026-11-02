@@ -33,23 +33,21 @@ internal class GenerateAuthTokenImplTest {
         val sut = GenerateAuthTokenImpl(
             deviceDataSource,
             transactionManager,
-            tokenIssuer
+            tokenIssuer,
         )
     }
 
-    private fun device(refreshToken: SafeRefreshToken?, previousRefreshToken: SafeRefreshToken? = null): Device {
-        return Device(
-            authRecord = Authentication(id = Uuid.random(), userId = Uuid.random(), uuid = Uuid.random()),
-            deviceInfo = DeviceInfo(
-                id = Uuid.random(),
-                deviceUUID = Uuid.random(),
-                refreshToken = refreshToken,
-                previousRefreshToken = previousRefreshToken,
-                deviceName = "device",
-                isSignedIn = true
-            )
-        )
-    }
+    private fun device(refreshToken: SafeRefreshToken?, previousRefreshToken: SafeRefreshToken? = null): Device = Device(
+        authRecord = Authentication(id = Uuid.random(), userId = Uuid.random(), uuid = Uuid.random()),
+        deviceInfo = DeviceInfo(
+            id = Uuid.random(),
+            deviceUUID = Uuid.random(),
+            refreshToken = refreshToken,
+            previousRefreshToken = previousRefreshToken,
+            deviceName = "device",
+            isSignedIn = true,
+        ),
+    )
 
     private fun UnsafeRefreshToken.toSafe() = SafeRefreshToken(id, secretHash)
 
@@ -85,7 +83,7 @@ internal class GenerateAuthTokenImplTest {
         val currentToken = OpaqueRefreshToken.generate()
         val deviceRecord = device(
             refreshToken = currentToken.toSafe(),
-            previousRefreshToken = rotatedOutToken.toSafe()
+            previousRefreshToken = rotatedOutToken.toSafe(),
         )
 
         with(fixture) {

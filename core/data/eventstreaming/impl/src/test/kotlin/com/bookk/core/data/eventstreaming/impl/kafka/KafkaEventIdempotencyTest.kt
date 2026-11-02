@@ -62,8 +62,14 @@ internal class KafkaEventIdempotencyTest {
         val latch = CountDownLatch(2)
         val userConsumer = fixture.newConsumer("user-${Uuid.random()}")
         val businessConsumer = fixture.newConsumer("business-${Uuid.random()}")
-        userConsumer.registerReceiver<KeyedTestEvent, String>(topic) { event -> userReceived += event; latch.countDown() }
-        businessConsumer.registerReceiver<KeyedTestEvent, String>(topic) { event -> businessReceived += event; latch.countDown() }
+        userConsumer.registerReceiver<KeyedTestEvent, String>(topic) { event ->
+            userReceived += event
+            latch.countDown()
+        }
+        businessConsumer.registerReceiver<KeyedTestEvent, String>(topic) { event ->
+            businessReceived += event
+            latch.countDown()
+        }
 
         whenn()
         withContext(Dispatchers.IO) {

@@ -19,7 +19,7 @@ interface AppointmentDataSource {
         businessId: Uuid,
         limit: Int,
         offset: Long,
-        query: String? = null
+        query: String? = null,
     ): AppointmentPagination
     suspend fun update(appointment: Appointment): Appointment
     suspend fun delete(id: Uuid)

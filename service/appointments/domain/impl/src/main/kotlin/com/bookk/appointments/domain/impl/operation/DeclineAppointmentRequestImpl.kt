@@ -24,7 +24,7 @@ internal class DeclineAppointmentRequestImpl(
     private val appointmentPermissionDataSource: AppointmentPermissionDataSource,
     private val subscriptionDataSource: AppointmentSubscriptionDataSource,
     private val eventProducer: StandardEventProducer,
-    private val transactionManager: TransactionManager
+    private val transactionManager: TransactionManager,
 ) : DeclineAppointmentRequest {
 
     override suspend fun invoke(userId: Uuid, cancellation: AppointmentCancellation): Result<Unit> = transactionManager.transaction {
@@ -53,8 +53,8 @@ internal class DeclineAppointmentRequestImpl(
                 businessName = business.name,
                 address = business.address,
                 price = moneyFormatter.print(appointment.totalAmount),
-                declineReason = appointment.declineReason
-            )
+                declineReason = appointment.declineReason,
+            ),
         )
     }
 }

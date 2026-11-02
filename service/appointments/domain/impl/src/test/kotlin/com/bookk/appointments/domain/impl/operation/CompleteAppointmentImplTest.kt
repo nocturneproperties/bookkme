@@ -46,7 +46,7 @@ internal class CompleteAppointmentImplTest {
             appointmentDataSource,
             appointmentPermissionDataSource,
             businessClient,
-            transactionManager
+            transactionManager,
         )
 
         fun givenLockedAppointment(userId: Uuid, appointment: Appointment, permission: ResourcePermission = updatePermission) {
@@ -296,7 +296,7 @@ internal class CompleteAppointmentImplTest {
         val appointment = Appointment.stub().copy(
             status = AppointmentStatus.COMPLETED,
             completedBy = AppointmentCompletedBy.SYSTEM,
-            priceAdjustment = PriceAdjustment.stub()
+            priceAdjustment = PriceAdjustment.stub(),
         )
         val draft = PriceAdjustmentDraft.stub(price = Money.parse("USD 90"), reason = null)
         val expectedAdjustment = PriceAdjustment(additionalServices = emptyList(), price = draft.price, reason = null)

@@ -12,7 +12,7 @@ fun cacheModule() = module {
             host = AppLevelConstants.cacheHost,
             port = AppLevelConstants.cachePort.toInt(),
             protobuf = ProtoBuf { encodeDefaults = true },
-            password = AppLevelConstants.cachePass
+            password = AppLevelConstants.cachePass,
         )
     }
 }

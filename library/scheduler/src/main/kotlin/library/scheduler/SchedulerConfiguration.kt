@@ -20,7 +20,7 @@ class SchedulerConfiguration {
         name: String,
         interval: Duration,
         initialDelay: Duration = Duration.ZERO,
-        action: suspend () -> Unit
+        action: suspend () -> Unit,
     ) {
         require(interval.isPositive()) { "Job '$name' interval must be positive" }
         require(jobs.none { it.name == name }) { "Job '$name' is already scheduled" }

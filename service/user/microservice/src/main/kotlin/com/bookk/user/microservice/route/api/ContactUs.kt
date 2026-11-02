@@ -20,16 +20,14 @@ import kotlin.uuid.Uuid
 @Serializable
 internal class ContactFormBody(
     @ProtoNumber(1) val text: String,
-    @ProtoNumber(2) val usageLogs: String?
+    @ProtoNumber(2) val usageLogs: String?,
 ) {
-    fun asForm(userId: Uuid): ContactForm {
-        return ContactForm(
-            userId = userId,
-            text = text,
-            usageLogs = usageLogs,
-            status = ContactForm.ContactFormStatus.NEW
-        )
-    }
+    fun asForm(userId: Uuid): ContactForm = ContactForm(
+        userId = userId,
+        text = text,
+        usageLogs = usageLogs,
+        status = ContactForm.ContactFormStatus.NEW,
+    )
 }
 
 internal fun Route.postContactForm() {

@@ -9,14 +9,14 @@ import kotlin.uuid.Uuid
 internal class SyncEmployeePermission(
     private val subscriptionDataSource: AppointmentSubscriptionDataSource,
     private val appointmentPermissionDataSource: AppointmentPermissionDataSource,
-    private val transactionManager: TransactionManager
+    private val transactionManager: TransactionManager,
 ) {
 
     suspend operator fun invoke(
         userId: Uuid,
         businessId: Uuid,
         permission: ResourcePermission,
-        suspended: Boolean
+        suspended: Boolean,
     ) = transactionManager.transaction {
         if (subscriptionDataSource.isBusinessEnabled(businessId)) {
             appointmentPermissionDataSource.setPermission(userId, businessId, permission, suspended)
