@@ -18,6 +18,10 @@ import com.bookk.core.service.test.setupApplication
 import com.bookk.core.test.given
 import com.bookk.core.test.then
 import com.bookk.core.test.whenn
+import com.bookk.user.domain.api.entity.AcceptedLegalDocuments
+import com.bookk.user.domain.api.entity.LegalDocumentError
+import com.bookk.user.domain.api.error.UserErrorCodes
+import com.bookk.user.domain.api.operation.CreateUser
 import io.ktor.client.call.body
 import io.ktor.client.plugins.resources.post
 import io.ktor.client.request.header
@@ -27,6 +31,8 @@ import io.ktor.http.HttpStatusCode
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.protobuf.ProtoNumber
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.koin.dsl.module
@@ -34,7 +40,9 @@ import kotlin.uuid.Uuid
 
 class PostValidateRegistrationTest {
 
-    private fun createSimpleRequest(): VerifyAccountCreationRequest = VerifyAccountCreationRequest(
+    private fun createSimpleRequest(
+        acceptedDocuments: AcceptedLegalDocuments = AcceptedLegalDocuments(privacyPolicy = "2026-01-01", termsOfService = "2025-06-01"),
+    ): VerifyAccountCreationRequest = VerifyAccountCreationRequest(
         requestId = "user_id",
         deviceInfo = VerifyAccountCreationRequest.DeviceInfo(
             deviceUUID = Uuid.random(),
@@ -46,7 +54,95 @@ class PostValidateRegistrationTest {
             email = "email",
         ),
         publicKeyCredentialJson = "mock",
+        acceptedDocuments = acceptedDocuments,
     )
+
+    @Test
+    fun `should pass the accepted legal documents to sign-up`() = routeTest {
+        given()
+        val useCase: FinishRegistration = mockk()
+        val client = createTestClient()
+        val request = createSimpleRequest(AcceptedLegalDocuments(privacyPolicy = "2026-01-01", termsOfService = "2025-06-01"))
+        coEvery { useCase.invoke(any(), any()) } returns Result.success(AuthTokens("access", "refresh"))
+        setupApplication(
+            diModule = module {
+                single<FinishRegistration> { useCase }
+            },
+            routeUnderTest = { registration() },
+        )
+        whenn()
+        val response = client.post(AuthRouting.Api.Auth.SignUp()) {
+            setBody(request)
+        }
+        then()
+        assertEquals(HttpStatusCode.OK, response.status)
+        coVerify { useCase.invoke(eq(request), any()) }
+    }
+
+    @Test
+    fun `should return bad request when an older app sends no accepted legal documents`() = routeTest {
+        given()
+        val useCase: FinishRegistration = mockk()
+        val client = createTestClient()
+        val request = createSimpleRequest()
+        setupApplication(
+            diModule = module {
+                single<FinishRegistration> { useCase }
+            },
+            routeUnderTest = { registration() },
+        )
+        whenn()
+        val response = client.post(AuthRouting.Api.Auth.SignUp()) {
+            setBody(SignUpWithoutAcceptedDocuments(request.requestId, request.deviceInfo, request.userInfo, request.publicKeyCredentialJson))
+        }
+        then()
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+        coVerify(exactly = 0) { useCase.invoke(any(), any()) }
+    }
+
+    @Test
+    fun `should return unprocessable entity when a legal document in effect is not accepted`() = routeTest {
+        given()
+        val useCase: FinishRegistration = mockk()
+        val client = createTestClient()
+        val request = createSimpleRequest(AcceptedLegalDocuments(privacyPolicy = null, termsOfService = null))
+        coEvery { useCase.invoke(any(), any()) } returns Result.failure(CreateUser.Error.LegalDocumentsNotAccepted())
+        setupApplication(
+            diModule = module {
+                single<FinishRegistration> { useCase }
+            },
+            routeUnderTest = { registration() },
+        )
+        whenn()
+        val response = client.post(AuthRouting.Api.Auth.SignUp()) {
+            setBody(request)
+        }
+        then()
+        assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
+        assertEquals(UserErrorCodes.LEGAL_DOCUMENTS_NOT_ACCEPTED, response.body<SimpleServerError>().errorCode)
+    }
+
+    @Test
+    fun `should return unprocessable entity when an accepted legal document version is not published`() = routeTest {
+        given()
+        val useCase: FinishRegistration = mockk()
+        val client = createTestClient()
+        val request = createSimpleRequest(AcceptedLegalDocuments(privacyPolicy = "unpublished", termsOfService = null))
+        coEvery { useCase.invoke(any(), any()) } returns Result.failure(LegalDocumentError.VersionUnknown())
+        setupApplication(
+            diModule = module {
+                single<FinishRegistration> { useCase }
+            },
+            routeUnderTest = { registration() },
+        )
+        whenn()
+        val response = client.post(AuthRouting.Api.Auth.SignUp()) {
+            setBody(request)
+        }
+        then()
+        assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
+        assertEquals(UserErrorCodes.LEGAL_DOCUMENT_VERSION_UNKNOWN, response.body<SimpleServerError>().errorCode)
+    }
 
     @Test
     fun `should return unprocessable entity when email format is invalid`() = routeTest {
@@ -242,4 +338,12 @@ class PostValidateRegistrationTest {
         then()
         coVerify { useCase.invoke(eq(request), eq(Language.EN)) }
     }
+
+    @Serializable
+    private class SignUpWithoutAcceptedDocuments(
+        @ProtoNumber(1) val requestId: String,
+        @ProtoNumber(2) val deviceInfo: VerifyAccountCreationRequest.DeviceInfo,
+        @ProtoNumber(3) val userInfo: VerifyAccountCreationRequest.UserInfo,
+        @ProtoNumber(4) val publicKeyCredentialJson: String,
+    )
 }

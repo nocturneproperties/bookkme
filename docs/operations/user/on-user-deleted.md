@@ -3,7 +3,9 @@
 Kafka topic `AuthEvent.UserDeleted` → `UserEventHandler` → `DeleteUser`
 
 Produced by [Delete account](../authorization/delete-account.md). The user
-service owns the profile row itself, so this is a hard delete — the other
+service owns the profile row itself, so this is a hard delete, and the
+user's legal document acceptances and contact forms go with it
+(`ON DELETE CASCADE`) — the other
 consumers ([business](../business/on-user-deleted.md),
 [appointments](../appointments/on-user-deleted.md),
 [notifications](../notifications/on-user-deleted.md)) anonymize or clean up

@@ -1,6 +1,7 @@
 package com.bookk.auth.domain.api.registration.entity
 
 import com.bookk.auth.domain.api.authentication.entity.FinishRegistrationRequest
+import com.bookk.user.domain.api.entity.AcceptedLegalDocuments
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.protobuf.ProtoNumber
 import kotlin.uuid.Uuid
@@ -11,6 +12,7 @@ data class VerifyAccountCreationRequest(
     @ProtoNumber(2) val deviceInfo: DeviceInfo,
     @ProtoNumber(3) val userInfo: UserInfo,
     @ProtoNumber(4) override val publicKeyCredentialJson: String,
+    @ProtoNumber(5) val acceptedDocuments: AcceptedLegalDocuments,
 ) : FinishRegistrationRequest {
     @Serializable
     data class UserInfo(

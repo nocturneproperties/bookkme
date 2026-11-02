@@ -7,7 +7,8 @@ dependencies {
     implementation(projects.core.client)
     implementation(projects.core.domain)
     implementation(projects.core.data.eventstreaming.api)
-    implementation(projects.service.user.domain.api)
+    api(projects.service.user.domain.api)
 
     testImplementation(testFixtures(projects.core))
+    testImplementation(libs.mockk)
 }

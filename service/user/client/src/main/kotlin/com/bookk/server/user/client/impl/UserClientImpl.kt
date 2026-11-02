@@ -4,7 +4,7 @@ import com.bookk.server.user.client.UserClient
 import com.bookk.server.user.client.api.CreateUserRequest
 import com.bookk.server.user.client.api.UserSnapshot
 import com.bookk.user.domain.api.entity.EmailBody
-import com.bookk.user.domain.api.entity.User
+import com.bookk.user.domain.api.entity.NewUser
 import com.bookk.user.domain.api.operation.CreateUser
 import com.bookk.user.domain.api.operation.DeleteUser
 import com.bookk.user.domain.api.operation.GetUserByEmail
@@ -24,12 +24,11 @@ internal class UserClientImpl(
         .map { UserSnapshot.fromUser(it) }
 
     override suspend fun createUser(request: CreateUserRequest): Result<Uuid> = createUser.invoke(
-        user = User(
-            id = Uuid.random(),
+        newUser = NewUser(
             name = request.name,
-            email = request.email,
             lastName = request.lastName,
-            phone = null,
+            email = request.email,
+            acceptedDocuments = request.acceptedDocuments,
         ),
     ).map { it.id }
 
