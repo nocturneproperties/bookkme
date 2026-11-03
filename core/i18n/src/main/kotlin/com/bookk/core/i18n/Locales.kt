@@ -6,4 +6,5 @@ import java.util.Locale
 fun Language.toLocale(): Locale = when (this) {
     Language.EN -> Locale.ENGLISH
     Language.UK -> Locale.forLanguageTag("uk")
+    Language.PL -> Locale.forLanguageTag("pl")
 }

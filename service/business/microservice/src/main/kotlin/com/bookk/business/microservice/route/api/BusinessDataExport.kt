@@ -28,7 +28,7 @@ internal fun Route.businessDataExport() {
     authenticate {
         /**
          * Summary: Start business data export
-         * Description: Starts building a JSON copy of everything the business holds (profile, services, employees, pending invitations, clients, appointment settings, appointments and pending requests), for its owner only. The owner confirms it with a passkey step-up token issued for EXPORT_BUSINESS_DATA with the business id as business and target. The document is built in the background, poll the status route until it is ready. While an export is being built, the same export is returned. One export can be started per day, a failed one can be started again at once
+         * Description: Starts building a JSON copy of everything the business holds (profile, services, employees, pending invitations, clients, appointment settings, appointments and pending requests), for its owner only. The owner confirms it with a passkey step-up token issued for EXPORT_BUSINESS_DATA with the business id as business and target. The document is built in the background, a push notification and the status route tell when it is ready. While an export is being built, the same export is returned. One export can be started per day, a failed one can be started again at once
          * Tag: business
          * Security: jwt
          * Body: application/x-protobuf [com.bookk.business.microservice.route.api.DataExportRequest]

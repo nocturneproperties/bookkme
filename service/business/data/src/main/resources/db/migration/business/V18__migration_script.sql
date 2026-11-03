@@ -1,1 +1,0 @@
-CREATE TABLE IF NOT EXISTS erased_client (client_id BINARY(16) NOT NULL PRIMARY KEY, business_id BINARY(16) NOT NULL, erased_at TIMESTAMP(6) NOT NULL, reapply_requested BOOLEAN NOT NULL DEFAULT FALSE);

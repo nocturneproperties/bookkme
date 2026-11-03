@@ -19,6 +19,11 @@ internal class LocalizedStringsTest {
     }
 
     @Test
+    fun `should format a positional message in Polish`() {
+        assertEquals("Cześć, Alice!", messages.message(Language.PL, "greeting", "Alice"))
+    }
+
+    @Test
     fun `should resolve English singular plural form via a resource bundle key`() {
         assertEquals("You have 1 appointment tomorrow", messages.pluralMessage(Language.EN, "appointment.count", 1))
     }
@@ -39,6 +44,16 @@ internal class LocalizedStringsTest {
     }
 
     @Test
+    fun `should resolve Polish few form via a resource bundle key`() {
+        assertEquals("Masz jutro 3 wizyty", messages.pluralMessage(Language.PL, "appointment.count", 3))
+    }
+
+    @Test
+    fun `should resolve Polish many form via a resource bundle key`() {
+        assertEquals("Masz jutro 5 wizyt", messages.pluralMessage(Language.PL, "appointment.count", 5))
+    }
+
+    @Test
     fun `should format plural pattern directly using formatPlural`() {
         val pattern = "{count, plural, one {# day} other {# days}}"
 
@@ -50,5 +65,6 @@ internal class LocalizedStringsTest {
     fun `should map Language to the expected Locale`() {
         assertEquals("en", Language.EN.toLocale().language)
         assertEquals("uk", Language.UK.toLocale().language)
+        assertEquals("pl", Language.PL.toLocale().language)
     }
 }

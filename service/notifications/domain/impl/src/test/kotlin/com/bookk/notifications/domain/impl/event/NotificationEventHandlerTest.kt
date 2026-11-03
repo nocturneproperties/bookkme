@@ -17,6 +17,7 @@ import com.bookk.notifications.domain.impl.notification.SendNotification
 import com.bookk.server.appointments.client.api.event.AppointmentEvent
 import com.bookk.server.auth.client.AuthEvent
 import com.bookk.server.business.client.api.event.BusinessEvent
+import com.bookk.server.user.client.api.event.UserEvent
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -176,6 +177,40 @@ internal class NotificationEventHandlerTest {
 
         then()
         coVerify(exactly = 1) { fixture.sendNotification.invoke(event.userId, any()) }
+        assertEquals(NotificationType.ACCOUNT, params.captured.type)
+    }
+
+    @Test
+    fun `should tell the user their personal data export is ready`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val event = UserEvent.DataExportReady(userId = Uuid.random(), expiresAt = Instant.parse("2026-11-06T14:30:00Z"))
+        val params = slot<NotificationParameters>()
+        coEvery { fixture.sendNotification.invoke(any(), capture(params)) } returns Result.success(Unit)
+        fixture.start(this)
+
+        whenn()
+        fixture.dispatch(UserEvent.DataExportReady.TOPIC, event)
+
+        then()
+        coVerify(exactly = 1) { fixture.sendNotification.invoke(event.userId, any()) }
+        assertEquals(NotificationType.ACCOUNT, params.captured.type)
+    }
+
+    @Test
+    fun `should tell the owner their business data export is ready`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val event = BusinessEvent.ExportReady(businessId = Uuid.random(), ownerUserId = Uuid.random(), expiresAt = Instant.parse("2026-11-06T14:30:00Z"))
+        val params = slot<NotificationParameters>()
+        coEvery { fixture.sendNotification.invoke(any(), capture(params)) } returns Result.success(Unit)
+        fixture.start(this)
+
+        whenn()
+        fixture.dispatch(BusinessEvent.ExportReady.TOPIC, event)
+
+        then()
+        coVerify(exactly = 1) { fixture.sendNotification.invoke(event.ownerUserId, any()) }
         assertEquals(NotificationType.ACCOUNT, params.captured.type)
     }
 }

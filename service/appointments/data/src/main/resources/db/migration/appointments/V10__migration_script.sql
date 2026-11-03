@@ -13,3 +13,5 @@ CREATE TABLE IF NOT EXISTS deleted_user (user_id BINARY(16) NOT NULL PRIMARY KEY
 CREATE TABLE IF NOT EXISTS deleted_client (client_id BINARY(16) NOT NULL PRIMARY KEY, business_id BINARY(16) NOT NULL, deleted_at TIMESTAMP(6) NOT NULL);
 ALTER TABLE exhausted_event ADD COLUMN IF NOT EXISTS replay_requested BOOLEAN NOT NULL DEFAULT FALSE;
 CREATE INDEX IF NOT EXISTS appointment_request_date_end ON appointment_request (date_end);
+CREATE INDEX IF NOT EXISTS appointment_employee_user_id ON appointment (employee_user_id);
+CREATE INDEX IF NOT EXISTS appointment_request_employee_user_id ON appointment_request (employee_user_id);

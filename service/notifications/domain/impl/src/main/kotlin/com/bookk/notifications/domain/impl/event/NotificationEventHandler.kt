@@ -47,6 +47,12 @@ internal class NotificationEventHandler(
             .registerResultReceiver(AuthEvent.AccountDormancyWarning.TOPIC) { event: AuthEvent.AccountDormancyWarning ->
                 sendNotification(event.userId, event.notification)
             }
+            .registerResultReceiver(UserEvent.DataExportReady.TOPIC) { event: UserEvent.DataExportReady ->
+                sendNotification(event.userId, event.notification)
+            }
+            .registerResultReceiver(BusinessEvent.ExportReady.TOPIC) { event: BusinessEvent.ExportReady ->
+                sendNotification(event.ownerUserId, event.notification)
+            }
             .registerResultReceiver(UserEvent.Updated.TOPIC) { event: UserEvent.Updated ->
                 updateTargetInformation(event.userId, Target.Email(event.email), event.updatedAt)
             }

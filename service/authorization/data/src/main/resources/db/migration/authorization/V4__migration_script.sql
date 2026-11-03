@@ -4,3 +4,4 @@ ALTER TABLE authentication
     ADD COLUMN IF NOT EXISTS dormancy_stage INT NOT NULL DEFAULT 0,
     ADD COLUMN IF NOT EXISTS dormancy_warned_at TIMESTAMP(6) NULL,
     ADD INDEX IF NOT EXISTS authentication_last_active_at (last_active_at);
+CREATE TABLE IF NOT EXISTS erased_account (user_id BINARY(16) NOT NULL PRIMARY KEY, erased_at TIMESTAMP(6) NOT NULL, reapply_requested BOOLEAN NOT NULL DEFAULT FALSE);

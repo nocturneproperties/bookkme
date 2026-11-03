@@ -55,6 +55,4 @@ flowchart TD
     Store -- stored --> Ready["eventProducer.send UserEvent.DataExportReady userId expiresAt - outbox row in the same transaction"]
 ```
 
-**Consumed by:** `UserEvent.DataExportReady` → nothing yet. The push
-notification that tells the user their export is ready is the next step of
-#139 (notifications).
+**Consumed by:** `UserEvent.DataExportReady` → [notifications: tell the user](../notifications/on-data-export-ready.md).

@@ -115,6 +115,8 @@ Reactions to cross-service events (all handled by the same
 | `AuthEvent.UserDeleted` | [React to user deletion](notifications/on-user-deleted.md) |
 | `AuthEvent.DeviceLanguageUpdated` | [React to device language change](notifications/on-device-language-updated.md) |
 | `AuthEvent.AccountDormancyWarning` | [React to a dormancy warning](notifications/on-account-dormancy-warning.md) |
+| `UserEvent.DataExportReady` | [React to a ready personal data export](notifications/on-data-export-ready.md) |
+| `BusinessEvent.ExportReady` | [React to a ready business data export](notifications/on-business-export-ready.md) |
 | `AuthEvent.DeviceDeleted` | [React to device deletion](notifications/on-device-deleted.md) |
 | `UserEvent.Updated` | [React to user profile update](notifications/on-user-updated.md) |
 | `AppointmentEvent.RequestCreated` | [React to appointment request creation](notifications/on-appointment-request-created.md) |
@@ -169,8 +171,8 @@ the operation committed, and reaches its consumers at least once. See
 | `BusinessEvent.ClientDeleted` | [Delete client](business/delete-client.md), [`business-deleteInactiveClients` job](scheduled-jobs.md), [`business-reapplyErasures` job](scheduled-jobs.md) | [appointments](appointments/on-client-deleted.md) |
 | `AppointmentEvent.ClientVisitBooked` | [Create appointment request](appointments/create-appointment-request.md), [Create appointment from a pending request](appointments/create-appointment-from-request.md), [Create instant appointment](appointments/create-appointment-instant.md), [Update appointment (reschedule)](appointments/update-appointment.md) | [business](business/on-client-visit-booked.md) |
 | `UserEvent.Updated` | [Update user](user/update-user.md) | [business](business/on-user-updated.md), [notifications](notifications/on-user-updated.md) |
-| `BusinessEvent.ExportReady` | [Start business data export](business/start-business-data-export.md) (`business-buildDataExports` job) | none yet (push notification follows in #139) |
-| `UserEvent.DataExportReady` | [Start personal data export](user/start-personal-data-export.md) (`user-buildDataExports` job) | none yet (push notification follows in #139) |
+| `BusinessEvent.ExportReady` | [Start business data export](business/start-business-data-export.md) (`business-buildDataExports` job) | [notifications](notifications/on-business-export-ready.md) |
+| `UserEvent.DataExportReady` | [Start personal data export](user/start-personal-data-export.md) (`user-buildDataExports` job) | [notifications](notifications/on-data-export-ready.md) |
 | `AppointmentEvent.RequestCreated` | [Create appointment request](appointments/create-appointment-request.md) | [notifications](notifications/on-appointment-request-created.md) |
 | `AppointmentEvent.RequestApproved` | [Create appointment from a pending request](appointments/create-appointment-from-request.md), [Create appointment request](appointments/create-appointment-request.md) (auto-approval) | [notifications](notifications/on-appointment-request-approved.md) |
 | `AppointmentEvent.RequestRejected` | [Decline appointment request](appointments/decline-appointment-request.md) | [notifications](notifications/on-appointment-request-rejected.md) |

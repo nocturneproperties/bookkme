@@ -98,7 +98,7 @@ document is never stored with a part missing.
 
 Account deletion deletes the user's export row in the same transaction as
 the profile ([React to user deletion](operations/user/on-user-deleted.md)).
-When the build is done, the user service sends `UserEvent.DataExportReady(userId, expiresAt)`.
+When the build is done, the user service sends `UserEvent.DataExportReady(userId, expiresAt)`, and notifications tells the user with an `ACCOUNT` notification ([React to a ready personal data export](operations/notifications/on-data-export-ready.md)).
 
 ## Business export
 
@@ -131,5 +131,5 @@ elsewhere. A client deleted after the document was built stays in it until
 it expires: the export is a copy as of that time. Deleting the business
 (the owner's account deletion) deletes its export in the same transaction
 ([React to user deletion](operations/business/on-user-deleted.md)). When the
-build is done, business sends `BusinessEvent.ExportReady(businessId, ownerUserId, expiresAt)`.
+build is done, business sends `BusinessEvent.ExportReady(businessId, ownerUserId, expiresAt)`, and notifications tells the owner ([React to a ready business data export](operations/notifications/on-business-export-ready.md)).
 

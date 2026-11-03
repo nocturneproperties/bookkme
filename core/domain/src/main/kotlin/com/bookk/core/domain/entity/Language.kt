@@ -11,6 +11,9 @@ enum class Language {
     @ProtoNumber(1)
     UK,
 
+    @ProtoNumber(2)
+    PL,
+
     ;
 
     companion object

@@ -67,6 +67,4 @@ flowchart TD
 The abandoned-build and claimable steps before the claim are the same as in
 [Start personal data export](../user/start-personal-data-export.md).
 
-**Consumed by:** `BusinessEvent.ExportReady` → nothing yet. The push
-notification that tells the owner the export is ready is the next step of
-#139 (notifications).
+**Consumed by:** `BusinessEvent.ExportReady` → [notifications: tell the owner](../notifications/on-business-export-ready.md).
