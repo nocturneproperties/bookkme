@@ -33,7 +33,6 @@ import org.koin.dsl.module
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
-import kotlin.time.Duration.Companion.seconds
 
 fun businessModule() = module {
     includes(
@@ -94,7 +93,7 @@ fun Application.registerBusinessJobs(scheduler: SchedulerConfiguration) {
     scheduler.job("$BUSINESS_SERVICE_NAME-deleteExpiredErasureRecords", interval = 1.days) {
         scope.get<DeleteExpiredErasureRecords>().invoke().getOrThrow()
     }
-    scheduler.job("$BUSINESS_SERVICE_NAME-buildDataExports", interval = 10.seconds) {
+    scheduler.job("$BUSINESS_SERVICE_NAME-buildDataExports", interval = 1.minutes) {
         scope.get<BuildDataExports>().invoke().getOrThrow()
     }
     scheduler.job("$BUSINESS_SERVICE_NAME-deleteExpiredDataExports", interval = 1.hours) {

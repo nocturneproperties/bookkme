@@ -23,7 +23,7 @@ import library.scheduler.Scheduler
 import library.scheduler.SchedulerConfiguration
 import org.koin.dsl.module
 import kotlin.time.Duration.Companion.hours
-import kotlin.time.Duration.Companion.seconds
+import kotlin.time.Duration.Companion.minutes
 
 fun userModule() = module {
     includes(
@@ -61,7 +61,7 @@ fun main() {
 
 fun Application.registerUserJobs(scheduler: SchedulerConfiguration) {
     val scope = requireNotNull(serviceScope(UserScope))
-    scheduler.job("$USER_SERVICE_NAME-buildDataExports", interval = 10.seconds) {
+    scheduler.job("$USER_SERVICE_NAME-buildDataExports", interval = 1.minutes) {
         scope.get<BuildDataExports>().invoke().getOrThrow()
     }
     scheduler.job("$USER_SERVICE_NAME-deleteExpiredDataExports", interval = 1.hours) {
