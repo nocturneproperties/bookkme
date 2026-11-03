@@ -55,6 +55,7 @@ Changes since `monolith/0.16.1`. Deleting an account now really removes the pers
 - **Account deletion deletes the person's client and employee rows in business** instead of anonymizing them, which left a nameless row behind and kept the business's `description` of the client and, on the employee row, the account id. The client rows go in every business, the employee rows together with their services, working hours, days off and permission grants (all removed by their foreign keys). The appointments booked for them keep their own erased copy of the details.
 
 - **Account deletion keeps the requests the person only booked for someone else.** Requests where the deleted user is the client or the employee are still deleted. A request they booked for another client now stays, with its `initiatorUserId` set to the nil UUID, so it no longer points to them.
+- **Account deletion leaves no pointer to the person on appointments.** Appointments they booked get the nil UUID as `initiatorUserId`, and appointments they worked as employee get it as `employee.userId` (next to the name "Deleted User"). Both fields keep their type and `@ProtoNumber`, so older apps decode them as before. The `AppointmentEvent.Cancelled` sent to a client when their employee deleted the account now names the employee "Deleted User", as stored on the appointment, instead of "Deleted Employee".
 
 ### Deployment
 

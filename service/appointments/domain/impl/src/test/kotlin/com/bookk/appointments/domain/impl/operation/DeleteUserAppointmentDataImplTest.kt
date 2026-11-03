@@ -67,6 +67,9 @@ internal class DeleteUserAppointmentDataImplTest {
             coEvery { appointmentDataSource.anonymizeEmployee(userId) } coAnswers {
                 writesInTransaction += transactionManager.isInTransaction()
             }
+            coEvery { appointmentDataSource.unlinkInitiator(userId) } coAnswers {
+                writesInTransaction += transactionManager.isInTransaction()
+            }
             coEvery { requestDataSource.deleteForUser(userId) } coAnswers {
                 writesInTransaction += transactionManager.isInTransaction()
             }
@@ -95,7 +98,7 @@ internal class DeleteUserAppointmentDataImplTest {
         .copy(cancellationReason = DeleteUserAppointmentDataImpl.EMPLOYEE_DELETED_CANCELLATION_REASON)
 
     @Test
-    fun `should erase the user as client and as employee and delete their requests and permissions in one transaction`() = runUnitTest {
+    fun `should erase the user as client, employee and initiator and delete their requests and permissions in one transaction`() = runUnitTest {
         given()
         val fixture = SutFixture()
         val userId = Uuid.random()
@@ -108,9 +111,10 @@ internal class DeleteUserAppointmentDataImplTest {
         assertTrue(result.isSuccess)
         coVerify(exactly = 1) { fixture.appointmentDataSource.anonymizeClientUser(userId) }
         coVerify(exactly = 1) { fixture.appointmentDataSource.anonymizeEmployee(userId) }
+        coVerify(exactly = 1) { fixture.appointmentDataSource.unlinkInitiator(userId) }
         coVerify(exactly = 1) { fixture.requestDataSource.deleteForUser(userId) }
         coVerify(exactly = 1) { fixture.appointmentPermissionDataSource.deleteForUser(userId) }
-        assertEquals(listOf(true, true, true, true, true, true), fixture.writesInTransaction)
+        assertEquals(listOf(true, true, true, true, true, true, true), fixture.writesInTransaction)
     }
 
     @Test

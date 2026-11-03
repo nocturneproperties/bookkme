@@ -38,6 +38,7 @@ internal class DeleteUserAppointmentDataImpl(
         )
         appointmentDataSource.anonymizeClientUser(userId)
         appointmentDataSource.anonymizeEmployee(userId)
+        appointmentDataSource.unlinkInitiator(userId)
         requestDataSource.deleteForUser(userId)
         appointmentPermissionDataSource.deleteForUser(userId)
         notifyCancellations(userId, cancelled)
@@ -91,6 +92,6 @@ internal class DeleteUserAppointmentDataImpl(
     companion object {
         const val ACCOUNT_DELETED_CANCELLATION_REASON = "User deleted their account"
         const val EMPLOYEE_DELETED_CANCELLATION_REASON = "Employee deleted their account"
-        private const val DELETED_EMPLOYEE_NAME = "Deleted Employee"
+        private const val DELETED_EMPLOYEE_NAME = "Deleted User"
     }
 }

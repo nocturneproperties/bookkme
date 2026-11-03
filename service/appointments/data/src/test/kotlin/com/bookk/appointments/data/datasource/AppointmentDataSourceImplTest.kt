@@ -934,6 +934,71 @@ internal class AppointmentDataSourceImplTest {
     }
 
     @Test
+    fun `should unlink the deleted user's account from appointments assigned to them as employee`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val userId = Uuid.random()
+        val request = fixture.buildRequest().let { it.copy(employee = it.employee.copy(userId = userId)) }
+        val created = suspendTransaction { fixture.sut.create(request) }
+
+        whenn()
+        suspendTransaction { fixture.sut.anonymizeEmployee(userId) }
+        val found = suspendTransaction { fixture.sut.get(created.id) }
+
+        then()
+        assertEquals(Uuid.NIL, found.employee.userId)
+        assertEquals(created.employee.id, found.employee.id)
+    }
+
+    @Test
+    fun `should keep other employees' accounts when anonymizing an employee user`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val untouched = suspendTransaction { fixture.sut.create(fixture.buildRequest()) }
+
+        whenn()
+        suspendTransaction { fixture.sut.anonymizeEmployee(Uuid.random()) }
+        val found = suspendTransaction { fixture.sut.get(untouched.id) }
+
+        then()
+        assertEquals(untouched.employee.userId, found.employee.userId)
+        assertEquals(untouched.employee.fullName, found.employee.fullName)
+    }
+
+    @Test
+    fun `should unlink the deleted user's account from appointments they booked`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val userId = Uuid.random()
+        val created = suspendTransaction { fixture.sut.create(fixture.buildRequest(userId = userId)) }
+
+        whenn()
+        suspendTransaction { fixture.sut.unlinkInitiator(userId) }
+        val found = suspendTransaction { fixture.sut.get(created.id) }
+
+        then()
+        assertEquals(Uuid.NIL, found.initiatorUserId)
+    }
+
+    @Test
+    fun `should keep the initiator of appointments other users booked when unlinking an initiator`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val untouched = suspendTransaction { fixture.sut.create(fixture.buildRequest()) }
+
+        whenn()
+        suspendTransaction { fixture.sut.unlinkInitiator(Uuid.random()) }
+        val found = suspendTransaction { fixture.sut.get(untouched.id) }
+
+        then()
+        assertEquals(untouched.initiatorUserId, found.initiatorUserId)
+    }
+
+    @Test
     fun `should not fail anonymizing appointments for an employee user with none`() = runUnitTest {
         given()
         val fixture = SutFixture()
