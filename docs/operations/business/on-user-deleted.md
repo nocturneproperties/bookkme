@@ -22,7 +22,7 @@ flowchart TD
     Dedup -- Yes --> Skip([Skip - already handled])
     Dedup -- No --> DeleteBiz[DeleteBusiness userId]
     DeleteBiz --> GetBiz[BusinessDataSource.deleteUserBusinesses userId - returns owned business ids]
-    GetBiz --> Loop[For each owned business: eventProducer.send BusinessEvent.Deleted businessId]
+    GetBiz --> Loop[For each owned business: DataExports.discard businessId - DELETE data_export row, eventProducer.send BusinessEvent.Deleted businessId]
     Loop -- consumed by --> Downstream[[See appointments/on-business-deleted.md]]
     Loop -- deleteBusiness throws --> Dlt([Sent to AuthEvent.UserDeleted_dlt topic, logged - no auto-retry])
     Loop --> DeleteData[[DeleteUserBusinessData userId - one transaction]]

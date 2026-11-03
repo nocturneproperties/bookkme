@@ -1,9 +1,11 @@
 plugins {
     alias(libs.plugins.bookk.domain.impl)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 dependencies {
     implementation(libs.kotlin.coroutines)
+    implementation(libs.ktor.json)
     implementation(projects.core)
     implementation(projects.core.domain)
     implementation(projects.core.domain.datasource)
@@ -18,6 +20,7 @@ dependencies {
     implementation(projects.library.signing.api)
     implementation(projects.library.stepup.api)
     implementation(projects.library.stepup.impl)
+    implementation(projects.library.export.api)
     implementation(projects.library.validation)
     testImplementation(testFixtures(projects.core))
     testImplementation(projects.core.data.eventstreaming.impl)

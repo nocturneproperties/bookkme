@@ -30,6 +30,8 @@ dependencies {
     implementation(projects.library.signing.impl)
     implementation(projects.library.signing.route)
     implementation(projects.library.scheduler)
+    implementation(projects.library.export.api)
+    implementation(projects.library.export.route)
     implementation(projects.service.business.data)
     implementation(projects.service.business.domain.api)
     implementation(projects.service.business.domain.impl)

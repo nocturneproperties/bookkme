@@ -4,8 +4,7 @@ A user can download everything Bookk holds about them (GDPR Art. 15 and 20),
 and the owner of a business can download everything the business holds
 (Art. 28(3)(g)). Both are one JSON document, built in the background,
 confirmed with a passkey step-up token, and kept 72 hours. Scope and
-decisions: issue #139. The personal export is built; the business export
-follows the same pattern.
+decisions: issue #139.
 
 ## Lifecycle (`library/export`)
 
@@ -100,3 +99,37 @@ document is never stored with a part missing.
 Account deletion deletes the user's export row in the same transaction as
 the profile ([React to user deletion](operations/user/on-user-deleted.md)).
 When the build is done, the user service sends `UserEvent.DataExportReady(userId, expiresAt)`.
+
+## Business export
+
+`POST /api/business/{businessId}/export` with `DataExportRequest(stepUpToken)`,
+owner only (anyone else gets 404): the token is issued for
+`EXPORT_BUSINESS_DATA` with the business id as business and target
+(`StepUpGrant.businessDataExport`). `GET /api/business/{businessId}/export`
+reports the state, `GET /api/business/{businessId}/export/download` hands out
+`bookk-business-data.json`. The export row is keyed by the business id in
+`business.data_export`. Diagram: [Start business data
+export](operations/business/start-business-data-export.md).
+
+`BusinessDataExportAssembler` (business service) reads the business's own
+data in one transaction and asks appointments for its part over
+`GET /api/internal/export/appointments/business/{businessId}`:
+
+| Section | Source | Contents |
+|---|---|---|
+| `business` | business | Name, description, address and location, currency, time zone, contacts (the filled-in socials), working hours and days off, client data retention period |
+| `serviceGroups` | business | Every service group with its services (price, duration, whether available) |
+| `employees` | business | Every employee, the owner included (`role` `OWNER` or `EMPLOYEE`): name and contact details, when they joined, suspension, the services they provide, working hours, days off and permissions per resource |
+| `pendingInvitations` | business | Invitations still waiting, with the employee who sent them (null when they left) and when; never the code |
+| `clients` | business | Every client row with all its fields, `description` included (it may hold special-category data), whether it is linked to an account, and its last activity |
+| `appointments` | appointments (`ExportBusinessAppointments`) | The appointment settings, every appointment and every pending request, with client and employee snapshots, times, services, prices, price adjustments, status, notes and reasons |
+
+It holds nothing the business is not the controller of: no user ids of
+employees or clients, no account data (passkeys, devices, notification
+settings, legal acceptances), and no appointments its employees have
+elsewhere. A client deleted after the document was built stays in it until
+it expires: the export is a copy as of that time. Deleting the business
+(the owner's account deletion) deletes its export in the same transaction
+([React to user deletion](operations/business/on-user-deleted.md)). When the
+build is done, business sends `BusinessEvent.ExportReady(businessId, ownerUserId, expiresAt)`.
+

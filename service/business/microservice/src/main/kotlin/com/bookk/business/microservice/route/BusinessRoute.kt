@@ -2,6 +2,7 @@ package com.bookk.business.microservice.route
 
 import com.bookk.business.domain.impl.di.BusinessScope
 import com.bookk.business.microservice.route.api.businessCrud
+import com.bookk.business.microservice.route.api.businessDataExport
 import com.bookk.business.microservice.route.api.clientCrud
 import com.bookk.business.microservice.route.api.employeeCrud
 import com.bookk.business.microservice.route.api.employeeInvitationCrud
@@ -25,6 +26,7 @@ fun Routing.businessRoute() {
     healthCheck()
     jwks(BusinessScope)
     businessCrud()
+    businessDataExport()
     getBusinessDetails()
     getBusinessPermission()
     getAppointmentBookingContext()

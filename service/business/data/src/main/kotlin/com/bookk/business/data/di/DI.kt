@@ -1,5 +1,6 @@
 package com.bookk.business.data.di
 
+import com.bookk.business.data.datasource.BusinessDataExportDataSourceImpl
 import com.bookk.business.data.datasource.BusinessDataSourceImpl
 import com.bookk.business.data.datasource.BusinessPermissionDataSourceImpl
 import com.bookk.business.data.datasource.ClientDataSourceImpl
@@ -9,6 +10,7 @@ import com.bookk.business.data.datasource.ErasedClientDataSourceImpl
 import com.bookk.business.data.datasource.ServiceDataSourceImpl
 import com.bookk.business.data.datasource.UserDataExportDataSourceImpl
 import com.bookk.business.domain.api.BUSINESS_SCHEMA
+import com.bookk.business.domain.datasource.BusinessDataExportDataSource
 import com.bookk.business.domain.datasource.BusinessDataSource
 import com.bookk.business.domain.datasource.BusinessPermissionDataSource
 import com.bookk.business.domain.datasource.ClientDataSource
@@ -22,10 +24,12 @@ import com.bookk.core.data.database.createDatabase
 import com.bookk.core.data.eventstreaming.ExhaustedEventDataSource
 import com.bookk.core.data.eventstreaming.data.datasource.ExhaustedEventDataSourceImpl
 import com.bookk.core.domain.datasource.transaction.TransactionManager
+import library.export.impl.di.dataExportModule
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
 
 fun businessDataModule() = module {
+    includes(dataExportModule(named(BUSINESS_SCHEMA)))
     scope(named(BUSINESS_SCHEMA)) {
         scoped<BusinessDataSource> { BusinessDataSourceImpl() }
         scoped<BusinessPermissionDataSource> { BusinessPermissionDataSourceImpl() }
@@ -33,6 +37,7 @@ fun businessDataModule() = module {
         scoped<ErasedClientDataSource> { ErasedClientDataSourceImpl() }
         scoped<ServiceDataSource> { ServiceDataSourceImpl() }
         scoped<UserDataExportDataSource> { UserDataExportDataSourceImpl() }
+        scoped<BusinessDataExportDataSource> { BusinessDataExportDataSourceImpl() }
         scoped<EmployeeDataSource> { EmployeeDataSourceImpl() }
         scoped<EmployeeInvitationDataSource> { EmployeeInvitationDataSourceImpl() }
         scoped<ExhaustedEventDataSource> { ExhaustedEventDataSourceImpl() }

@@ -104,4 +104,20 @@ interface BusinessEvent : EventStreaming.Event<String> {
             const val TOPIC = "business.client_deleted"
         }
     }
+
+    @Serializable
+    data class ExportReady(
+        @ProtoNumber(1) val businessId: Uuid,
+        @ProtoNumber(2) val ownerUserId: Uuid,
+        @ProtoNumber(3) val expiresAt: Instant,
+        @ProtoNumber(4) override val idempotencyKey: String = Uuid.random().toString(),
+    ) : BusinessEvent {
+        @ProtoNumber(5)
+        override val topic: String = TOPIC
+        override val partitionKey: String get() = businessId.toString()
+
+        companion object {
+            const val TOPIC = "business.export_ready"
+        }
+    }
 }

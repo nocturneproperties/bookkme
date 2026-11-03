@@ -188,6 +188,18 @@ erDiagram
         bool reapply_requested "set only by a backup restore, cleared by business-reapplyErasures"
     }
 
+    DATA_EXPORT {
+        uuid owner_id PK "the business; logical link to BUSINESS, no FK"
+        string state "PENDING | RUNNING | READY | FAILED, stored by name"
+        timestamp requested_at
+        int attempts "builds started, at most 3"
+        uuid claim_id "nullable; the build holding the row"
+        timestamp claimed_until "nullable; lease end"
+        timestamp finished_at "nullable"
+        timestamp expires_at "nullable; finished_at + 72 h, indexed"
+        longblob document "nullable; gzipped JSON, only while READY"
+    }
+
     OUTBOX_EVENT {
         long id PK "auto-increment; relay publishes in id order"
         string topic
@@ -196,6 +208,8 @@ erDiagram
         timestamp createdAt
     }
 ```
+
+`DATA_EXPORT` holds the business's data export (one row per business) from the moment the owner requests it until 72 hours after its document was built. It is the shared `library/export` table, so it has no foreign key to `BUSINESS`; deleting the business deletes the row in the same transaction. It holds a copy of every client of the business, so it is not readable in NocoDB. See [Data export](../data-export.md).
 
 `EXHAUSTED_EVENT` is not part of the business domain model — it's the shared DLT landing table (`core/data/eventstreaming/data`, one instance per service schema) that `KafkaEventConsumer`/`EmbeddedEventConsumer` write to when an event exhausts its retry budget, so a failed event survives a process restart or crash instead of being lost. Every start, and every row an operator sets `replay_requested` on, is replayed through the consumer group's DLT topic by `ExhaustedEventReplayer`, which also exports the parked rows as the `events_exhausted` metric. See [Exhausted events](../exhausted-events.md).
 

@@ -23,13 +23,17 @@ import com.bookk.core.service.startServer
 import io.ktor.server.application.Application
 import io.ktor.server.application.install
 import io.ktor.server.routing.application
+import library.export.BuildDataExports
+import library.export.DeleteExpiredDataExports
 import library.scheduler.Scheduler
 import library.scheduler.SchedulerConfiguration
 import library.signing.RotateSigningKeys
 import library.signing.impl.di.signingModule
 import org.koin.dsl.module
 import kotlin.time.Duration.Companion.days
+import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
 
 fun businessModule() = module {
     includes(
@@ -89,5 +93,11 @@ fun Application.registerBusinessJobs(scheduler: SchedulerConfiguration) {
     }
     scheduler.job("$BUSINESS_SERVICE_NAME-deleteExpiredErasureRecords", interval = 1.days) {
         scope.get<DeleteExpiredErasureRecords>().invoke().getOrThrow()
+    }
+    scheduler.job("$BUSINESS_SERVICE_NAME-buildDataExports", interval = 10.seconds) {
+        scope.get<BuildDataExports>().invoke().getOrThrow()
+    }
+    scheduler.job("$BUSINESS_SERVICE_NAME-deleteExpiredDataExports", interval = 1.hours) {
+        scope.get<DeleteExpiredDataExports>().invoke().getOrThrow()
     }
 }

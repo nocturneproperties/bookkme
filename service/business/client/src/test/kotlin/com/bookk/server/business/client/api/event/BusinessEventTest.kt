@@ -199,6 +199,23 @@ internal class BusinessEventTest {
         then()
         assertEquals(event, decoded)
     }
+
+    @Test
+    fun `should round trip an export ready event, keyed by the business`() = runUnitTest {
+        given()
+        val event = BusinessEvent.ExportReady(businessId, ownerUserId = Uuid.random(), expiresAt = Instant.fromEpochMilliseconds(5_000))
+
+        whenn()
+        val decoded = protoBuf.decodeFromByteArray(
+            BusinessEvent.ExportReady.serializer(),
+            protoBuf.encodeToByteArray(BusinessEvent.ExportReady.serializer(), event),
+        )
+
+        then()
+        assertEquals(event, decoded)
+        assertEquals(businessId.toString(), decoded.partitionKey)
+        assertEquals(BusinessEvent.ExportReady.TOPIC, decoded.topic)
+    }
 }
 
 @Serializable

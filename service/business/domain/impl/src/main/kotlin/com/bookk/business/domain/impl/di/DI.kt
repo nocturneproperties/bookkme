@@ -36,7 +36,10 @@ import com.bookk.business.domain.api.employee.operation.SetEmployeeSuspension
 import com.bookk.business.domain.api.employee.operation.UpdateEmployee
 import com.bookk.business.domain.api.erasure.operation.DeleteExpiredErasureRecords
 import com.bookk.business.domain.api.erasure.operation.ReapplyClientErasures
+import com.bookk.business.domain.api.export.DownloadBusinessDataExport
 import com.bookk.business.domain.api.export.ExportUserBusinessData
+import com.bookk.business.domain.api.export.GetBusinessDataExport
+import com.bookk.business.domain.api.export.StartBusinessDataExport
 import com.bookk.business.domain.api.service.operation.CreateService
 import com.bookk.business.domain.api.service.operation.CreateServiceGroup
 import com.bookk.business.domain.api.service.operation.DeleteService
@@ -49,6 +52,7 @@ import com.bookk.business.domain.api.service.operation.UpdateService
 import com.bookk.business.domain.api.user.operation.DeleteUserBusinessData
 import com.bookk.business.domain.api.user.operation.SyncUserProfile
 import com.bookk.business.domain.impl.event.BusinessEventHandlerImpl
+import com.bookk.business.domain.impl.export.BusinessDataExportAssembler
 import com.bookk.business.domain.impl.operation.appointment.GetAppointmentBookingContextImpl
 import com.bookk.business.domain.impl.operation.appointment.GetAppointmentRescheduleContextImpl
 import com.bookk.business.domain.impl.operation.appointment.GetStaffBookingContextImpl
@@ -83,7 +87,10 @@ import com.bookk.business.domain.impl.operation.employee.SetEmployeeSuspensionIm
 import com.bookk.business.domain.impl.operation.employee.UpdateEmployeeImpl
 import com.bookk.business.domain.impl.operation.erasure.DeleteExpiredErasureRecordsImpl
 import com.bookk.business.domain.impl.operation.erasure.ReapplyClientErasuresImpl
+import com.bookk.business.domain.impl.operation.export.DownloadBusinessDataExportImpl
 import com.bookk.business.domain.impl.operation.export.ExportUserBusinessDataImpl
+import com.bookk.business.domain.impl.operation.export.GetBusinessDataExportImpl
+import com.bookk.business.domain.impl.operation.export.StartBusinessDataExportImpl
 import com.bookk.business.domain.impl.operation.service.CreateServiceGroupImpl
 import com.bookk.business.domain.impl.operation.service.CreateServiceImpl
 import com.bookk.business.domain.impl.operation.service.DeleteServiceGroupImpl
@@ -96,18 +103,25 @@ import com.bookk.business.domain.impl.operation.service.UpdateServiceImpl
 import com.bookk.business.domain.impl.operation.user.DeleteUserBusinessDataImpl
 import com.bookk.business.domain.impl.operation.user.SyncUserProfileImpl
 import com.bookk.core.data.eventstreaming.EventHandler
+import com.bookk.server.appointments.client.di.appointmentsClientModule
 import com.bookk.server.user.client.di.userClientModule
+import library.export.DataExportAssembler
 import library.stepup.impl.di.stepUpModule
 import org.koin.core.module.dsl.scopedOf
 import org.koin.core.qualifier.Qualifier
 import org.koin.core.qualifier.named
 import org.koin.dsl.bind
 import org.koin.dsl.module
+import kotlin.time.Clock
 
 val BusinessScope: Qualifier = named(BUSINESS_SCHEMA)
 
 fun businessDomainModule() = module {
-    includes(userClientModule(BusinessScope, BUSINESS_SERVICE_NAME), stepUpModule(BusinessScope))
+    includes(
+        userClientModule(BusinessScope, BUSINESS_SERVICE_NAME),
+        appointmentsClientModule(BusinessScope, BUSINESS_SERVICE_NAME),
+        stepUpModule(BusinessScope),
+    )
     scope(BusinessScope) {
         scopedOf(::GetBusinessByIdImpl) bind GetBusinessById::class
         scopedOf(::GetBusinessDetailsImpl) bind GetBusinessDetails::class
@@ -127,6 +141,12 @@ fun businessDomainModule() = module {
         scopedOf(::GetOwnedBusinessMemberIdsImpl) bind GetOwnedBusinessMemberIds::class
         scopedOf(::DeleteClientImpl) bind DeleteClient::class
         scopedOf(::ExportUserBusinessDataImpl) bind ExportUserBusinessData::class
+        scopedOf(::StartBusinessDataExportImpl) bind StartBusinessDataExport::class
+        scopedOf(::GetBusinessDataExportImpl) bind GetBusinessDataExport::class
+        scopedOf(::DownloadBusinessDataExportImpl) bind DownloadBusinessDataExport::class
+        scoped<DataExportAssembler> {
+            BusinessDataExportAssembler(get(), get(), get(), get(), get(), get(), get(), Clock.System)
+        }
         scopedOf(::DeleteInactiveClientsImpl) bind DeleteInactiveClients::class
         scopedOf(::ReapplyClientErasuresImpl) bind ReapplyClientErasures::class
         scopedOf(::DeleteExpiredErasureRecordsImpl) bind DeleteExpiredErasureRecords::class

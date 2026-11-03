@@ -63,6 +63,12 @@ object BusinessRouting {
             class Id(val parent: Business = Business(), val id: Uuid) {
                 @Resource("/dashboard")
                 class Dashboard(val parent: Id)
+
+                @Resource("/export")
+                class Export(val parent: Id) {
+                    @Resource("/download")
+                    class Download(val parent: Export)
+                }
             }
         }
 

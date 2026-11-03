@@ -3,6 +3,7 @@ package com.bookk.appointments.microservice.route
 import com.bookk.appointments.microservice.route.api.appointment
 import com.bookk.appointments.microservice.route.api.appointmentInit
 import com.bookk.appointments.microservice.route.api.healthCheck
+import com.bookk.appointments.microservice.route.api.internal.exportBusinessAppointments
 import com.bookk.appointments.microservice.route.api.internal.exportUserAppointments
 import com.bookk.appointments.microservice.route.api.requests
 import com.bookk.appointments.microservice.route.api.settings
@@ -15,4 +16,5 @@ fun Routing.appointmentsRoute() {
     settings()
     requests()
     exportUserAppointments()
+    exportBusinessAppointments()
 }

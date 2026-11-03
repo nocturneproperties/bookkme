@@ -70,6 +70,7 @@ Reactions to cross-service events:
 | Route | Diagram |
 |---|---|
 | `POST /api/business` | [Create business](business/create-business.md) |
+| `POST /api/business/{businessId}/export` | [Start business data export](business/start-business-data-export.md) |
 | `PUT /api/business/{id}` | [Update business](business/update-business.md) |
 | `PUT /api/business/{id}/dashboard` | [Set dashboard business](business/set-dashboard-business.md) |
 | `POST /api/business/{businessId}/clients` | [Create client](business/create-client.md) |
@@ -168,6 +169,7 @@ the operation committed, and reaches its consumers at least once. See
 | `BusinessEvent.ClientDeleted` | [Delete client](business/delete-client.md), [`business-deleteInactiveClients` job](scheduled-jobs.md), [`business-reapplyErasures` job](scheduled-jobs.md) | [appointments](appointments/on-client-deleted.md) |
 | `AppointmentEvent.ClientVisitBooked` | [Create appointment request](appointments/create-appointment-request.md), [Create appointment from a pending request](appointments/create-appointment-from-request.md), [Create instant appointment](appointments/create-appointment-instant.md), [Update appointment (reschedule)](appointments/update-appointment.md) | [business](business/on-client-visit-booked.md) |
 | `UserEvent.Updated` | [Update user](user/update-user.md) | [business](business/on-user-updated.md), [notifications](notifications/on-user-updated.md) |
+| `BusinessEvent.ExportReady` | [Start business data export](business/start-business-data-export.md) (`business-buildDataExports` job) | none yet (push notification follows in #139) |
 | `UserEvent.DataExportReady` | [Start personal data export](user/start-personal-data-export.md) (`user-buildDataExports` job) | none yet (push notification follows in #139) |
 | `AppointmentEvent.RequestCreated` | [Create appointment request](appointments/create-appointment-request.md) | [notifications](notifications/on-appointment-request-created.md) |
 | `AppointmentEvent.RequestApproved` | [Create appointment from a pending request](appointments/create-appointment-from-request.md), [Create appointment request](appointments/create-appointment-request.md) (auto-approval) | [notifications](notifications/on-appointment-request-approved.md) |

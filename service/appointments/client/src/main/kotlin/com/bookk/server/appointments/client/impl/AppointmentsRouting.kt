@@ -12,6 +12,9 @@ object AppointmentsRouting {
             class Export(val parent: Internal = Internal()) {
                 @Resource("/appointments/{userId}")
                 class User(val parent: Export = Export(), val userId: Uuid)
+
+                @Resource("/appointments/business/{businessId}")
+                class Business(val parent: Export = Export(), val businessId: Uuid)
             }
         }
     }

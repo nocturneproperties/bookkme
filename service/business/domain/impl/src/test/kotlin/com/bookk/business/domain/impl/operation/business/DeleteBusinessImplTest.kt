@@ -11,6 +11,8 @@ import com.bookk.core.test.whenn
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
+import library.export.DataExports
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import kotlin.uuid.Uuid
@@ -21,7 +23,13 @@ internal class DeleteBusinessImplTest {
         val businessDataSource = mockk<BusinessDataSource>()
         val transactionManager = mockk<TransactionManager>()
         val eventProducer = mockk<StandardEventProducer>(relaxed = true)
-        val sut = DeleteBusinessImpl(businessDataSource, transactionManager, eventProducer)
+        val dataExports = mockk<DataExports>()
+        val discardedInTransaction = mutableListOf<Pair<Uuid, Boolean>>()
+        val sut = DeleteBusinessImpl(businessDataSource, transactionManager, eventProducer, dataExports)
+
+        init {
+            coEvery { dataExports.discard(any()) } coAnswers { discardedInTransaction += firstArg<Uuid>() to transactionManager.isInTransaction() }
+        }
     }
 
     @Test
@@ -41,5 +49,21 @@ internal class DeleteBusinessImplTest {
         then()
         assertTrue(result.isSuccess)
         coVerify(exactly = 2) { fixture.eventProducer.send(any(), any()) }
+    }
+
+    @Test
+    fun `should delete the data export of every deleted business in the same transaction`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val deletedIds = listOf(Uuid.random(), Uuid.random())
+        fixture.transactionManager.mockTransaction()
+        coEvery { fixture.businessDataSource.deleteUserBusinesses(userId) } returns deletedIds
+
+        whenn()
+        fixture.sut(userId)
+
+        then()
+        assertEquals(deletedIds.map { it to true }, fixture.discardedInTransaction)
     }
 }
