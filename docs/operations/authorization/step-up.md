@@ -5,8 +5,11 @@
 A signed-in user proves, with a fresh passkey assertion, that they hold one
 of their own passkeys right now, for one action on one target. Auth answers
 with a step-up token that another service checks before doing the action.
-Today only [Delete client](../business/delete-client.md) requires one
-(`StepUpAction.DELETE_CLIENT`).
+The actions are `StepUpAction.DELETE_CLIENT` ([Delete
+client](../business/delete-client.md)), `EXPORT_PERSONAL_DATA` and
+`EXPORT_BUSINESS_DATA` (the data exports of #139). For a personal data export
+the app sends `businessId` = the nil UUID and `targetId` = the caller's own
+user id; for a business data export, the business id as both.
 
 The app's flow:
 

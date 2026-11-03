@@ -8,6 +8,7 @@ import com.bookk.core.data.eventstreaming.StandardEventProducer
 import com.bookk.core.data.eventstreaming.send
 import com.bookk.core.domain.datasource.transaction.TransactionIsolation
 import com.bookk.core.domain.datasource.transaction.TransactionManager
+import com.bookk.core.domain.datasource.transaction.transactionOrThrow
 import com.bookk.core.domain.entity.runSuspendCatching
 import com.bookk.server.business.client.api.event.BusinessEvent
 import kotlinx.datetime.DateTimeUnit
@@ -25,7 +26,7 @@ internal class DeleteInactiveClientsImpl(
     private val eventProducer: StandardEventProducer,
 ) : DeleteInactiveClients {
     override suspend fun invoke(): Result<Unit> = runSuspendCatching {
-        val retentionMonthsByBusiness = transactionManager.transaction { businessDataSource.getClientDataRetentionMonths() }.getOrThrow()
+        val retentionMonthsByBusiness = transactionManager.transactionOrThrow { businessDataSource.getClientDataRetentionMonths() }
         val now = Clock.System.now()
         val failures = mutableListOf<Throwable>()
         for ((businessId, retentionMonths) in retentionMonthsByBusiness) {

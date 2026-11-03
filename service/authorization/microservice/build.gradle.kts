@@ -28,4 +28,5 @@ dependencies {
     testImplementation(testFixtures(projects.core))
     testImplementation(testFixtures(projects.core.service))
     testImplementation(testFixtures(projects.library.scheduler))
+    testImplementation(projects.library.stepup.api)
 }

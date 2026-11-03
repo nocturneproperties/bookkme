@@ -1,6 +1,7 @@
 package com.bookk.notifications.domain.impl.notification
 
 import com.bookk.core.domain.datasource.transaction.TransactionManager
+import com.bookk.core.domain.datasource.transaction.transactionOrThrow
 import com.bookk.core.domain.entity.runSuspendCatching
 import com.bookk.notifications.domain.api.entity.CommunicationChannel
 import com.bookk.notifications.domain.api.entity.NotificationSettings
@@ -14,7 +15,7 @@ internal class SendNotification(
     private val transactionManager: TransactionManager,
 ) {
     suspend operator fun invoke(to: Uuid, notification: NotificationParameters): Result<Unit> = runSuspendCatching {
-        val settings = transactionManager.transaction { notificationDataSource.getByUserId(to) }.getOrThrow()
+        val settings = transactionManager.transactionOrThrow { notificationDataSource.getByUserId(to) }
             ?: throw IllegalArgumentException("Settings not found")
         if (!settings.isTypeAllowed(notification.type)) return@runSuspendCatching
         val enabledChannelSettings = settings.channels.filter { it.enabled }

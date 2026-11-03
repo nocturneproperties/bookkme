@@ -8,6 +8,7 @@ import com.bookk.auth.domain.impl.operation.AccountEraser
 import com.bookk.core.data.eventstreaming.StandardEventProducer
 import com.bookk.core.data.eventstreaming.send
 import com.bookk.core.domain.datasource.transaction.TransactionManager
+import com.bookk.core.domain.datasource.transaction.transactionOrThrow
 import com.bookk.core.domain.entity.runSuspendCatching
 import com.bookk.server.auth.client.AuthEvent
 import com.bookk.server.business.client.api.BusinessClient
@@ -29,9 +30,9 @@ internal class HandleDormantAccountsImpl(
     override suspend fun invoke(): Result<Unit> = runSuspendCatching {
         val now = Clock.System.now()
         val activeSince = now.minus(INACTIVITY_MONTHS, DateTimeUnit.MONTH, TimeZone.UTC)
-        val candidates = transactionManager.transaction {
+        val candidates = transactionManager.transactionOrThrow {
             accountDataSource.getDormantAccounts(activeSince + FIRST_WARNING_LEAD)
-        }.getOrThrow()
+        }
         val failures = mutableListOf<Throwable>()
         for (candidate in candidates) {
             handle(candidate, now, activeSince)
@@ -51,18 +52,18 @@ internal class HandleDormantAccountsImpl(
         activeSince: Instant,
     ): Result<Unit> = runSuspendCatching {
         if (ownsActiveBusiness(listed.userId, activeSince)) return@runSuspendCatching
-        transactionManager.transaction {
+        transactionManager.transactionOrThrow {
             val locked = accountDataSource.getDormantAccountForUpdate(listed.userId)
             if (locked == listed) advance(locked, now)
-        }.getOrThrow()
+        }
     }
 
     private suspend fun ownsActiveBusiness(userId: Uuid, activeSince: Instant): Boolean {
         val members = businessClient.getOwnedBusinessMemberIds(userId).getOrThrow()
         if (members.isEmpty()) return false
-        val lastActivity = transactionManager.transaction {
+        val lastActivity = transactionManager.transactionOrThrow {
             accountDataSource.getLastActiveAt(members)
-        }.getOrThrow()
+        }
         return lastActivity.values.any { it >= activeSince }
     }
 

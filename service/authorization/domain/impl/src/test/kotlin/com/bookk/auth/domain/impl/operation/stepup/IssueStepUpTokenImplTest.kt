@@ -12,12 +12,12 @@ import com.bookk.core.test.given
 import com.bookk.core.test.runUnitTest
 import com.bookk.core.test.then
 import com.bookk.core.test.whenn
-import com.bookk.server.auth.client.StepUpClaims
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
 import library.signing.TokenAudience
 import library.signing.TokenIssuer
+import library.stepup.StepUpClaims
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
@@ -27,14 +27,14 @@ import kotlin.uuid.Uuid
 
 internal class IssueStepUpTokenImplTest {
 
-    private class SutFixture(val userId: Uuid = Uuid.random()) {
+    private class SutFixture(val userId: Uuid = Uuid.random(), action: StepUpAction = StepUpAction.DELETE_CLIENT) {
         val finishAssertion = mockk<FinishAssertion>()
         val tokenIssuer = mockk<TokenIssuer>()
         val sut = IssueStepUpTokenImpl(finishAssertion, tokenIssuer)
         val request = StepUpRequest(
             requestId = "request-id",
             publicKeyCredentialJson = "{}",
-            action = StepUpAction.DELETE_CLIENT,
+            action = action,
             businessId = Uuid.random(),
             targetId = Uuid.random(),
         )
@@ -69,6 +69,26 @@ internal class IssueStepUpTokenImplTest {
         assertEquals(fixture.request.targetId.toString(), decoded.getClaim(StepUpClaims.CLAIM_TARGET_ID).asString())
         assertNotNull(decoded.id)
         coVerify(exactly = 1) { fixture.tokenIssuer.issue(IssueStepUpTokenImpl.STEP_UP_TTL, any()) }
+    }
+
+    @Test
+    fun `should name each requested action in the step-up token`() = runUnitTest {
+        given()
+        val expectedClaims = mapOf(
+            StepUpAction.DELETE_CLIENT to StepUpClaims.ACTION_DELETE_CLIENT,
+            StepUpAction.EXPORT_PERSONAL_DATA to StepUpClaims.ACTION_EXPORT_PERSONAL_DATA,
+            StepUpAction.EXPORT_BUSINESS_DATA to StepUpClaims.ACTION_EXPORT_BUSINESS_DATA,
+        )
+
+        whenn()
+        val claims = StepUpAction.entries.associateWith { action ->
+            val fixture = SutFixture(action = action)
+            fixture.passkeyOwnedBy(fixture.userId)
+            JWT.decode(fixture.sut(fixture.userId, fixture.request).getOrThrow().token).getClaim(StepUpClaims.CLAIM_ACTION).asString()
+        }
+
+        then()
+        assertEquals(expectedClaims, claims)
     }
 
     @Test

@@ -49,6 +49,11 @@ include(":library:schedule")
 include(":library:signing:api")
 include(":library:signing:impl")
 include(":library:signing:route")
+include(":library:stepup:api")
+include(":library:stepup:impl")
+include(":library:export:api")
+include(":library:export:impl")
+include(":library:export:route")
 
 // Authorization
 include(":service:authorization:microservice")

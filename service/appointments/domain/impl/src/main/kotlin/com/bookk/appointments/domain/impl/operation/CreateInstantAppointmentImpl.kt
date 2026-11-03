@@ -15,6 +15,7 @@ import com.bookk.business.domain.api.appointment.entity.AppointmentBookingContex
 import com.bookk.core.data.eventstreaming.StandardEventProducer
 import com.bookk.core.data.eventstreaming.send
 import com.bookk.core.domain.datasource.transaction.TransactionManager
+import com.bookk.core.domain.datasource.transaction.transactionOrThrow
 import com.bookk.core.domain.entity.Error
 import com.bookk.core.domain.entity.runCleaningUpOnFailure
 import com.bookk.core.domain.entity.runSuspendCatching
@@ -68,7 +69,7 @@ internal class CreateInstantAppointmentImpl(
         val appointment = buildAppointment(userId, draft, context)
         quoteVerifier.requireUnchanged(quoteOffer, appointment.totalAmount, appointment.dateEnd - appointment.date)
 
-        return transactionManager.transaction {
+        return transactionManager.transactionOrThrow {
             val clientUserId = appointment.client.userId
             if (clientUserId != null && deletedUserDataSource.isDeletedForShare(clientUserId)) throw Error.OperationNotAllowed()
             if (deletedClientDataSource.isDeletedForShare(appointment.businessId, appointment.client.id)) throw Error.OperationNotAllowed()
@@ -76,7 +77,7 @@ internal class CreateInstantAppointmentImpl(
             appointmentDataSource.create(appointment).also {
                 eventProducer.send(AppointmentEvent.ClientVisitBooked(it.businessId, it.client.id, it.dateEnd))
             }
-        }.getOrThrow()
+        }
     }
 
     private suspend fun requireBookable(appointment: Appointment) {
@@ -88,10 +89,10 @@ internal class CreateInstantAppointmentImpl(
     }
 
     private suspend fun assertMayBookInto(userId: Uuid, businessId: Uuid, employeeUserId: Uuid) {
-        transactionManager.transaction {
+        transactionManager.transactionOrThrow {
             appointmentPermissionDataSource.getPermission(userId, businessId)
                 .assertOrSelf(PermissionAction.UPDATE, actorId = userId, assigneeId = employeeUserId)
-        }.getOrThrow()
+        }
     }
 
     private fun buildAppointment(

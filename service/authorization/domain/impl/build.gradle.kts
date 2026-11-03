@@ -12,6 +12,7 @@ dependencies {
     implementation(projects.service.authorization.domain.api)
     implementation(projects.library.signing.api)
     implementation(projects.library.signing.impl)
+    implementation(projects.library.stepup.api)
     implementation(projects.library.validation)
     implementation(projects.service.authorization.data.source)
     implementation(projects.service.authorization.client)

@@ -9,6 +9,7 @@ import com.bookk.auth.domain.api.registration.operation.StartPasskeyRegistration
 import com.bookk.auth.domain.datasource.AccountDataSource
 import com.bookk.auth.domain.datasource.DeviceDataSource
 import com.bookk.core.domain.datasource.transaction.TransactionManager
+import com.bookk.core.domain.datasource.transaction.transactionOrThrow
 import com.bookk.core.domain.entity.runSuspendCatching
 import com.bookk.server.user.client.UserClient
 import kotlin.uuid.Uuid
@@ -31,11 +32,11 @@ internal class GetAttachPasskeyToAccountChallengeImpl(
         }
     }
 
-    private suspend fun getAuthorizationInfo(authId: Uuid): Authentication = transactionManager.transaction {
+    private suspend fun getAuthorizationInfo(authId: Uuid): Authentication = transactionManager.transactionOrThrow {
         accountDataSource.getAuthRecordById(authId) ?: throw UnableToGeneratePasskeyChallenge()
-    }.getOrThrow()
+    }
 
-    private suspend fun getDeviceInfo(deviceId: Uuid): Device = transactionManager.transaction {
+    private suspend fun getDeviceInfo(deviceId: Uuid): Device = transactionManager.transactionOrThrow {
         deviceDataSource.getDeviceById(deviceId) ?: throw UnableToGeneratePasskeyChallenge()
-    }.getOrThrow()
+    }
 }

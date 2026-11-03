@@ -7,9 +7,6 @@ import com.bookk.business.domain.datasource.BusinessDataSource
 import com.bookk.business.domain.datasource.BusinessPermissionDataSource
 import com.bookk.business.domain.datasource.ClientDataSource
 import com.bookk.business.domain.datasource.ErasedClientDataSource
-import com.bookk.business.domain.datasource.StepUpDataSource
-import com.bookk.business.domain.impl.stepup.StepUpProof
-import com.bookk.business.domain.impl.stepup.StepUpVerifier
 import com.bookk.core.data.eventstreaming.StandardEventProducer
 import com.bookk.core.domain.datasource.transaction.TransactionManager
 import com.bookk.core.domain.datasource.transaction.mockTransaction
@@ -18,18 +15,18 @@ import com.bookk.core.test.given
 import com.bookk.core.test.runUnitTest
 import com.bookk.core.test.then
 import com.bookk.core.test.whenn
-import com.bookk.server.auth.client.StepUpClaims
 import com.bookk.server.business.client.api.event.BusinessEvent
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.coVerifyOrder
-import io.mockk.every
 import io.mockk.mockk
 import library.permissions.ResourcePermission
+import library.stepup.StepUpGrant
+import library.stepup.test.StepUpTestTokens
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import kotlin.time.Duration.Companion.seconds
 import kotlin.uuid.Uuid
 
 internal class DeleteClientImplTest {
@@ -44,17 +41,15 @@ internal class DeleteClientImplTest {
         val transactionManager = mockk<TransactionManager>()
         val sentEvents = mutableListOf<BusinessEvent.ClientDeleted>()
         val sentInTransaction = mutableListOf<Boolean>()
-        val stepUpVerifier = mockk<StepUpVerifier>()
-        val stepUpDataSource = mockk<StepUpDataSource>()
-        val proof = StepUpProof(tokenId = "token-id", remainingLifetime = 90.seconds)
+        val stepUpTokens = StepUpTestTokens()
+        val tokenSpentWhenLocking = mutableListOf<Boolean>()
         val sut = DeleteClientImpl(
             transactionManager,
             clientDataSource,
             businessPermissionDataSource,
             businessDataSource,
             eventProducer,
-            stepUpVerifier,
-            stepUpDataSource,
+            stepUpTokens.gate,
             erasedClientDataSource,
         )
 
@@ -66,9 +61,6 @@ internal class DeleteClientImplTest {
             coEvery { erasedClientDataSource.record(businessId, any()) } coAnswers {
                 recordedInTransaction += transactionManager.isInTransaction()
             }
-            every { stepUpVerifier.verify(STEP_UP_TOKEN, requestUserId, StepUpClaims.ACTION_DELETE_CLIENT, businessId, any()) } returns proof
-            coEvery { stepUpDataSource.reserve(proof.tokenId, proof.remainingLifetime) } returns true
-            coEvery { stepUpDataSource.release(proof.tokenId) } returns Unit
             coEvery { eventProducer.send(any<BusinessEvent.ClientDeleted>(), any()) } coAnswers {
                 sentEvents += firstArg<BusinessEvent.ClientDeleted>()
                 sentInTransaction += transactionManager.isInTransaction()
@@ -80,9 +72,14 @@ internal class DeleteClientImplTest {
         }
 
         fun stored(client: Client?, id: Uuid = client?.id ?: Uuid.random()): Uuid {
-            coEvery { clientDataSource.getClientForUpdate(businessId, id) } returns client
+            coEvery { clientDataSource.getClientForUpdate(businessId, id) } coAnswers {
+                tokenSpentWhenLocking += stepUpTokens.isSpent(TOKEN_ID)
+                client
+            }
             return id
         }
+
+        fun tokenFor(clientId: Uuid): String = stepUpTokens.tokenFor(StepUpGrant.clientDeletion(requestUserId, businessId, clientId), tokenId = TOKEN_ID)
 
         fun makeOwner() {
             coEvery { businessDataSource.isOwner(requestUserId, businessId) } returns true
@@ -96,7 +93,7 @@ internal class DeleteClientImplTest {
         val id = fixture.stored(Client.Detached.stub())
 
         whenn()
-        val result = fixture.sut(fixture.requestUserId, fixture.businessId, id, STEP_UP_TOKEN)
+        val result = fixture.sut(fixture.requestUserId, fixture.businessId, id, fixture.tokenFor(id))
 
         then()
         assertTrue(result.isSuccess)
@@ -112,7 +109,7 @@ internal class DeleteClientImplTest {
         val id = fixture.stored(Client.Detached.stub())
 
         whenn()
-        fixture.sut(fixture.requestUserId, fixture.businessId, id, STEP_UP_TOKEN)
+        fixture.sut(fixture.requestUserId, fixture.businessId, id, fixture.tokenFor(id))
 
         then()
         coVerify(exactly = 1) { fixture.erasedClientDataSource.record(fixture.businessId, id) }
@@ -126,7 +123,7 @@ internal class DeleteClientImplTest {
         val id = fixture.stored(null)
 
         whenn()
-        fixture.sut(fixture.requestUserId, fixture.businessId, id, STEP_UP_TOKEN)
+        fixture.sut(fixture.requestUserId, fixture.businessId, id, fixture.tokenFor(id))
 
         then()
         coVerify(exactly = 0) { fixture.erasedClientDataSource.record(any(), any()) }
@@ -139,7 +136,7 @@ internal class DeleteClientImplTest {
         val id = fixture.stored(Client.Detached.stub())
 
         whenn()
-        fixture.sut(fixture.requestUserId, fixture.businessId, id, STEP_UP_TOKEN)
+        fixture.sut(fixture.requestUserId, fixture.businessId, id, fixture.tokenFor(id))
 
         then()
         coVerifyOrder {
@@ -156,7 +153,7 @@ internal class DeleteClientImplTest {
         val id = fixture.stored(null)
 
         whenn()
-        val result = fixture.sut(fixture.requestUserId, fixture.businessId, id, STEP_UP_TOKEN)
+        val result = fixture.sut(fixture.requestUserId, fixture.businessId, id, fixture.tokenFor(id))
 
         then()
         assertTrue(result.exceptionOrNull() is DeleteClient.Error.NotFound)
@@ -172,7 +169,7 @@ internal class DeleteClientImplTest {
         fixture.grantPermission(ResourcePermission(view = true, update = false, delete = false))
 
         whenn()
-        val result = fixture.sut(fixture.requestUserId, fixture.businessId, id, STEP_UP_TOKEN)
+        val result = fixture.sut(fixture.requestUserId, fixture.businessId, id, fixture.tokenFor(id))
 
         then()
         assertTrue(result.exceptionOrNull() is Error.OperationNotAllowed)
@@ -188,7 +185,7 @@ internal class DeleteClientImplTest {
         fixture.grantPermission(ResourcePermission.NONE)
 
         whenn()
-        val result = fixture.sut(fixture.requestUserId, fixture.businessId, id, STEP_UP_TOKEN)
+        val result = fixture.sut(fixture.requestUserId, fixture.businessId, id, fixture.tokenFor(id))
 
         then()
         assertTrue(result.exceptionOrNull() is Error.OperationNotAllowed)
@@ -202,7 +199,7 @@ internal class DeleteClientImplTest {
         fixture.makeOwner()
 
         whenn()
-        val result = fixture.sut(fixture.requestUserId, fixture.businessId, id, STEP_UP_TOKEN)
+        val result = fixture.sut(fixture.requestUserId, fixture.businessId, id, fixture.tokenFor(id))
 
         then()
         assertTrue(result.isSuccess)
@@ -217,7 +214,7 @@ internal class DeleteClientImplTest {
         val id = fixture.stored(Client.Integrated.stub())
 
         whenn()
-        val result = fixture.sut(fixture.requestUserId, fixture.businessId, id, STEP_UP_TOKEN)
+        val result = fixture.sut(fixture.requestUserId, fixture.businessId, id, fixture.tokenFor(id))
 
         then()
         assertTrue(result.exceptionOrNull() is Error.OperationNotAllowed)
@@ -232,7 +229,7 @@ internal class DeleteClientImplTest {
         val id = fixture.stored(Client.Detached.stub())
 
         whenn()
-        val result = fixture.sut(fixture.requestUserId, fixture.businessId, id, STEP_UP_TOKEN)
+        val result = fixture.sut(fixture.requestUserId, fixture.businessId, id, fixture.tokenFor(id))
 
         then()
         assertTrue(result.isSuccess)
@@ -244,15 +241,14 @@ internal class DeleteClientImplTest {
         given()
         val fixture = SutFixture()
         val id = fixture.stored(Client.Detached.stub())
-        every { fixture.stepUpVerifier.verify(STEP_UP_TOKEN, fixture.requestUserId, StepUpClaims.ACTION_DELETE_CLIENT, fixture.businessId, id) } returns null
 
         whenn()
-        val result = fixture.sut(fixture.requestUserId, fixture.businessId, id, STEP_UP_TOKEN)
+        val result = fixture.sut(fixture.requestUserId, fixture.businessId, id, fixture.tokenFor(Uuid.random()))
 
         then()
         assertTrue(result.exceptionOrNull() is DeleteClient.Error.StepUpInvalid)
         coVerify(exactly = 0) { fixture.clientDataSource.getClientForUpdate(any(), any()) }
-        coVerify(exactly = 0) { fixture.stepUpDataSource.reserve(any(), any()) }
+        assertFalse(fixture.stepUpTokens.isSpent(TOKEN_ID))
         assertTrue(fixture.sentEvents.isEmpty())
     }
 
@@ -261,15 +257,16 @@ internal class DeleteClientImplTest {
         given()
         val fixture = SutFixture()
         val id = fixture.stored(Client.Detached.stub())
-        coEvery { fixture.stepUpDataSource.reserve(fixture.proof.tokenId, fixture.proof.remainingLifetime) } returns false
+        val token = fixture.tokenFor(id)
+        fixture.sut(fixture.requestUserId, fixture.businessId, id, token)
 
         whenn()
-        val result = fixture.sut(fixture.requestUserId, fixture.businessId, id, STEP_UP_TOKEN)
+        val result = fixture.sut(fixture.requestUserId, fixture.businessId, id, token)
 
         then()
         assertTrue(result.exceptionOrNull() is DeleteClient.Error.StepUpInvalid)
-        coVerify(exactly = 0) { fixture.clientDataSource.deleteClient(any(), any()) }
-        coVerify(exactly = 0) { fixture.stepUpDataSource.release(any()) }
+        coVerify(exactly = 1) { fixture.clientDataSource.deleteClient(any(), any()) }
+        assertTrue(fixture.stepUpTokens.isSpent(TOKEN_ID))
     }
 
     @Test
@@ -279,15 +276,11 @@ internal class DeleteClientImplTest {
         val id = fixture.stored(Client.Detached.stub())
 
         whenn()
-        fixture.sut(fixture.requestUserId, fixture.businessId, id, STEP_UP_TOKEN)
+        fixture.sut(fixture.requestUserId, fixture.businessId, id, fixture.tokenFor(id))
 
         then()
-        coVerifyOrder {
-            fixture.stepUpDataSource.reserve(fixture.proof.tokenId, fixture.proof.remainingLifetime)
-            fixture.clientDataSource.getClientForUpdate(fixture.businessId, id)
-            fixture.clientDataSource.deleteClient(fixture.businessId, id)
-        }
-        coVerify(exactly = 0) { fixture.stepUpDataSource.release(any()) }
+        assertEquals(listOf(true), fixture.tokenSpentWhenLocking)
+        assertTrue(fixture.stepUpTokens.isSpent(TOKEN_ID))
     }
 
     @Test
@@ -297,14 +290,14 @@ internal class DeleteClientImplTest {
         val id = fixture.stored(null)
 
         whenn()
-        val result = fixture.sut(fixture.requestUserId, fixture.businessId, id, STEP_UP_TOKEN)
+        val result = fixture.sut(fixture.requestUserId, fixture.businessId, id, fixture.tokenFor(id))
 
         then()
         assertTrue(result.exceptionOrNull() is DeleteClient.Error.NotFound)
-        coVerify(exactly = 1) { fixture.stepUpDataSource.release(fixture.proof.tokenId) }
+        assertFalse(fixture.stepUpTokens.isSpent(TOKEN_ID))
     }
 
     private companion object {
-        const val STEP_UP_TOKEN = "step-up-token"
+        const val TOKEN_ID = "token-id"
     }
 }

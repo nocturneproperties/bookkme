@@ -93,7 +93,6 @@ import com.bookk.business.domain.impl.operation.service.IssueQuoteImpl
 import com.bookk.business.domain.impl.operation.service.UpdateServiceImpl
 import com.bookk.business.domain.impl.operation.user.DeleteUserBusinessDataImpl
 import com.bookk.business.domain.impl.operation.user.SyncUserProfileImpl
-import com.bookk.business.domain.impl.stepup.StepUpVerifier
 import com.bookk.core.data.eventstreaming.EventHandler
 import com.bookk.server.user.client.di.userClientModule
 import org.koin.core.module.dsl.scopedOf
@@ -128,7 +127,6 @@ fun businessDomainModule() = module {
         scopedOf(::ReapplyClientErasuresImpl) bind ReapplyClientErasures::class
         scopedOf(::DeleteExpiredErasureRecordsImpl) bind DeleteExpiredErasureRecords::class
         scopedOf(::RecordClientVisitImpl) bind RecordClientVisit::class
-        scopedOf(::StepUpVerifier)
         scopedOf(::UpdateClientImpl) bind UpdateClient::class
         scopedOf(::SyncUserProfileImpl) bind SyncUserProfile::class
         scopedOf(::DeleteUserBusinessDataImpl) bind DeleteUserBusinessData::class

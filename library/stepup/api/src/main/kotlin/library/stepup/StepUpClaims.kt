@@ -1,4 +1,4 @@
-package com.bookk.server.auth.client
+package library.stepup
 
 object StepUpClaims {
     const val CLAIM_USER_ID = "user_id"
@@ -7,4 +7,6 @@ object StepUpClaims {
     const val CLAIM_TARGET_ID = "target_id"
 
     const val ACTION_DELETE_CLIENT = "client.delete"
+    const val ACTION_EXPORT_PERSONAL_DATA = "user.export"
+    const val ACTION_EXPORT_BUSINESS_DATA = "business.export"
 }

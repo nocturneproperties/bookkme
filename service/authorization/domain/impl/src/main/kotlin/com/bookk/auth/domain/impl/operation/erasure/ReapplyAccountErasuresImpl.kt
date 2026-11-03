@@ -7,6 +7,7 @@ import com.bookk.auth.domain.impl.operation.AccountEraser
 import com.bookk.core.data.eventstreaming.StandardEventProducer
 import com.bookk.core.data.eventstreaming.send
 import com.bookk.core.domain.datasource.transaction.TransactionManager
+import com.bookk.core.domain.datasource.transaction.transactionOrThrow
 import com.bookk.core.domain.entity.runSuspendCatching
 import com.bookk.server.auth.client.AuthEvent
 import kotlin.uuid.Uuid
@@ -19,7 +20,7 @@ internal class ReapplyAccountErasuresImpl(
     private val transactionManager: TransactionManager,
 ) : ReapplyAccountErasures {
     override suspend fun invoke(): Result<Unit> = runSuspendCatching {
-        val requested = transactionManager.transaction { erasedAccountDataSource.getReapplyRequested() }.getOrThrow()
+        val requested = transactionManager.transactionOrThrow { erasedAccountDataSource.getReapplyRequested() }
         requested
             .mapNotNull { userId -> reapply(userId).exceptionOrNull() }
             .reduceOrNull { first, next -> first.apply { addSuppressed(next) } }

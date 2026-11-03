@@ -14,6 +14,7 @@ import com.bookk.business.domain.api.service.entity.Service
 import com.bookk.core.data.eventstreaming.StandardEventProducer
 import com.bookk.core.data.eventstreaming.send
 import com.bookk.core.domain.datasource.transaction.TransactionManager
+import com.bookk.core.domain.datasource.transaction.transactionOrThrow
 import com.bookk.core.domain.entity.Error
 import com.bookk.core.domain.entity.runSuspendCatching
 import com.bookk.server.appointments.client.api.event.AppointmentEvent
@@ -33,16 +34,16 @@ internal class UpdateAppointmentImpl(
 ) : UpdateAppointment {
     override suspend fun invoke(userId: Uuid, update: AppointmentUpdate): Result<Appointment> = runSuspendCatching {
         if (!update.hasValidServiceSelection()) throw UpdateAppointment.Error.InvalidServiceSelection()
-        val existing = transactionManager.transaction {
+        val existing = transactionManager.transactionOrThrow {
             appointmentDataSource.get(update.id).also { requireReschedulable(userId, it, update) }
-        }.getOrThrow()
+        }
 
         val rescheduled = reschedule(existing, update)
 
-        val stored = transactionManager.transaction {
+        val stored = transactionManager.transactionOrThrow {
             val settings = settingsDataSource.getForUpdate(existing.businessId) ?: throw Error.NotFound()
             val locked = appointmentDataSource.getForUpdate(update.id)
-            if (locked != existing) return@transaction null
+            if (locked != existing) return@transactionOrThrow null
             requireReschedulable(userId, locked, update)
             if (!settings.isInWorkday(rescheduled.date)) throw UpdateAppointment.Error.RequestForThisDateNotAllowed()
             if (!settings.isInWorktime(rescheduled.date, rescheduled.dateEnd)) throw UpdateAppointment.Error.RequestForThisTimeNotAllowed()
@@ -50,7 +51,7 @@ internal class UpdateAppointmentImpl(
             appointmentDataSource.update(rescheduled).also {
                 eventProducer.send(AppointmentEvent.ClientVisitBooked(it.businessId, it.client.id, it.dateEnd))
             }
-        }.getOrThrow()
+        }
         stored ?: throw Error.TransactionConflict("Appointment ${update.id} changed while it was being rescheduled", ConcurrentModificationException())
     }
 

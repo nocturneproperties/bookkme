@@ -7,6 +7,7 @@ import com.bookk.business.domain.datasource.ErasedClientDataSource
 import com.bookk.core.data.eventstreaming.StandardEventProducer
 import com.bookk.core.data.eventstreaming.send
 import com.bookk.core.domain.datasource.transaction.TransactionManager
+import com.bookk.core.domain.datasource.transaction.transactionOrThrow
 import com.bookk.core.domain.entity.runSuspendCatching
 import com.bookk.server.business.client.api.event.BusinessEvent
 
@@ -17,7 +18,7 @@ internal class ReapplyClientErasuresImpl(
     private val transactionManager: TransactionManager,
 ) : ReapplyClientErasures {
     override suspend fun invoke(): Result<Unit> = runSuspendCatching {
-        val requested = transactionManager.transaction { erasedClientDataSource.getReapplyRequested() }.getOrThrow()
+        val requested = transactionManager.transactionOrThrow { erasedClientDataSource.getReapplyRequested() }
         requested
             .mapNotNull { client -> reapply(client).exceptionOrNull() }
             .reduceOrNull { first, next -> first.apply { addSuppressed(next) } }

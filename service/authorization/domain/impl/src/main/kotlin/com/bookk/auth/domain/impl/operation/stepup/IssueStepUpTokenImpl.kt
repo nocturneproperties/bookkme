@@ -7,9 +7,9 @@ import com.bookk.auth.domain.api.stepup.entity.StepUpRequest
 import com.bookk.auth.domain.api.stepup.entity.StepUpToken
 import com.bookk.auth.domain.api.stepup.operation.IssueStepUpToken
 import com.bookk.core.domain.entity.runSuspendCatching
-import com.bookk.server.auth.client.StepUpClaims
 import library.signing.TokenAudience
 import library.signing.TokenIssuer
+import library.stepup.StepUpClaims
 import kotlin.time.Duration.Companion.minutes
 import kotlin.uuid.Uuid
 
@@ -33,6 +33,8 @@ internal class IssueStepUpTokenImpl(
     private val StepUpAction.claim: String
         get() = when (this) {
             StepUpAction.DELETE_CLIENT -> StepUpClaims.ACTION_DELETE_CLIENT
+            StepUpAction.EXPORT_PERSONAL_DATA -> StepUpClaims.ACTION_EXPORT_PERSONAL_DATA
+            StepUpAction.EXPORT_BUSINESS_DATA -> StepUpClaims.ACTION_EXPORT_BUSINESS_DATA
         }
 
     companion object {

@@ -7,4 +7,10 @@ import kotlinx.serialization.protobuf.ProtoNumber
 enum class StepUpAction {
     @ProtoNumber(0)
     DELETE_CLIENT,
+
+    @ProtoNumber(1)
+    EXPORT_PERSONAL_DATA,
+
+    @ProtoNumber(2)
+    EXPORT_BUSINESS_DATA,
 }
