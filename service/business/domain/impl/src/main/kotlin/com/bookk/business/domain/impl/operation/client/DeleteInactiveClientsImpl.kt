@@ -3,6 +3,7 @@ package com.bookk.business.domain.impl.operation.client
 import com.bookk.business.domain.api.client.operation.DeleteInactiveClients
 import com.bookk.business.domain.datasource.BusinessDataSource
 import com.bookk.business.domain.datasource.ClientDataSource
+import com.bookk.business.domain.datasource.ErasedClientDataSource
 import com.bookk.core.data.eventstreaming.StandardEventProducer
 import com.bookk.core.data.eventstreaming.send
 import com.bookk.core.domain.datasource.transaction.TransactionIsolation
@@ -19,6 +20,7 @@ import kotlin.uuid.Uuid
 internal class DeleteInactiveClientsImpl(
     private val businessDataSource: BusinessDataSource,
     private val clientDataSource: ClientDataSource,
+    private val erasedClientDataSource: ErasedClientDataSource,
     private val transactionManager: TransactionManager,
     private val eventProducer: StandardEventProducer,
 ) : DeleteInactiveClients {
@@ -42,6 +44,7 @@ internal class DeleteInactiveClientsImpl(
 
     private suspend fun deleteInactiveClients(businessId: Uuid, inactiveSince: Instant): Result<Unit> = transactionManager.transaction(TransactionIsolation.READ_COMMITTED) {
         clientDataSource.deleteInactiveClients(businessId, inactiveSince).forEach { clientId ->
+            erasedClientDataSource.record(businessId, clientId)
             eventProducer.send(BusinessEvent.ClientDeleted(businessId = businessId, clientId = clientId))
         }
     }

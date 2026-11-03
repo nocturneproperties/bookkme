@@ -47,7 +47,8 @@ flowchart TD
     Owner -- No --> R404c([404 Error.OperationNotAllowed])
     Owner -- Yes --> Delete
     Kind -- No --> Delete[ClientDataSource.deleteClient businessId id]
-    Delete --> Send["eventProducer.send BusinessEvent.ClientDeleted businessId clientId - outbox row in this transaction"]
+    Delete --> Record["ErasedClientDataSource.record businessId id - INSERT IGNORE erased_client, so a backup restore can delete it again"]
+    Record --> Send["eventProducer.send BusinessEvent.ClientDeleted businessId clientId - outbox row in this transaction"]
     Send --> R204([204 Entity deleted - token stays spent])
     Tx -- any failure after the reservation --> Release["StepUpDataSource.release jti - NonCancellable, best effort"]
 ```

@@ -6,6 +6,8 @@ import com.bookk.business.domain.api.business.operation.DeleteDayOffsInThePast
 import com.bookk.business.domain.api.client.operation.DeleteInactiveClients
 import com.bookk.business.domain.api.employee.operation.DeleteProcessedEmployeeInvitations
 import com.bookk.business.domain.api.employee.operation.ExpireEmployeeInvitations
+import com.bookk.business.domain.api.erasure.operation.DeleteExpiredErasureRecords
+import com.bookk.business.domain.api.erasure.operation.ReapplyClientErasures
 import com.bookk.business.domain.impl.di.BusinessScope
 import com.bookk.business.domain.impl.di.businessDomainModule
 import com.bookk.business.microservice.route.businessRoute
@@ -27,6 +29,7 @@ import library.signing.RotateSigningKeys
 import library.signing.impl.di.signingModule
 import org.koin.dsl.module
 import kotlin.time.Duration.Companion.days
+import kotlin.time.Duration.Companion.minutes
 
 fun businessModule() = module {
     includes(
@@ -80,5 +83,11 @@ fun Application.registerBusinessJobs(scheduler: SchedulerConfiguration) {
     }
     scheduler.job("$BUSINESS_SERVICE_NAME-deleteInactiveClients", interval = 1.days) {
         scope.get<DeleteInactiveClients>().invoke().getOrThrow()
+    }
+    scheduler.job("$BUSINESS_SERVICE_NAME-reapplyErasures", interval = 1.minutes) {
+        scope.get<ReapplyClientErasures>().invoke().getOrThrow()
+    }
+    scheduler.job("$BUSINESS_SERVICE_NAME-deleteExpiredErasureRecords", interval = 1.days) {
+        scope.get<DeleteExpiredErasureRecords>().invoke().getOrThrow()
     }
 }

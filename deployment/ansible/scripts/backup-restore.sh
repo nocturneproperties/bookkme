@@ -3,17 +3,31 @@ set -euo pipefail
 export LC_ALL=C
 
 readonly image=mariadb:11.8.3-ubi9
+readonly flyway_image=flyway/flyway:13.1.0-alpine
 readonly schemas=(user authorization business appointments notifications)
+repo_root=$(cd "$(dirname "$0")/../../.." && pwd)
+readonly repo_root
 
 usage() {
   cat >&2 <<'EOF'
 Usage:
-  backup-restore.sh sql <backup-dir> [--until 'YYYY-MM-DD HH:MM:SS']
+  backup-restore.sh sql <backup-dir> [--until 'YYYY-MM-DD HH:MM:SS' [--without-erasures]]
       Decrypts the newest dump taken at or before --until (UTC) and the binlogs after it,
       and writes the SQL that restores the five schemas to that moment to stdout.
       Without --until it restores up to the last binlog shipped.
-  backup-restore.sh drill <backup-dir> [--until 'YYYY-MM-DD HH:MM:SS']
-      Restores the same into a throwaway MariaDB container and prints every table's row count.
+      With --until it first restores the latest point to read every recorded account and
+      client deletion, and appends them, so the app deletes again at its next start what
+      the restore brought back. --without-erasures skips that, for binlogs that can't be
+      replayed to the end.
+  backup-restore.sh drill <backup-dir> [--until 'YYYY-MM-DD HH:MM:SS' [--without-erasures]]
+      Restores the same into a throwaway MariaDB container and prints every table's row count,
+      and with --until how many accounts and clients the app would delete again.
+  backup-restore.sh erasures <backup-dir>
+      Restores the latest point into a throwaway MariaDB container and writes the SQL that
+      asks the app to delete again every recorded deletion a restored database lacks.
+  backup-restore.sh rehearse <backup-dir> [--until 'YYYY-MM-DD HH:MM:SS']
+      Restores the same into a throwaway MariaDB container, runs this checkout's Flyway migrations
+      on every schema, and prints the tables whose row count they changed.
 EOF
   exit 2
 }
@@ -30,6 +44,7 @@ readonly command=$1
 readonly backup_dir=$2
 shift 2
 until_time=
+with_erasures=yes
 while [[ $# -gt 0 ]]; do
   case $1 in
     --until)
@@ -37,13 +52,33 @@ while [[ $# -gt 0 ]]; do
       until_time=$2
       shift 2
       ;;
+    --without-erasures)
+      with_erasures=
+      shift
+      ;;
     *) usage ;;
   esac
 done
-[[ $command == sql || $command == drill ]] || usage
+[[ $command == sql || $command == drill || $command == rehearse || $command == erasures ]] || usage
+[[ $command != erasures || -z $until_time ]] || usage
 [[ -d $backup_dir/dump && -d $backup_dir/binlog ]] || fail "$backup_dir has no dump/ and binlog/, fetch the backups first (make fetch-backups)"
 command -v gpg > /dev/null || fail "gpg is missing: brew install gnupg pinentry-mac"
 command -v docker > /dev/null || fail "docker is missing"
+
+migration_dir() { printf '%s/service/%s/data/src/main/resources/db/migration/%s\n' "$repo_root" "$1" "$1"; }
+
+if [[ $command == rehearse ]]; then
+  for schema in "${schemas[@]}"; do
+    [[ -d $(migration_dir "$schema") ]] || fail "$(migration_dir "$schema") is missing, rehearse runs from a full checkout of the version to deploy"
+  done
+fi
+
+erasure_sql=
+if [[ ($command == sql || $command == drill) && -n $until_time && -n $with_erasures ]]; then
+  log "Restoring the latest point first, to find the account and client deletions a restore to $until_time UTC would undo"
+  erasure_sql=$("$BASH" "$0" erasures "$backup_dir") ||
+    fail "The latest point couldn't be restored, so the deletions made after $until_time can't be found. Restore it with --without-erasures and delete them again by hand (Restoring prod in deployment/ansible/README.md)"
+fi
 
 containers=
 cleanup() {
@@ -96,7 +131,7 @@ if [[ -z $binlogs ]]; then
 fi
 
 helper=bookk-restore-helper-$$
-docker run -d --name "$helper" -e TZ=UTC --tmpfs /work:rw,size=8g,mode=1777 --entrypoint sleep "$image" infinity > /dev/null
+docker run -d --name "$helper" -e TZ=UTC --tmpfs /work:rw,size=8g,mode=1777 --tmpfs /var/lib/mysql:rw,size=1m --entrypoint sleep "$image" infinity > /dev/null
 containers="$containers $helper"
 
 binlog_count=0
@@ -113,11 +148,15 @@ emit_sql() {
 
 if [[ $command == sql ]]; then
   emit_sql
+  if [[ -n $erasure_sql ]]; then
+    printf 'DELIMITER ;\n%s\n' "$erasure_sql"
+    log "Appended the $(printf '%s\n' "$erasure_sql" | grep -c '^INSERT IGNORE') recorded deletions. The ones the restore lacks are marked, and the app deletes them again at its next start"
+  fi
   exit 0
 fi
 
 target=bookk-restore-drill-$$
-docker run -d --name "$target" -e MARIADB_ROOT_PASSWORD=drill -e TZ=UTC "$image" > /dev/null
+docker run -d --name "$target" -e MARIADB_ROOT_PASSWORD=drill -e TZ=UTC --tmpfs /var/lib/mysql:rw,size=8g,uid=999,gid=999,mode=0700 "$image" > /dev/null
 containers="$containers $target"
 for attempt in $(seq 60); do
   docker exec "$target" healthcheck.sh --connect --innodb_initialized > /dev/null 2>&1 && break
@@ -127,10 +166,72 @@ done
 
 emit_sql | docker exec -i "$target" mariadb --binary-mode -uroot -pdrill
 
-schema_list=$(printf "'%s'," "${schemas[@]}")
-count_query=$(docker exec "$target" mariadb -uroot -pdrill --batch --skip-column-names -e "
-  SET SESSION group_concat_max_len = 1048576;
-  SELECT GROUP_CONCAT(CONCAT('SELECT ''', table_schema, '.', table_name, ''', COUNT(*) FROM \`', table_schema, '\`.\`', table_name, '\`') ORDER BY table_schema, table_name SEPARATOR ' UNION ALL ')
-  FROM information_schema.tables WHERE table_schema IN (${schema_list%,}) AND table_type = 'BASE TABLE'")
-docker exec "$target" mariadb -uroot -pdrill --batch --skip-column-names -e "$count_query" | column -t
-log "Drill restored ${until_time:-the latest stored point} successfully"
+table_counts() {
+  local schema_list count_query
+  schema_list=$(printf "'%s'," "${schemas[@]}")
+  count_query=$(docker exec "$target" mariadb -uroot -pdrill --batch --skip-column-names -e "
+    SET SESSION group_concat_max_len = 1048576;
+    SELECT GROUP_CONCAT(CONCAT('SELECT ''', table_schema, '.', table_name, ''', COUNT(*) FROM \`', table_schema, '\`.\`', table_name, '\`') ORDER BY table_schema, table_name SEPARATOR ' UNION ALL ')
+    FROM information_schema.tables WHERE table_schema IN (${schema_list%,}) AND table_type = 'BASE TABLE'")
+  docker exec "$target" mariadb -uroot -pdrill --batch --skip-column-names -e "$count_query"
+}
+
+recorded_erasures_sql() {
+  local schema=$1 table=$2 columns=$3 values=$4 qualified ddl
+  qualified="\`$schema\`.\`$table\`"
+  [[ $(docker exec "$target" mariadb -uroot -pdrill --batch --skip-column-names -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = '$schema' AND table_name = '$table'") == 1 ]] || return 0
+  ddl=$(docker exec "$target" mariadb -uroot -pdrill --batch --skip-column-names -e "SHOW CREATE TABLE $qualified" | cut -f2- | sed 's/\\n/ /g')
+  printf '%s;\n' "${ddl/CREATE TABLE \`$table\`/CREATE TABLE IF NOT EXISTS $qualified}"
+  docker exec "$target" mariadb -uroot -pdrill --batch --skip-column-names -e "
+    SET time_zone = '+00:00';
+    SELECT CONCAT('INSERT IGNORE INTO $qualified ($columns, erased_at, reapply_requested) VALUES (', $values, ', ''', erased_at, ''', TRUE);') FROM $qualified ORDER BY erased_at"
+}
+
+if [[ $command == erasures ]]; then
+  printf "SET autocommit = 1;\nSET time_zone = '+00:00';\n"
+  recorded_erasures_sql authorization erased_account 'user_id' "'0x', HEX(user_id)"
+  recorded_erasures_sql business erased_client 'client_id, business_id' "'0x', HEX(client_id), ', 0x', HEX(business_id)"
+  exit 0
+fi
+
+if [[ $command == drill ]]; then
+  table_counts | column -t
+  if [[ -n $erasure_sql ]]; then
+    printf '%s\n' "$erasure_sql" | docker exec -i "$target" mariadb --binary-mode -uroot -pdrill
+    pending=$(docker exec "$target" mariadb -uroot -pdrill --batch --skip-column-names -e "
+      SELECT CONCAT((SELECT COUNT(*) FROM \`authorization\`.erased_account WHERE reapply_requested), ' account(s) and ',
+                    (SELECT COUNT(*) FROM business.erased_client WHERE reapply_requested), ' client(s)')")
+    log "A restore to $until_time UTC brings back $pending deleted after it. The app deletes them again at its next start"
+  fi
+  log "Drill restored ${until_time:-the latest stored point} successfully"
+  exit 0
+fi
+
+counts_before=$(table_counts)
+for schema in "${schemas[@]}"; do
+  log "Migrating $schema"
+  docker run --rm --network "container:$target" -v "$(migration_dir "$schema"):/flyway/migrations:ro" "$flyway_image" \
+    -url="jdbc:mariadb://127.0.0.1:3306/$schema" -user=root -password=drill \
+    -defaultSchema="$schema" -createSchemas=true -baselineOnMigrate=true \
+    -locations=filesystem:/flyway/migrations migrate >&2 ||
+    fail "The $schema migrations failed on the backup of ${until_time:-the latest stored point}. Fix the script so it can run again on a half-migrated schema before deploying"
+done
+counts_after=$(table_counts)
+
+changes=$({
+  printf '%s\n' "$counts_before" | sed 's/^/before\t/'
+  printf '%s\n' "$counts_after" | sed 's/^/after\t/'
+} | awk -F'\t' '
+  NF == 3 && $2 !~ /\.flyway_schema_history$/ && $1 == "before" { old[$2] = $3 }
+  NF == 3 && $2 !~ /\.flyway_schema_history$/ && $1 == "after" { now[$2] = $3 }
+  END {
+    for (t in old) if (!(t in now)) print t "\t" old[t] "\tdropped"
+    for (t in now) if (!(t in old)) print t "\tnew\t" now[t]
+    for (t in now) if ((t in old) && old[t] != now[t]) print t "\t" old[t] "\t" now[t]
+  }' | sort)
+if [[ -z $changes ]]; then
+  log "The migrations ran on the backup of ${until_time:-the latest stored point} without changing any table's row count"
+  exit 0
+fi
+printf 'TABLE\tBEFORE\tAFTER\n%s\n' "$changes" | column -t
+log "The migrations ran on the backup of ${until_time:-the latest stored point}. Every row count above must have changed on purpose"

@@ -5,7 +5,7 @@ ANSIBLE_PYTHON := $(shell head -1 "$$(command -v ansible)" | sed 's/^\#!//')
 TAGS_ARG := $(if $(tags),--tags $(tags))
 BACKUPS := backups
 
-.PHONY: check bootstrap infra deploy deploy-check fetch-backups restore-drill vault-import vault-update vault-edit vault-view syntax lint
+.PHONY: check bootstrap infra deploy deploy-check fetch-backups restore-drill migration-rehearsal vault-import vault-update vault-edit vault-view syntax lint
 
 check:
 	ansible-playbook playbooks/site.yml --check --diff $(TAGS_ARG)
@@ -29,6 +29,9 @@ fetch-backups:
 
 restore-drill:
 	scripts/backup-restore.sh drill $(BACKUPS) $(if $(until),--until "$(until)")
+
+migration-rehearsal:
+	scripts/backup-restore.sh rehearse $(BACKUPS) $(if $(until),--until "$(until)")
 
 vault-import:
 	@test ! -e $(VAULT) || (echo "$(VAULT) already exists, use 'make vault-edit'" && exit 1)

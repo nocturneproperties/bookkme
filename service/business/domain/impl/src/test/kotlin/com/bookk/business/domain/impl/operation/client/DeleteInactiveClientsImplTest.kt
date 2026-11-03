@@ -2,6 +2,7 @@ package com.bookk.business.domain.impl.operation.client
 
 import com.bookk.business.domain.datasource.BusinessDataSource
 import com.bookk.business.domain.datasource.ClientDataSource
+import com.bookk.business.domain.datasource.ErasedClientDataSource
 import com.bookk.core.data.eventstreaming.StandardEventProducer
 import com.bookk.core.domain.datasource.transaction.TransactionIsolation
 import com.bookk.core.domain.datasource.transaction.TransactionManager
@@ -31,14 +32,21 @@ internal class DeleteInactiveClientsImplTest {
     private class SutFixture {
         val businessDataSource = mockk<BusinessDataSource>()
         val clientDataSource = mockk<ClientDataSource>()
+        val erasedClientDataSource = mockk<ErasedClientDataSource>()
+        val recorded = mutableListOf<Pair<Uuid, Uuid>>()
+        val recordedInTransaction = mutableListOf<Boolean>()
         val transactionManager = mockk<TransactionManager>()
         val eventProducer = mockk<StandardEventProducer>()
         val sentEvents = mutableListOf<BusinessEvent.ClientDeleted>()
         val sentInTransaction = mutableListOf<Boolean>()
-        val sut = DeleteInactiveClientsImpl(businessDataSource, clientDataSource, transactionManager, eventProducer)
+        val sut = DeleteInactiveClientsImpl(businessDataSource, clientDataSource, erasedClientDataSource, transactionManager, eventProducer)
 
         init {
             transactionManager.mockTransaction()
+            coEvery { erasedClientDataSource.record(any(), any()) } coAnswers {
+                recorded += firstArg<Uuid>() to secondArg<Uuid>()
+                recordedInTransaction += transactionManager.isInTransaction()
+            }
             coEvery { eventProducer.send(any<BusinessEvent.ClientDeleted>(), any()) } coAnswers {
                 sentEvents += firstArg<BusinessEvent.ClientDeleted>()
                 sentInTransaction += transactionManager.isInTransaction()
@@ -91,6 +99,25 @@ internal class DeleteInactiveClientsImplTest {
         assertEquals(deletedIds, fixture.sentEvents.map { it.clientId })
         assertTrue(fixture.sentEvents.all { it.businessId == businessId })
         assertEquals(listOf(true, true), fixture.sentInTransaction)
+    }
+
+    @Test
+    fun `should record every deleted client inside the transaction so a restore can run it again`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val businessId = Uuid.random()
+        val deletedIds = listOf(Uuid.random(), Uuid.random())
+        with(fixture) {
+            coEvery { businessDataSource.getClientDataRetentionMonths() } returns mapOf(businessId to 36)
+            coEvery { clientDataSource.deleteInactiveClients(businessId, any()) } returns deletedIds
+        }
+
+        whenn()
+        fixture.sut()
+
+        then()
+        assertEquals(deletedIds.map { businessId to it }, fixture.recorded)
+        assertEquals(listOf(true, true), fixture.recordedInTransaction)
     }
 
     @Test

@@ -6,6 +6,7 @@ import com.bookk.business.domain.api.client.operation.DeleteClient
 import com.bookk.business.domain.datasource.BusinessDataSource
 import com.bookk.business.domain.datasource.BusinessPermissionDataSource
 import com.bookk.business.domain.datasource.ClientDataSource
+import com.bookk.business.domain.datasource.ErasedClientDataSource
 import com.bookk.business.domain.datasource.StepUpDataSource
 import com.bookk.business.domain.impl.stepup.StepUpVerifier
 import com.bookk.core.data.eventstreaming.StandardEventProducer
@@ -31,6 +32,7 @@ internal class DeleteClientImpl(
     private val eventProducer: StandardEventProducer,
     private val stepUpVerifier: StepUpVerifier,
     private val stepUpDataSource: StepUpDataSource,
+    private val erasedClientDataSource: ErasedClientDataSource,
 ) : DeleteClient {
     override suspend fun invoke(requestUserId: Uuid, businessId: Uuid, id: Uuid, stepUpToken: String): Result<Unit> = runSuspendCatching {
         val proof = stepUpVerifier.verify(
@@ -55,6 +57,7 @@ internal class DeleteClientImpl(
         if (client == null) throw DeleteClient.Error.NotFound()
         if (client is Client.Integrated && !businessDataSource.isOwner(requestUserId, businessId)) throw Error.OperationNotAllowed()
         if (!clientDataSource.deleteClient(businessId, id)) throw DeleteClient.Error.NotFound()
+        erasedClientDataSource.record(businessId, id)
         eventProducer.send(BusinessEvent.ClientDeleted(businessId = businessId, clientId = id))
     }
 

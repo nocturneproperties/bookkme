@@ -2,7 +2,7 @@
 
 Kafka topic `AuthEvent.UserDeleted` → `BusinessEventHandlerImpl` → `DeleteBusiness` + `DeleteUserBusinessData`
 
-Produced by [Delete account](../authorization/delete-account.md). Two
+Produced by [Delete account](../authorization/delete-account.md), the [`auth-handleDormantAccounts` job](../scheduled-jobs.md) and, after a backup restore, the [`auth-reapplyErasures` job](../scheduled-jobs.md). Two
 steps, and only the first one gates the second: `deleteBusiness` is
 unwrapped with `.getOrThrow()` inline, so if it fails the handler throws
 immediately and `deleteUserBusinessData` never runs; `deleteUserBusinessData`'s

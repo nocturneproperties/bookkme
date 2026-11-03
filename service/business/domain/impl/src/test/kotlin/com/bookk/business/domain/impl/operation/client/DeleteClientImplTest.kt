@@ -6,6 +6,7 @@ import com.bookk.business.domain.api.client.operation.DeleteClient
 import com.bookk.business.domain.datasource.BusinessDataSource
 import com.bookk.business.domain.datasource.BusinessPermissionDataSource
 import com.bookk.business.domain.datasource.ClientDataSource
+import com.bookk.business.domain.datasource.ErasedClientDataSource
 import com.bookk.business.domain.datasource.StepUpDataSource
 import com.bookk.business.domain.impl.stepup.StepUpProof
 import com.bookk.business.domain.impl.stepup.StepUpVerifier
@@ -35,6 +36,8 @@ internal class DeleteClientImplTest {
 
     private class SutFixture(val businessId: Uuid = Uuid.random(), val requestUserId: Uuid = Uuid.random()) {
         val clientDataSource = mockk<ClientDataSource>()
+        val erasedClientDataSource = mockk<ErasedClientDataSource>()
+        val recordedInTransaction = mutableListOf<Boolean>()
         val businessPermissionDataSource = mockk<BusinessPermissionDataSource>()
         val businessDataSource = mockk<BusinessDataSource>()
         val eventProducer = mockk<StandardEventProducer>()
@@ -52,6 +55,7 @@ internal class DeleteClientImplTest {
             eventProducer,
             stepUpVerifier,
             stepUpDataSource,
+            erasedClientDataSource,
         )
 
         init {
@@ -59,6 +63,9 @@ internal class DeleteClientImplTest {
             grantPermission(ResourcePermission.FULL)
             coEvery { businessDataSource.isOwner(requestUserId, businessId) } returns false
             coEvery { clientDataSource.deleteClient(businessId, any()) } returns true
+            coEvery { erasedClientDataSource.record(businessId, any()) } coAnswers {
+                recordedInTransaction += transactionManager.isInTransaction()
+            }
             every { stepUpVerifier.verify(STEP_UP_TOKEN, requestUserId, StepUpClaims.ACTION_DELETE_CLIENT, businessId, any()) } returns proof
             coEvery { stepUpDataSource.reserve(proof.tokenId, proof.remainingLifetime) } returns true
             coEvery { stepUpDataSource.release(proof.tokenId) } returns Unit
@@ -96,6 +103,33 @@ internal class DeleteClientImplTest {
         coVerify(exactly = 1) { fixture.clientDataSource.deleteClient(fixture.businessId, id) }
         assertEquals(listOf(BusinessEvent.ClientDeleted(fixture.businessId, id, idempotencyKey = "")), fixture.sentEvents.map { it.copy(idempotencyKey = "") })
         assertEquals(listOf(true), fixture.sentInTransaction)
+    }
+
+    @Test
+    fun `should record the deletion inside the transaction so a restore can run it again`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val id = fixture.stored(Client.Detached.stub())
+
+        whenn()
+        fixture.sut(fixture.requestUserId, fixture.businessId, id, STEP_UP_TOKEN)
+
+        then()
+        coVerify(exactly = 1) { fixture.erasedClientDataSource.record(fixture.businessId, id) }
+        assertEquals(listOf(true), fixture.recordedInTransaction)
+    }
+
+    @Test
+    fun `should record nothing when the client does not exist`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val id = fixture.stored(null)
+
+        whenn()
+        fixture.sut(fixture.requestUserId, fixture.businessId, id, STEP_UP_TOKEN)
+
+        then()
+        coVerify(exactly = 0) { fixture.erasedClientDataSource.record(any(), any()) }
     }
 
     @Test

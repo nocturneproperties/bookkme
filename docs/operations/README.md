@@ -154,7 +154,7 @@ the operation committed, and reaches its consumers at least once. See
 
 | Event | Producer | Consumer(s) |
 |---|---|---|
-| `AuthEvent.UserDeleted` | [Delete account](authorization/delete-account.md), [`auth-handleDormantAccounts` job](scheduled-jobs.md) | [appointments](appointments/on-user-deleted.md), [business](business/on-user-deleted.md), [notifications](notifications/on-user-deleted.md), [user](user/on-user-deleted.md) |
+| `AuthEvent.UserDeleted` | [Delete account](authorization/delete-account.md), [`auth-handleDormantAccounts` job](scheduled-jobs.md), [`auth-reapplyErasures` job](scheduled-jobs.md) | [appointments](appointments/on-user-deleted.md), [business](business/on-user-deleted.md), [notifications](notifications/on-user-deleted.md), [user](user/on-user-deleted.md) |
 | `AuthEvent.DeviceDeleted` | [Delete account](authorization/delete-account.md), [`auth-handleDormantAccounts` job](scheduled-jobs.md) | [notifications](notifications/on-device-deleted.md) |
 | `AuthEvent.DeviceCreated` | [Verify sign-up](authorization/sign-up.md), [Verify sign-in](authorization/sign-in.md) | [notifications](notifications/on-device-created.md) |
 | `AuthEvent.DeviceLanguageUpdated` | [Verify sign-in](authorization/sign-in.md) | [notifications](notifications/on-device-language-updated.md) |
@@ -164,7 +164,7 @@ the operation committed, and reaches its consumers at least once. See
 | `BusinessEvent.EmployeeInvitationRedeemed` | [Join business](business/join-business.md) | [notifications](notifications/on-employee-invitation-redeemed.md) |
 | `BusinessEvent.EmployeePermissionsChanged` | [Join business](business/join-business.md), [Set employee permissions](business/set-employee-permissions.md), [Set employee suspension](business/set-employee-suspension.md) | [appointments](appointments/on-employee-permissions-changed.md) |
 | `BusinessEvent.ClientLinked` | [Get appointment booking context (internal)](business/get-appointment-booking-context.md), [React to user profile update (business)](business/on-user-updated.md) | [appointments](appointments/on-client-linked.md) |
-| `BusinessEvent.ClientDeleted` | [Delete client](business/delete-client.md), [`business-deleteInactiveClients` job](scheduled-jobs.md) | [appointments](appointments/on-client-deleted.md) |
+| `BusinessEvent.ClientDeleted` | [Delete client](business/delete-client.md), [`business-deleteInactiveClients` job](scheduled-jobs.md), [`business-reapplyErasures` job](scheduled-jobs.md) | [appointments](appointments/on-client-deleted.md) |
 | `AppointmentEvent.ClientVisitBooked` | [Create appointment request](appointments/create-appointment-request.md), [Create appointment from a pending request](appointments/create-appointment-from-request.md), [Create instant appointment](appointments/create-appointment-instant.md), [Update appointment (reschedule)](appointments/update-appointment.md) | [business](business/on-client-visit-booked.md) |
 | `UserEvent.Updated` | [Update user](user/update-user.md) | [business](business/on-user-updated.md), [notifications](notifications/on-user-updated.md) |
 | `AppointmentEvent.RequestCreated` | [Create appointment request](appointments/create-appointment-request.md) | [notifications](notifications/on-appointment-request-created.md) |

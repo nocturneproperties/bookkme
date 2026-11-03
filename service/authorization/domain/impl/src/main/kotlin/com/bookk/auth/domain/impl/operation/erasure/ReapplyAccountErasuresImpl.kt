@@ -1,0 +1,38 @@
+package com.bookk.auth.domain.impl.operation.erasure
+
+import com.bookk.auth.domain.api.erasure.operation.ReapplyAccountErasures
+import com.bookk.auth.domain.datasource.AccountDataSource
+import com.bookk.auth.domain.datasource.ErasedAccountDataSource
+import com.bookk.auth.domain.impl.operation.AccountEraser
+import com.bookk.core.data.eventstreaming.StandardEventProducer
+import com.bookk.core.data.eventstreaming.send
+import com.bookk.core.domain.datasource.transaction.TransactionManager
+import com.bookk.core.domain.entity.runSuspendCatching
+import com.bookk.server.auth.client.AuthEvent
+import kotlin.uuid.Uuid
+
+internal class ReapplyAccountErasuresImpl(
+    private val erasedAccountDataSource: ErasedAccountDataSource,
+    private val accountDataSource: AccountDataSource,
+    private val accountEraser: AccountEraser,
+    private val eventProducer: StandardEventProducer,
+    private val transactionManager: TransactionManager,
+) : ReapplyAccountErasures {
+    override suspend fun invoke(): Result<Unit> = runSuspendCatching {
+        val requested = transactionManager.transaction { erasedAccountDataSource.getReapplyRequested() }.getOrThrow()
+        requested
+            .mapNotNull { userId -> reapply(userId).exceptionOrNull() }
+            .reduceOrNull { first, next -> first.apply { addSuppressed(next) } }
+            ?.let { throw it }
+    }
+
+    private suspend fun reapply(userId: Uuid): Result<Unit> = transactionManager.transaction {
+        if (!erasedAccountDataSource.claimReapply(userId)) return@transaction
+        val account = accountDataSource.getAuthRecordByUserId(userId)
+        if (account != null) {
+            accountEraser.erase(account.id, userId)
+        } else {
+            eventProducer.send(AuthEvent.UserDeleted(userId))
+        }
+    }
+}

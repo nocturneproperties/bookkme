@@ -5,6 +5,7 @@ import com.bookk.business.data.datasource.BusinessPermissionDataSourceImpl
 import com.bookk.business.data.datasource.ClientDataSourceImpl
 import com.bookk.business.data.datasource.EmployeeDataSourceImpl
 import com.bookk.business.data.datasource.EmployeeInvitationDataSourceImpl
+import com.bookk.business.data.datasource.ErasedClientDataSourceImpl
 import com.bookk.business.data.datasource.ServiceDataSourceImpl
 import com.bookk.business.data.datasource.StepUpDataSourceImpl
 import com.bookk.business.domain.api.BUSINESS_SCHEMA
@@ -13,6 +14,7 @@ import com.bookk.business.domain.datasource.BusinessPermissionDataSource
 import com.bookk.business.domain.datasource.ClientDataSource
 import com.bookk.business.domain.datasource.EmployeeDataSource
 import com.bookk.business.domain.datasource.EmployeeInvitationDataSource
+import com.bookk.business.domain.datasource.ErasedClientDataSource
 import com.bookk.business.domain.datasource.ServiceDataSource
 import com.bookk.business.domain.datasource.StepUpDataSource
 import com.bookk.core.data.ExposedTransactionManager
@@ -28,6 +30,7 @@ fun businessDataModule() = module {
         scoped<BusinessDataSource> { BusinessDataSourceImpl() }
         scoped<BusinessPermissionDataSource> { BusinessPermissionDataSourceImpl() }
         scoped<ClientDataSource> { ClientDataSourceImpl() }
+        scoped<ErasedClientDataSource> { ErasedClientDataSourceImpl() }
         scoped<StepUpDataSource> { StepUpDataSourceImpl(get()) }
         scoped<ServiceDataSource> { ServiceDataSourceImpl() }
         scoped<EmployeeDataSource> { EmployeeDataSourceImpl() }

@@ -34,6 +34,8 @@ import com.bookk.business.domain.api.employee.operation.RevokeEmployeeInvitation
 import com.bookk.business.domain.api.employee.operation.SetEmployeePermissions
 import com.bookk.business.domain.api.employee.operation.SetEmployeeSuspension
 import com.bookk.business.domain.api.employee.operation.UpdateEmployee
+import com.bookk.business.domain.api.erasure.operation.DeleteExpiredErasureRecords
+import com.bookk.business.domain.api.erasure.operation.ReapplyClientErasures
 import com.bookk.business.domain.api.service.operation.CreateService
 import com.bookk.business.domain.api.service.operation.CreateServiceGroup
 import com.bookk.business.domain.api.service.operation.DeleteService
@@ -78,6 +80,8 @@ import com.bookk.business.domain.impl.operation.employee.RevokeEmployeeInvitatio
 import com.bookk.business.domain.impl.operation.employee.SetEmployeePermissionsImpl
 import com.bookk.business.domain.impl.operation.employee.SetEmployeeSuspensionImpl
 import com.bookk.business.domain.impl.operation.employee.UpdateEmployeeImpl
+import com.bookk.business.domain.impl.operation.erasure.DeleteExpiredErasureRecordsImpl
+import com.bookk.business.domain.impl.operation.erasure.ReapplyClientErasuresImpl
 import com.bookk.business.domain.impl.operation.service.CreateServiceGroupImpl
 import com.bookk.business.domain.impl.operation.service.CreateServiceImpl
 import com.bookk.business.domain.impl.operation.service.DeleteServiceGroupImpl
@@ -121,6 +125,8 @@ fun businessDomainModule() = module {
         scopedOf(::GetOwnedBusinessMemberIdsImpl) bind GetOwnedBusinessMemberIds::class
         scopedOf(::DeleteClientImpl) bind DeleteClient::class
         scopedOf(::DeleteInactiveClientsImpl) bind DeleteInactiveClients::class
+        scopedOf(::ReapplyClientErasuresImpl) bind ReapplyClientErasures::class
+        scopedOf(::DeleteExpiredErasureRecordsImpl) bind DeleteExpiredErasureRecords::class
         scopedOf(::RecordClientVisitImpl) bind RecordClientVisit::class
         scopedOf(::StepUpVerifier)
         scopedOf(::UpdateClientImpl) bind UpdateClient::class

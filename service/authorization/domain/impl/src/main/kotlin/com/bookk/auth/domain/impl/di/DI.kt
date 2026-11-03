@@ -8,6 +8,8 @@ import com.bookk.auth.domain.api.authentication.operation.SignIn
 import com.bookk.auth.domain.api.authentication.operation.StartAssertion
 import com.bookk.auth.domain.api.delete_account.operation.DeleteAccount
 import com.bookk.auth.domain.api.device.operation.DeleteInactiveDevices
+import com.bookk.auth.domain.api.erasure.operation.DeleteExpiredErasureRecords
+import com.bookk.auth.domain.api.erasure.operation.ReapplyAccountErasures
 import com.bookk.auth.domain.api.identification.operation.DeletePasskey
 import com.bookk.auth.domain.api.identification.operation.GetAttachPasskeyToAccountChallenge
 import com.bookk.auth.domain.api.identification.operation.GetAvailablePasskeys
@@ -28,6 +30,8 @@ import com.bookk.auth.domain.impl.operation.authentication.HandleDormantAccounts
 import com.bookk.auth.domain.impl.operation.authentication.SignInImpl
 import com.bookk.auth.domain.impl.operation.authentication.StartAssertionImpl
 import com.bookk.auth.domain.impl.operation.device.DeleteInactiveDevicesImpl
+import com.bookk.auth.domain.impl.operation.erasure.DeleteExpiredErasureRecordsImpl
+import com.bookk.auth.domain.impl.operation.erasure.ReapplyAccountErasuresImpl
 import com.bookk.auth.domain.impl.operation.identification.DeletePasskeyImpl
 import com.bookk.auth.domain.impl.operation.identification.GetAttachPasskeyToAccountChallengeImpl
 import com.bookk.auth.domain.impl.operation.identification.GetAvailablePasskeysImpl
@@ -59,6 +63,8 @@ fun authDomainModule() = module {
         scopedOf(::AccountEraser)
         scopedOf(::HandleDormantAccountsImpl) bind HandleDormantAccounts::class
         scopedOf(::DeleteAccountImpl) bind DeleteAccount::class
+        scopedOf(::ReapplyAccountErasuresImpl) bind ReapplyAccountErasures::class
+        scopedOf(::DeleteExpiredErasureRecordsImpl) bind DeleteExpiredErasureRecords::class
         scopedOf(::IssueStepUpTokenImpl) bind IssueStepUpToken::class
         scopedOf(::StartRegistrationImpl) bind StartRegistration::class
         scopedOf(::FinishRegistrationImpl) bind FinishRegistration::class

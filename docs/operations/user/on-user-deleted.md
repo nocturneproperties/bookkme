@@ -2,7 +2,7 @@
 
 Kafka topic `AuthEvent.UserDeleted` → `UserEventHandler` → `DeleteUser`
 
-Produced by [Delete account](../authorization/delete-account.md). The user
+Produced by [Delete account](../authorization/delete-account.md), the [`auth-handleDormantAccounts` job](../scheduled-jobs.md) and, after a backup restore, the [`auth-reapplyErasures` job](../scheduled-jobs.md). The user
 service owns the profile row itself, so this is a hard delete, and the
 user's legal document acceptances and contact forms go with it
 (`ON DELETE CASCADE`) — the other

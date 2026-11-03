@@ -9,6 +9,7 @@ import com.bookk.auth.domain.api.identification.entity.DeviceInfo
 import com.bookk.auth.domain.api.identification.entity.PasskeyCredential
 import com.bookk.auth.domain.datasource.AccountDataSource
 import com.bookk.auth.domain.datasource.DeviceDataSource
+import com.bookk.auth.domain.datasource.ErasedAccountDataSource
 import com.bookk.core.data.eventstreaming.StandardEventProducer
 import com.bookk.core.domain.datasource.transaction.TransactionManager
 import com.bookk.core.domain.datasource.transaction.mockTransaction
@@ -30,9 +31,10 @@ internal class DeleteAccountImplTest {
         val finishAssertion = mockk<FinishAssertion>()
         val accountDataSource = mockk<AccountDataSource>()
         val deviceDataSource = mockk<DeviceDataSource>()
+        val erasedAccountDataSource = mockk<ErasedAccountDataSource>(relaxUnitFun = true)
         val eventProducer = mockk<StandardEventProducer>(relaxed = true)
         val transactionManager = mockk<TransactionManager>()
-        val sut = DeleteAccountImpl(finishAssertion, accountDataSource, AccountEraser(accountDataSource, deviceDataSource, eventProducer), transactionManager)
+        val sut = DeleteAccountImpl(finishAssertion, accountDataSource, AccountEraser(accountDataSource, deviceDataSource, erasedAccountDataSource, eventProducer), transactionManager)
     }
 
     private fun makeDevice(authRecord: Authentication, deviceUUID: Uuid = Uuid.random()): Device = Device(

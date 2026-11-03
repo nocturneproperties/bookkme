@@ -2,6 +2,8 @@ package com.bookk.auth.microservice
 
 import com.bookk.auth.domain.api.authentication.operation.HandleDormantAccounts
 import com.bookk.auth.domain.api.device.operation.DeleteInactiveDevices
+import com.bookk.auth.domain.api.erasure.operation.DeleteExpiredErasureRecords
+import com.bookk.auth.domain.api.erasure.operation.ReapplyAccountErasures
 import com.bookk.auth.domain.impl.di.AuthScope
 import com.bookk.core.service.test.routeTest
 import com.bookk.core.service.test.startScopedApplication
@@ -20,6 +22,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
 import kotlin.time.Duration.Companion.days
+import kotlin.time.Duration.Companion.minutes
 
 internal class AuthJobsTest {
 
@@ -27,6 +30,8 @@ internal class AuthJobsTest {
         val rotateSigningKeys = mockk<RotateSigningKeys>()
         val deleteInactiveDevices = mockk<DeleteInactiveDevices>()
         val handleDormantAccounts = mockk<HandleDormantAccounts>()
+        val reapplyAccountErasures = mockk<ReapplyAccountErasures>()
+        val deleteExpiredErasureRecords = mockk<DeleteExpiredErasureRecords>()
         val scheduler = SchedulerConfiguration()
 
         suspend fun registerJobs(builder: ApplicationTestBuilder) {
@@ -34,6 +39,8 @@ internal class AuthJobsTest {
                 scoped { rotateSigningKeys }
                 scoped { deleteInactiveDevices }
                 scoped { handleDormantAccounts }
+                scoped { reapplyAccountErasures }
+                scoped { deleteExpiredErasureRecords }
             }
             application.registerAuthJobs(scheduler)
         }
@@ -53,6 +60,8 @@ internal class AuthJobsTest {
                 "auth-rotateSigningKeys" to 1.days,
                 "auth-deleteInactiveDevices" to 1.days,
                 "auth-handleDormantAccounts" to 1.days,
+                "auth-reapplyErasures" to 1.minutes,
+                "auth-deleteExpiredErasureRecords" to 1.days,
             ),
             fixture.scheduler.registeredJobs(),
         )
@@ -140,6 +149,64 @@ internal class AuthJobsTest {
 
         whenn()
         val result = runCatching { fixture.scheduler.runJob("auth-handleDormantAccounts") }
+
+        then()
+        assertSame(error, result.exceptionOrNull())
+    }
+
+    @Test
+    fun `should erase again the accounts a restore brought back`() = routeTest {
+        given()
+        val fixture = SutFixture()
+        coEvery { fixture.reapplyAccountErasures.invoke() } returns Result.success(Unit)
+        fixture.registerJobs(this)
+
+        whenn()
+        fixture.scheduler.runJob("auth-reapplyErasures")
+
+        then()
+        coVerify(exactly = 1) { fixture.reapplyAccountErasures.invoke() }
+    }
+
+    @Test
+    fun `should surface a failed erasure re-run`() = routeTest {
+        given()
+        val fixture = SutFixture()
+        val error = RuntimeException("erasure re-run failed")
+        coEvery { fixture.reapplyAccountErasures.invoke() } returns Result.failure(error)
+        fixture.registerJobs(this)
+
+        whenn()
+        val result = runCatching { fixture.scheduler.runJob("auth-reapplyErasures") }
+
+        then()
+        assertSame(error, result.exceptionOrNull())
+    }
+
+    @Test
+    fun `should delete expired erasure records`() = routeTest {
+        given()
+        val fixture = SutFixture()
+        coEvery { fixture.deleteExpiredErasureRecords.invoke() } returns Result.success(Unit)
+        fixture.registerJobs(this)
+
+        whenn()
+        fixture.scheduler.runJob("auth-deleteExpiredErasureRecords")
+
+        then()
+        coVerify(exactly = 1) { fixture.deleteExpiredErasureRecords.invoke() }
+    }
+
+    @Test
+    fun `should surface a failed erasure record cleanup`() = routeTest {
+        given()
+        val fixture = SutFixture()
+        val error = RuntimeException("erasure record cleanup failed")
+        coEvery { fixture.deleteExpiredErasureRecords.invoke() } returns Result.failure(error)
+        fixture.registerJobs(this)
+
+        whenn()
+        val result = runCatching { fixture.scheduler.runJob("auth-deleteExpiredErasureRecords") }
 
         then()
         assertSame(error, result.exceptionOrNull())

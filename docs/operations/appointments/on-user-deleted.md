@@ -2,7 +2,7 @@
 
 Kafka topic `AuthEvent.UserDeleted` → `AppointmentEventHandler` → `DeleteUserAppointmentData`
 
-Produced by [Delete account](../authorization/delete-account.md). Strips
+Produced by [Delete account](../authorization/delete-account.md), the [`auth-handleDormantAccounts` job](../scheduled-jobs.md) and, after a backup restore, the [`auth-reapplyErasures` job](../scheduled-jobs.md). Strips
 this user's appointment footprint in every role, in one transaction:
 
 - **As the client** (`client_user_id`, the client's own account recorded

@@ -4,7 +4,8 @@ Kafka topic `BusinessEvent.ClientDeleted` → `AppointmentEventHandler` → `Del
 
 Produced by [Delete client](../business/delete-client.md) and by the
 [`business-deleteInactiveClients` job](../scheduled-jobs.md), which deletes
-clients inactive for longer than the business's retention period. Erases one client
+clients inactive for longer than the business's retention period, and, after a
+backup restore, by the [`business-reapplyErasures` job](../scheduled-jobs.md). Erases one client
 from one business's appointments, in one transaction, matched by
 `business_id` and `client_id` (the business's client row id, indexed on both
 tables). Nothing changes at other businesses, and a client with an account
