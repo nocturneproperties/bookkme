@@ -27,6 +27,7 @@ def generated_secrets():
         "vault_monolith_db_root_password": secrets.token_urlsafe(32),
         "vault_monolith_db_exporter_password": secrets.token_urlsafe(32),
         "vault_monolith_db_nocodb_password": secrets.token_urlsafe(32),
+        "vault_monolith_db_nocodb_writer_password": secrets.token_urlsafe(32),
         "vault_monolith_db_backup_password": secrets.token_urlsafe(32),
         "vault_monolith_redis_password": secrets.token_urlsafe(32),
         "vault_dozzle_session_secret": base64.b64encode(secrets.token_bytes(32)).decode(),

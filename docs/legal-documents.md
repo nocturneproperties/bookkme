@@ -4,7 +4,7 @@ The user service records which version of the privacy policy and the terms of se
 
 ## Publishing a version
 
-A version is a row in `user.legal_document_version`, inserted by hand. There is no admin route.
+A version is a row in `user.legal_document_version`, inserted by hand. There is no admin route. In prod, insert it in NocoDB through the `user` source that logs in as `nocodb_writer`, which may only read and insert rows of this table (no `UPDATE` or `DELETE`, no other table; see NocoDB in `deployment/ansible/README.md`), or with the statement below.
 
 ```sql
 INSERT INTO `user`.legal_document_version (document, version, url, effective_at)
