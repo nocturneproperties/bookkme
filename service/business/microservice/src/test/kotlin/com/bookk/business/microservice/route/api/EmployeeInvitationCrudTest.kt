@@ -40,7 +40,7 @@ internal class EmployeeInvitationCrudTest {
 
     private fun revokeResource(id: Uuid) = BusinessRouting.Api.EmployeeInvitation.Revoke(
         BusinessRouting.Api.EmployeeInvitation(businessId = businessId),
-        id
+        id,
     )
 
     private fun jwtAuthentication(): Application.() -> Unit = {
@@ -61,7 +61,7 @@ internal class EmployeeInvitationCrudTest {
         setupApplication(
             extension = jwtAuthentication(),
             diModule = module { single { useCase } },
-            routeUnderTest = { employeeInvitationCrud() }
+            routeUnderTest = { employeeInvitationCrud() },
         )
 
         whenn()
@@ -83,7 +83,7 @@ internal class EmployeeInvitationCrudTest {
         setupApplication(
             extension = jwtAuthentication(),
             diModule = module { single { useCase } },
-            routeUnderTest = { employeeInvitationCrud() }
+            routeUnderTest = { employeeInvitationCrud() },
         )
 
         whenn()
@@ -104,7 +104,7 @@ internal class EmployeeInvitationCrudTest {
         setupApplication(
             extension = jwtAuthentication(),
             diModule = module { single { useCase } },
-            routeUnderTest = { employeeInvitationCrud() }
+            routeUnderTest = { employeeInvitationCrud() },
         )
 
         whenn()
@@ -115,7 +115,7 @@ internal class EmployeeInvitationCrudTest {
         assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
         assertEquals(
             BusinessErrorCodes.BUSINESS_EMPLOYEE_PENDING_INVITATIONS_LIMIT_REACHED,
-            response.body<SimpleServerError>().errorCode
+            response.body<SimpleServerError>().errorCode,
         )
     }
 
@@ -129,7 +129,7 @@ internal class EmployeeInvitationCrudTest {
         setupApplication(
             extension = jwtAuthentication(),
             diModule = module { single { useCase } },
-            routeUnderTest = { employeeInvitationCrud() }
+            routeUnderTest = { employeeInvitationCrud() },
         )
 
         whenn()
@@ -140,7 +140,7 @@ internal class EmployeeInvitationCrudTest {
         assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
         assertEquals(
             BusinessErrorCodes.BUSINESS_EMPLOYEE_DAILY_INVITATIONS_LIMIT_REACHED,
-            response.body<SimpleServerError>().errorCode
+            response.body<SimpleServerError>().errorCode,
         )
     }
 
@@ -152,7 +152,7 @@ internal class EmployeeInvitationCrudTest {
         setupApplication(
             extension = { install(Authentication) { bearer { authenticate { null } } } },
             diModule = module { single { useCase } },
-            routeUnderTest = { employeeInvitationCrud() }
+            routeUnderTest = { employeeInvitationCrud() },
         )
 
         whenn()
@@ -169,14 +169,14 @@ internal class EmployeeInvitationCrudTest {
         val useCase: GetEmployeeInvitations = mockk()
         val invitations = listOf(
             EmployeeInvitation.stub(businessId = businessId, invitedBy = userId),
-            EmployeeInvitation.stub(businessId = businessId, invitedBy = userId)
+            EmployeeInvitation.stub(businessId = businessId, invitedBy = userId),
         )
         coEvery { useCase.invoke(userId, businessId) } returns Result.success(invitations)
 
         setupApplication(
             extension = jwtAuthentication(),
             diModule = module { single { useCase } },
-            routeUnderTest = { employeeInvitationCrud() }
+            routeUnderTest = { employeeInvitationCrud() },
         )
 
         whenn()
@@ -196,7 +196,7 @@ internal class EmployeeInvitationCrudTest {
         setupApplication(
             extension = { install(Authentication) { bearer { authenticate { null } } } },
             diModule = module { single { useCase } },
-            routeUnderTest = { employeeInvitationCrud() }
+            routeUnderTest = { employeeInvitationCrud() },
         )
 
         whenn()
@@ -217,7 +217,7 @@ internal class EmployeeInvitationCrudTest {
         setupApplication(
             extension = jwtAuthentication(),
             diModule = module { single { useCase } },
-            routeUnderTest = { employeeInvitationCrud() }
+            routeUnderTest = { employeeInvitationCrud() },
         )
 
         whenn()
@@ -240,7 +240,7 @@ internal class EmployeeInvitationCrudTest {
         setupApplication(
             extension = jwtAuthentication(),
             diModule = module { single { useCase } },
-            routeUnderTest = { employeeInvitationCrud() }
+            routeUnderTest = { employeeInvitationCrud() },
         )
 
         whenn()
@@ -263,7 +263,7 @@ internal class EmployeeInvitationCrudTest {
         setupApplication(
             extension = jwtAuthentication(),
             diModule = module { single { useCase } },
-            routeUnderTest = { employeeInvitationCrud() }
+            routeUnderTest = { employeeInvitationCrud() },
         )
 
         whenn()
@@ -276,7 +276,7 @@ internal class EmployeeInvitationCrudTest {
         assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
         assertEquals(
             BusinessErrorCodes.BUSINESS_EMPLOYEE_INVITATION_ALREADY_PROCESSED,
-            response.body<SimpleServerError>().errorCode
+            response.body<SimpleServerError>().errorCode,
         )
     }
 
@@ -290,7 +290,7 @@ internal class EmployeeInvitationCrudTest {
         setupApplication(
             extension = jwtAuthentication(),
             diModule = module { single { useCase } },
-            routeUnderTest = { employeeInvitationCrud() }
+            routeUnderTest = { employeeInvitationCrud() },
         )
 
         whenn()
@@ -303,7 +303,7 @@ internal class EmployeeInvitationCrudTest {
         assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
         assertEquals(
             BusinessErrorCodes.BUSINESS_EMPLOYEE_INVITATION_CODE_EMPTY,
-            response.body<SimpleServerError>().errorCode
+            response.body<SimpleServerError>().errorCode,
         )
     }
 
@@ -317,7 +317,7 @@ internal class EmployeeInvitationCrudTest {
         setupApplication(
             extension = jwtAuthentication(),
             diModule = module { single { useCase } },
-            routeUnderTest = { employeeInvitationCrud() }
+            routeUnderTest = { employeeInvitationCrud() },
         )
 
         whenn()
@@ -339,7 +339,7 @@ internal class EmployeeInvitationCrudTest {
         setupApplication(
             extension = { install(Authentication) { bearer { authenticate { null } } } },
             diModule = module { single { useCase } },
-            routeUnderTest = { employeeInvitationCrud() }
+            routeUnderTest = { employeeInvitationCrud() },
         )
 
         whenn()
@@ -362,7 +362,7 @@ internal class EmployeeInvitationCrudTest {
         setupApplication(
             extension = jwtAuthentication(),
             diModule = module { single { useCase } },
-            routeUnderTest = { employeeInvitationCrud() }
+            routeUnderTest = { employeeInvitationCrud() },
         )
 
         whenn()
@@ -383,7 +383,7 @@ internal class EmployeeInvitationCrudTest {
         setupApplication(
             extension = jwtAuthentication(),
             diModule = module { single { useCase } },
-            routeUnderTest = { employeeInvitationCrud() }
+            routeUnderTest = { employeeInvitationCrud() },
         )
 
         whenn()
@@ -404,7 +404,7 @@ internal class EmployeeInvitationCrudTest {
         setupApplication(
             extension = jwtAuthentication(),
             diModule = module { single { useCase } },
-            routeUnderTest = { employeeInvitationCrud() }
+            routeUnderTest = { employeeInvitationCrud() },
         )
 
         whenn()
@@ -426,7 +426,7 @@ internal class EmployeeInvitationCrudTest {
         setupApplication(
             extension = jwtAuthentication(),
             diModule = module { single { useCase } },
-            routeUnderTest = { employeeInvitationCrud() }
+            routeUnderTest = { employeeInvitationCrud() },
         )
 
         whenn()
@@ -437,7 +437,7 @@ internal class EmployeeInvitationCrudTest {
         assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
         assertEquals(
             BusinessErrorCodes.BUSINESS_EMPLOYEE_INVITATION_ALREADY_PROCESSED,
-            response.body<SimpleServerError>().errorCode
+            response.body<SimpleServerError>().errorCode,
         )
     }
 
@@ -449,7 +449,7 @@ internal class EmployeeInvitationCrudTest {
         setupApplication(
             extension = { install(Authentication) { bearer { authenticate { null } } } },
             diModule = module { single { useCase } },
-            routeUnderTest = { employeeInvitationCrud() }
+            routeUnderTest = { employeeInvitationCrud() },
         )
 
         whenn()

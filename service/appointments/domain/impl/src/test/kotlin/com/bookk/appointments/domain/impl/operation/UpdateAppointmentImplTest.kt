@@ -15,6 +15,7 @@ import com.bookk.appointments.domain.datasource.AppointmentSettingsDataSource
 import com.bookk.business.domain.api.appointment.entity.AppointmentRescheduleContext
 import com.bookk.business.domain.api.employee.entity.Employee
 import com.bookk.business.domain.api.service.entity.Service
+import com.bookk.core.data.eventstreaming.StandardEventProducer
 import com.bookk.core.domain.datasource.transaction.TransactionManager
 import com.bookk.core.domain.datasource.transaction.mockTransaction
 import com.bookk.core.domain.entity.Error
@@ -22,9 +23,11 @@ import com.bookk.core.test.given
 import com.bookk.core.test.runUnitTest
 import com.bookk.core.test.then
 import com.bookk.core.test.whenn
+import com.bookk.server.appointments.client.api.event.AppointmentEvent
 import com.bookk.server.business.client.api.BusinessClient
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.coVerifyOrder
 import io.mockk.mockk
 import library.permissions.EmployeeAccessSuspended
 import library.permissions.ResourcePermission
@@ -32,6 +35,8 @@ import org.joda.money.Money
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import kotlin.time.Clock
+import kotlin.time.Duration.Companion.days
 import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
@@ -44,21 +49,26 @@ internal class UpdateAppointmentImplTest {
         val businessClient = mockk<BusinessClient>()
         val transactionManager = mockk<TransactionManager>()
         val settings = mockk<AppointmentSettings>()
+        val eventProducer = mockk<StandardEventProducer>()
+        val sentEvents = mutableListOf<AppointmentEvent>()
+        val sentInTransaction = mutableListOf<Boolean>()
 
         val sut = UpdateAppointmentImpl(
             appointmentDataSource,
             settingsDataSource,
             appointmentPermissionDataSource,
             businessClient,
-            transactionManager
+            transactionManager,
+            eventProducer,
         )
 
         fun givenValidUpdate(
             userId: Uuid,
             stored: Appointment,
-            permission: ResourcePermission = ResourcePermission(view = false, update = true, delete = false)
+            permission: ResourcePermission = ResourcePermission(view = false, update = true, delete = false),
         ) {
             transactionManager.mockTransaction()
+            coEvery { appointmentDataSource.get(stored.id) } returns stored
             coEvery { appointmentDataSource.getForUpdate(stored.id) } returns stored
             coEvery { settingsDataSource.getForUpdate(stored.businessId) } returns settings
             coEvery { settings.isInWorkday(any()) } returns true
@@ -66,6 +76,10 @@ internal class UpdateAppointmentImplTest {
             coEvery { appointmentPermissionDataSource.getPermission(userId, stored.businessId) } returns permission
             coEvery { appointmentDataSource.hasOverlapsWith(any<Appointment>()) } returns false
             coEvery { appointmentDataSource.update(any<Appointment>()) } answers { firstArg() }
+            coEvery { eventProducer.send(any<AppointmentEvent>(), any()) } coAnswers {
+                sentEvents += firstArg<AppointmentEvent>()
+                sentInTransaction += transactionManager.isInTransaction()
+            }
         }
     }
 
@@ -77,7 +91,7 @@ internal class UpdateAppointmentImplTest {
         date = date,
         note = "Updated note",
         employeeId = stored.employee.id,
-        services = stored.services.map { RequestedService(serviceId = it.id, count = 1) }
+        services = stored.services.map { RequestedService(serviceId = it.id, count = 1) },
     )
 
     @Test
@@ -143,7 +157,7 @@ internal class UpdateAppointmentImplTest {
         val storedService = stored.services.single()
         val added = Service.stub(businessId = stored.businessId, price = Money.parse("USD 25"))
         val update = keepingEverything(stored).copy(
-            services = listOf(RequestedService(serviceId = storedService.id, count = 1), RequestedService(serviceId = added.id, count = 1))
+            services = listOf(RequestedService(serviceId = storedService.id, count = 1), RequestedService(serviceId = added.id, count = 1)),
         )
         with(fixture) {
             givenValidUpdate(userId, stored)
@@ -220,6 +234,7 @@ internal class UpdateAppointmentImplTest {
 
         then()
         coVerify(exactly = 0) { fixture.settingsDataSource.getForUpdate(any()) }
+        coVerify(exactly = 0) { fixture.appointmentDataSource.getForUpdate(any()) }
     }
 
     @Test
@@ -256,7 +271,7 @@ internal class UpdateAppointmentImplTest {
         whenn()
         val result = fixture.sut(
             Uuid.random(),
-            AppointmentUpdate.stub(services = listOf(RequestedService.stub(serviceId = serviceId), RequestedService.stub(serviceId = serviceId)))
+            AppointmentUpdate.stub(services = listOf(RequestedService.stub(serviceId = serviceId), RequestedService.stub(serviceId = serviceId))),
         )
 
         then()
@@ -270,7 +285,7 @@ internal class UpdateAppointmentImplTest {
         val update = AppointmentUpdate.stub(date = futureDate)
         with(fixture) {
             transactionManager.mockTransaction()
-            coEvery { appointmentDataSource.getForUpdate(update.id) } throws Error.NotFound()
+            coEvery { appointmentDataSource.get(update.id) } throws Error.NotFound()
         }
 
         whenn()
@@ -299,7 +314,7 @@ internal class UpdateAppointmentImplTest {
     }
 
     @Test
-    fun `should read the stored appointment with a row lock`() = runUnitTest {
+    fun `should lock the settings and then the appointment before reading the permission in the booking transaction`() = runUnitTest {
         given()
         val fixture = SutFixture()
         val userId = Uuid.random()
@@ -310,8 +325,56 @@ internal class UpdateAppointmentImplTest {
         fixture.sut(userId, keepingEverything(stored))
 
         then()
-        coVerify(exactly = 1) { fixture.appointmentDataSource.getForUpdate(stored.id) }
-        coVerify(exactly = 0) { fixture.appointmentDataSource.get(any()) }
+        coVerifyOrder {
+            fixture.appointmentDataSource.get(stored.id)
+            fixture.appointmentPermissionDataSource.getPermission(userId, stored.businessId)
+            fixture.settingsDataSource.getForUpdate(stored.businessId)
+            fixture.appointmentDataSource.getForUpdate(stored.id)
+            fixture.appointmentPermissionDataSource.getPermission(userId, stored.businessId)
+            fixture.appointmentDataSource.hasOverlapsWith(any<Appointment>())
+            fixture.appointmentDataSource.update(any<Appointment>())
+        }
+    }
+
+    @Test
+    fun `should return a conflict when the appointment changed while the change was resolved`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val stored = Appointment.stub(date = futureDate)
+        with(fixture) {
+            givenValidUpdate(userId, stored)
+            coEvery { appointmentDataSource.getForUpdate(stored.id) } returns stored.copy(note = "Changed meanwhile")
+        }
+
+        whenn()
+        val result = fixture.sut(userId, keepingEverything(stored))
+
+        then()
+        assertTrue(result.exceptionOrNull() is Error.TransactionConflict)
+        coVerify(exactly = 0) { fixture.appointmentDataSource.update(any()) }
+    }
+
+    @Test
+    fun `should check the permission again after taking the locks`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val stored = Appointment.stub(date = futureDate)
+        with(fixture) {
+            givenValidUpdate(userId, stored)
+            coEvery { appointmentPermissionDataSource.getPermission(userId, stored.businessId) } returnsMany listOf(
+                ResourcePermission(view = false, update = true, delete = false),
+                ResourcePermission.NONE,
+            )
+        }
+
+        whenn()
+        val result = fixture.sut(userId, keepingEverything(stored))
+
+        then()
+        assertTrue(result.exceptionOrNull() is Error.OperationNotAllowed)
+        coVerify(exactly = 0) { fixture.appointmentDataSource.update(any()) }
     }
 
     @Test
@@ -483,5 +546,40 @@ internal class UpdateAppointmentImplTest {
         assertTrue(isExpected(result.exceptionOrNull()))
         coVerify(exactly = 0) { fixture.businessClient.getAppointmentRescheduleContext(any(), any(), any()) }
         coVerify(exactly = 0) { fixture.appointmentDataSource.update(any()) }
+    }
+
+    @Test
+    fun `should return failure when the appointment ended more than a week ago`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val stored = Appointment.stub(date = Clock.System.now() - 30.days)
+        fixture.givenValidUpdate(userId, stored)
+
+        whenn()
+        val result = fixture.sut(userId, keepingEverything(stored))
+
+        then()
+        assertTrue(result.exceptionOrNull() is AppointmentStatusError.EditWindowClosed)
+        coVerify(exactly = 0) { fixture.appointmentDataSource.update(any()) }
+    }
+
+    @Test
+    fun `should tell the business the client has a visit until the rescheduled appointment ends`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val stored = Appointment.stub(date = futureDate)
+        fixture.givenValidUpdate(userId, stored)
+
+        whenn()
+        val rescheduled = fixture.sut(userId, keepingEverything(stored)).getOrThrow()
+
+        then()
+        val visit = fixture.sentEvents.filterIsInstance<AppointmentEvent.ClientVisitBooked>().single()
+        assertEquals(stored.businessId, visit.businessId)
+        assertEquals(stored.client.id, visit.clientId)
+        assertEquals(rescheduled.dateEnd, visit.visitEnd)
+        assertEquals(listOf(true), fixture.sentInTransaction)
     }
 }

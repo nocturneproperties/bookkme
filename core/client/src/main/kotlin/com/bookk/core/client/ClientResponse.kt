@@ -12,7 +12,7 @@ import io.ktor.http.isSuccess
 fun domainErrorOf(
     status: HttpStatusCode,
     serverError: SimpleServerError?,
-    cause: Throwable?
+    cause: Throwable?,
 ): Throwable = when {
     serverError != null -> BusinessError(status.value, serverError.errorCode, serverError.message)
     status == HttpStatusCode.NotFound -> Error.NotFound()

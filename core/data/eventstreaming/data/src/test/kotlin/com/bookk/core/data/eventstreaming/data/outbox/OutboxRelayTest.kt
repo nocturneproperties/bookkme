@@ -43,7 +43,7 @@ internal class OutboxRelayTest {
 
         fun OutboxEvent.isPublished() = assertEquals(
             1,
-            published.count { it.topic == topic && it.partitionKey == partitionKey && it.payload.contentEquals(payload) }
+            published.count { it.topic == topic && it.partitionKey == partitionKey && it.payload.contentEquals(payload) },
         )
     }
 
@@ -109,7 +109,7 @@ internal class OutboxRelayTest {
         coEvery { fixture.outboxEventDataSource.lockPending(fixture.batchSize) } returnsMany listOf(
             listOf(first, second),
             listOf(third),
-            emptyList()
+            emptyList(),
         )
 
         whenn()

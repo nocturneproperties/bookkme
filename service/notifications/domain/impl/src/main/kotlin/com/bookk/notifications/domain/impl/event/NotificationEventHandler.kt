@@ -9,7 +9,9 @@ import com.bookk.notifications.domain.api.DeleteUserNotificationData
 import com.bookk.notifications.domain.impl.UpdateDeviceLanguage
 import com.bookk.notifications.domain.impl.UpdateTargetInformation
 import com.bookk.notifications.domain.impl.UpdateTargetInformation.Target
+import com.bookk.notifications.domain.impl.notification.NotificationParameters
 import com.bookk.notifications.domain.impl.notification.SendNotification
+import com.bookk.notifications.domain.impl.notification.renderer.account.notification
 import com.bookk.notifications.domain.impl.notification.renderer.appointment.notification
 import com.bookk.notifications.domain.impl.notification.renderer.employee.notification
 import com.bookk.server.appointments.client.api.event.AppointmentEvent
@@ -17,6 +19,7 @@ import com.bookk.server.auth.client.AuthEvent
 import com.bookk.server.business.client.api.event.BusinessEvent
 import com.bookk.server.user.client.api.event.UserEvent
 import kotlinx.coroutines.CoroutineScope
+import kotlin.uuid.Uuid
 
 internal class NotificationEventHandler(
     private val consumer: StandardEventConsumer,
@@ -25,7 +28,7 @@ internal class NotificationEventHandler(
     private val updateTargetInformation: UpdateTargetInformation,
     private val updateDeviceLanguage: UpdateDeviceLanguage,
     private val sendNotification: SendNotification,
-    private val deleteUserNotificationData: DeleteUserNotificationData
+    private val deleteUserNotificationData: DeleteUserNotificationData,
 ) : EventHandler {
     override fun start(scope: CoroutineScope) {
         consumer
@@ -41,26 +44,42 @@ internal class NotificationEventHandler(
             .registerResultReceiver(AuthEvent.DeviceDeleted.TOPIC) { event: AuthEvent.DeviceDeleted ->
                 deleteDeviceByUUID(event.deviceUuid)
             }
-            .registerResultReceiver(UserEvent.Updated.TOPIC) { event : UserEvent.Updated ->
+            .registerResultReceiver(AuthEvent.AccountDormancyWarning.TOPIC) { event: AuthEvent.AccountDormancyWarning ->
+                sendNotification(event.userId, event.notification)
+            }
+            .registerResultReceiver(UserEvent.DataExportReady.TOPIC) { event: UserEvent.DataExportReady ->
+                sendNotification(event.userId, event.notification)
+            }
+            .registerResultReceiver(BusinessEvent.ExportReady.TOPIC) { event: BusinessEvent.ExportReady ->
+                sendNotification(event.ownerUserId, event.notification)
+            }
+            .registerResultReceiver(UserEvent.Updated.TOPIC) { event: UserEvent.Updated ->
                 updateTargetInformation(event.userId, Target.Email(event.email), event.updatedAt)
             }
-            .registerResultReceiver(AppointmentEvent.RequestCreated.TOPIC) { event : AppointmentEvent.RequestCreated ->
+            .registerResultReceiver(AppointmentEvent.RequestCreated.TOPIC) { event: AppointmentEvent.RequestCreated ->
                 sendNotification(event.employeeUserId, event.notification)
             }
-            .registerResultReceiver(AppointmentEvent.RequestApproved.TOPIC) { event : AppointmentEvent.RequestApproved ->
-                sendNotification(event.clientUserId, event.notification)
+            .registerResultReceiver(AppointmentEvent.RequestApproved.TOPIC) { event: AppointmentEvent.RequestApproved ->
+                notifyClient(event.clientUserId, event.notification)
             }
-            .registerResultReceiver(AppointmentEvent.RequestRejected.TOPIC) { event : AppointmentEvent.RequestRejected ->
-                sendNotification(event.clientUserId, event.notification)
+            .registerResultReceiver(AppointmentEvent.RequestRejected.TOPIC) { event: AppointmentEvent.RequestRejected ->
+                notifyClient(event.clientUserId, event.notification)
             }
-            .registerResultReceiver(AppointmentEvent.Cancelled.TOPIC) { event : AppointmentEvent.Cancelled ->
-                sendNotification(event.clientUserId, event.notification)
+            .registerResultReceiver(AppointmentEvent.Cancelled.TOPIC) { event: AppointmentEvent.Cancelled ->
+                notifyClient(event.clientUserId, event.notification)
             }
             .registerResultReceiver(
-                BusinessEvent.EmployeeInvitationRedeemed.TOPIC
-            ) { event : BusinessEvent.EmployeeInvitationRedeemed ->
+                AppointmentEvent.CancelledForDeletedClient.TOPIC,
+            ) { event: AppointmentEvent.CancelledForDeletedClient ->
+                sendNotification(event.employeeUserId, event.notification)
+            }
+            .registerResultReceiver(
+                BusinessEvent.EmployeeInvitationRedeemed.TOPIC,
+            ) { event: BusinessEvent.EmployeeInvitationRedeemed ->
                 sendNotification(event.inviterUserId, event.notification)
             }
             .start(scope)
     }
+
+    private suspend fun notifyClient(clientUserId: Uuid?, notification: NotificationParameters): Result<Unit> = clientUserId?.let { sendNotification(it, notification) } ?: Result.success(Unit)
 }

@@ -45,7 +45,7 @@ internal class ScheduleTest {
     fun `should reject a schedule that does not cover every day`() = runUnitTest {
         given()
         val incompleteDays = mapOf(
-            DayOfWeek.MONDAY to DayOfWeekSchedule(listOf(WorkHour.NINE_TO_FIVE), isActive = true)
+            DayOfWeek.MONDAY to DayOfWeekSchedule(listOf(WorkHour.NINE_TO_FIVE), isActive = true),
         )
 
         whenn()

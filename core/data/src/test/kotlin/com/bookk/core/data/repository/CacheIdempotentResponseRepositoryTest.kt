@@ -31,14 +31,13 @@ internal class CacheIdempotentResponseRepositoryTest {
     }
 
     private class SuspendingAfterReadCacheClient(
-        private val delegate: CacheClient<String> = InMemoryCacheClient()
+        private val delegate: CacheClient<String> = InMemoryCacheClient(),
     ) : CacheClient<String> by delegate {
-        override suspend fun <V : Any> get(key: String, kType: KType): V? =
-            delegate.get<V>(key, kType).also { yield() }
+        override suspend fun <V : Any> get(key: String, kType: KType): V? = delegate.get<V>(key, kType).also { yield() }
     }
 
     private class KeyExpiredAfterFirstLockAttemptCacheClient(
-        private val delegate: CacheClient<String> = InMemoryCacheClient()
+        private val delegate: CacheClient<String> = InMemoryCacheClient(),
     ) : CacheClient<String> by delegate {
         private var firstAttempt = true
 

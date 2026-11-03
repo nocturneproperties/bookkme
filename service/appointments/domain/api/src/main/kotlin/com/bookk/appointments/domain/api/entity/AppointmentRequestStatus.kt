@@ -5,8 +5,15 @@ import kotlinx.serialization.protobuf.ProtoNumber
 
 @Serializable
 enum class AppointmentRequestStatus {
-    @ProtoNumber(0) PENDING,
-    @ProtoNumber(1) APPROVED,
-    @ProtoNumber(2) DECLINED,
-    @ProtoNumber(3) CANCELLED
+    @ProtoNumber(0)
+    PENDING,
+
+    @ProtoNumber(1)
+    APPROVED,
+
+    @ProtoNumber(2)
+    DECLINED,
+
+    @ProtoNumber(3)
+    CANCELLED,
 }

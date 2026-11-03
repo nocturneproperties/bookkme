@@ -10,11 +10,10 @@ import io.ktor.client.plugins.resources.get
 import kotlin.uuid.Uuid
 
 internal class GetUserByIdClientImpl(
-    private val httpClient: HttpClient
+    private val httpClient: HttpClient,
 ) : GetUserById {
 
     override suspend fun invoke(userId: Uuid): Result<User> = runSuspendCatching {
         httpClient.get(UserRouting.Api.Internal.User.Id(id = userId)).bodyOrThrow()
     }
-
 }

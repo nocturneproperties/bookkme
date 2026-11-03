@@ -2,7 +2,10 @@ package com.bookk.auth.microservice
 
 import com.bookk.auth.data.di.authDataModule
 import com.bookk.auth.domain.api.AUTH_SERVICE_NAME
+import com.bookk.auth.domain.api.authentication.operation.HandleDormantAccounts
 import com.bookk.auth.domain.api.device.operation.DeleteInactiveDevices
+import com.bookk.auth.domain.api.erasure.operation.DeleteExpiredErasureRecords
+import com.bookk.auth.domain.api.erasure.operation.ReapplyAccountErasures
 import com.bookk.auth.domain.impl.di.AuthScope
 import com.bookk.auth.domain.impl.di.authDomainModule
 import com.bookk.auth.microservice.route.authRoute
@@ -15,6 +18,7 @@ import com.bookk.core.service.di.installServiceScope
 import com.bookk.core.service.di.serviceScope
 import com.bookk.core.service.installNegotiation
 import com.bookk.core.service.startServer
+import com.bookk.server.business.client.di.businessClientModule
 import io.ktor.server.application.Application
 import io.ktor.server.application.install
 import io.ktor.server.routing.application
@@ -23,6 +27,7 @@ import library.scheduler.SchedulerConfiguration
 import library.signing.RotateSigningKeys
 import org.koin.dsl.module
 import kotlin.time.Duration.Companion.days
+import kotlin.time.Duration.Companion.minutes
 
 fun authModule() = module {
     includes(
@@ -30,7 +35,8 @@ fun authModule() = module {
         authDataModule(),
         eventStreamingTransportModule(AuthScope, AUTH_SERVICE_NAME),
         outboxModule(AuthScope),
-        cacheModule()
+        cacheModule(),
+        businessClientModule(AuthScope, AUTH_SERVICE_NAME),
     )
 }
 
@@ -40,7 +46,8 @@ fun authEmbeddedModule() = module {
         authDataModule(),
         embeddedEventStreamingTransportModule(AuthScope, AUTH_SERVICE_NAME),
         outboxModule(AuthScope),
-        cacheModule()
+        cacheModule(),
+        businessClientModule(AuthScope, AUTH_SERVICE_NAME),
     )
 }
 
@@ -65,5 +72,14 @@ fun Application.registerAuthJobs(scheduler: SchedulerConfiguration) {
     }
     scheduler.job("$AUTH_SERVICE_NAME-deleteInactiveDevices", interval = 1.days) {
         scope.get<DeleteInactiveDevices>().invoke().getOrThrow()
+    }
+    scheduler.job("$AUTH_SERVICE_NAME-handleDormantAccounts", interval = 1.days) {
+        scope.get<HandleDormantAccounts>().invoke().getOrThrow()
+    }
+    scheduler.job("$AUTH_SERVICE_NAME-reapplyErasures", interval = 1.minutes) {
+        scope.get<ReapplyAccountErasures>().invoke().getOrThrow()
+    }
+    scheduler.job("$AUTH_SERVICE_NAME-deleteExpiredErasureRecords", interval = 1.days) {
+        scope.get<DeleteExpiredErasureRecords>().invoke().getOrThrow()
     }
 }

@@ -13,7 +13,7 @@ data class BusinessDTO(
     @ProtoNumber(2) val name: String,
     @ProtoNumber(3) val address: String,
     @ProtoNumber(4) val timeZone: TimeZone,
-    @ProtoNumber(5) val schedule: Schedule
+    @ProtoNumber(5) val schedule: Schedule,
 ) {
     companion object {
         fun from(business: Business) = BusinessDTO(
@@ -21,7 +21,7 @@ data class BusinessDTO(
             name = business.name,
             address = business.address,
             timeZone = business.timeZone,
-            schedule = business.schedule
+            schedule = business.schedule,
         )
     }
 }

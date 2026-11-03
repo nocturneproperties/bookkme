@@ -30,6 +30,7 @@ internal class BusinessEntity(id: EntityID<Uuid>) : UuidEntity(id) {
     var viber by BusinessTable.viber
     var whatsapp by BusinessTable.whatsapp
     var phone by BusinessTable.phone
+    var clientDataRetentionMonths by BusinessTable.clientDataRetentionMonths
     var createdAt by BusinessTable.createdAt
     var updatedAt by BusinessTable.updatedAt
     var workingDays by BusinessTable.workingDays
@@ -43,25 +44,28 @@ internal class BusinessEntity(id: EntityID<Uuid>) : UuidEntity(id) {
         description = description,
         location = if (latitude != null && longitude != null) {
             Business.Location(latitude ?: 0.0, longitude ?: 0.0)
-        } else null,
+        } else {
+            null
+        },
         currencyCode = currency,
         address = address,
         timeZone = TimeZone.of(timezone),
         schedule = Schedule(
             workingDays = workingDays.toWorkingDays(),
             workingHours = workingHours.toWorkingHours(),
-            dayOffs = dayOffs.map { it.domain() }
+            dayOffs = dayOffs.map { it.domain() },
         ),
         socials = listOf(
             Business.Social(Business.SocialKind.PHONE, phone.orEmpty()),
             Business.Social(Business.SocialKind.INSTAGRAM, instagram.orEmpty()),
             Business.Social(Business.SocialKind.TELEGRAM, telegram.orEmpty()),
             Business.Social(Business.SocialKind.WHATSAPP, whatsapp.orEmpty()),
-            Business.Social(Business.SocialKind.VIBER, viber.orEmpty())
+            Business.Social(Business.SocialKind.VIBER, viber.orEmpty()),
         ),
         permissions = BusinessPermissions.NONE,
         employeeId = null,
-        clientId = null
+        clientId = null,
+        clientDataRetentionMonths = clientDataRetentionMonths,
     )
 
     private fun replaceSchedule(schedule: Schedule) {
@@ -105,6 +109,7 @@ internal class BusinessEntity(id: EntityID<Uuid>) : UuidEntity(id) {
             model.currencyCode?.let { currencyCode -> it.currency = currencyCode }
             model.socials?.let { socials -> it.updateSocials(socials) }
             model.schedule?.let { schedule -> it.replaceSchedule(schedule) }
+            model.clientDataRetentionMonths?.let { months -> it.clientDataRetentionMonths = months }
             it.updatedAt = updatedAt
         }
     }

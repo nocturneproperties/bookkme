@@ -13,7 +13,7 @@ import kotlin.uuid.Uuid
 internal class GetEmployeesImpl(
     private val employeeDataSource: EmployeeDataSource,
     private val businessPermissionDataSource: BusinessPermissionDataSource,
-    private val transactionManager: TransactionManager
+    private val transactionManager: TransactionManager,
 ) : GetEmployees {
     override suspend fun invoke(userId: Uuid, businessId: Uuid): Result<List<Employee>> = transactionManager.transaction {
         businessPermissionDataSource.getPermission(userId, businessId, BusinessResource.EMPLOYEES).assert(PermissionAction.VIEW)

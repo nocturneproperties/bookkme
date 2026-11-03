@@ -22,13 +22,13 @@ internal class GetAppointmentBookingContextImpl(
     private val serviceDataSource: ServiceDataSource,
     private val userClient: UserClient,
     private val transactionManager: TransactionManager,
-    private val eventProducer: StandardEventProducer
+    private val eventProducer: StandardEventProducer,
 ) : GetAppointmentBookingContext {
     override suspend fun invoke(
         businessId: Uuid,
         employeeId: Uuid,
         userId: Uuid,
-        serviceIds: List<Uuid>
+        serviceIds: List<Uuid>,
     ): Result<AppointmentBookingContext> {
         if (serviceIds.isEmpty()) return Result.failure(Error.EmptyServiceList())
         return transactionManager.transaction {
@@ -49,23 +49,32 @@ internal class GetAppointmentBookingContextImpl(
             lastName = personalInformation.lastName,
             phone = personalInformation.phone,
             email = personalInformation.email,
-            userId = userId
+            userId = userId,
         )
         val sameContactClients = clientDataSource.getClientsByContacts(
             businessId,
             phones = listOfNotNull(profile.phone),
-            emails = listOf(personalInformation.email)
+            emails = listOf(personalInformation.email),
         )
             .filterIsInstance<Client.Detached>()
             .sortedByDescending { it.email.equals(personalInformation.email, ignoreCase = true) }
         val replaced = sameContactClients.firstOrNull()
             ?: return clientDataSource.getOrCreateIntegratedClient(businessId, profile)
 
-        sameContactClients.drop(1).forEach { duplicate ->
-            clientDataSource.deleteClient(businessId, duplicate.id)
-            eventProducer.send(BusinessEvent.ClientMerged(businessId, fromClientId = duplicate.id, toClientId = replaced.id))
+        val duplicates = sameContactClients.drop(1)
+        duplicates.forEach { duplicate -> clientDataSource.deleteClient(businessId, duplicate.id) }
+        val takenOver = clientDataSource.takeOverClient(businessId, replaced.id, profile)
+        val client = takenOver ?: clientDataSource.getOrCreateIntegratedClient(businessId, profile)
+        if (takenOver != null || duplicates.isNotEmpty()) {
+            eventProducer.send(
+                BusinessEvent.ClientLinked(
+                    businessId,
+                    clientId = client.id,
+                    userId = userId,
+                    mergedClientIds = duplicates.map { it.id },
+                ),
+            )
         }
-        return clientDataSource.takeOverClient(businessId, replaced.id, profile)
-            ?: clientDataSource.getOrCreateIntegratedClient(businessId, profile)
+        return client
     }
 }

@@ -28,8 +28,13 @@ internal class ServiceDataSourceImplTest {
 
     private class SutFixture {
         val db = createTestDatabase(
-            BusinessTable, BusinessDashboardTable, BusinessPermissionGrantsTable, BusinessWorkingHoursTable, BusinessDayOffTable,
-            ServiceGroupTable, ServiceTable
+            BusinessTable,
+            BusinessDashboardTable,
+            BusinessPermissionGrantsTable,
+            BusinessWorkingHoursTable,
+            BusinessDayOffTable,
+            ServiceGroupTable,
+            ServiceTable,
         )
         val sut = ServiceDataSourceImpl()
         val businessSut = BusinessDataSourceImpl()

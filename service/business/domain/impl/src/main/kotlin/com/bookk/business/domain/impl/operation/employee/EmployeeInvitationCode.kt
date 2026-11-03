@@ -15,6 +15,5 @@ internal object EmployeeInvitationCode {
         }
     }
 
-    fun hash(code: String): String =
-        MessageDigest.getInstance("SHA-256").digest(code.toByteArray()).toHexString()
+    fun hash(code: String): String = MessageDigest.getInstance("SHA-256").digest(code.toByteArray()).toHexString()
 }

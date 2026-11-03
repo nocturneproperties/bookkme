@@ -5,8 +5,16 @@ import kotlinx.serialization.protobuf.ProtoNumber
 
 @Serializable
 enum class Language {
-    @ProtoNumber(0) EN,
-    @ProtoNumber(1) UK;
+    @ProtoNumber(0)
+    EN,
+
+    @ProtoNumber(1)
+    UK,
+
+    @ProtoNumber(2)
+    PL,
+
+    ;
 
     companion object
 }

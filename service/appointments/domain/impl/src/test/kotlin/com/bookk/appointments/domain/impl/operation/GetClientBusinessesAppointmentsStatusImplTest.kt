@@ -49,9 +49,9 @@ internal class GetClientBusinessesAppointmentsStatusImplTest {
         assertEquals(
             listOf(
                 BusinessAppointmentsEnabled(businessId = enabledBusinessId, enabled = true),
-                BusinessAppointmentsEnabled(businessId = disabledBusinessId, enabled = false)
+                BusinessAppointmentsEnabled(businessId = disabledBusinessId, enabled = false),
             ),
-            result.getOrNull()
+            result.getOrNull(),
         )
     }
 

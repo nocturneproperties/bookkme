@@ -43,7 +43,7 @@ internal class GetAppointmentsForDateImplTest {
         val settings = AppointmentSettings.stub(businessId)
         val instant = date.atStartOfDayIn(settings.timeZone)
         val expectedRange = instant..(instant + 1.days)
-        val appointments = listOf(Appointment.stub(userId = userId, businessId = businessId))
+        val appointments = listOf(Appointment.stub(initiatorUserId = userId, businessId = businessId))
 
         with(fixture) {
             transactionManager.mockTransaction()

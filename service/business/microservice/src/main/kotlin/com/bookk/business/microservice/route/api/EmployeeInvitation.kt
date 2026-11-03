@@ -26,7 +26,7 @@ import kotlinx.serialization.protobuf.ProtoNumber
 
 @Serializable
 internal class EmployeeInvitationRedeemRequest(
-    @ProtoNumber(1) val code: String
+    @ProtoNumber(1) val code: String,
 )
 
 fun Route.employeeInvitationCrud() {
@@ -108,8 +108,8 @@ fun Route.employeeInvitationCrud() {
                 revokeEmployeeInvitation(
                     requestUserId = principal.userId,
                     businessId = it.parent.businessId,
-                    id = it.id
-                )
+                    id = it.id,
+                ),
             )
         }
     }

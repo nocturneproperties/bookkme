@@ -7,5 +7,5 @@ import kotlinx.serialization.protobuf.ProtoNumber
 class EditEmailRequest(
     @ProtoNumber(1) override val requestId: String,
     @ProtoNumber(2) override val publicKeyCredentialJson: String,
-    @ProtoNumber(3) val newEmail: String
+    @ProtoNumber(3) val newEmail: String,
 ) : FinishAssertionRequest

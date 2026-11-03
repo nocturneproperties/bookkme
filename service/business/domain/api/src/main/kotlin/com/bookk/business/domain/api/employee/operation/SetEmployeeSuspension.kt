@@ -11,14 +11,16 @@ interface SetEmployeeSuspension {
         requestUserId: Uuid,
         businessId: Uuid,
         employeeId: Uuid,
-        suspended: Boolean
+        suspended: Boolean,
     ): Result<Employee>
 
     sealed interface Error {
-        class OwnerSuspensionNotAllowed : BusinessError(
-            statusCode = HttpStatusCode.UnprocessableEntity.value,
-            code = BusinessErrorCodes.BUSINESS_OWNER_SUSPENSION_NOT_ALLOWED,
-            message = "Business owner cannot be suspended"
-        ), Error
+        class OwnerSuspensionNotAllowed :
+            BusinessError(
+                statusCode = HttpStatusCode.UnprocessableEntity.value,
+                code = BusinessErrorCodes.BUSINESS_OWNER_SUSPENSION_NOT_ALLOWED,
+                message = "Business owner cannot be suspended",
+            ),
+            Error
     }
 }

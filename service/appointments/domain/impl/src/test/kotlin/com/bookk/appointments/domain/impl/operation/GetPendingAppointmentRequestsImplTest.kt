@@ -33,7 +33,7 @@ internal class GetPendingAppointmentRequestsImplTest {
         val fixture = SutFixture()
         val userId = Uuid.random()
         val businessId = Uuid.random()
-        val requests = listOf(AppointmentRequest.stub(userId = userId, businessId = businessId))
+        val requests = listOf(AppointmentRequest.stub(initiatorUserId = userId, businessId = businessId))
         with(fixture) {
             transactionManager.mockTransaction()
             coEvery { appointmentPermissionDataSource.getPermission(userId, businessId) } returns ResourcePermission(view = true, update = false, delete = false)

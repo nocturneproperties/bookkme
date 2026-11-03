@@ -8,7 +8,7 @@ import kotlin.uuid.Uuid
 enum class PermissionAction {
     VIEW,
     UPDATE,
-    DELETE
+    DELETE,
 }
 
 @Serializable
@@ -18,7 +18,7 @@ data class ResourcePermission(
     @ProtoNumber(2)
     val update: Boolean,
     @ProtoNumber(3)
-    val delete: Boolean
+    val delete: Boolean,
 ) {
     fun grants(action: PermissionAction): Boolean = when (action) {
         PermissionAction.VIEW -> view
@@ -26,8 +26,7 @@ data class ResourcePermission(
         PermissionAction.DELETE -> delete
     }
 
-    fun covers(other: ResourcePermission): Boolean =
-        (view || !other.view) && (update || !other.update) && (delete || !other.delete)
+    fun covers(other: ResourcePermission): Boolean = (view || !other.view) && (update || !other.update) && (delete || !other.delete)
 
     companion object {
         val NONE = ResourcePermission(view = false, update = false, delete = false)

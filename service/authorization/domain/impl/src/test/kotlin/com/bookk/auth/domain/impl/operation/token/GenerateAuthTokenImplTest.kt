@@ -7,6 +7,7 @@ import com.bookk.auth.domain.api.token.entity.SafeRefreshToken
 import com.bookk.auth.domain.api.token.entity.UnsafeRefreshToken
 import com.bookk.auth.domain.api.token.operation.GenerateAuthToken.Error.InvalidCredentials
 import com.bookk.auth.domain.api.token.operation.GenerateAuthToken.Source
+import com.bookk.auth.domain.datasource.AccountDataSource
 import com.bookk.auth.domain.datasource.DeviceDataSource
 import com.bookk.core.domain.datasource.transaction.TransactionManager
 import com.bookk.core.domain.datasource.transaction.mockTransaction
@@ -17,10 +18,14 @@ import com.bookk.core.test.whenn
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
+import io.mockk.slot
 import library.signing.TokenIssuer
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import kotlin.time.Clock
+import kotlin.time.Duration.Companion.days
+import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
 internal class GenerateAuthTokenImplTest {
@@ -29,27 +34,27 @@ internal class GenerateAuthTokenImplTest {
         val deviceDataSource = mockk<DeviceDataSource>()
         val transactionManager = mockk<TransactionManager>()
         val tokenIssuer = mockk<TokenIssuer>()
+        val accountDataSource = mockk<AccountDataSource>(relaxUnitFun = true)
 
         val sut = GenerateAuthTokenImpl(
             deviceDataSource,
             transactionManager,
-            tokenIssuer
+            tokenIssuer,
+            accountDataSource,
         )
     }
 
-    private fun device(refreshToken: SafeRefreshToken?, previousRefreshToken: SafeRefreshToken? = null): Device {
-        return Device(
-            authRecord = Authentication(id = Uuid.random(), userId = Uuid.random(), uuid = Uuid.random()),
-            deviceInfo = DeviceInfo(
-                id = Uuid.random(),
-                deviceUUID = Uuid.random(),
-                refreshToken = refreshToken,
-                previousRefreshToken = previousRefreshToken,
-                deviceName = "device",
-                isSignedIn = true
-            )
-        )
-    }
+    private fun device(refreshToken: SafeRefreshToken?, previousRefreshToken: SafeRefreshToken? = null): Device = Device(
+        authRecord = Authentication(id = Uuid.random(), userId = Uuid.random(), uuid = Uuid.random()),
+        deviceInfo = DeviceInfo(
+            id = Uuid.random(),
+            deviceUUID = Uuid.random(),
+            refreshToken = refreshToken,
+            previousRefreshToken = previousRefreshToken,
+            deviceName = "device",
+            isSignedIn = true,
+        ),
+    )
 
     private fun UnsafeRefreshToken.toSafe() = SafeRefreshToken(id, secretHash)
 
@@ -85,7 +90,7 @@ internal class GenerateAuthTokenImplTest {
         val currentToken = OpaqueRefreshToken.generate()
         val deviceRecord = device(
             refreshToken = currentToken.toSafe(),
-            previousRefreshToken = rotatedOutToken.toSafe()
+            previousRefreshToken = rotatedOutToken.toSafe(),
         )
 
         with(fixture) {
@@ -115,5 +120,66 @@ internal class GenerateAuthTokenImplTest {
         then()
         assertEquals(InvalidCredentials().message, result.exceptionOrNull()?.message)
         coVerify(exactly = 0) { fixture.deviceDataSource.getDeviceByRefreshTokenId(any()) }
+    }
+
+    @Test
+    fun `should record the account's activity when a refresh token is used`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val refreshToken = OpaqueRefreshToken.generate()
+        val deviceRecord = device(refreshToken = refreshToken.toSafe())
+        val recordedAt = slot<Instant>()
+        val unlessRecordedSince = slot<Instant>()
+        with(fixture) {
+            coEvery { tokenIssuer.issue(any(), any()) } returns "access-token"
+            coEvery { deviceDataSource.getDeviceByRefreshTokenId(refreshToken.id) } returns deviceRecord
+            coEvery { deviceDataSource.rotateRefreshToken(any(), any(), any()) } returns Unit
+            coEvery { accountDataSource.recordActivity(deviceRecord.authRecord.id, capture(recordedAt), capture(unlessRecordedSince)) } returns Unit
+            transactionManager.mockTransaction()
+        }
+        val startedAt = Clock.System.now()
+
+        whenn()
+        fixture.sut.invoke(Source.RefreshToken(refreshToken.token))
+
+        then()
+        assertTrue(recordedAt.captured >= startedAt)
+        assertEquals(recordedAt.captured - 1.days, unlessRecordedSince.captured)
+    }
+
+    @Test
+    fun `should record the account's activity on sign-in`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val deviceRecord = device(refreshToken = null)
+        with(fixture) {
+            coEvery { tokenIssuer.issue(any(), any()) } returns "access-token"
+            coEvery { deviceDataSource.getDeviceByAuthIdAndUUID(deviceRecord.authRecord.id, deviceRecord.deviceInfo.deviceUUID) } returns deviceRecord
+            coEvery { deviceDataSource.attachRefreshTokenToDevice(any(), any(), any()) } returns Unit
+            transactionManager.mockTransaction()
+        }
+
+        whenn()
+        fixture.sut.invoke(Source.InitialAuthentication(deviceRecord.authRecord.id, deviceRecord.deviceInfo.deviceUUID))
+
+        then()
+        coVerify(exactly = 1) { fixture.accountDataSource.recordActivity(deviceRecord.authRecord.id, any(), any()) }
+    }
+
+    @Test
+    fun `should not record activity when the refresh token is unknown`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val refreshToken = OpaqueRefreshToken.generate()
+        with(fixture) {
+            coEvery { deviceDataSource.getDeviceByRefreshTokenId(refreshToken.id) } returns null
+            transactionManager.mockTransaction()
+        }
+
+        whenn()
+        fixture.sut.invoke(Source.RefreshToken(refreshToken.token))
+
+        then()
+        coVerify(exactly = 0) { fixture.accountDataSource.recordActivity(any(), any(), any()) }
     }
 }

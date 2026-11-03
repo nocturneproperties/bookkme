@@ -15,7 +15,7 @@ import kotlin.time.toJavaDuration
 class InMemoryCacheClient(
     private val protobuf: ProtoBuf = ProtoBuf { encodeDefaults = true },
     timeSource: TimeSource = TimeSource.Monotonic,
-): CacheClient<String> {
+) : CacheClient<String> {
 
     private class InMemCacheEntry(val value: ByteArray, val ttl: Duration)
 
@@ -27,12 +27,11 @@ class InMemoryCacheClient(
         .maximumSize(10_000)
         .build<String, InMemCacheEntry>()
 
-
     override suspend fun <V : Any> set(
         key: String,
         value: V,
         kType: KType,
-        expiration: Duration?
+        expiration: Duration?,
     ) {
         val serializer = protobuf.serializersModule.serializer(kType)
         val data = protobuf.encodeToByteArray(serializer, value)
@@ -43,7 +42,7 @@ class InMemoryCacheClient(
         key: String,
         value: V,
         kType: KType,
-        expiration: Duration?
+        expiration: Duration?,
     ): Boolean {
         val serializer = protobuf.serializersModule.serializer(kType)
         val data = protobuf.encodeToByteArray(serializer, value)

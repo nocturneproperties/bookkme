@@ -24,8 +24,12 @@ import io.mockk.slot
 import kotlinx.datetime.TimeZone
 import library.permissions.ResourcePermission
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import kotlin.time.Clock
+import kotlin.time.Duration.Companion.days
+import kotlin.time.Duration.Companion.hours
 import kotlin.uuid.Uuid
 
 internal class CancelAppointmentImplTest {
@@ -42,15 +46,16 @@ internal class CancelAppointmentImplTest {
             appointmentPermissionDataSource,
             subscriptionDataSource,
             eventProducer,
-            transactionManager
+            transactionManager,
         )
     }
 
+    private val upcoming = Clock.System.now() + 1.hours
     private val testUserId = Uuid.random()
     private val testBusinessId = Uuid.random()
     private val testCancellation = AppointmentCancellation(
         id = Uuid.random(),
-        reason = "User cancelled"
+        reason = "User cancelled",
     )
 
     @Test
@@ -58,7 +63,7 @@ internal class CancelAppointmentImplTest {
         val fixture = SutFixture()
         given()
         fixture.transactionManager.mockTransaction()
-        val appointment = Appointment.stub(id = testCancellation.id, businessId = testBusinessId)
+        val appointment = Appointment.stub(id = testCancellation.id, businessId = testBusinessId, date = upcoming)
             .copy(status = AppointmentStatus.SCHEDULED)
 
         coEvery { fixture.appointmentPermissionDataSource.getPermission(testUserId, testBusinessId) } returns ResourcePermission(view = false, update = true, delete = false)
@@ -78,7 +83,7 @@ internal class CancelAppointmentImplTest {
         val fixture = SutFixture()
         given()
         fixture.transactionManager.mockTransaction()
-        val appointment = Appointment.stub(id = testCancellation.id, businessId = testBusinessId)
+        val appointment = Appointment.stub(id = testCancellation.id, businessId = testBusinessId, date = upcoming)
             .copy(status = AppointmentStatus.CANCELLED)
 
         coEvery { fixture.appointmentPermissionDataSource.getPermission(testUserId, testBusinessId) } returns ResourcePermission(view = false, update = true, delete = false)
@@ -97,7 +102,7 @@ internal class CancelAppointmentImplTest {
         val fixture = SutFixture()
         given()
         fixture.transactionManager.mockTransaction()
-        val appointment = Appointment.stub(id = testCancellation.id, businessId = testBusinessId)
+        val appointment = Appointment.stub(id = testCancellation.id, businessId = testBusinessId, date = upcoming)
             .copy(status = AppointmentStatus.COMPLETED)
 
         coEvery { fixture.appointmentPermissionDataSource.getPermission(testUserId, testBusinessId) } returns ResourcePermission(view = false, update = true, delete = false)
@@ -116,7 +121,7 @@ internal class CancelAppointmentImplTest {
         val fixture = SutFixture()
         given()
         fixture.transactionManager.mockTransaction()
-        val appointment = Appointment.stub(id = testCancellation.id, businessId = testBusinessId)
+        val appointment = Appointment.stub(id = testCancellation.id, businessId = testBusinessId, date = upcoming)
             .copy(status = AppointmentStatus.NO_SHOW)
 
         coEvery { fixture.appointmentPermissionDataSource.getPermission(testUserId, testBusinessId) } returns ResourcePermission(view = false, update = true, delete = false)
@@ -134,7 +139,7 @@ internal class CancelAppointmentImplTest {
         val fixture = SutFixture()
         given()
         fixture.transactionManager.mockTransaction()
-        val appointment = Appointment.stub(id = testCancellation.id, businessId = testBusinessId)
+        val appointment = Appointment.stub(id = testCancellation.id, businessId = testBusinessId, date = upcoming)
             .copy(status = AppointmentStatus.SCHEDULED)
 
         coEvery { fixture.appointmentPermissionDataSource.getPermission(testUserId, testBusinessId) } returns ResourcePermission(view = true, update = false, delete = false)
@@ -153,7 +158,7 @@ internal class CancelAppointmentImplTest {
         val fixture = SutFixture()
         given()
         fixture.transactionManager.mockTransaction()
-        val appointment = Appointment.stub(id = testCancellation.id, businessId = testBusinessId)
+        val appointment = Appointment.stub(id = testCancellation.id, businessId = testBusinessId, date = upcoming)
             .copy(status = AppointmentStatus.SCHEDULED, employee = EmployeeSnapshot.stub(userId = testUserId))
 
         coEvery { fixture.appointmentPermissionDataSource.getPermission(testUserId, testBusinessId) } returns ResourcePermission(view = true, update = false, delete = false)
@@ -173,7 +178,7 @@ internal class CancelAppointmentImplTest {
         val fixture = SutFixture()
         given()
         fixture.transactionManager.mockTransaction()
-        val appointment = Appointment.stub(id = testCancellation.id, businessId = testBusinessId)
+        val appointment = Appointment.stub(id = testCancellation.id, businessId = testBusinessId, date = upcoming)
             .copy(status = AppointmentStatus.SCHEDULED)
 
         coEvery { fixture.appointmentPermissionDataSource.getPermission(testUserId, testBusinessId) } returns ResourcePermission(view = false, update = true, delete = false)
@@ -193,7 +198,7 @@ internal class CancelAppointmentImplTest {
         val fixture = SutFixture()
         given()
         fixture.transactionManager.mockTransaction()
-        val appointment = Appointment.stub(id = testCancellation.id, businessId = testBusinessId)
+        val appointment = Appointment.stub(id = testCancellation.id, businessId = testBusinessId, date = upcoming)
             .copy(status = AppointmentStatus.SCHEDULED)
         val businessSnapshot = BusinessSnapshot.stub().copy(timeZone = TimeZone.of("Europe/Kyiv"))
         val eventSlot = slot<AppointmentEvent.Cancelled>()
@@ -209,6 +214,51 @@ internal class CancelAppointmentImplTest {
 
         then()
         assertEquals(TimeZone.of("Europe/Kyiv"), eventSlot.captured.timeZone)
+    }
+
+    @Test
+    fun `should address the cancellation to the client's own account, not whoever booked`() = runUnitTest {
+        val fixture = SutFixture()
+        given()
+        fixture.transactionManager.mockTransaction()
+        val clientUserId = Uuid.random()
+        val appointment = Appointment.stub(id = testCancellation.id, businessId = testBusinessId, date = upcoming)
+            .let { it.copy(client = it.client.copy(userId = clientUserId), status = AppointmentStatus.SCHEDULED) }
+        val eventSlot = slot<AppointmentEvent.Cancelled>()
+
+        coEvery { fixture.appointmentPermissionDataSource.getPermission(testUserId, testBusinessId) } returns ResourcePermission(view = false, update = true, delete = false)
+        coEvery { fixture.appointmentDataSource.getForUpdate(testCancellation.id) } returns appointment
+        coEvery { fixture.appointmentDataSource.cancel(testCancellation.id, testCancellation.reason) } returns appointment.copy(status = AppointmentStatus.CANCELLED)
+        coEvery { fixture.subscriptionDataSource.getBusinessSnapshot(testBusinessId) } returns BusinessSnapshot.stub()
+        coEvery { fixture.eventProducer.send(capture(eventSlot), any()) } returns Unit
+
+        whenn()
+        fixture.sut.invoke(testUserId, testCancellation)
+
+        then()
+        assertEquals(clientUserId, eventSlot.captured.clientUserId)
+    }
+
+    @Test
+    fun `should name no client account on the cancellation of a client without one`() = runUnitTest {
+        val fixture = SutFixture()
+        given()
+        fixture.transactionManager.mockTransaction()
+        val appointment = Appointment.stub(id = testCancellation.id, businessId = testBusinessId, date = upcoming)
+            .let { it.copy(client = it.client.copy(userId = null), status = AppointmentStatus.SCHEDULED) }
+        val eventSlot = slot<AppointmentEvent.Cancelled>()
+
+        coEvery { fixture.appointmentPermissionDataSource.getPermission(testUserId, testBusinessId) } returns ResourcePermission(view = false, update = true, delete = false)
+        coEvery { fixture.appointmentDataSource.getForUpdate(testCancellation.id) } returns appointment
+        coEvery { fixture.appointmentDataSource.cancel(testCancellation.id, testCancellation.reason) } returns appointment.copy(status = AppointmentStatus.CANCELLED)
+        coEvery { fixture.subscriptionDataSource.getBusinessSnapshot(testBusinessId) } returns BusinessSnapshot.stub()
+        coEvery { fixture.eventProducer.send(capture(eventSlot), any()) } returns Unit
+
+        whenn()
+        fixture.sut.invoke(testUserId, testCancellation)
+
+        then()
+        assertNull(eventSlot.captured.clientUserId)
     }
 
     @Test
@@ -235,7 +285,7 @@ internal class CancelAppointmentImplTest {
         val fixture = SutFixture()
         given()
         fixture.transactionManager.mockTransaction()
-        val appointment = Appointment.stub(id = testCancellation.id, businessId = testBusinessId)
+        val appointment = Appointment.stub(id = testCancellation.id, businessId = testBusinessId, date = upcoming)
             .copy(status = AppointmentStatus.COMPLETED)
 
         coEvery { fixture.appointmentPermissionDataSource.getPermission(testUserId, testBusinessId) } returns ResourcePermission(view = false, update = true, delete = false)
@@ -247,5 +297,22 @@ internal class CancelAppointmentImplTest {
         then()
         coVerify(exactly = 0) { fixture.appointmentDataSource.cancel(any(), any()) }
         coVerify(exactly = 0) { fixture.eventProducer.send(any(AppointmentEvent.Cancelled::class), any()) }
+    }
+
+    @Test
+    fun `should return failure when the appointment ended more than a week ago`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.transactionManager.mockTransaction()
+        val appointment = Appointment.stub(id = testCancellation.id, businessId = testBusinessId, date = Clock.System.now() - 30.days)
+        coEvery { fixture.appointmentPermissionDataSource.getPermission(testUserId, testBusinessId) } returns ResourcePermission(view = false, update = true, delete = false)
+        coEvery { fixture.appointmentDataSource.getForUpdate(testCancellation.id) } returns appointment
+
+        whenn()
+        val result = fixture.sut.invoke(testUserId, testCancellation)
+
+        then()
+        assertTrue(result.exceptionOrNull() is AppointmentStatusError.EditWindowClosed)
+        coVerify(exactly = 0) { fixture.appointmentDataSource.cancel(any(), any()) }
     }
 }

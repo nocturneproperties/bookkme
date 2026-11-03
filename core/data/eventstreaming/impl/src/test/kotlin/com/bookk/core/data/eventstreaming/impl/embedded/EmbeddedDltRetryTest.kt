@@ -7,10 +7,15 @@ import com.bookk.core.data.eventstreaming.impl.InMemoryExhaustedEventDataSource
 import com.bookk.core.data.eventstreaming.impl.inMemoryEventIdempotencyStorage
 import com.bookk.core.data.eventstreaming.impl.kafka.KeyedTestEvent
 import com.bookk.core.data.eventstreaming.registerReceiver
+import com.bookk.core.domain.datasource.transaction.TransactionManager
+import com.bookk.core.domain.datasource.transaction.mockedTransactionManager
 import com.bookk.core.test.given
 import com.bookk.core.test.runUnitTest
 import com.bookk.core.test.then
 import com.bookk.core.test.whenn
+import io.mockk.coEvery
+import io.mockk.coVerify
+import io.mockk.spyk
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
@@ -27,8 +32,10 @@ import kotlin.time.Duration.Companion.milliseconds
 internal class EmbeddedDltRetryTest {
 
     private class SutFixture(
-        val exhaustedEventDataSource: ExhaustedEventDataSource = InMemoryExhaustedEventDataSource(),
+        exhaustedEventDataSourceIn: (TransactionManager) -> ExhaustedEventDataSource = ::InMemoryExhaustedEventDataSource,
     ) {
+        val transactionManager = mockedTransactionManager()
+        val exhaustedEventDataSource = exhaustedEventDataSourceIn(transactionManager)
         val topicQueueHolder = TopicQueueHolder<String>()
         val protoBuf = ProtoBuf { encodeDefaults = true }
         val producer = EmbeddedEventProducer(topicQueueHolder)
@@ -36,6 +43,7 @@ internal class EmbeddedDltRetryTest {
             topicQueueHolder = topicQueueHolder,
             protoBuf = protoBuf,
             exhaustedEventDataSource = exhaustedEventDataSource,
+            transactionManager = transactionManager,
             eventIdempotencyStorage = inMemoryEventIdempotencyStorage(),
             consumerGroup = "business_group",
         )
@@ -130,7 +138,7 @@ internal class EmbeddedDltRetryTest {
     @Test
     fun `should retry persisting without re-invoking the business handler when the save fails`() = runUnitTest {
         given()
-        val fixture = SutFixture(exhaustedEventDataSource = FlakyExhaustedEventDataSource(failuresBeforeSuccess = 2))
+        val fixture = SutFixture { transactionManager -> FlakyExhaustedEventDataSource(failuresBeforeSuccess = 2, transactionManager) }
         val topic = "embedded.dlt.retry.persist"
         val attempts = AtomicInteger(0)
         fixture.consumer.registerReceiver<KeyedTestEvent, String>(topic) {
@@ -195,5 +203,36 @@ internal class EmbeddedDltRetryTest {
         then()
         assertEquals(DltRetry.DEFAULT_MAX_ATTEMPTS, attempts.get())
         assertEquals(1, fixture.exhaustedEventDataSource.findByOriginalTopic(topic).size)
+    }
+
+    @Test
+    fun `should keep retrying a topic after a stray cancellation escapes parking one of its events`() = runUnitTest {
+        given()
+        val fixture = SutFixture { transactionManager ->
+            spyk(InMemoryExhaustedEventDataSource(transactionManager)).apply {
+                coEvery { save(any()) } throws CancellationException("stray")
+            }
+        }
+        val topic = "embedded.dlt.retry.stray"
+        val flakyAttempts = AtomicInteger(0)
+        val received = ConcurrentLinkedQueue<KeyedTestEvent>()
+        fixture.consumer.registerReceiver<KeyedTestEvent, String>(topic) { event ->
+            when {
+                event.entityId == "poison" -> throw RuntimeException("boom")
+                flakyAttempts.getAndIncrement() == 0 -> throw RuntimeException("boom once")
+                else -> received += event
+            }
+        }
+        fixture.consumer.start(backgroundScope)
+        fixture.producer.publishEncoded(KeyedTestEvent(entityId = "poison", sequence = 0, topic = topic))
+        advanceThroughRetries()
+
+        whenn()
+        fixture.producer.publishEncoded(KeyedTestEvent(entityId = "flaky", sequence = 0, topic = topic))
+        advanceThroughRetries()
+
+        then()
+        coVerify(exactly = 1) { fixture.exhaustedEventDataSource.save(any()) }
+        assertEquals(listOf("flaky"), received.map(KeyedTestEvent::entityId))
     }
 }

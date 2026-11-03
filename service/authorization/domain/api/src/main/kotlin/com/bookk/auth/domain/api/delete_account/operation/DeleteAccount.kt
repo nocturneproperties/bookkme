@@ -11,10 +11,12 @@ interface DeleteAccount {
     suspend operator fun invoke(userId: Uuid, request: FinishAssertionRequest): Result<Unit>
 
     sealed interface Error {
-        class InvalidCredentials : BusinessError(
-            statusCode = HttpStatusCode.UnprocessableEntity.value,
-            code = AuthErrorCodes.VERIFICATION_FAILED,
-            message = "Invalid credentials"
-        ), Error
+        class InvalidCredentials :
+            BusinessError(
+                statusCode = HttpStatusCode.UnprocessableEntity.value,
+                code = AuthErrorCodes.VERIFICATION_FAILED,
+                message = "Invalid credentials",
+            ),
+            Error
     }
 }

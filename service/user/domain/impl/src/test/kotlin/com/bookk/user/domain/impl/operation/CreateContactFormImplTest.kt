@@ -28,12 +28,12 @@ internal class CreateContactFormImplTest {
 
     private fun makeForm(
         text: String = "Hello",
-        usageLogs: String? = null
+        usageLogs: String? = null,
     ): ContactForm = ContactForm(
         userId = Uuid.random(),
         text = text,
         usageLogs = usageLogs,
-        status = ContactForm.ContactFormStatus.NEW
+        status = ContactForm.ContactFormStatus.NEW,
     )
 
     @Test

@@ -10,6 +10,8 @@ import com.bookk.user.domain.datasource.UserDataSource
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
+import library.export.DataExports
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import kotlin.uuid.Uuid
@@ -18,40 +20,52 @@ internal class DeleteUserImplTest {
 
     private class SutFixture {
         val userDataSource = mockk<UserDataSource>()
+        val dataExports = mockk<DataExports>()
         val transactionManager = mockk<TransactionManager>()
-        val sut = DeleteUserImpl(userDataSource, transactionManager)
+        val sut = DeleteUserImpl(userDataSource, dataExports, transactionManager)
+        val discardedInTransaction = mutableListOf<Boolean>()
+        val userId = Uuid.random()
+
+        init {
+            transactionManager.mockTransaction()
+            coEvery { userDataSource.deleteUser(userId) } returns Unit
+            coEvery { dataExports.discard(userId) } coAnswers { discardedInTransaction += transactionManager.isInTransaction() }
+        }
     }
 
     @Test
     fun `should delete user successfully`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        val userId = Uuid.random()
-        with(fixture) {
-            transactionManager.mockTransaction()
-            coEvery { userDataSource.deleteUser(userId) } returns Unit
-        }
 
         whenn()
-        val result = fixture.sut.invoke(userId)
+        val result = fixture.sut.invoke(fixture.userId)
 
         then()
         assertTrue(result.isSuccess)
-        coVerify(exactly = 1) { fixture.userDataSource.deleteUser(userId) }
+        coVerify(exactly = 1) { fixture.userDataSource.deleteUser(fixture.userId) }
+    }
+
+    @Test
+    fun `should delete the user's data export in the same transaction`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+
+        whenn()
+        fixture.sut.invoke(fixture.userId)
+
+        then()
+        assertEquals(listOf(true), fixture.discardedInTransaction)
     }
 
     @Test
     fun `should return failure when datasource throws`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        val userId = Uuid.random()
-        with(fixture) {
-            transactionManager.mockTransaction()
-            coEvery { userDataSource.deleteUser(userId) } throws RuntimeException("db error")
-        }
+        coEvery { fixture.userDataSource.deleteUser(fixture.userId) } throws RuntimeException("db error")
 
         whenn()
-        val result = fixture.sut.invoke(userId)
+        val result = fixture.sut.invoke(fixture.userId)
 
         then()
         assertTrue(result.isFailure)

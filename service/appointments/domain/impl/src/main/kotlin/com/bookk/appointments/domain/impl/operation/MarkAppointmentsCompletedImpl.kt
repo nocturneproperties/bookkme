@@ -7,7 +7,7 @@ import kotlin.time.Clock
 
 internal class MarkAppointmentsCompletedImpl(
     private val appointmentDataSource: AppointmentDataSource,
-    private val transactionManager: TransactionManager
+    private val transactionManager: TransactionManager,
 ) : MarkAppointmentsCompleted {
     override suspend fun invoke(): Result<Unit> = transactionManager.transaction {
         appointmentDataSource.markCompleted(Clock.System.now())

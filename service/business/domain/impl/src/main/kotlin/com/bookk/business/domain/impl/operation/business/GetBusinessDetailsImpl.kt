@@ -8,7 +8,7 @@ import kotlin.uuid.Uuid
 
 internal class GetBusinessDetailsImpl(
     private val businessDataSource: BusinessDataSource,
-    private val transactionManager: TransactionManager
+    private val transactionManager: TransactionManager,
 ) : GetBusinessDetails {
     override suspend fun invoke(id: Uuid): Result<Business> = transactionManager.transaction {
         businessDataSource.getBusinessById(id) ?: throw GetBusinessDetails.Error.NotFound()

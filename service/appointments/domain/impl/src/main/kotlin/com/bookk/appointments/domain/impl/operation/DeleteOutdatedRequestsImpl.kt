@@ -7,7 +7,7 @@ import kotlin.time.Clock
 
 internal class DeleteOutdatedRequestsImpl(
     private val appointmentRequestDataSource: AppointmentRequestDataSource,
-    private val transactionManager: TransactionManager
+    private val transactionManager: TransactionManager,
 ) : DeleteOutdatedRequests {
     override suspend fun invoke(): Result<Unit> = transactionManager.transaction {
         appointmentRequestDataSource.cancelOutdated(Clock.System.now())

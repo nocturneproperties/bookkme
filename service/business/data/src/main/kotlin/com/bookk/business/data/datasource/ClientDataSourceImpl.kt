@@ -38,7 +38,7 @@ internal class ClientDataSourceImpl : DataSource(), ClientDataSource {
             it[description] = client.description?.trim()
         }
         client.copy(
-            id = id.value
+            id = id.value,
         )
     }
 
@@ -63,11 +63,11 @@ internal class ClientDataSourceImpl : DataSource(), ClientDataSource {
     override suspend fun getClientsByContacts(
         businessId: Uuid,
         phones: Collection<String>,
-        emails: Collection<String>
+        emails: Collection<String>,
     ): List<Client> = dbQuery {
         val contactMatches = listOfNotNull<Op<Boolean>>(
             phones.takeIf { it.isNotEmpty() }?.let { ClientTable.phone inList it },
-            emails.takeIf { it.isNotEmpty() }?.let { ClientTable.email inList it }
+            emails.takeIf { it.isNotEmpty() }?.let { ClientTable.email inList it },
         )
         if (contactMatches.isEmpty()) return@dbQuery emptyList()
         ClientEntity.find {
@@ -78,6 +78,13 @@ internal class ClientDataSourceImpl : DataSource(), ClientDataSource {
     override suspend fun getClientById(businessId: Uuid, id: Uuid): Client? = dbQuery {
         ClientEntity.findById(id)
             ?.takeIf { it.businessId.value == businessId }
+            ?.toDomain()
+    }
+
+    override suspend fun getClientForUpdate(businessId: Uuid, id: Uuid): Client? = dbQuery {
+        ClientEntity.find { (ClientTable.businessId eq businessId) and (ClientTable.id eq id) }
+            .forUpdate()
+            .firstOrNull()
             ?.toDomain()
     }
 
@@ -102,7 +109,7 @@ internal class ClientDataSourceImpl : DataSource(), ClientDataSource {
         userId: Uuid,
         phone: String?,
         email: String,
-        updatedAt: Instant
+        updatedAt: Instant,
     ): List<ClientMerge> = dbQuery {
         val integrated = ClientTable.alias("integrated")
         val phoneMatch = phone?.let { ClientTable.phone eq it.trim() } ?: Op.FALSE
@@ -118,17 +125,16 @@ internal class ClientDataSourceImpl : DataSource(), ClientDataSource {
                 ClientMerge(
                     businessId = it[ClientTable.businessId].value,
                     fromClientId = it[ClientTable.id].value,
-                    toClientId = it[integrated[ClientTable.id]].value
+                    toClientId = it[integrated[ClientTable.id]].value,
                 )
             }
     }
 
-    private fun findIntegratedClient(businessId: Uuid, userId: Uuid): Client? =
-        ClientEntity.find {
-            (ClientTable.businessId eq businessId) and (ClientTable.userId eq userId)
-        }
-            .map(ClientEntity::toDomain)
-            .firstOrNull()
+    private fun findIntegratedClient(businessId: Uuid, userId: Uuid): Client? = ClientEntity.find {
+        (ClientTable.businessId eq businessId) and (ClientTable.userId eq userId)
+    }
+        .map(ClientEntity::toDomain)
+        .firstOrNull()
 
     private fun insertIntegratedClient(businessId: Uuid, client: Client.Integrated): Client {
         val id = ClientTable.insertAndGetId {
@@ -159,13 +165,13 @@ internal class ClientDataSourceImpl : DataSource(), ClientDataSource {
         lastName: String,
         email: String,
         phone: String?,
-        updatedAt: Instant
+        updatedAt: Instant,
     ): Int = dbQuery {
         ClientTable.update(
             where = {
                 (ClientTable.userId eq userId) and
                     (ClientTable.sourceUpdatedAt.isNull() or (ClientTable.sourceUpdatedAt less updatedAt))
-            }
+            },
         ) {
             it[this.name] = name.trim()
             it[this.lastName] = lastName.trim()
@@ -175,19 +181,32 @@ internal class ClientDataSourceImpl : DataSource(), ClientDataSource {
         }
     }
 
-    override suspend fun anonymizeClientsByUserId(userId: Uuid): Int = dbQuery {
-        ClientTable.update(where = { ClientTable.userId eq userId }) {
-            it[name] = "Deleted User"
-            it[lastName] = ""
-            it[phone] = null
-            it[email] = null
-            it[this.userId] = null
-        }
+    override suspend fun deleteClientsByUserId(userId: Uuid) = dbQuery<Unit> {
+        ClientTable.deleteWhere { ClientTable.userId eq userId }
     }
 
     override suspend fun getBusinessIdsByUserId(userId: Uuid): List<Uuid> = dbQuery {
         ClientTable.select(ClientTable.businessId)
             .where { ClientTable.userId eq userId }
             .map { it[ClientTable.businessId].value }
+    }
+
+    override suspend fun recordVisit(businessId: Uuid, clientId: Uuid, visitEnd: Instant) = dbQuery<Unit> {
+        ClientTable.update(
+            where = { (ClientTable.id eq clientId) and (ClientTable.businessId eq businessId) and (ClientTable.lastActivityAt less visitEnd) },
+        ) {
+            it[lastActivityAt] = visitEnd
+        }
+    }
+
+    override suspend fun deleteInactiveClients(businessId: Uuid, inactiveSince: Instant): List<Uuid> = dbQuery {
+        val inactiveIds = ClientTable.select(ClientTable.id)
+            .where { (ClientTable.businessId eq businessId) and (ClientTable.lastActivityAt less inactiveSince) }
+            .forUpdate()
+            .map { it[ClientTable.id].value }
+        if (inactiveIds.isNotEmpty()) {
+            ClientTable.deleteWhere { (ClientTable.businessId eq businessId) and (ClientTable.id inList inactiveIds) }
+        }
+        inactiveIds
     }
 }

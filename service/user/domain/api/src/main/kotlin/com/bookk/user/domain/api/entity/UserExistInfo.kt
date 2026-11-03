@@ -5,5 +5,5 @@ import kotlinx.serialization.protobuf.ProtoNumber
 
 @Serializable
 class UserExistInfo(
-    @ProtoNumber(1) val exists: Boolean
+    @ProtoNumber(1) val exists: Boolean,
 )

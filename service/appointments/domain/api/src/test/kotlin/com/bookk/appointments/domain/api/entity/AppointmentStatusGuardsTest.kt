@@ -7,6 +7,7 @@ import com.bookk.core.test.whenn
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
 
@@ -16,8 +17,7 @@ internal class AppointmentStatusGuardsTest {
     private val started = now - 1.minutes
     private val notStarted = now + 1.minutes
 
-    private fun appointment(status: AppointmentStatus, date: Instant = started) =
-        Appointment.stub(date = date).copy(status = status)
+    private fun appointment(status: AppointmentStatus, date: Instant = started) = Appointment.stub(date = date).copy(status = status)
 
     @Test
     fun `should allow a scheduled appointment to be changed`() = runUnitTest {
@@ -25,7 +25,7 @@ internal class AppointmentStatusGuardsTest {
         val appointment = appointment(AppointmentStatus.SCHEDULED)
 
         whenn()
-        val error = runCatching { appointment.requireScheduled() }.exceptionOrNull()
+        val error = runCatching { appointment.requireScheduled(now) }.exceptionOrNull()
 
         then()
         assertNull(error)
@@ -37,7 +37,7 @@ internal class AppointmentStatusGuardsTest {
         val appointment = appointment(AppointmentStatus.CANCELLED)
 
         whenn()
-        val error = runCatching { appointment.requireScheduled() }.exceptionOrNull()
+        val error = runCatching { appointment.requireScheduled(now) }.exceptionOrNull()
 
         then()
         assertTrue(error is AppointmentStatusError.AlreadyCancelled)
@@ -49,7 +49,7 @@ internal class AppointmentStatusGuardsTest {
         val appointment = appointment(AppointmentStatus.COMPLETED)
 
         whenn()
-        val error = runCatching { appointment.requireScheduled() }.exceptionOrNull()
+        val error = runCatching { appointment.requireScheduled(now) }.exceptionOrNull()
 
         then()
         assertTrue(error is AppointmentStatusError.AlreadyCompleted)
@@ -61,7 +61,7 @@ internal class AppointmentStatusGuardsTest {
         val appointment = appointment(AppointmentStatus.NO_SHOW)
 
         whenn()
-        val error = runCatching { appointment.requireScheduled() }.exceptionOrNull()
+        val error = runCatching { appointment.requireScheduled(now) }.exceptionOrNull()
 
         then()
         assertTrue(error is AppointmentStatusError.MarkedNoShow)
@@ -209,5 +209,147 @@ internal class AppointmentStatusGuardsTest {
 
         then()
         assertTrue(error is AppointmentStatusError.NotStarted)
+    }
+
+    @Test
+    fun `should reject changing a scheduled appointment that ended more than a week ago`() = runUnitTest {
+        given()
+        val appointment = appointment(AppointmentStatus.SCHEDULED)
+        val laterThanTheWindow = appointment.dateEnd + Appointment.EDIT_WINDOW + 1.minutes
+
+        whenn()
+        val error = runCatching { appointment.requireScheduled(laterThanTheWindow) }.exceptionOrNull()
+
+        then()
+        assertTrue(error is AppointmentStatusError.EditWindowClosed)
+    }
+
+    @Test
+    fun `should allow changing a scheduled appointment that ended exactly a week ago`() = runUnitTest {
+        given()
+        val appointment = appointment(AppointmentStatus.SCHEDULED)
+        val endOfTheWindow = appointment.dateEnd + Appointment.EDIT_WINDOW
+
+        whenn()
+        val error = runCatching { appointment.requireScheduled(endOfTheWindow) }.exceptionOrNull()
+
+        then()
+        assertNull(error)
+    }
+
+    @Test
+    fun `should reject completing a scheduled appointment that ended more than a week ago`() = runUnitTest {
+        given()
+        val appointment = appointment(AppointmentStatus.SCHEDULED)
+        val laterThanTheWindow = appointment.dateEnd + Appointment.EDIT_WINDOW + 1.minutes
+
+        whenn()
+        val error = runCatching { appointment.requireCompletable(laterThanTheWindow) }.exceptionOrNull()
+
+        then()
+        assertTrue(error is AppointmentStatusError.EditWindowClosed)
+    }
+
+    @Test
+    fun `should allow completing a scheduled appointment that ended exactly a week ago`() = runUnitTest {
+        given()
+        val appointment = appointment(AppointmentStatus.SCHEDULED)
+        val endOfTheWindow = appointment.dateEnd + Appointment.EDIT_WINDOW
+
+        whenn()
+        val error = runCatching { appointment.requireCompletable(endOfTheWindow) }.exceptionOrNull()
+
+        then()
+        assertNull(error)
+    }
+
+    @Test
+    fun `should reject adjusting a completed appointment that ended more than a week ago`() = runUnitTest {
+        given()
+        val appointment = appointment(AppointmentStatus.COMPLETED)
+        val laterThanTheWindow = appointment.dateEnd + Appointment.EDIT_WINDOW + 1.minutes
+
+        whenn()
+        val error = runCatching { appointment.requireCompletable(laterThanTheWindow) }.exceptionOrNull()
+
+        then()
+        assertTrue(error is AppointmentStatusError.EditWindowClosed)
+    }
+
+    @Test
+    fun `should allow adjusting a completed appointment that ended exactly a week ago`() = runUnitTest {
+        given()
+        val appointment = appointment(AppointmentStatus.COMPLETED)
+        val endOfTheWindow = appointment.dateEnd + Appointment.EDIT_WINDOW
+
+        whenn()
+        val error = runCatching { appointment.requireCompletable(endOfTheWindow) }.exceptionOrNull()
+
+        then()
+        assertNull(error)
+    }
+
+    @Test
+    fun `should reject marking a scheduled appointment as no-show that ended more than a week ago`() = runUnitTest {
+        given()
+        val appointment = appointment(AppointmentStatus.SCHEDULED)
+        val laterThanTheWindow = appointment.dateEnd + Appointment.EDIT_WINDOW + 1.minutes
+
+        whenn()
+        val error = runCatching { appointment.requireNoShowMarkable(laterThanTheWindow) }.exceptionOrNull()
+
+        then()
+        assertTrue(error is AppointmentStatusError.EditWindowClosed)
+    }
+
+    @Test
+    fun `should allow marking a scheduled appointment as no-show that ended exactly a week ago`() = runUnitTest {
+        given()
+        val appointment = appointment(AppointmentStatus.SCHEDULED)
+        val endOfTheWindow = appointment.dateEnd + Appointment.EDIT_WINDOW
+
+        whenn()
+        val error = runCatching { appointment.requireNoShowMarkable(endOfTheWindow) }.exceptionOrNull()
+
+        then()
+        assertNull(error)
+    }
+
+    @Test
+    fun `should reject marking a completed appointment as no-show that ended more than a week ago`() = runUnitTest {
+        given()
+        val appointment = appointment(AppointmentStatus.COMPLETED)
+        val laterThanTheWindow = appointment.dateEnd + Appointment.EDIT_WINDOW + 1.minutes
+
+        whenn()
+        val error = runCatching { appointment.requireNoShowMarkable(laterThanTheWindow) }.exceptionOrNull()
+
+        then()
+        assertTrue(error is AppointmentStatusError.EditWindowClosed)
+    }
+
+    @Test
+    fun `should allow marking a completed appointment as no-show that ended exactly a week ago`() = runUnitTest {
+        given()
+        val appointment = appointment(AppointmentStatus.COMPLETED)
+        val endOfTheWindow = appointment.dateEnd + Appointment.EDIT_WINDOW
+
+        whenn()
+        val error = runCatching { appointment.requireNoShowMarkable(endOfTheWindow) }.exceptionOrNull()
+
+        then()
+        assertNull(error)
+    }
+
+    @Test
+    fun `should keep the edit window to one week`() = runUnitTest {
+        given()
+        val expected = 7.days
+
+        whenn()
+        val window = Appointment.EDIT_WINDOW
+
+        then()
+        assertTrue(window == expected)
     }
 }

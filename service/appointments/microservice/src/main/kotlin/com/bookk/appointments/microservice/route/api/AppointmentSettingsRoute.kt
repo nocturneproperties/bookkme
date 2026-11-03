@@ -36,8 +36,8 @@ fun Routing.settings() {
             call.respondWith(
                 getSettings(
                     userId = principal.userId,
-                    businessId = it.businessId
-                )
+                    businessId = it.businessId,
+                ),
             )
         }
 
@@ -64,8 +64,8 @@ fun Routing.settings() {
                 call.respondWith(
                     editSettings(
                         userId = principal.userId,
-                        update = body
-                    )
+                        update = body,
+                    ),
                 )
             }
         }

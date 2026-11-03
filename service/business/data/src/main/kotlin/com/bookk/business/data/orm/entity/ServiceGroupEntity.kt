@@ -16,12 +16,10 @@ internal class ServiceGroupEntity(id: EntityID<Uuid>) : UuidEntity(id) {
 
     companion object : DecoratorUuidEntityClass<ServiceGroupEntity>(ServiceGroupTable)
 
-    fun toDomain(): ServiceGroup {
-        return ServiceGroup(
-            id = id.value,
-            businessId = businessId.value,
-            name = name,
-            createdAt = createdAt
-        )
-    }
+    fun toDomain(): ServiceGroup = ServiceGroup(
+        id = id.value,
+        businessId = businessId.value,
+        name = name,
+        createdAt = createdAt,
+    )
 }

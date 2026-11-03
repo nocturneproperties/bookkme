@@ -12,13 +12,11 @@ import kotlin.uuid.Uuid
 internal class DeleteServiceImpl(
     private val dataSource: ServiceDataSource,
     private val businessPermissionDataSource: BusinessPermissionDataSource,
-    private val transactionManager: TransactionManager
+    private val transactionManager: TransactionManager,
 ) : DeleteService {
-    override suspend fun invoke(requestUserId: Uuid, businessId: Uuid, id: Uuid): Result<Unit> {
-        return transactionManager.transaction {
-            businessPermissionDataSource.getPermission(requestUserId, businessId, BusinessResource.SERVICES)
-                .assert(PermissionAction.DELETE)
-            dataSource.deleteService(id, businessId)
-        }
+    override suspend fun invoke(requestUserId: Uuid, businessId: Uuid, id: Uuid): Result<Unit> = transactionManager.transaction {
+        businessPermissionDataSource.getPermission(requestUserId, businessId, BusinessResource.SERVICES)
+            .assert(PermissionAction.DELETE)
+        dataSource.deleteService(id, businessId)
     }
 }

@@ -30,7 +30,7 @@ internal class SettingsEntity(id: EntityID<Uuid>) : UuidEntity(id) {
         inBetweenBreakInMinutes = inBetweenBreakInMinutes,
         appointmentNote = appointmentNote,
         permissions = ResourcePermission.NONE,
-        automaticCompletion = automaticCompletion
+        automaticCompletion = automaticCompletion,
     )
 
     companion object : DecoratorUuidEntityClass<SettingsEntity>(SettingsTable) {
@@ -42,13 +42,12 @@ internal class SettingsEntity(id: EntityID<Uuid>) : UuidEntity(id) {
             automaticCompletion = settings.automaticCompletion
         }
 
-        fun findByBusinessIdAndUpdate(update: AppointmentSettingsUpdate): SettingsEntity? =
-            findSingleByAndUpdate(op = SettingsTable.businessId eq update.businessId) {
-                it.inBetweenBreakInMinutes = update.inBetweenBreakInMinutes
-                it.appointmentNote = update.appointmentNote
-                it.automaticApproval = update.automaticApproval
-                update.automaticCompletion?.let { automaticCompletion -> it.automaticCompletion = automaticCompletion }
-                it.updatedAt = Clock.System.now()
-            }
+        fun findByBusinessIdAndUpdate(update: AppointmentSettingsUpdate): SettingsEntity? = findSingleByAndUpdate(op = SettingsTable.businessId eq update.businessId) {
+            it.inBetweenBreakInMinutes = update.inBetweenBreakInMinutes
+            it.appointmentNote = update.appointmentNote
+            it.automaticApproval = update.automaticApproval
+            update.automaticCompletion?.let { automaticCompletion -> it.automaticCompletion = automaticCompletion }
+            it.updatedAt = Clock.System.now()
+        }
     }
 }

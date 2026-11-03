@@ -16,16 +16,16 @@ internal val BusinessEvent.EmployeeInvitationRedeemed.notification: Notification
         push = { language ->
             PushNotification(
                 title = message(language, "$KEY_PREFIX.push.title"),
-                body = message(language, "$KEY_PREFIX.push.body", employeeName, businessName)
+                body = message(language, "$KEY_PREFIX.push.body", employeeName, businessName),
             )
         },
         email = { language ->
             EmailNotification(
                 subject = message(language, "$KEY_PREFIX.email.subject", employeeName),
-                body = message(language, "$KEY_PREFIX.email.body", employeeName, businessName)
+                body = message(language, "$KEY_PREFIX.email.body", employeeName, businessName),
             )
         },
         text = { language ->
             TextNotification(message(language, "$KEY_PREFIX.text.body", employeeName, businessName))
-        }
+        },
     )

@@ -33,7 +33,7 @@ internal class IssueServiceQuoteImplTest {
         val businessId = Uuid.random()
         val services = listOf(
             Service.stub(businessId = businessId),
-            Service.stub(businessId = businessId)
+            Service.stub(businessId = businessId),
         )
         val serviceIds = services.map { it.id }
         with(fixture) {

@@ -85,7 +85,7 @@ internal class DeviceDataSourceImpl : DataSource(), DeviceDataSource {
                 otherTable = AuthenticationTable,
                 onColumn = { userAuthId },
                 otherColumn = { id },
-                additionalConstraint = { AuthenticationTable.id eq authId }
+                additionalConstraint = { AuthenticationTable.id eq authId },
             )
             .selectAll()
             .where { AuthDeviceTable.deviceUUID eq deviceUUID }
@@ -99,7 +99,7 @@ internal class DeviceDataSourceImpl : DataSource(), DeviceDataSource {
                 otherTable = AuthenticationTable,
                 onColumn = { userAuthId },
                 otherColumn = { id },
-                additionalConstraint = { AuthDeviceTable.userAuthId eq authId }
+                additionalConstraint = { AuthDeviceTable.userAuthId eq authId },
             )
             .selectAll()
             .map { AuthDeviceEntity.wrapRow(it).toDomain() }
@@ -108,7 +108,7 @@ internal class DeviceDataSourceImpl : DataSource(), DeviceDataSource {
 
     override suspend fun deleteTokenFromDevice(deviceId: Uuid) = dbQuery<Unit> {
         AuthDeviceTable.update(
-            where = { AuthDeviceTable.id eq deviceId }
+            where = { AuthDeviceTable.id eq deviceId },
         ) {
             it[isSignedIn] = false
             it[refreshTokenId] = null
@@ -132,7 +132,7 @@ internal class DeviceDataSourceImpl : DataSource(), DeviceDataSource {
 
     override suspend fun updateLanguage(authId: Uuid, deviceUuid: Uuid, language: Language) = dbQuery<Unit> {
         AuthDeviceTable.update(
-            where = { AuthDeviceTable.userAuthId.eq(authId).and(AuthDeviceTable.deviceUUID.eq(deviceUuid)) }
+            where = { AuthDeviceTable.userAuthId.eq(authId).and(AuthDeviceTable.deviceUUID.eq(deviceUuid)) },
         ) {
             it[AuthDeviceTable.language] = language
             it[updatedAt] = Clock.System.now()

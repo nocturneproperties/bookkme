@@ -10,7 +10,7 @@ import kotlin.time.Duration.Companion.seconds
 fun runIntegrationTest(
     context: CoroutineContext = TestHolder(),
     timeout: Duration = 30.seconds,
-    body: suspend TestScope.() -> Unit
+    body: suspend TestScope.() -> Unit,
 ) = runTest(context, timeout = timeout) {
     body()
     requireNotNull(currentCoroutineContext()[TestHolder.Key]).assertFormat()

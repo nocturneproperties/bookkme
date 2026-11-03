@@ -66,6 +66,6 @@ internal class SigningKeyDataSource : DataSource() {
         privateKeyPem = SigningKeyCipher.decrypt(privateKey, AppLevelConstants.signingKeyEncryptionKey),
         status = status,
         createdAt = createdAt,
-        retiredAt = retiredAt
+        retiredAt = retiredAt,
     )
 }

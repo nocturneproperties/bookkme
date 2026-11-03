@@ -21,7 +21,7 @@ data class Employee(
     @ProtoNumber(9) val schedule: Schedule,
     @ProtoNumber(10) val createdAt: Instant,
     @ProtoNumber(11) val permissions: BusinessPermissions,
-    @ProtoNumber(12) val suspendedAt: Instant?
+    @ProtoNumber(12) val suspendedAt: Instant?,
 ) {
     val isSuspended: Boolean get() = suspendedAt != null
 
@@ -38,7 +38,7 @@ data class Employee(
             schedule: Schedule = Schedule.empty(),
             createdAt: Instant = Instant.fromEpochMilliseconds(0),
             permissions: BusinessPermissions = BusinessPermissions.NONE,
-            suspendedAt: Instant? = null
+            suspendedAt: Instant? = null,
         ) = Employee(
             id = id,
             businessId = businessId,
@@ -51,7 +51,7 @@ data class Employee(
             schedule = schedule,
             createdAt = createdAt,
             permissions = permissions,
-            suspendedAt = suspendedAt
+            suspendedAt = suspendedAt,
         )
     }
 }

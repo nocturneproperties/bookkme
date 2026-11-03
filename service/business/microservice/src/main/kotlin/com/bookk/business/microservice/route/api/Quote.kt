@@ -38,8 +38,8 @@ fun Route.quote() {
             call.respondWith(
                 issueQuote(
                     businessId = it.parent.businessId,
-                    serviceIds = body.serviceIds
-                )
+                    serviceIds = body.serviceIds,
+                ),
             )
         }
     }

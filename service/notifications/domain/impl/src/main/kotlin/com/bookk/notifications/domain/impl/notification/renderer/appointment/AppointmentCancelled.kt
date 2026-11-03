@@ -18,18 +18,18 @@ internal val AppointmentEvent.Cancelled.notification: NotificationParameters
             val whenText = from.formatLocalized(timeZone, language)
             PushNotification(
                 title = message(language, "$KEY_PREFIX.push.title"),
-                body = message(language, "$KEY_PREFIX.push.body", businessName, whenText, reason)
+                body = message(language, "$KEY_PREFIX.push.body", businessName, whenText, reason),
             )
         },
         email = { language ->
             val whenText = from.formatLocalized(timeZone, language)
             EmailNotification(
                 subject = message(language, "$KEY_PREFIX.email.subject", businessName),
-                body = message(language, "$KEY_PREFIX.email.body", businessName, whenText, reason, address)
+                body = message(language, "$KEY_PREFIX.email.body", businessName, whenText, reason, address),
             )
         },
         text = { language ->
             val whenText = from.formatLocalized(timeZone, language)
             TextNotification(message(language, "$KEY_PREFIX.text.body", businessName, whenText, reason))
-        }
+        },
     )

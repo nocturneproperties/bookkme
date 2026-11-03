@@ -46,7 +46,7 @@ internal class UpdateTokenTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { notificationToken() }
+            routeUnderTest = { notificationToken() },
         )
 
         whenn()
@@ -77,7 +77,7 @@ internal class UpdateTokenTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { notificationToken() }
+            routeUnderTest = { notificationToken() },
         )
 
         whenn()
@@ -101,7 +101,7 @@ internal class UpdateTokenTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { notificationToken() }
+            routeUnderTest = { notificationToken() },
         )
 
         whenn()

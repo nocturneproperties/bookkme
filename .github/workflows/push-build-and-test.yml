@@ -31,6 +31,9 @@ jobs:
           cache-encryption-key: ${{ secrets.GRADLE_ENCRYPTION_KEY }}
           cache-overwrite-existing: true
 
+      - name: Check formatting
+        run: ./gradlew spotlessCheck
+
       - name: Build
         run: ./gradlew buildImage
 

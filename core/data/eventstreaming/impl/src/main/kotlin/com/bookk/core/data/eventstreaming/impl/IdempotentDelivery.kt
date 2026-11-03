@@ -19,7 +19,7 @@ internal class EventClaimedByUnfinishedDelivery(topic: String, idempotencyKey: S
 
 internal enum class DeliveryOutcome {
     HANDLED,
-    SKIPPED_DUPLICATE
+    SKIPPED_DUPLICATE,
 }
 
 internal fun Logger.logDelivered(event: Event<String>, outcome: DeliveryOutcome) = when (outcome) {
@@ -56,8 +56,7 @@ internal class IdempotentDelivery(
 
     private fun claimPollsWithinTtl(): Int = (eventIdempotencyStorage.claimTtl / CLAIM_POLL_INTERVAL).toInt() + 1
 
-    private suspend fun claim(event: Event<String>, deliveryId: String): EventClaim =
-        eventIdempotencyStorage.claim(consumerGroup, event.topic, event.idempotencyKey, deliveryId)
+    private suspend fun claim(event: Event<String>, deliveryId: String): EventClaim = eventIdempotencyStorage.claim(consumerGroup, event.topic, event.idempotencyKey, deliveryId)
 
     private suspend fun <T : Event<String>> handleClaimed(event: T, deliveryId: String, onEvent: suspend (T) -> Unit): Result<DeliveryOutcome> {
         val handled = try {

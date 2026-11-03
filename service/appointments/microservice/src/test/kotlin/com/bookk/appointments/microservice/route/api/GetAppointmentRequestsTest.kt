@@ -40,22 +40,24 @@ internal class GetAppointmentRequestsTest {
         val requests = listOf(
             AppointmentRequest(
                 id = Uuid.random(),
-                userId = userId,
+                initiatorUserId = userId,
                 businessId = businessId,
                 employee = EmployeeSnapshot.stub(),
-                client = ClientSnapshot(Uuid.random(), "Full Name", "123456789", "test@example.com"),
-                services = listOf(ServiceSnapshot(
-                    Uuid.random(),
-                    "Service Name",
-                    Uuid.random(),
-                    Money.parse("USD 100"),
-                    duration = 30.minutes
-                )),
+                client = ClientSnapshot(Uuid.random(), "Full Name", "123456789", "test@example.com", Uuid.random()),
+                services = listOf(
+                    ServiceSnapshot(
+                        Uuid.random(),
+                        "Service Name",
+                        Uuid.random(),
+                        Money.parse("USD 100"),
+                        duration = 30.minutes,
+                    ),
+                ),
                 date = Instant.fromEpochMilliseconds(0),
                 note = "test",
                 status = AppointmentRequestStatus.PENDING,
-                declineReason = ""
-            )
+                declineReason = "",
+            ),
         )
 
         coEvery { useCase.invoke(userId, businessId) } returns Result.success(requests)
@@ -75,7 +77,7 @@ internal class GetAppointmentRequestsTest {
             },
             routeUnderTest = {
                 requests()
-            }
+            },
         )
 
         whenn()
@@ -103,7 +105,7 @@ internal class GetAppointmentRequestsTest {
             },
             routeUnderTest = {
                 requests()
-            }
+            },
         )
 
         whenn()

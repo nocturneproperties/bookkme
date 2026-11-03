@@ -31,9 +31,9 @@ internal class ContactUsTest {
         val useCase: CreateContactForm = mockk()
         val text = "Test message"
         val logs = "Test logs"
-        
+
         coEvery { useCase.invoke(any()) } returns Result.success(Unit)
-        
+
         setupApplication(
             extension = {
                 install(Authentication) {
@@ -45,15 +45,15 @@ internal class ContactUsTest {
             diModule = module {
                 single { useCase }
             },
-            routeUnderTest = { postContactForm() }
+            routeUnderTest = { postContactForm() },
         )
-        
+
         whenn()
         val client = createTestClient()
         val response = client.post(UserRouting.Api.User.ContactUs()) {
             setBody(ContactFormBody(text, logs))
         }
-        
+
         then()
         assertEquals(HttpStatusCode.NoContent, response.status)
     }

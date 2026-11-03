@@ -11,11 +11,11 @@ import org.koin.ktor.plugin.Koin
 
 suspend fun ApplicationTestBuilder.startScopedApplication(
     qualifier: Qualifier,
-    scopedDefinitions: ScopeDSL.() -> Unit
+    scopedDefinitions: ScopeDSL.() -> Unit,
 ): Application = startScopedApplication(qualifier to scopedDefinitions)
 
 suspend fun ApplicationTestBuilder.startScopedApplication(
-    vararg scopes: Pair<Qualifier, ScopeDSL.() -> Unit>
+    vararg scopes: Pair<Qualifier, ScopeDSL.() -> Unit>,
 ): Application {
     lateinit var started: Application
     application {
@@ -23,7 +23,7 @@ suspend fun ApplicationTestBuilder.startScopedApplication(
             modules(
                 module {
                     scopes.forEach { (qualifier, scopedDefinitions) -> scope(qualifier, scopedDefinitions) }
-                }
+                },
             )
         }
         scopes.forEach { (qualifier, _) -> installServiceScope(qualifier) }

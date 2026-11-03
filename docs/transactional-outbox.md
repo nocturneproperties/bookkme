@@ -182,7 +182,7 @@ sequenceDiagram
 | Idempotency store (Redis) unreachable | A failed claim is retried through the DLT like a handler failure. A failed `markProcessed` is logged only: the handler already succeeded and is not run again. |
 | Two relays for the same schema | The second relay's `FOR UPDATE` waits for the first to commit, then finds the rows deleted. Each row is published once, in id order (`OutboxRelayMariaDbTest`). |
 | Consumer can't decode a payload | Logged and dropped, as with Kafka. Later events keep flowing. |
-| Receiver keeps failing | DLT retries with backoff, then `exhausted_event`. Consumer-side DLT sends go to the transport directly, never through the outbox. Each consumer group has its own DLT topic (`<topic>_<consumerGroup>_dlt`), so a service retries only its own failures. |
+| Receiver keeps failing | DLT retries with backoff, then `exhausted_event`, which raises the `EventsExhausted` alert and is replayed on the next start or by hand ([Exhausted events](exhausted-events.md)). Consumer-side DLT sends go to the transport directly, never through the outbox. Each consumer group has its own DLT topic (`<topic>_<consumerGroup>_dlt`), so a service retries only its own failures. |
 | Monolith process dies | Rows still in `outbox_event` survive and are relayed on restart. Events already handed to the in-memory queue but not yet consumed are lost. |
 
 ## Ordering

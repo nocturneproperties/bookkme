@@ -11,14 +11,14 @@ way a token pair is minted for it.
 flowchart TD
     Start([POST /api/auth/sign_in]) --> Tx[[Begin transaction]]
     Tx --> Verify[FinishAssertion request]
-    Verify -- owner not found --> R422a([422 PASSKEY_OWNER_NOT_FOUND 300003])
-    Verify -- expired --> R422b([422 CHALLENGE_WINDOW_EXPIRED 300001])
-    Verify -- signature invalid --> R422c([422 VERIFICATION_FAILED 300002])
+    Verify -- owner not found --> R422a([422 PASSKEY_OWNER_NOT_FOUND 7])
+    Verify -- expired --> R422b([422 CHALLENGE_WINDOW_EXPIRED 6])
+    Verify -- signature invalid --> R422c([422 VERIFICATION_FAILED 4])
     Verify -- ok credentials --> InsertDevice[DeviceDataSource.insertDevice ownerId uuid name language]
     InsertDevice -- new device row --> DeviceCreatedEvt[eventProducer.send AuthEvent.DeviceCreated]
     InsertDevice -- device already exists --> UpdateLang[DeviceDataSource.updateLanguage ownerId uuid language]
     UpdateLang --> LangEvt[eventProducer.send AuthEvent.DeviceLanguageUpdated]
-    DeviceCreatedEvt --> GenToken[GenerateAuthToken InitialAuthentication ownerId deviceUuid]
+    DeviceCreatedEvt --> GenToken[GenerateAuthToken InitialAuthentication ownerId deviceUuid - also AccountDataSource.recordActivity]
     LangEvt --> GenToken
     GenToken --> R200([200 AuthTokens])
 ```

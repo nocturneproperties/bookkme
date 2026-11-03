@@ -48,7 +48,8 @@ Reactions to cross-service events:
 | `BusinessEvent.Updated` | [React to business update](appointments/on-business-updated.md) |
 | `AuthEvent.UserDeleted` | [React to user deletion](appointments/on-user-deleted.md) |
 | `BusinessEvent.EmployeePermissionsChanged` | [React to an employee permissions change](appointments/on-employee-permissions-changed.md) |
-| `BusinessEvent.ClientMerged` | [React to a client merge](appointments/on-client-merged.md) |
+| `BusinessEvent.ClientLinked` | [React to a client getting an account](appointments/on-client-linked.md) |
+| `BusinessEvent.ClientDeleted` | [React to client deletion](appointments/on-client-deleted.md) |
 
 ## Authorization service
 
@@ -60,6 +61,7 @@ Reactions to cross-service events:
 | `POST /api/auth/refresh` | [Refresh access token](authorization/refresh-token.md) |
 | `DELETE /api/auth/session` | [Sign out](authorization/sign-out.md) |
 | `DELETE /api/auth/account` | [Delete account](authorization/delete-account.md) |
+| `POST /api/auth/passkey/step_up` | [Confirm a sensitive action with a passkey](authorization/step-up.md) |
 | `POST /api/auth/passkey/add/finish` | [Add passkey to account](authorization/add-passkey.md) |
 | `DELETE /api/auth/passkey/{id}` | [Delete passkey](authorization/delete-passkey.md) |
 
@@ -68,6 +70,7 @@ Reactions to cross-service events:
 | Route | Diagram |
 |---|---|
 | `POST /api/business` | [Create business](business/create-business.md) |
+| `POST /api/business/{businessId}/export` | [Start business data export](business/start-business-data-export.md) |
 | `PUT /api/business/{id}` | [Update business](business/update-business.md) |
 | `PUT /api/business/{id}/dashboard` | [Set dashboard business](business/set-dashboard-business.md) |
 | `POST /api/business/{businessId}/clients` | [Create client](business/create-client.md) |
@@ -86,6 +89,7 @@ Reactions to cross-service events:
 | `POST /api/business/{businessId}/service_group` | [Create service group](business/create-service-group.md) |
 | `DELETE /api/business/{businessId}/service_group/{id}` | [Delete service group](business/delete-service-group.md) |
 | `POST /api/internal/business/{id}/appointment-booking-context` | [Get appointment booking context (internal)](business/get-appointment-booking-context.md) |
+| `POST /api/internal/business/{id}/staff-booking-context` | [Get staff booking context (internal)](business/get-staff-booking-context.md) |
 
 Reactions to cross-service events:
 
@@ -93,6 +97,7 @@ Reactions to cross-service events:
 |---|---|
 | `AuthEvent.UserDeleted` | [React to user deletion](business/on-user-deleted.md) |
 | `UserEvent.Updated` | [React to user profile update](business/on-user-updated.md) |
+| `AppointmentEvent.ClientVisitBooked` | [React to a booked client visit](business/on-client-visit-booked.md) |
 
 ## Notifications service
 
@@ -109,12 +114,16 @@ Reactions to cross-service events (all handled by the same
 | `AuthEvent.DeviceCreated` | [React to device creation](notifications/on-device-created.md) |
 | `AuthEvent.UserDeleted` | [React to user deletion](notifications/on-user-deleted.md) |
 | `AuthEvent.DeviceLanguageUpdated` | [React to device language change](notifications/on-device-language-updated.md) |
+| `AuthEvent.AccountDormancyWarning` | [React to a dormancy warning](notifications/on-account-dormancy-warning.md) |
+| `UserEvent.DataExportReady` | [React to a ready personal data export](notifications/on-data-export-ready.md) |
+| `BusinessEvent.ExportReady` | [React to a ready business data export](notifications/on-business-export-ready.md) |
 | `AuthEvent.DeviceDeleted` | [React to device deletion](notifications/on-device-deleted.md) |
 | `UserEvent.Updated` | [React to user profile update](notifications/on-user-updated.md) |
 | `AppointmentEvent.RequestCreated` | [React to appointment request creation](notifications/on-appointment-request-created.md) |
 | `AppointmentEvent.RequestApproved` | [React to appointment request approval](notifications/on-appointment-request-approved.md) |
 | `AppointmentEvent.RequestRejected` | [React to appointment request decline](notifications/on-appointment-request-rejected.md) |
 | `AppointmentEvent.Cancelled` | [React to appointment cancellation](notifications/on-appointment-cancelled.md) |
+| `AppointmentEvent.CancelledForDeletedClient` | [React to an appointment cancelled by a client's account deletion](notifications/on-appointment-cancelled-for-deleted-client.md) |
 | `BusinessEvent.EmployeeInvitationRedeemed` | [React to an employee joining the business](notifications/on-employee-invitation-redeemed.md) |
 
 ## User service
@@ -123,6 +132,8 @@ Reactions to cross-service events (all handled by the same
 |---|---|
 | `PATCH /api/user/me` | [Update user](user/update-user.md) |
 | `POST /api/user/contact_us` | [Send contact form](user/create-contact-form.md) |
+| `POST /api/user/me/legal` | [Accept legal documents](user/accept-legal-documents.md) |
+| `POST /api/user/export` | [Start personal data export](user/start-personal-data-export.md) |
 | `POST /api/internal/user` | [Create user (internal)](user/create-user-internal.md) |
 
 Reactions to cross-service events:
@@ -147,17 +158,23 @@ the operation committed, and reaches its consumers at least once. See
 
 | Event | Producer | Consumer(s) |
 |---|---|---|
-| `AuthEvent.UserDeleted` | [Delete account](authorization/delete-account.md) | [appointments](appointments/on-user-deleted.md), [business](business/on-user-deleted.md), [notifications](notifications/on-user-deleted.md), [user](user/on-user-deleted.md) |
-| `AuthEvent.DeviceDeleted` | [Delete account](authorization/delete-account.md) | [notifications](notifications/on-device-deleted.md) |
+| `AuthEvent.UserDeleted` | [Delete account](authorization/delete-account.md), [`auth-handleDormantAccounts` job](scheduled-jobs.md), [`auth-reapplyErasures` job](scheduled-jobs.md) | [appointments](appointments/on-user-deleted.md), [business](business/on-user-deleted.md), [notifications](notifications/on-user-deleted.md), [user](user/on-user-deleted.md) |
+| `AuthEvent.DeviceDeleted` | [Delete account](authorization/delete-account.md), [`auth-handleDormantAccounts` job](scheduled-jobs.md) | [notifications](notifications/on-device-deleted.md) |
 | `AuthEvent.DeviceCreated` | [Verify sign-up](authorization/sign-up.md), [Verify sign-in](authorization/sign-in.md) | [notifications](notifications/on-device-created.md) |
 | `AuthEvent.DeviceLanguageUpdated` | [Verify sign-in](authorization/sign-in.md) | [notifications](notifications/on-device-language-updated.md) |
+| `AuthEvent.AccountDormancyWarning` | [`auth-handleDormantAccounts` job](scheduled-jobs.md) | [notifications](notifications/on-account-dormancy-warning.md) |
 | `BusinessEvent.Updated` | [Update business](business/update-business.md) | [appointments](appointments/on-business-updated.md) |
 | `BusinessEvent.Deleted` | [React to user deletion (business)](business/on-user-deleted.md) | [appointments](appointments/on-business-deleted.md) |
 | `BusinessEvent.EmployeeInvitationRedeemed` | [Join business](business/join-business.md) | [notifications](notifications/on-employee-invitation-redeemed.md) |
 | `BusinessEvent.EmployeePermissionsChanged` | [Join business](business/join-business.md), [Set employee permissions](business/set-employee-permissions.md), [Set employee suspension](business/set-employee-suspension.md) | [appointments](appointments/on-employee-permissions-changed.md) |
-| `BusinessEvent.ClientMerged` | [Get appointment booking context (internal)](business/get-appointment-booking-context.md), [React to user profile update (business)](business/on-user-updated.md) | [appointments](appointments/on-client-merged.md) |
+| `BusinessEvent.ClientLinked` | [Get appointment booking context (internal)](business/get-appointment-booking-context.md), [React to user profile update (business)](business/on-user-updated.md) | [appointments](appointments/on-client-linked.md) |
+| `BusinessEvent.ClientDeleted` | [Delete client](business/delete-client.md), [`business-deleteInactiveClients` job](scheduled-jobs.md), [`business-reapplyErasures` job](scheduled-jobs.md) | [appointments](appointments/on-client-deleted.md) |
+| `AppointmentEvent.ClientVisitBooked` | [Create appointment request](appointments/create-appointment-request.md), [Create appointment from a pending request](appointments/create-appointment-from-request.md), [Create instant appointment](appointments/create-appointment-instant.md), [Update appointment (reschedule)](appointments/update-appointment.md) | [business](business/on-client-visit-booked.md) |
 | `UserEvent.Updated` | [Update user](user/update-user.md) | [business](business/on-user-updated.md), [notifications](notifications/on-user-updated.md) |
+| `BusinessEvent.ExportReady` | [Start business data export](business/start-business-data-export.md) (`business-buildDataExports` job) | [notifications](notifications/on-business-export-ready.md) |
+| `UserEvent.DataExportReady` | [Start personal data export](user/start-personal-data-export.md) (`user-buildDataExports` job) | [notifications](notifications/on-data-export-ready.md) |
 | `AppointmentEvent.RequestCreated` | [Create appointment request](appointments/create-appointment-request.md) | [notifications](notifications/on-appointment-request-created.md) |
 | `AppointmentEvent.RequestApproved` | [Create appointment from a pending request](appointments/create-appointment-from-request.md), [Create appointment request](appointments/create-appointment-request.md) (auto-approval) | [notifications](notifications/on-appointment-request-approved.md) |
 | `AppointmentEvent.RequestRejected` | [Decline appointment request](appointments/decline-appointment-request.md) | [notifications](notifications/on-appointment-request-rejected.md) |
-| `AppointmentEvent.Cancelled` | [Cancel appointment](appointments/cancel-appointment.md) | [notifications](notifications/on-appointment-cancelled.md) |
+| `AppointmentEvent.Cancelled` | [Cancel appointment](appointments/cancel-appointment.md), [React to client deletion (appointments)](appointments/on-client-deleted.md), [React to user deletion (appointments)](appointments/on-user-deleted.md) | [notifications](notifications/on-appointment-cancelled.md) |
+| `AppointmentEvent.CancelledForDeletedClient` | [React to user deletion (appointments)](appointments/on-user-deleted.md), [React to client deletion (appointments)](appointments/on-client-deleted.md), [React to a client getting an account (appointments)](appointments/on-client-linked.md) | [notifications](notifications/on-appointment-cancelled-for-deleted-client.md) |

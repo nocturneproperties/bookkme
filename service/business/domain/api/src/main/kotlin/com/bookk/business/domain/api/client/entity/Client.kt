@@ -12,7 +12,7 @@ class ClientRemote(
     @ProtoNumber(4) val phone: String?,
     @ProtoNumber(5) val email: String?,
     @ProtoNumber(6) val userId: Uuid?,
-    @ProtoNumber(7) val description: String?
+    @ProtoNumber(7) val description: String?,
 ) {
     companion object {
         fun stub(
@@ -22,7 +22,7 @@ class ClientRemote(
             phone: String? = "+10000000000",
             email: String? = "stub@client.com",
             userId: Uuid? = null,
-            description: String? = null
+            description: String? = null,
         ) = ClientRemote(
             id = id,
             name = name,
@@ -30,7 +30,7 @@ class ClientRemote(
             phone = phone,
             email = email,
             userId = userId,
-            description = description
+            description = description,
         )
     }
 }
@@ -49,7 +49,7 @@ sealed interface Client {
         override val lastName: String,
         override val phone: String?,
         override val email: String?,
-        override val description: String? = null
+        override val description: String? = null,
     ) : Client {
         companion object {
             fun stub(
@@ -58,14 +58,14 @@ sealed interface Client {
                 lastName: String = "stub-lastname",
                 phone: String? = "+10000000000",
                 email: String? = "stub@client.com",
-                description: String? = null
+                description: String? = null,
             ) = Detached(
                 id = id,
                 name = name,
                 lastName = lastName,
                 phone = phone,
                 email = email,
-                description = description
+                description = description,
             )
         }
     }
@@ -77,7 +77,7 @@ sealed interface Client {
         override val phone: String?,
         override val email: String?,
         val userId: Uuid,
-        override val description: String? = null
+        override val description: String? = null,
     ) : Client {
         companion object {
             fun stub(
@@ -87,7 +87,7 @@ sealed interface Client {
                 phone: String? = "+10000000000",
                 email: String? = "stub@client.com",
                 userId: Uuid = Uuid.random(),
-                description: String? = null
+                description: String? = null,
             ) = Integrated(
                 id = id,
                 name = name,
@@ -95,7 +95,7 @@ sealed interface Client {
                 phone = phone,
                 email = email,
                 userId = userId,
-                description = description
+                description = description,
             )
         }
     }
@@ -105,17 +105,15 @@ sealed interface Client {
     }
 }
 
-fun Client.toRemote(): ClientRemote {
-    return ClientRemote(
-        id = id,
-        name = name,
-        lastName = lastName,
-        phone = phone,
-        email = email,
-        userId = (this as? Client.Integrated)?.userId,
-        description = description
-    )
-}
+fun Client.toRemote(): ClientRemote = ClientRemote(
+    id = id,
+    name = name,
+    lastName = lastName,
+    phone = phone,
+    email = email,
+    userId = (this as? Client.Integrated)?.userId,
+    description = description,
+)
 
 fun ClientRemote.toDetachedClient(): Client.Detached = Client.Detached(
     id = id,
@@ -123,5 +121,5 @@ fun ClientRemote.toDetachedClient(): Client.Detached = Client.Detached(
     lastName = lastName,
     phone = phone,
     email = email,
-    description = description
+    description = description,
 )

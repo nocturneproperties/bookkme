@@ -7,5 +7,5 @@ data class EmbeddedDltEvent(
     val originalEvent: EventStreaming.Event<String>,
     val attempt: Int,
     override val topic: String,
-    override val idempotencyKey: String = Uuid.random().toString()
+    override val idempotencyKey: String = Uuid.random().toString(),
 ) : EventStreaming.Event<String>

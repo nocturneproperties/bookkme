@@ -12,35 +12,27 @@ internal object OpaqueRefreshToken {
 
     private val secureRandom = SecureRandom()
 
-    fun generate(): UnsafeRefreshToken {
-        return UnsafeRefreshToken(randomTokenId(), randomSecret())
-    }
+    fun generate(): UnsafeRefreshToken = UnsafeRefreshToken(randomTokenId(), randomSecret())
 
-    fun parse(token: String): UnsafeRefreshToken? {
-        return runCatching {
-            token.split('.', limit = 2)
-                .map { Base64.getUrlDecoder().decode(it) }
-                .takeIf { it.size == 2 }
-                ?.let { (id, secret) ->
-                    UnsafeRefreshToken(Uuid.fromByteArray(id), secret)
-                }
-        }.getOrNull()
-    }
+    fun parse(token: String): UnsafeRefreshToken? = runCatching {
+        token.split('.', limit = 2)
+            .map { Base64.getUrlDecoder().decode(it) }
+            .takeIf { it.size == 2 }
+            ?.let { (id, secret) ->
+                UnsafeRefreshToken(Uuid.fromByteArray(id), secret)
+            }
+    }.getOrNull()
 
     fun matches(unsafe: UnsafeRefreshToken, safe: SafeRefreshToken): Boolean {
         if (unsafe.id != safe.id) return false
         return MessageDigest.isEqual(
             unsafe.secretHash.toByteArray(),
-            safe.secretHash.toByteArray()
+            safe.secretHash.toByteArray(),
         )
     }
 
-    private fun randomTokenId(): Uuid {
-        return Uuid.random()
-    }
+    private fun randomTokenId(): Uuid = Uuid.random()
 
-    private fun randomSecret(): ByteArray {
-        return ByteArray(SECRET_BYTES)
-            .also { secureRandom.nextBytes(it) }
-    }
+    private fun randomSecret(): ByteArray = ByteArray(SECRET_BYTES)
+        .also { secureRandom.nextBytes(it) }
 }

@@ -5,7 +5,12 @@ import kotlinx.serialization.protobuf.ProtoNumber
 
 @Serializable
 enum class CommunicationChannel {
-    @ProtoNumber(0) TELEGRAM,
-    @ProtoNumber(1) EMAIL,
-    @ProtoNumber(2) PUSH_NOTIFICATIONS,
+    @ProtoNumber(0)
+    TELEGRAM,
+
+    @ProtoNumber(1)
+    EMAIL,
+
+    @ProtoNumber(2)
+    PUSH_NOTIFICATIONS,
 }

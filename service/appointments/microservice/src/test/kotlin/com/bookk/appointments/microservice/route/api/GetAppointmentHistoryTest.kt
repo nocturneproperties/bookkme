@@ -32,10 +32,10 @@ internal class GetAppointmentHistoryTest {
         val useCase: GetAppointmentHistory = mockk()
         val businessId = Uuid.random()
         val userId = Uuid.random()
-        val appointments = listOf(Appointment.stub(userId = userId, businessId = businessId))
+        val appointments = listOf(Appointment.stub(initiatorUserId = userId, businessId = businessId))
         val pagination = AppointmentPagination(
             data = appointments,
-            metadata = PaginationMetadata(total = 1L, page = 0L, pageSize = 50)
+            metadata = PaginationMetadata(total = 1L, page = 0L, pageSize = 50),
         )
 
         coEvery { useCase.invoke(userId, businessId, 50, 0, null) } returns Result.success(pagination)
@@ -55,7 +55,7 @@ internal class GetAppointmentHistoryTest {
             },
             routeUnderTest = {
                 appointment()
-            }
+            },
         )
 
         whenn()
@@ -72,10 +72,10 @@ internal class GetAppointmentHistoryTest {
         val useCase: GetAppointmentHistory = mockk()
         val businessId = Uuid.random()
         val userId = Uuid.random()
-        val appointments = listOf(Appointment.stub(userId = userId, businessId = businessId))
+        val appointments = listOf(Appointment.stub(initiatorUserId = userId, businessId = businessId))
         val pagination = AppointmentPagination(
             data = appointments,
-            metadata = PaginationMetadata(total = 1L, page = 0L, pageSize = 50)
+            metadata = PaginationMetadata(total = 1L, page = 0L, pageSize = 50),
         )
 
         coEvery {
@@ -97,7 +97,7 @@ internal class GetAppointmentHistoryTest {
             },
             routeUnderTest = {
                 appointment()
-            }
+            },
         )
 
         whenn()
@@ -107,8 +107,8 @@ internal class GetAppointmentHistoryTest {
                 businessId = businessId,
                 limit = 50,
                 offset = 0,
-                query = "John"
-            )
+                query = "John",
+            ),
         )
 
         then()
@@ -132,7 +132,7 @@ internal class GetAppointmentHistoryTest {
             },
             routeUnderTest = {
                 appointment()
-            }
+            },
         )
 
         whenn()
@@ -169,7 +169,7 @@ internal class GetAppointmentHistoryTest {
             },
             routeUnderTest = {
                 appointment()
-            }
+            },
         )
 
         whenn()

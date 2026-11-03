@@ -67,8 +67,10 @@ flowchart TD
     Status -- NO_SHOW --> R422c([422 MARKED_NO_SHOW 300019])
     Status -- SCHEDULED --> Started{date_start is not after now?}
     Started -- No --> R422b([422 NOT_STARTED 300018])
-    Started -- Yes --> Draft
-    Status -- COMPLETED --> Draft{priceAdjustment present?}
+    Started -- Yes --> Window{appointment dateEnd + 7 days before now?}
+    Status -- COMPLETED --> Window
+    Window -- Yes --> R422w([422 APPOINTMENT_EDIT_WINDOW_CLOSED 300026])
+    Window -- No --> Draft{priceAdjustment present?}
     Draft -- No --> Write
     Draft -- Yes --> Currency{price currency == appointment totalAmount currency?}
     Currency -- No --> R422m([422 PRICE_ADJUSTMENT_CURRENCY_MISMATCH 300022])

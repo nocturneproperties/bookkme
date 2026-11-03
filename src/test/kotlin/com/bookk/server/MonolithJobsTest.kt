@@ -14,6 +14,9 @@ import com.bookk.core.service.test.startScopedApplication
 import com.bookk.core.test.given
 import com.bookk.core.test.then
 import com.bookk.core.test.whenn
+import com.bookk.user.domain.api.USER_SERVICE_NAME
+import com.bookk.user.domain.impl.di.UserScope
+import com.bookk.user.microservice.registerUserJobs
 import io.ktor.server.application.Application
 import io.ktor.server.testing.ApplicationTestBuilder
 import io.mockk.coEvery
@@ -36,13 +39,13 @@ internal class MonolithJobsTest {
 
         suspend fun start(builder: ApplicationTestBuilder): Application = builder.startScopedApplication(
             AuthScope to { scoped { authRotateSigningKeys } },
+            UserScope to {},
             BusinessScope to { scoped { businessRotateSigningKeys } },
-            AppointmentsScope to {}
+            AppointmentsScope to {},
         )
     }
 
-    private fun Application.jobsRegisteredBy(register: Application.(SchedulerConfiguration) -> Unit) =
-        SchedulerConfiguration().also { register(it) }.registeredJobs()
+    private fun Application.jobsRegisteredBy(register: Application.(SchedulerConfiguration) -> Unit) = SchedulerConfiguration().also { register(it) }.registeredJobs()
 
     @Test
     fun `should register every service's jobs in one scheduler without name clashes`() = routeTest {
@@ -50,6 +53,7 @@ internal class MonolithJobsTest {
         val fixture = SutFixture()
         val application = fixture.start(this)
         val expectedJobs = application.jobsRegisteredBy { registerAuthJobs(it) } +
+            application.jobsRegisteredBy { registerUserJobs(it) } +
             application.jobsRegisteredBy { registerBusinessJobs(it) } +
             application.jobsRegisteredBy { registerAppointmentsJobs(it) }
 
@@ -69,8 +73,9 @@ internal class MonolithJobsTest {
         whenn()
         val jobNamesByService = mapOf(
             AUTH_SERVICE_NAME to application.jobsRegisteredBy { registerAuthJobs(it) }.keys,
+            USER_SERVICE_NAME to application.jobsRegisteredBy { registerUserJobs(it) }.keys,
             BUSINESS_SERVICE_NAME to application.jobsRegisteredBy { registerBusinessJobs(it) }.keys,
-            APPOINTMENTS_SERVICE_NAME to application.jobsRegisteredBy { registerAppointmentsJobs(it) }.keys
+            APPOINTMENTS_SERVICE_NAME to application.jobsRegisteredBy { registerAppointmentsJobs(it) }.keys,
         )
 
         then()

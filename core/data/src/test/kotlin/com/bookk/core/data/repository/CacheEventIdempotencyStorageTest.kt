@@ -26,14 +26,11 @@ internal class CacheEventIdempotencyStorageTest {
         val delivery = Uuid.random().toString()
         val otherDelivery = Uuid.random().toString()
 
-        suspend fun claim(deliveryId: String = delivery, consumerGroup: String = "business_group", topic: String = this.topic) =
-            sut.claim(consumerGroup, topic, idempotencyKey, deliveryId)
+        suspend fun claim(deliveryId: String = delivery, consumerGroup: String = "business_group", topic: String = this.topic) = sut.claim(consumerGroup, topic, idempotencyKey, deliveryId)
 
-        suspend fun markProcessed(consumerGroup: String = "business_group") =
-            sut.markProcessed(consumerGroup, topic, idempotencyKey)
+        suspend fun markProcessed(consumerGroup: String = "business_group") = sut.markProcessed(consumerGroup, topic, idempotencyKey)
 
-        suspend fun release(deliveryId: String = delivery) =
-            sut.release("business_group", topic, idempotencyKey, deliveryId)
+        suspend fun release(deliveryId: String = delivery) = sut.release("business_group", topic, idempotencyKey, deliveryId)
 
         fun expireClaim() {
             timeSource += sut.claimTtl + 1.seconds
@@ -45,7 +42,7 @@ internal class CacheEventIdempotencyStorageTest {
     }
 
     private class KeyReleasedAfterFirstClaimAttemptCacheClient(
-        private val delegate: CacheClient<String> = InMemoryCacheClient()
+        private val delegate: CacheClient<String> = InMemoryCacheClient(),
     ) : CacheClient<String> by delegate {
         private var firstAttempt = true
 

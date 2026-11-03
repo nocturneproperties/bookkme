@@ -20,7 +20,7 @@ fun KtorExtension.applyConvention(project: Project) {
     (this as ExtensionAware).extensions.getByType<FatJarExtension>().apply {
         allowZip64.set(true)
         archiveFileName.set(
-            project.extensions.getByType<BasePluginExtension>().archivesName.map { name -> "$name-all.jar" }
+            project.extensions.getByType<BasePluginExtension>().archivesName.map { name -> "$name-all.jar" },
         )
     }
     (this as ExtensionAware).extensions.getByType<DockerExtension>().apply {
@@ -41,11 +41,10 @@ fun KtorExtension.applyConvention(project: Project) {
                     System.getenv("DOCKER_PASSWORD").orEmpty().ifBlank {
                         project.property("DOCKER_PASSWORD").toString()
                     }
-                }
-            )
+                },
+            ),
         )
     }
 }
 
-private fun Project.dockerImageName(): String =
-    if (this == rootProject) "bookkme-server" else "bookkme-${requireNotNull(parent).name}"
+private fun Project.dockerImageName(): String = if (this == rootProject) "bookkme-server" else "bookkme-${requireNotNull(parent).name}"

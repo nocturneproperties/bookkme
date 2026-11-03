@@ -41,7 +41,7 @@ internal class NotificationSettingsTest {
                 NotificationChannelSettings.stub(channel = CommunicationChannel.EMAIL, enabled = true),
                 NotificationChannelSettings.stub(channel = CommunicationChannel.PUSH_NOTIFICATIONS, enabled = false),
                 NotificationChannelSettings.stub(channel = CommunicationChannel.TELEGRAM, enabled = false),
-            )
+            ),
         )
         coEvery { useCase.invoke(userId) } returns Result.success(settings)
         setupApplication(
@@ -55,7 +55,7 @@ internal class NotificationSettingsTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { notificationSettings() }
+            routeUnderTest = { notificationSettings() },
         )
 
         whenn()
@@ -84,7 +84,7 @@ internal class NotificationSettingsTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { notificationSettings() }
+            routeUnderTest = { notificationSettings() },
         )
 
         whenn()
@@ -106,7 +106,7 @@ internal class NotificationSettingsTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { notificationSettings() }
+            routeUnderTest = { notificationSettings() },
         )
 
         whenn()
@@ -140,7 +140,7 @@ internal class NotificationSettingsTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { notificationSettings() }
+            routeUnderTest = { notificationSettings() },
         )
 
         whenn()
@@ -171,7 +171,7 @@ internal class NotificationSettingsTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { notificationSettings() }
+            routeUnderTest = { notificationSettings() },
         )
 
         whenn()
@@ -195,7 +195,7 @@ internal class NotificationSettingsTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { notificationSettings() }
+            routeUnderTest = { notificationSettings() },
         )
 
         whenn()

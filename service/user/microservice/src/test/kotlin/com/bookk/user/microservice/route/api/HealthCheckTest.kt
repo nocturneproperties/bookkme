@@ -19,12 +19,12 @@ internal class HealthCheckTest {
         given()
         setupApplication(
             diModule = module {},
-            routeUnderTest = { getHealthCheck() }
+            routeUnderTest = { getHealthCheck() },
         )
         whenn()
         val client = createTestClient()
         val response = client.get(UserRouting.Api.User.HealthCheck())
-        
+
         then()
         assertEquals(HttpStatusCode.OK, response.status)
     }

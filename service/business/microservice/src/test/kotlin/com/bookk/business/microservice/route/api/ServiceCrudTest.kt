@@ -49,7 +49,7 @@ internal class ServiceCrudTest {
         id = Uuid.random(),
         businessId = businessId,
         name = "Test Group",
-        createdAt = Instant.fromEpochMilliseconds(0)
+        createdAt = Instant.fromEpochMilliseconds(0),
     )
 
     private fun createTestService(group: ServiceGroup = createTestServiceGroup()) = Service(
@@ -60,7 +60,7 @@ internal class ServiceCrudTest {
         duration = 30.minutes,
         price = Money.parse("USD 100"),
         isAvailable = true,
-        createdAt = Instant.fromEpochMilliseconds(0)
+        createdAt = Instant.fromEpochMilliseconds(0),
     )
 
     @Test
@@ -68,9 +68,9 @@ internal class ServiceCrudTest {
         given()
         val useCase: CreateService = mockk()
         val service = createTestService()
-        
+
         coEvery { useCase.invoke(userId, service) } returns Result.success(service)
-        
+
         setupApplication(
             extension = {
                 install(Authentication) {
@@ -82,15 +82,15 @@ internal class ServiceCrudTest {
             diModule = module {
                 single { useCase }
             },
-            routeUnderTest = { serviceCrud() }
+            routeUnderTest = { serviceCrud() },
         )
-        
+
         whenn()
         val client = createTestClient()
         val response = client.post(BusinessRouting.Api.Service(businessId = businessId)) {
             setBody(service)
         }
-        
+
         then()
         assertEquals(HttpStatusCode.OK, response.status)
     }
@@ -100,9 +100,9 @@ internal class ServiceCrudTest {
         given()
         val useCase: UpdateService = mockk()
         val service = createTestService()
-        
+
         coEvery { useCase.invoke(userId, service) } returns Result.success(service)
-        
+
         setupApplication(
             extension = {
                 install(Authentication) {
@@ -114,15 +114,15 @@ internal class ServiceCrudTest {
             diModule = module {
                 single { useCase }
             },
-            routeUnderTest = { serviceCrud() }
+            routeUnderTest = { serviceCrud() },
         )
-        
+
         whenn()
         val client = createTestClient()
         val response = client.put(BusinessRouting.Api.Service.Id(BusinessRouting.Api.Service(businessId = businessId), service.id)) {
             setBody(service)
         }
-        
+
         then()
         assertEquals(HttpStatusCode.OK, response.status)
     }
@@ -132,9 +132,9 @@ internal class ServiceCrudTest {
         given()
         val useCase: GetServices = mockk()
         val services = listOf(createTestService())
-        
+
         coEvery { useCase.invoke(businessId) } returns Result.success(services)
-        
+
         setupApplication(
             extension = {
                 install(Authentication) {
@@ -146,13 +146,13 @@ internal class ServiceCrudTest {
             diModule = module {
                 single { useCase }
             },
-            routeUnderTest = { serviceCrud() }
+            routeUnderTest = { serviceCrud() },
         )
-        
+
         whenn()
         val client = createTestClient()
         val response = client.get(BusinessRouting.Api.Service(businessId = businessId))
-        
+
         then()
         assertEquals(HttpStatusCode.OK, response.status)
     }
@@ -176,7 +176,7 @@ internal class ServiceCrudTest {
             diModule = module {
                 single { useCase }
             },
-            routeUnderTest = { serviceCrud() }
+            routeUnderTest = { serviceCrud() },
         )
 
         whenn()
@@ -203,7 +203,7 @@ internal class ServiceCrudTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { serviceCrud() }
+            routeUnderTest = { serviceCrud() },
         )
 
         whenn()
@@ -233,7 +233,7 @@ internal class ServiceCrudTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { serviceCrud() }
+            routeUnderTest = { serviceCrud() },
         )
 
         whenn()
@@ -263,7 +263,7 @@ internal class ServiceCrudTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { serviceCrud() }
+            routeUnderTest = { serviceCrud() },
         )
 
         whenn()
@@ -293,7 +293,7 @@ internal class ServiceCrudTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { serviceCrud() }
+            routeUnderTest = { serviceCrud() },
         )
 
         whenn()
@@ -315,7 +315,7 @@ internal class ServiceCrudTest {
         setupApplication(
             extension = { install(Authentication) { bearer { authenticate { null } } } },
             diModule = module { single { useCase } },
-            routeUnderTest = { serviceCrud() }
+            routeUnderTest = { serviceCrud() },
         )
 
         whenn()
@@ -337,7 +337,7 @@ internal class ServiceCrudTest {
         setupApplication(
             extension = { install(Authentication) { bearer { authenticate { null } } } },
             diModule = module { single { useCase } },
-            routeUnderTest = { serviceCrud() }
+            routeUnderTest = { serviceCrud() },
         )
 
         whenn()
@@ -358,7 +358,7 @@ internal class ServiceCrudTest {
         setupApplication(
             extension = { install(Authentication) { bearer { authenticate { null } } } },
             diModule = module { single { useCase } },
-            routeUnderTest = { serviceCrud() }
+            routeUnderTest = { serviceCrud() },
         )
 
         whenn()
@@ -377,7 +377,7 @@ internal class ServiceCrudTest {
         setupApplication(
             extension = { install(Authentication) { bearer { authenticate { null } } } },
             diModule = module { single { useCase } },
-            routeUnderTest = { serviceCrud() }
+            routeUnderTest = { serviceCrud() },
         )
 
         whenn()
@@ -404,7 +404,7 @@ internal class ServiceCrudTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { serviceCrud() }
+            routeUnderTest = { serviceCrud() },
         )
 
         whenn()
@@ -434,7 +434,7 @@ internal class ServiceCrudTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { serviceCrud() }
+            routeUnderTest = { serviceCrud() },
         )
 
         whenn()
@@ -464,7 +464,7 @@ internal class ServiceCrudTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { serviceCrud() }
+            routeUnderTest = { serviceCrud() },
         )
 
         whenn()
@@ -494,7 +494,7 @@ internal class ServiceCrudTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { serviceCrud() }
+            routeUnderTest = { serviceCrud() },
         )
 
         whenn()
@@ -523,7 +523,7 @@ internal class ServiceCrudTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { serviceCrud() }
+            routeUnderTest = { serviceCrud() },
         )
 
         whenn()
@@ -553,7 +553,7 @@ internal class ServiceCrudTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { serviceCrud() }
+            routeUnderTest = { serviceCrud() },
         )
 
         whenn()
@@ -583,7 +583,7 @@ internal class ServiceCrudTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { serviceCrud() }
+            routeUnderTest = { serviceCrud() },
         )
 
         whenn()
@@ -613,7 +613,7 @@ internal class ServiceCrudTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { serviceCrud() }
+            routeUnderTest = { serviceCrud() },
         )
 
         whenn()

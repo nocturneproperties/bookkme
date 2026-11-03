@@ -27,9 +27,7 @@ internal class PassKeyDataSourceImplTest {
         val sut = PassKeyDataSourceImpl(cacheClient)
         val accountSut = AccountDataSourceImpl()
 
-        suspend fun insertAuth(): Authentication {
-            return suspendTransaction { accountSut.createAuthorization(Authentication.stub()) }
-        }
+        suspend fun insertAuth(): Authentication = suspendTransaction { accountSut.createAuthorization(Authentication.stub()) }
     }
 
     @Test
@@ -167,9 +165,9 @@ internal class PassKeyDataSourceImplTest {
                     credDescriptor = PasskeyCredential.CredentialDescriptor(
                         id = ByteArray(24) { (it + 100).toByte() },
                         type = "public-key",
-                        transports = setOf("internal")
-                    )
-                )
+                        transports = setOf("internal"),
+                    ),
+                ),
             )
         }
         val first = suspendTransaction { fixture.sut.getCredentialBy(auth.id) }.first()

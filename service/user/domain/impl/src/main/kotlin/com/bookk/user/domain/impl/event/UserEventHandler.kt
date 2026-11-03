@@ -9,7 +9,7 @@ import kotlinx.coroutines.CoroutineScope
 
 internal class UserEventHandler(
     private val consumer: StandardEventConsumer,
-    private val deleteUser: DeleteUser
+    private val deleteUser: DeleteUser,
 ) : EventHandler {
     override fun start(scope: CoroutineScope) {
         consumer

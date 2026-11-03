@@ -14,8 +14,10 @@ user is already integrated: the same person, entered by the business
 before they used the app with other contacts. `findClientMergesForUser`
 finds those rows (only through integrated rows the event is newer than,
 the same `source_updated_at` guard the update uses), each one is deleted
-as a duplicate, and `BusinessEvent.ClientMerged` moves its appointment
-history onto the user's client before the update applies the new values.
+as a duplicate, and one `BusinessEvent.ClientLinked` per kept client lists
+the duplicates merged into it, so appointments moves their history onto
+the user's client and records the account on it. Both happen before the
+update applies the new values.
 The user service keeps phones and emails unique between users, so two
 integrated rows only collide while two users swap a phone and the second
 update arrives first; that delivery fails on the unique index and its
@@ -26,11 +28,11 @@ flowchart TD
     Start([Consume UserEvent.Updated]) --> Dedup{idempotencyKey already processed?}
     Dedup -- Yes --> Skip([Skip - already handled])
     Dedup -- No --> Find[ClientDataSource.findClientMergesForUser userId phone email updatedAt]
-    Find --> Merge[per merge - ClientDataSource.deleteClient businessId fromClientId + eventProducer.send BusinessEvent.ClientMerged]
+    Find --> Merge["ClientDataSource.deleteClient businessId fromClientId per merge, then per kept client - eventProducer.send BusinessEvent.ClientLinked businessId toClientId userId mergedClientIds"]
     Merge --> UpdClients[ClientDataSource.updateIntegratedClients userId name lastName email phone updatedAt]
     UpdClients --> UpdEmployees[EmployeeDataSource.updateIntegratedEmployees userId name lastName email phone updatedAt]
     UpdEmployees -- throws --> Dlt([Sent to UserEvent.Updated_dlt topic, logged - no auto-retry])
     UpdEmployees -- ok --> Ack([Marked processed])
 ```
 
-**Consumed by:** `BusinessEvent.ClientMerged` → [appointments: move the merged client's history](../appointments/on-client-merged.md).
+**Consumed by:** `BusinessEvent.ClientLinked` → [appointments: move the duplicates' history and give the client's appointments the account](../appointments/on-client-linked.md).

@@ -2,11 +2,13 @@ package com.bookk.auth.data.di
 
 import com.bookk.auth.data.datasource.AccountDataSourceImpl
 import com.bookk.auth.data.datasource.DeviceDataSourceImpl
+import com.bookk.auth.data.datasource.ErasedAccountDataSourceImpl
 import com.bookk.auth.data.datasource.PassKeyDataSourceImpl
 import com.bookk.auth.data.datasource.YubicoCredentialRepository
 import com.bookk.auth.domain.api.AUTH_SCHEMA
 import com.bookk.auth.domain.datasource.AccountDataSource
 import com.bookk.auth.domain.datasource.DeviceDataSource
+import com.bookk.auth.domain.datasource.ErasedAccountDataSource
 import com.bookk.auth.domain.datasource.PassKeyDataSource
 import com.bookk.auth.domain.repository.CacheableCredentialRepository
 import com.bookk.core.data.ExposedTransactionManager
@@ -26,6 +28,7 @@ fun authDataModule() = module {
     scope(AuthScope) {
         scopedOf(::AccountDataSourceImpl) bind AccountDataSource::class
         scopedOf(::DeviceDataSourceImpl) bind DeviceDataSource::class
+        scopedOf(::ErasedAccountDataSourceImpl) bind ErasedAccountDataSource::class
         scopedOf(::PassKeyDataSourceImpl) bind PassKeyDataSource::class
         scopedOf(::YubicoCredentialRepository) bind CacheableCredentialRepository::class
         scopedOf(::ExhaustedEventDataSourceImpl) bind ExhaustedEventDataSource::class

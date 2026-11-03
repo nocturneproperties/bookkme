@@ -13,6 +13,7 @@ dependencies {
     implementation(projects.service.business.client)
     implementation(projects.service.user.client)
     implementation(projects.service.notifications.domain.api)
+    implementation(projects.service.notifications.client)
     implementation(projects.service.notifications.data.source)
     implementation(projects.library.permissions)
     implementation(libs.firebase.admin)

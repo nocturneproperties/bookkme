@@ -81,7 +81,7 @@ internal class SetEmployeeSuspensionImplTest {
                 match<BusinessEvent.EmployeePermissionsChanged> {
                     it.employeeUserId == employee.userId && it.businessId == businessId && it.permissions == BusinessPermissions.FULL && it.suspended
                 },
-                any()
+                any(),
             )
         }
     }
@@ -126,7 +126,7 @@ internal class SetEmployeeSuspensionImplTest {
                 match<BusinessEvent.EmployeePermissionsChanged> {
                     it.employeeUserId == employee.userId && it.permissions == BusinessPermissions.VIEW_ONLY && !it.suspended
                 },
-                any()
+                any(),
             )
         }
     }

@@ -24,11 +24,9 @@ internal class CommunicationDataSourceImplTest {
         val sut = CommunicationDataSourceImpl()
         val userSut = UserDataSourceImpl(mockk(relaxed = true))
 
-        suspend fun insertUser(): Uuid {
-            return suspendTransaction {
-                userSut.insertNewUser(User(Uuid.random(), "Test", "User", "test${Uuid.random()}@example.com", null))
-            }.id
-        }
+        suspend fun insertUser(): Uuid = suspendTransaction {
+            userSut.insertNewUser(User(Uuid.random(), "Test", "User", "test${Uuid.random()}@example.com", null))
+        }.id
     }
 
     @Test
@@ -40,7 +38,7 @@ internal class CommunicationDataSourceImplTest {
             userId = userId,
             text = "Help me please",
             usageLogs = null,
-            status = ContactForm.ContactFormStatus.NEW
+            status = ContactForm.ContactFormStatus.NEW,
         )
 
         whenn()
@@ -64,7 +62,7 @@ internal class CommunicationDataSourceImplTest {
             userId = userId,
             text = "Something broke",
             usageLogs = "crash log here",
-            status = ContactForm.ContactFormStatus.NEW
+            status = ContactForm.ContactFormStatus.NEW,
         )
 
         whenn()

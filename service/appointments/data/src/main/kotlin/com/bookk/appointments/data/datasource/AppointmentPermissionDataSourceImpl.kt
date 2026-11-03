@@ -18,7 +18,7 @@ internal class AppointmentPermissionDataSourceImpl : DataSource(), AppointmentPe
         userId: Uuid,
         businessId: Uuid,
         permission: ResourcePermission,
-        suspended: Boolean
+        suspended: Boolean,
     ) {
         dbQuery {
             AppointmentPermissionGrantsTable.upsert {
@@ -39,7 +39,7 @@ internal class AppointmentPermissionDataSourceImpl : DataSource(), AppointmentPe
                     AppointmentPermissionGrantsTable.canView,
                     AppointmentPermissionGrantsTable.canUpdate,
                     AppointmentPermissionGrantsTable.canDelete,
-                    AppointmentPermissionGrantsTable.suspended
+                    AppointmentPermissionGrantsTable.suspended,
                 )
                 .where { (AppointmentPermissionGrantsTable.userId eq userId) and (AppointmentPermissionGrantsTable.businessId eq businessId) }
                 .singleOrNull()
@@ -48,7 +48,7 @@ internal class AppointmentPermissionDataSourceImpl : DataSource(), AppointmentPe
         return ResourcePermission(
             view = grant[AppointmentPermissionGrantsTable.canView],
             update = grant[AppointmentPermissionGrantsTable.canUpdate],
-            delete = grant[AppointmentPermissionGrantsTable.canDelete]
+            delete = grant[AppointmentPermissionGrantsTable.canDelete],
         )
     }
 

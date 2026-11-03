@@ -10,16 +10,20 @@ interface IssueServiceQuote {
     suspend operator fun invoke(businessId: Uuid, serviceIds: List<Uuid>): Result<ServiceQuote>
 
     sealed interface Error {
-        class ServiceNotFound : BusinessError(
-            statusCode = HttpStatusCode.UnprocessableEntity.value,
-            code = BusinessErrorCodes.BUSINESS_QUOTE_SERVICE_NOT_FOUND,
-            message = "One or more services not found"
-        ), Error
+        class ServiceNotFound :
+            BusinessError(
+                statusCode = HttpStatusCode.UnprocessableEntity.value,
+                code = BusinessErrorCodes.BUSINESS_QUOTE_SERVICE_NOT_FOUND,
+                message = "One or more services not found",
+            ),
+            Error
 
-        class EmptyServiceList : BusinessError(
-            statusCode = HttpStatusCode.UnprocessableEntity.value,
-            code = BusinessErrorCodes.BUSINESS_QUOTE_EMPTY_SERVICE_LIST,
-            message = "Service list must not be empty"
-        ), Error
+        class EmptyServiceList :
+            BusinessError(
+                statusCode = HttpStatusCode.UnprocessableEntity.value,
+                code = BusinessErrorCodes.BUSINESS_QUOTE_EMPTY_SERVICE_LIST,
+                message = "Service list must not be empty",
+            ),
+            Error
     }
 }

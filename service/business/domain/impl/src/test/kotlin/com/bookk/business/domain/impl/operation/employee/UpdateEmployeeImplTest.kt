@@ -181,7 +181,7 @@ internal class UpdateEmployeeImplTest {
         fixture.transactionManager.mockTransaction()
         val schedule = Schedule(
             workingDays = listOf(DayOfWeek.MONDAY),
-            workingHours = mapOf(DayOfWeek.MONDAY to listOf(WorkHour(LocalTime(9, 0), LocalTime(17, 0))))
+            workingHours = mapOf(DayOfWeek.MONDAY to listOf(WorkHour(LocalTime(9, 0), LocalTime(17, 0)))),
         )
         val employee = Employee.stub(schedule = schedule)
         coEvery { fixture.employeeDataSource.updateEmployee(updateModel(employee)) } returns employee
@@ -265,6 +265,6 @@ internal class UpdateEmployeeImplTest {
         phone = employee.phone,
         email = employee.email,
         services = employee.services,
-        schedule = employee.schedule
+        schedule = employee.schedule,
     )
 }

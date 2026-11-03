@@ -9,7 +9,7 @@ import kotlin.uuid.Uuid
 
 internal class GetServicesByIdsImpl(
     private val serviceDataSource: ServiceDataSource,
-    private val transactionManager: TransactionManager
+    private val transactionManager: TransactionManager,
 ) : GetServicesByIds {
     override suspend fun invoke(businessId: Uuid, serviceIds: List<Uuid>): Result<List<Service>> {
         if (serviceIds.isEmpty()) return Result.success(emptyList())

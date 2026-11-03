@@ -22,7 +22,7 @@ internal class MarkAppointmentsCompletedImplTest {
 
         val sut = MarkAppointmentsCompletedImpl(
             appointmentDataSource,
-            transactionManager
+            transactionManager,
         )
     }
 

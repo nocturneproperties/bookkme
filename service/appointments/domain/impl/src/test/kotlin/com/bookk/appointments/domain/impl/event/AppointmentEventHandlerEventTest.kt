@@ -1,8 +1,9 @@
 package com.bookk.appointments.domain.impl.event
 
+import com.bookk.appointments.domain.api.operation.DeleteClientAppointmentData
 import com.bookk.appointments.domain.api.operation.DeleteModule
 import com.bookk.appointments.domain.api.operation.DeleteUserAppointmentData
-import com.bookk.appointments.domain.impl.operation.MergeClient
+import com.bookk.appointments.domain.impl.operation.LinkClientUser
 import com.bookk.appointments.domain.impl.operation.SyncEmployeePermission
 import com.bookk.appointments.domain.impl.operation.UpdateBusinessInformation
 import com.bookk.business.domain.api.business.entity.BusinessPermissions
@@ -13,6 +14,7 @@ import com.bookk.core.data.eventstreaming.impl.kafka.KafkaEventProducer
 import com.bookk.core.data.eventstreaming.impl.kafka.KafkaTestBroker
 import com.bookk.core.data.eventstreaming.impl.kafka.NoopProducer
 import com.bookk.core.data.eventstreaming.send
+import com.bookk.core.domain.datasource.transaction.mockedTransactionManager
 import com.bookk.core.test.given
 import com.bookk.core.test.runIntegrationTest
 import com.bookk.core.test.then
@@ -54,7 +56,8 @@ internal class AppointmentEventHandlerEventTest {
             KafkaTestBroker.createTopic(BusinessEvent.Deleted.TOPIC, partitions = 3)
             KafkaTestBroker.createTopic(AuthEvent.UserDeleted.TOPIC, partitions = 3)
             KafkaTestBroker.createTopic(BusinessEvent.EmployeePermissionsChanged.TOPIC, partitions = 3)
-            KafkaTestBroker.createTopic(BusinessEvent.ClientMerged.TOPIC, partitions = 3)
+            KafkaTestBroker.createTopic(BusinessEvent.ClientLinked.TOPIC, partitions = 3)
+            KafkaTestBroker.createTopic(BusinessEvent.ClientDeleted.TOPIC, partitions = 3)
         }
     }
 
@@ -63,14 +66,17 @@ internal class AppointmentEventHandlerEventTest {
         val updateBusinessInformation = mockk<UpdateBusinessInformation>()
         val deleteUserAppointmentData = mockk<DeleteUserAppointmentData>()
         val syncEmployeePermission = mockk<SyncEmployeePermission>()
-        val mergeClient = mockk<MergeClient>()
+        val linkClientUser = mockk<LinkClientUser>()
+        val deleteClientAppointmentData = mockk<DeleteClientAppointmentData>()
+        val transactionManager = mockedTransactionManager()
         val consumer = KafkaEventConsumer(
             servers = KafkaTestBroker.servers,
             consumerGroup = "appointment-handler-${Uuid.random()}",
             eventIdempotencyStorage = inMemoryEventIdempotencyStorage(),
             protoBuf = KafkaTestBroker.protoBuf,
             dltProducer = NoopProducer(),
-            exhaustedEventDataSource = InMemoryExhaustedEventDataSource()
+            exhaustedEventDataSource = InMemoryExhaustedEventDataSource(transactionManager),
+            transactionManager = transactionManager,
         )
         val sut = AppointmentEventHandler(
             consumer,
@@ -78,7 +84,8 @@ internal class AppointmentEventHandlerEventTest {
             updateBusinessInformation,
             deleteUserAppointmentData,
             syncEmployeePermission,
-            mergeClient
+            linkClientUser,
+            deleteClientAppointmentData,
         )
         private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -96,7 +103,7 @@ internal class AppointmentEventHandlerEventTest {
         name = "Salon",
         address = "1 Main St",
         timeZone = TimeZone.of("Europe/Kyiv"),
-        schedule = schedule
+        schedule = schedule,
     )
 
     @Test
@@ -107,12 +114,15 @@ internal class AppointmentEventHandlerEventTest {
         val schedule = Schedule(
             workingDays = listOf(DayOfWeek.SATURDAY),
             workingHours = mapOf(DayOfWeek.SATURDAY to listOf(WorkHour(LocalTime(10, 0), LocalTime(14, 0)))),
-            dayOffs = listOf(DayOffRange(LocalDate(2099, 12, 30), LocalDate(2099, 12, 31)))
+            dayOffs = listOf(DayOffRange(LocalDate(2099, 12, 30), LocalDate(2099, 12, 31))),
         )
         val arrived = CountDownLatch(1)
         coEvery {
             fixture.updateBusinessInformation(any(), any())
-        } answers { arrived.countDown(); Result.success(Unit) }
+        } answers {
+            arrived.countDown()
+            Result.success(Unit)
+        }
 
         whenn()
         withContext(Dispatchers.IO) {
@@ -126,7 +136,7 @@ internal class AppointmentEventHandlerEventTest {
         coVerify(exactly = 1) {
             fixture.updateBusinessInformation(
                 match { it.id == businessId && it.schedule == schedule && it.timeZone == TimeZone.of("Europe/Kyiv") },
-                updatedAt
+                updatedAt,
             )
         }
     }
@@ -141,7 +151,10 @@ internal class AppointmentEventHandlerEventTest {
         val arrived = CountDownLatch(1)
         coEvery {
             fixture.updateBusinessInformation(any(), any())
-        } answers { arrived.countDown(); Result.success(Unit) }
+        } answers {
+            arrived.countDown()
+            Result.success(Unit)
+        }
 
         whenn()
         withContext(Dispatchers.IO) {
@@ -163,7 +176,10 @@ internal class AppointmentEventHandlerEventTest {
         val fixture = SutFixture()
         val businessId = Uuid.random()
         val arrived = CountDownLatch(1)
-        coEvery { fixture.deleteModule(businessId) } answers { arrived.countDown(); Result.success(Unit) }
+        coEvery { fixture.deleteModule(businessId) } answers {
+            arrived.countDown()
+            Result.success(Unit)
+        }
 
         whenn()
         withContext(Dispatchers.IO) {
@@ -183,7 +199,10 @@ internal class AppointmentEventHandlerEventTest {
         val fixture = SutFixture()
         val userId = Uuid.random()
         val arrived = CountDownLatch(1)
-        coEvery { fixture.deleteUserAppointmentData(userId) } answers { arrived.countDown(); Result.success(Unit) }
+        coEvery { fixture.deleteUserAppointmentData(userId) } answers {
+            arrived.countDown()
+            Result.success(Unit)
+        }
 
         whenn()
         withContext(Dispatchers.IO) {
@@ -207,7 +226,10 @@ internal class AppointmentEventHandlerEventTest {
         val arrived = CountDownLatch(1)
         coEvery {
             fixture.syncEmployeePermission(employeeUserId, businessId, permissions.appointments, false)
-        } answers { arrived.countDown(); Result.success(Unit) }
+        } answers {
+            arrived.countDown()
+            Result.success(Unit)
+        }
 
         whenn()
         withContext(Dispatchers.IO) {
@@ -231,7 +253,10 @@ internal class AppointmentEventHandlerEventTest {
         val arrived = CountDownLatch(1)
         coEvery {
             fixture.syncEmployeePermission(employeeUserId, businessId, permissions.appointments, true)
-        } answers { arrived.countDown(); Result.success(Unit) }
+        } answers {
+            arrived.countDown()
+            Result.success(Unit)
+        }
 
         whenn()
         withContext(Dispatchers.IO) {
@@ -246,26 +271,52 @@ internal class AppointmentEventHandlerEventTest {
     }
 
     @Test
-    fun `should move the history of a client the business service merged into another`() = runIntegrationTest {
+    fun `should merge and link the client's rows when the business service gives a client an account`() = runIntegrationTest {
         given()
         val fixture = SutFixture()
         val businessId = Uuid.random()
-        val fromClientId = Uuid.random()
-        val toClientId = Uuid.random()
+        val clientId = Uuid.random()
+        val userId = Uuid.random()
+        val mergedClientIds = listOf(Uuid.random())
         val arrived = CountDownLatch(1)
-        coEvery {
-            fixture.mergeClient(businessId, fromClientId, toClientId)
-        } answers { arrived.countDown(); Result.success(Unit) }
+        coEvery { fixture.linkClientUser(businessId, clientId, userId, mergedClientIds) } answers {
+            arrived.countDown()
+            Result.success(Unit)
+        }
 
         whenn()
         withContext(Dispatchers.IO) {
             fixture.start()
-            producer().send(BusinessEvent.ClientMerged(businessId, fromClientId = fromClientId, toClientId = toClientId))
+            producer().send(BusinessEvent.ClientLinked(businessId, clientId = clientId, userId = userId, mergedClientIds = mergedClientIds))
             arrived.await(20, TimeUnit.SECONDS)
         }
         fixture.stop()
 
         then()
-        coVerify(exactly = 1) { fixture.mergeClient(businessId, fromClientId, toClientId) }
+        coVerify(exactly = 1) { fixture.linkClientUser(businessId, clientId, userId, mergedClientIds) }
+    }
+
+    @Test
+    fun `should erase the client from appointments when the business deletes it`() = runIntegrationTest {
+        given()
+        val fixture = SutFixture()
+        val businessId = Uuid.random()
+        val clientId = Uuid.random()
+        val arrived = CountDownLatch(1)
+        coEvery { fixture.deleteClientAppointmentData(businessId, clientId) } answers {
+            arrived.countDown()
+            Result.success(Unit)
+        }
+
+        whenn()
+        withContext(Dispatchers.IO) {
+            fixture.start()
+            producer().send(BusinessEvent.ClientDeleted(businessId = businessId, clientId = clientId))
+            arrived.await(20, TimeUnit.SECONDS)
+        }
+        fixture.stop()
+
+        then()
+        coVerify(exactly = 1) { fixture.deleteClientAppointmentData(businessId, clientId) }
     }
 }

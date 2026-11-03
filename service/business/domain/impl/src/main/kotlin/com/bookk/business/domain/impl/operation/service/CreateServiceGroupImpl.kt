@@ -14,7 +14,7 @@ import kotlin.uuid.Uuid
 internal class CreateServiceGroupImpl(
     private val dataSource: ServiceDataSource,
     private val businessPermissionDataSource: BusinessPermissionDataSource,
-    private val transactionManager: TransactionManager
+    private val transactionManager: TransactionManager,
 ) : CreateServiceGroup {
     override suspend fun invoke(requestUserId: Uuid, service: ServiceGroup): Result<ServiceGroup> {
         if (service.name.isBlank()) return Result.failure(CreateServiceGroup.Error.ValidationError())

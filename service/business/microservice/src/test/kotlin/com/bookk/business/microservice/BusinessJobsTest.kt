@@ -1,8 +1,11 @@
 package com.bookk.business.microservice
 
 import com.bookk.business.domain.api.business.operation.DeleteDayOffsInThePast
+import com.bookk.business.domain.api.client.operation.DeleteInactiveClients
 import com.bookk.business.domain.api.employee.operation.DeleteProcessedEmployeeInvitations
 import com.bookk.business.domain.api.employee.operation.ExpireEmployeeInvitations
+import com.bookk.business.domain.api.erasure.operation.DeleteExpiredErasureRecords
+import com.bookk.business.domain.api.erasure.operation.ReapplyClientErasures
 import com.bookk.business.domain.impl.di.BusinessScope
 import com.bookk.core.service.test.routeTest
 import com.bookk.core.service.test.startScopedApplication
@@ -13,6 +16,8 @@ import io.ktor.server.testing.ApplicationTestBuilder
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
+import library.export.BuildDataExports
+import library.export.DeleteExpiredDataExports
 import library.scheduler.SchedulerConfiguration
 import library.scheduler.test.registeredJobs
 import library.scheduler.test.runJob
@@ -21,6 +26,8 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
 import kotlin.time.Duration.Companion.days
+import kotlin.time.Duration.Companion.hours
+import kotlin.time.Duration.Companion.minutes
 
 internal class BusinessJobsTest {
 
@@ -29,6 +36,11 @@ internal class BusinessJobsTest {
         val deleteDayOffsInThePast = mockk<DeleteDayOffsInThePast>()
         val expireEmployeeInvitations = mockk<ExpireEmployeeInvitations>()
         val deleteProcessedEmployeeInvitations = mockk<DeleteProcessedEmployeeInvitations>()
+        val deleteInactiveClients = mockk<DeleteInactiveClients>()
+        val reapplyClientErasures = mockk<ReapplyClientErasures>()
+        val deleteExpiredErasureRecords = mockk<DeleteExpiredErasureRecords>()
+        val buildDataExports = mockk<BuildDataExports>()
+        val deleteExpiredDataExports = mockk<DeleteExpiredDataExports>()
         val scheduler = SchedulerConfiguration()
 
         suspend fun registerJobs(builder: ApplicationTestBuilder) {
@@ -37,6 +49,11 @@ internal class BusinessJobsTest {
                 scoped { deleteDayOffsInThePast }
                 scoped { expireEmployeeInvitations }
                 scoped { deleteProcessedEmployeeInvitations }
+                scoped { deleteInactiveClients }
+                scoped { reapplyClientErasures }
+                scoped { deleteExpiredErasureRecords }
+                scoped { buildDataExports }
+                scoped { deleteExpiredDataExports }
             }
             application.registerBusinessJobs(scheduler)
         }
@@ -56,9 +73,14 @@ internal class BusinessJobsTest {
                 "business-rotateSigningKeys" to 7.days,
                 "business-deleteDayOffsInThePast" to 1.days,
                 "business-expireEmployeeInvitations" to 1.days,
-                "business-deleteProcessedEmployeeInvitations" to 1.days
+                "business-deleteProcessedEmployeeInvitations" to 1.days,
+                "business-deleteInactiveClients" to 1.days,
+                "business-reapplyErasures" to 1.minutes,
+                "business-deleteExpiredErasureRecords" to 1.days,
+                "business-buildDataExports" to 1.minutes,
+                "business-deleteExpiredDataExports" to 1.hours,
             ),
-            fixture.scheduler.registeredJobs()
+            fixture.scheduler.registeredJobs(),
         )
     }
 
@@ -173,6 +195,151 @@ internal class BusinessJobsTest {
 
         whenn()
         val result = runCatching { fixture.scheduler.runJob("business-deleteProcessedEmployeeInvitations") }
+
+        then()
+        assertSame(error, result.exceptionOrNull())
+    }
+
+    @Test
+    fun `should delete clients inactive for longer than their business's retention period`() = routeTest {
+        given()
+        val fixture = SutFixture()
+        coEvery { fixture.deleteInactiveClients.invoke() } returns Result.success(Unit)
+        fixture.registerJobs(this)
+
+        whenn()
+        fixture.scheduler.runJob("business-deleteInactiveClients")
+
+        then()
+        coVerify(exactly = 1) { fixture.deleteInactiveClients.invoke() }
+    }
+
+    @Test
+    fun `should surface a failed inactive client deletion`() = routeTest {
+        given()
+        val fixture = SutFixture()
+        val error = RuntimeException("inactive client deletion failed")
+        coEvery { fixture.deleteInactiveClients.invoke() } returns Result.failure(error)
+        fixture.registerJobs(this)
+
+        whenn()
+        val result = runCatching { fixture.scheduler.runJob("business-deleteInactiveClients") }
+
+        then()
+        assertSame(error, result.exceptionOrNull())
+    }
+
+    @Test
+    fun `should erase again the clients a restore brought back`() = routeTest {
+        given()
+        val fixture = SutFixture()
+        coEvery { fixture.reapplyClientErasures.invoke() } returns Result.success(Unit)
+        fixture.registerJobs(this)
+
+        whenn()
+        fixture.scheduler.runJob("business-reapplyErasures")
+
+        then()
+        coVerify(exactly = 1) { fixture.reapplyClientErasures.invoke() }
+    }
+
+    @Test
+    fun `should surface a failed erasure re-run`() = routeTest {
+        given()
+        val fixture = SutFixture()
+        val error = RuntimeException("erasure re-run failed")
+        coEvery { fixture.reapplyClientErasures.invoke() } returns Result.failure(error)
+        fixture.registerJobs(this)
+
+        whenn()
+        val result = runCatching { fixture.scheduler.runJob("business-reapplyErasures") }
+
+        then()
+        assertSame(error, result.exceptionOrNull())
+    }
+
+    @Test
+    fun `should delete expired erasure records`() = routeTest {
+        given()
+        val fixture = SutFixture()
+        coEvery { fixture.deleteExpiredErasureRecords.invoke() } returns Result.success(Unit)
+        fixture.registerJobs(this)
+
+        whenn()
+        fixture.scheduler.runJob("business-deleteExpiredErasureRecords")
+
+        then()
+        coVerify(exactly = 1) { fixture.deleteExpiredErasureRecords.invoke() }
+    }
+
+    @Test
+    fun `should surface a failed erasure record cleanup`() = routeTest {
+        given()
+        val fixture = SutFixture()
+        val error = RuntimeException("erasure record cleanup failed")
+        coEvery { fixture.deleteExpiredErasureRecords.invoke() } returns Result.failure(error)
+        fixture.registerJobs(this)
+
+        whenn()
+        val result = runCatching { fixture.scheduler.runJob("business-deleteExpiredErasureRecords") }
+
+        then()
+        assertSame(error, result.exceptionOrNull())
+    }
+
+    @Test
+    fun `should build the queued business data exports`() = routeTest {
+        given()
+        val fixture = SutFixture()
+        coEvery { fixture.buildDataExports.invoke() } returns Result.success(Unit)
+        fixture.registerJobs(this)
+
+        whenn()
+        fixture.scheduler.runJob("business-buildDataExports")
+
+        then()
+        coVerify(exactly = 1) { fixture.buildDataExports.invoke() }
+    }
+
+    @Test
+    fun `should surface a failed business data export build`() = routeTest {
+        given()
+        val fixture = SutFixture()
+        val error = RuntimeException("queue unreadable")
+        coEvery { fixture.buildDataExports.invoke() } returns Result.failure(error)
+        fixture.registerJobs(this)
+
+        whenn()
+        val result = runCatching { fixture.scheduler.runJob("business-buildDataExports") }
+
+        then()
+        assertSame(error, result.exceptionOrNull())
+    }
+
+    @Test
+    fun `should delete expired business data exports`() = routeTest {
+        given()
+        val fixture = SutFixture()
+        coEvery { fixture.deleteExpiredDataExports.invoke() } returns Result.success(Unit)
+        fixture.registerJobs(this)
+
+        whenn()
+        fixture.scheduler.runJob("business-deleteExpiredDataExports")
+
+        then()
+        coVerify(exactly = 1) { fixture.deleteExpiredDataExports.invoke() }
+    }
+
+    @Test
+    fun `should surface a failed expired business data export cleanup`() = routeTest {
+        given()
+        val fixture = SutFixture()
+        val error = RuntimeException("cleanup failed")
+        coEvery { fixture.deleteExpiredDataExports.invoke() } returns Result.failure(error)
+        fixture.registerJobs(this)
+
+        whenn()
+        val result = runCatching { fixture.scheduler.runJob("business-deleteExpiredDataExports") }
 
         then()
         assertSame(error, result.exceptionOrNull())

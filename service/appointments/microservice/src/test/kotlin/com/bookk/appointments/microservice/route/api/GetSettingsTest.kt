@@ -49,7 +49,7 @@ internal class GetSettingsTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { settings() }
+            routeUnderTest = { settings() },
         )
 
         whenn()
@@ -78,7 +78,7 @@ internal class GetSettingsTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { settings() }
+            routeUnderTest = { settings() },
         )
 
         whenn()
@@ -98,7 +98,7 @@ internal class GetSettingsTest {
         setupApplication(
             extension = { install(Authentication) { bearer { authenticate { null } } } },
             diModule = module { single { useCase } },
-            routeUnderTest = { settings() }
+            routeUnderTest = { settings() },
         )
 
         whenn()

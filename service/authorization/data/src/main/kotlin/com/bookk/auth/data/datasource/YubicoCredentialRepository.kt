@@ -12,9 +12,8 @@ import java.util.Optional
 import java.util.concurrent.ConcurrentHashMap
 import com.yubico.webauthn.data.ByteArray as YubicoByteArray
 
-
 internal class YubicoCredentialRepository(
-    private val passKeyDataSource: PassKeyDataSource
+    private val passKeyDataSource: PassKeyDataSource,
 ) : CacheableCredentialRepository {
 
     private val credentialsCache = ConcurrentHashMap<String, MutableSet<PublicKeyCredentialDescriptor>>()
@@ -33,13 +32,13 @@ internal class YubicoCredentialRepository(
         userHandleCache[username] = Optional.ofNullable(
             passKeyDataSource.getHandleByUsername(username.toUUID())?.let {
                 YubicoByteArray(it.toByteArray())
-            }
+            },
         )
     }
 
     override suspend fun cacheUsername(handle: YubicoByteArray) {
         val username = Optional.ofNullable(
-            passKeyDataSource.getUsernameByHandle(handle.bytes.toUUID())
+            passKeyDataSource.getUsernameByHandle(handle.bytes.toUUID()),
         )
         usernameCache[handle] = username
         if (username.isPresent) {
@@ -51,8 +50,8 @@ internal class YubicoCredentialRepository(
         lookupCache[credentialId to handle] = Optional.ofNullable(
             passKeyDataSource.getCredentialBy(
                 userHandle = handle.bytes.toUUID(),
-                credentialId = credentialId.bytes
-            )?.asRegisteredCredential()
+                credentialId = credentialId.bytes,
+            )?.asRegisteredCredential(),
         )
     }
 
@@ -62,23 +61,13 @@ internal class YubicoCredentialRepository(
             .toMutableSet()
     }
 
-    override fun getCredentialIdsForUsername(username: String): MutableSet<PublicKeyCredentialDescriptor> {
-        return credentialsCache.getValue(username)
-    }
+    override fun getCredentialIdsForUsername(username: String): MutableSet<PublicKeyCredentialDescriptor> = credentialsCache.getValue(username)
 
-    override fun getUserHandleForUsername(username: String): Optional<YubicoByteArray> {
-        return userHandleCache.getValue(username)
-    }
+    override fun getUserHandleForUsername(username: String): Optional<YubicoByteArray> = userHandleCache.getValue(username)
 
-    override fun getUsernameForUserHandle(handle: YubicoByteArray): Optional<String> {
-        return usernameCache.getValue(handle)
-    }
+    override fun getUsernameForUserHandle(handle: YubicoByteArray): Optional<String> = usernameCache.getValue(handle)
 
-    override fun lookup(credentialId: YubicoByteArray, handle: YubicoByteArray): Optional<RegisteredCredential> {
-        return lookupCache.getValue(credentialId to handle)
-    }
+    override fun lookup(credentialId: YubicoByteArray, handle: YubicoByteArray): Optional<RegisteredCredential> = lookupCache.getValue(credentialId to handle)
 
-    override fun lookupAll(credentialId: YubicoByteArray): MutableSet<RegisteredCredential> {
-        return lookupAllCache.getValue(credentialId)
-    }
+    override fun lookupAll(credentialId: YubicoByteArray): MutableSet<RegisteredCredential> = lookupAllCache.getValue(credentialId)
 }

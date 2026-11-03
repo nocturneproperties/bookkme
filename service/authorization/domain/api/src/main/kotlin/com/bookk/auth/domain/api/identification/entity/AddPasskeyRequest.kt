@@ -7,5 +7,5 @@ import kotlinx.serialization.protobuf.ProtoNumber
 @Serializable
 class AddPasskeyRequest(
     @ProtoNumber(1) override val requestId: String,
-    @ProtoNumber(2) override val publicKeyCredentialJson: String
+    @ProtoNumber(2) override val publicKeyCredentialJson: String,
 ) : FinishRegistrationRequest

@@ -8,12 +8,12 @@ import kotlin.time.Instant
 
 internal class UpdateBusinessInformation(
     private val subscriptionDataSource: AppointmentSubscriptionDataSource,
-    private val transactionManager: TransactionManager
+    private val transactionManager: TransactionManager,
 ) {
 
     suspend operator fun invoke(
         business: BusinessDTO,
-        updatedAt: Instant
+        updatedAt: Instant,
     ) = transactionManager.transaction {
         subscriptionDataSource.updateBusiness(
             snapshot = BusinessSnapshot(
@@ -22,9 +22,9 @@ internal class UpdateBusinessInformation(
                 address = business.address,
                 timeZone = business.timeZone,
                 isEnabled = true,
-                schedule = business.schedule
+                schedule = business.schedule,
             ),
-            updatedAt = updatedAt
+            updatedAt = updatedAt,
         )
     }
 }

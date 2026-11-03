@@ -9,7 +9,7 @@ internal data class KeyedTestEvent(
     val entityId: String,
     val sequence: Int,
     override val topic: String,
-    override val idempotencyKey: String = Uuid.random().toString()
+    override val idempotencyKey: String = Uuid.random().toString(),
 ) : EventStreaming.Event<String> {
     override val partitionKey: String get() = entityId
 }
@@ -19,7 +19,7 @@ internal data class NullableFieldTestEvent(
     val required: String,
     val optional: String?,
     override val topic: String,
-    override val idempotencyKey: String = Uuid.random().toString()
+    override val idempotencyKey: String = Uuid.random().toString(),
 ) : EventStreaming.Event<String> {
     override val partitionKey: String get() = required
 }
@@ -28,5 +28,5 @@ internal data class NullableFieldTestEvent(
 internal data class UnkeyedTestEvent(
     val payload: String,
     override val topic: String,
-    override val idempotencyKey: String = Uuid.random().toString()
+    override val idempotencyKey: String = Uuid.random().toString(),
 ) : EventStreaming.Event<String>

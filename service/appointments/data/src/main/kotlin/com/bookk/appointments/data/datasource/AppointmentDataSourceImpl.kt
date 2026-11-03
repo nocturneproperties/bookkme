@@ -29,12 +29,17 @@ import org.jetbrains.exposed.v1.core.like
 import org.jetbrains.exposed.v1.core.lowerCase
 import org.jetbrains.exposed.v1.core.neq
 import org.jetbrains.exposed.v1.core.or
+import org.jetbrains.exposed.v1.core.statements.UpdateStatement
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.update
 import kotlin.time.Clock
 import kotlin.time.Instant
 import kotlin.uuid.Uuid
+
+private const val DELETED_CLIENT_NAME = "Deleted Client"
+private const val DELETED_USER_NAME = "Deleted User"
+private const val DELETED_EMPLOYEE_NAME = "Deleted User"
 
 internal class AppointmentDataSourceImpl : DataSource(), AppointmentDataSource {
 
@@ -58,80 +63,74 @@ internal class AppointmentDataSourceImpl : DataSource(), AppointmentDataSource {
             .map { it.domain() }
     }
 
-    override suspend fun getAllForDate(businessId: Uuid, range: ClosedRange<Instant>, employeeId: Uuid?): List<Appointment> {
-        return dbQuery {
-            val withinRange = AppointmentTable.businessId.eq(businessId)
-                .and(AppointmentTable.dateStart.greaterEq(range.start))
-                .and(AppointmentTable.dateEnd.lessEq(range.endInclusive))
-            AppointmentEntity
-                .find {
-                    employeeId?.let { withinRange.and(AppointmentTable.employeeId.eq(it)) } ?: withinRange
-                }
-                .orderBy(AppointmentTable.dateStart to SortOrder.ASC)
-                .toList()
-                .withDetails()
-                .map { it.domain() }
-        }
+    override suspend fun getAllForDate(businessId: Uuid, range: ClosedRange<Instant>, employeeId: Uuid?): List<Appointment> = dbQuery {
+        val withinRange = AppointmentTable.businessId.eq(businessId)
+            .and(AppointmentTable.dateStart.greaterEq(range.start))
+            .and(AppointmentTable.dateEnd.lessEq(range.endInclusive))
+        AppointmentEntity
+            .find {
+                employeeId?.let { withinRange.and(AppointmentTable.employeeId.eq(it)) } ?: withinRange
+            }
+            .orderBy(AppointmentTable.dateStart to SortOrder.ASC)
+            .toList()
+            .withDetails()
+            .map { it.domain() }
     }
 
     override suspend fun getAllPaginated(
         businessId: Uuid,
         limit: Int,
         offset: Long,
-        query: String?
-    ): AppointmentPagination {
-        return dbQuery {
-            var condition = AppointmentTable.businessId.eq(businessId)
+        query: String?,
+    ): AppointmentPagination = dbQuery {
+        var condition = AppointmentTable.businessId.eq(businessId)
 
-            if (!query.isNullOrBlank()) {
-                val pattern = "%${query.lowercase()}%"
-                val matchingServiceAppointmentIds = AppointmentServicesTable
-                    .select(AppointmentServicesTable.appointmentId)
-                    .where { AppointmentServicesTable.serviceName.lowerCase() like pattern }
+        if (!query.isNullOrBlank()) {
+            val pattern = "%${query.lowercase()}%"
+            val matchingServiceAppointmentIds = AppointmentServicesTable
+                .select(AppointmentServicesTable.appointmentId)
+                .where { AppointmentServicesTable.serviceName.lowerCase() like pattern }
 
-                condition = condition.and(
-                    AppointmentTable.clientName.lowerCase().like(pattern)
-                        .or(AppointmentTable.id.inSubQuery(matchingServiceAppointmentIds))
-                )
-            }
-
-            val appointmentsQuery = AppointmentEntity
-                .find { condition }
-                .orderBy(AppointmentTable.dateStart to SortOrder.DESC)
-
-            val total = appointmentsQuery.count()
-            val result = appointmentsQuery
-                .limit(limit)
-                .offset(offset)
-                .toList()
-                .withDetails()
-                .map { it.domain() }
-            AppointmentPagination(
-                data = result,
-                metadata = PaginationMetadata(
-                    total = total,
-                    pageSize = limit,
-                    page = (offset / limit) + 1
-                ),
+            condition = condition.and(
+                AppointmentTable.clientName.lowerCase().like(pattern)
+                    .or(AppointmentTable.id.inSubQuery(matchingServiceAppointmentIds)),
             )
         }
+
+        val appointmentsQuery = AppointmentEntity
+            .find { condition }
+            .orderBy(AppointmentTable.dateStart to SortOrder.DESC)
+
+        val total = appointmentsQuery.count()
+        val result = appointmentsQuery
+            .limit(limit)
+            .offset(offset)
+            .toList()
+            .withDetails()
+            .map { it.domain() }
+        AppointmentPagination(
+            data = result,
+            metadata = PaginationMetadata(
+                total = total,
+                pageSize = limit,
+                page = (offset / limit) + 1,
+            ),
+        )
     }
 
-    override suspend fun hasOverlapsWith(appointment: AppointmentRepresentation): Boolean {
-        return dbQuery {
-            AppointmentTable.select(AppointmentTable.id)
-                .where {
-                    (AppointmentTable.businessId eq appointment.businessId)
-                        .and(AppointmentTable.userId eq appointment.userId)
-                        .and(AppointmentTable.dateStart.less(appointment.dateEnd))
-                        .and(AppointmentTable.dateEnd.greater(appointment.date))
-                        .and(AppointmentTable.id neq appointment.id)
-                        .and(AppointmentTable.status eq AppointmentStatus.SCHEDULED)
-                }
-                .limit(1)
-                .empty()
-                .not()
-        }
+    override suspend fun hasOverlapsWith(appointment: AppointmentRepresentation): Boolean = dbQuery {
+        AppointmentTable.select(AppointmentTable.id)
+            .where {
+                (AppointmentTable.businessId eq appointment.businessId)
+                    .and(AppointmentTable.initiatorUserId eq appointment.initiatorUserId)
+                    .and(AppointmentTable.dateStart.less(appointment.dateEnd))
+                    .and(AppointmentTable.dateEnd.greater(appointment.date))
+                    .and(AppointmentTable.id neq appointment.id)
+                    .and(AppointmentTable.status eq AppointmentStatus.SCHEDULED)
+            }
+            .limit(1)
+            .empty()
+            .not()
     }
 
     override suspend fun create(request: AppointmentRequest): Appointment = dbQuery {
@@ -184,7 +183,7 @@ internal class AppointmentDataSourceImpl : DataSource(), AppointmentDataSource {
                 AppointmentTable.status.eq(AppointmentStatus.SCHEDULED)
                     .and(AppointmentTable.dateEnd.less(before))
                     .and(AppointmentTable.businessId.inSubQuery(autoCompletingBusinessIds))
-            }
+            },
         ) {
             it[AppointmentTable.status] = AppointmentStatus.COMPLETED
             it[AppointmentTable.completedBy] = AppointmentCompletedBy.SYSTEM
@@ -214,20 +213,90 @@ internal class AppointmentDataSourceImpl : DataSource(), AppointmentDataSource {
         }?.domain() ?: throw Error.NotFound()
     }
 
-    override suspend fun anonymizeForUser(userId: Uuid) = dbQuery<Unit> {
-        AppointmentTable.update(where = { AppointmentTable.clientId eq userId }) {
-            it[clientName] = "Deleted User"
-            it[clientPhone] = null
-            it[clientEmail] = null
+    override suspend fun anonymizeEmployee(employeeUserId: Uuid) = dbQuery<Unit> {
+        AppointmentTable.update(where = { AppointmentTable.employeeUserId eq employeeUserId }) {
+            it[employeeName] = DELETED_EMPLOYEE_NAME
+            it[AppointmentTable.employeeUserId] = Uuid.NIL
         }
-        AppointmentTable.update(where = { AppointmentTable.employeeUserId eq userId }) {
-            it[employeeName] = "Deleted User"
+    }
+
+    override suspend fun unlinkInitiator(initiatorUserId: Uuid) = dbQuery<Unit> {
+        AppointmentTable.update(where = { AppointmentTable.initiatorUserId eq initiatorUserId }) {
+            it[AppointmentTable.initiatorUserId] = Uuid.NIL
         }
+    }
+
+    override suspend fun anonymizeClientUser(clientUserId: Uuid) = dbQuery<Unit> {
+        AppointmentTable.update(where = { AppointmentTable.clientUserId eq clientUserId }) {
+            it.eraseClientDetails(DELETED_USER_NAME)
+        }
+    }
+
+    override suspend fun cancelUpcomingForUser(
+        userId: Uuid,
+        startingAfter: Instant,
+        asClientReason: String,
+        asEmployeeReason: String,
+    ): List<Appointment> = dbQuery {
+        val upcoming = AppointmentEntity
+            .find {
+                ((AppointmentTable.clientUserId eq userId) or (AppointmentTable.employeeUserId eq userId))
+                    .and(AppointmentTable.status eq AppointmentStatus.SCHEDULED)
+                    .and(AppointmentTable.dateStart greater startingAfter)
+            }
+            .forUpdate()
+            .toList()
+        val cancelledAt = Clock.System.now()
+        upcoming.forEach {
+            it.status = AppointmentStatus.CANCELLED
+            it.cancellationReason = if (it.clientUserId == userId) asClientReason else asEmployeeReason
+            it.updatedAt = cancelledAt
+        }
+        upcoming.withDetails().map { it.domain() }
     }
 
     override suspend fun reassignClient(businessId: Uuid, fromClientId: Uuid, toClientId: Uuid) = dbQuery<Unit> {
         AppointmentTable.update(where = { (AppointmentTable.businessId eq businessId) and (AppointmentTable.clientId eq fromClientId) }) {
             it[clientId] = toClientId
         }
+    }
+
+    override suspend fun linkClientUser(businessId: Uuid, clientId: Uuid, userId: Uuid) = dbQuery<Unit> {
+        AppointmentTable.update(where = { (AppointmentTable.businessId eq businessId) and (AppointmentTable.clientId eq clientId) }) {
+            it[clientUserId] = userId
+        }
+    }
+
+    override suspend fun cancelUpcomingForClient(businessId: Uuid, clientId: Uuid, startingAfter: Instant, reason: String): List<Appointment> = dbQuery {
+        val upcoming = AppointmentEntity
+            .find {
+                (AppointmentTable.businessId eq businessId)
+                    .and(AppointmentTable.clientId eq clientId)
+                    .and(AppointmentTable.status eq AppointmentStatus.SCHEDULED)
+                    .and(AppointmentTable.dateStart greater startingAfter)
+            }
+            .forUpdate()
+            .toList()
+        val cancelledAt = Clock.System.now()
+        upcoming.forEach {
+            it.status = AppointmentStatus.CANCELLED
+            it.cancellationReason = reason
+            it.updatedAt = cancelledAt
+        }
+        upcoming.withDetails().map { it.domain() }
+    }
+
+    override suspend fun anonymizeClient(businessId: Uuid, clientId: Uuid) = dbQuery<Unit> {
+        AppointmentTable.update(where = { (AppointmentTable.businessId eq businessId) and (AppointmentTable.clientId eq clientId) }) {
+            it.eraseClientDetails(DELETED_CLIENT_NAME)
+        }
+    }
+
+    private fun UpdateStatement.eraseClientDetails(placeholderName: String) {
+        this[AppointmentTable.clientName] = placeholderName
+        this[AppointmentTable.clientPhone] = null
+        this[AppointmentTable.clientEmail] = null
+        this[AppointmentTable.clientUserId] = null
+        this[AppointmentTable.note] = ""
     }
 }

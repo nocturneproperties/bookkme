@@ -11,7 +11,9 @@ val authTokenValidator: ApplicationCall.(JWTCredential) -> AppPrincipal? = { cre
         AppPrincipal(
             authId = Uuid.parse(credentials.payload.getClaim(AuthClaim.AUTH_ID.key).asString()),
             userId = Uuid.parse(credentials.payload.getClaim(AuthClaim.USER_ID.key).asString()),
-            deviceId = Uuid.parse(credentials.payload.getClaim(AuthClaim.DEVICE_ID.key).asString())
+            deviceId = Uuid.parse(credentials.payload.getClaim(AuthClaim.DEVICE_ID.key).asString()),
         )
-    } else null
+    } else {
+        null
+    }
 }

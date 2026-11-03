@@ -59,7 +59,7 @@ internal class CompleteAppointmentTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { appointment() }
+            routeUnderTest = { appointment() },
         )
 
         whenn()
@@ -92,7 +92,7 @@ internal class CompleteAppointmentTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { appointment() }
+            routeUnderTest = { appointment() },
         )
 
         whenn()
@@ -123,7 +123,7 @@ internal class CompleteAppointmentTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { appointment() }
+            routeUnderTest = { appointment() },
         )
 
         whenn()
@@ -154,7 +154,7 @@ internal class CompleteAppointmentTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { appointment() }
+            routeUnderTest = { appointment() },
         )
 
         whenn()
@@ -185,7 +185,7 @@ internal class CompleteAppointmentTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { appointment() }
+            routeUnderTest = { appointment() },
         )
 
         whenn()
@@ -215,7 +215,7 @@ internal class CompleteAppointmentTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { appointment() }
+            routeUnderTest = { appointment() },
         )
 
         whenn()
@@ -239,7 +239,7 @@ internal class CompleteAppointmentTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { appointment() }
+            routeUnderTest = { appointment() },
         )
 
         whenn()
@@ -249,6 +249,7 @@ internal class CompleteAppointmentTest {
         then()
         assertEquals(HttpStatusCode.Unauthorized, response.status)
     }
+
     @Test
     fun `should complete appointment with price adjustment`() = routeTest {
         given()
@@ -259,14 +260,14 @@ internal class CompleteAppointmentTest {
         val appointment = Appointment.stub().copy(
             status = AppointmentStatus.COMPLETED,
             completedBy = AppointmentCompletedBy.USER,
-            priceAdjustment = adjustment
+            priceAdjustment = adjustment,
         )
         coEvery { useCase.invoke(userId, appointment.id, draft) } returns Result.success(appointment)
 
         setupApplication(
             extension = { authenticateAs(userId) },
             diModule = module { single { useCase } },
-            routeUnderTest = { appointment() }
+            routeUnderTest = { appointment() },
         )
 
         whenn()
@@ -291,7 +292,7 @@ internal class CompleteAppointmentTest {
         setupApplication(
             extension = { authenticateAs(userId) },
             diModule = module { single { useCase } },
-            routeUnderTest = { appointment() }
+            routeUnderTest = { appointment() },
         )
 
         whenn()
@@ -328,7 +329,7 @@ internal class CompleteAppointmentTest {
         val serviceNotFoundCode = 200013
         assertAdjustmentRejected(
             BusinessError(HttpStatusCode.UnprocessableEntity.value, serviceNotFoundCode, "One or more services not found"),
-            serviceNotFoundCode
+            serviceNotFoundCode,
         )
     }
 
@@ -342,7 +343,7 @@ internal class CompleteAppointmentTest {
         setupApplication(
             extension = { authenticateAs(userId) },
             diModule = module { single { useCase } },
-            routeUnderTest = { appointment() }
+            routeUnderTest = { appointment() },
         )
 
         whenn()
@@ -364,5 +365,36 @@ internal class CompleteAppointmentTest {
                 }
             }
         }
+    }
+
+    @Test
+    fun `should return unprocessable entity when the appointment ended more than a week ago`() = routeTest {
+        given()
+        val useCase: CompleteAppointment = mockk()
+        val userId = Uuid.random()
+        val appointmentId = Uuid.random()
+        coEvery { useCase.invoke(userId, appointmentId, null) } returns Result.failure(AppointmentStatusError.EditWindowClosed())
+
+        setupApplication(
+            extension = {
+                install(Authentication) {
+                    provider {
+                        authenticate { context ->
+                            context.principal(AppPrincipal(Uuid.random(), userId, Uuid.random()))
+                        }
+                    }
+                }
+            },
+            diModule = module { single { useCase } },
+            routeUnderTest = { appointment() },
+        )
+
+        whenn()
+        val client = createTestClient()
+        val response = client.post(Api.Appointment.Complete(id = appointmentId))
+
+        then()
+        assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
+        assertEquals(AppointmentErrorCodes.APPOINTMENT_EDIT_WINDOW_CLOSED, response.body<SimpleServerError>().errorCode)
     }
 }

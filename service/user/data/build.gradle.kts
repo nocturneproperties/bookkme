@@ -10,6 +10,7 @@ dependencies {
     implementation(projects.core.data.cache.api)
     implementation(projects.service.user.domain.api)
     implementation(projects.service.user.data.source)
+    implementation(projects.library.export.impl)
 
     testImplementation(testFixtures(projects.core))
     testImplementation(testFixtures(projects.core.data))

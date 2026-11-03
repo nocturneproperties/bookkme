@@ -46,7 +46,7 @@ internal class JoinBusinessImplTest {
             businessDataSource,
             userClient,
             transactionManager,
-            eventProducer
+            eventProducer,
         )
     }
 
@@ -56,14 +56,14 @@ internal class JoinBusinessImplTest {
         description = "",
         address = "1 Main St",
         timeZone = TimeZone.UTC,
-        currencyCode = "USD"
+        currencyCode = "USD",
     )
 
     private fun userSnapshot(
         id: Uuid,
         name: String = "Alice",
         lastName: String = "Smith",
-        phone: String? = null
+        phone: String? = null,
     ) = UserSnapshot.stub(id = id, name = name, lastName = lastName, phone = phone)
 
     private fun SutFixture.stubHappyPath(requestUserId: Uuid, invitation: EmployeeInvitation, employee: Employee) {
@@ -83,7 +83,7 @@ internal class JoinBusinessImplTest {
         employees = ResourcePermission(view = true, update = false, delete = false),
         clients = ResourcePermission(view = true, update = false, delete = false),
         services = ResourcePermission(view = true, update = false, delete = false),
-        appointments = ResourcePermission(view = true, update = false, delete = false)
+        appointments = ResourcePermission(view = true, update = false, delete = false),
     )
 
     @Test
@@ -144,7 +144,7 @@ internal class JoinBusinessImplTest {
         val employee = Employee.stub(
             businessId = invitation.businessId,
             userId = requestUserId,
-            name = "Alice"
+            name = "Alice",
         )
         val event = slot<BusinessEvent.EmployeeInvitationRedeemed>()
         with(fixture) {

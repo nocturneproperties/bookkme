@@ -19,4 +19,5 @@ interface BusinessDataSource {
     suspend fun setDashboardBusiness(userId: Uuid, businessId: Uuid)
     suspend fun getUserBusinesses(userId: Uuid): UserBusinesses
     suspend fun deleteDayOffsInThePast()
+    suspend fun getClientDataRetentionMonths(): Map<Uuid, Int>
 }

@@ -25,7 +25,7 @@ import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
 internal class AppointmentRequestDataSourceImpl(
-    private val cacheClient: CacheClient<String>
+    private val cacheClient: CacheClient<String>,
 ) : DataSource(), AppointmentRequestDataSource {
     override suspend fun get(id: Uuid): AppointmentRequest? = dbQuery {
         AppointmentRequestEntity.findById(id)
@@ -51,7 +51,7 @@ internal class AppointmentRequestDataSourceImpl(
     override suspend fun getPendingByUser(userId: Uuid, businessId: Uuid): List<AppointmentRequest> = dbQuery {
         AppointmentRequestEntity
             .find {
-                AppointmentRequestTable.userId.eq(userId)
+                AppointmentRequestTable.initiatorUserId.eq(userId)
                     .and(AppointmentRequestTable.businessId.eq(businessId))
                     .and(AppointmentRequestTable.status.eq(AppointmentRequestStatus.PENDING))
             }
@@ -100,20 +100,18 @@ internal class AppointmentRequestDataSourceImpl(
         }?.domain() ?: throw Error.NotFound()
     }
 
-    override suspend fun hasOverlapsWith(request: AppointmentRequest): Boolean {
-        return dbQuery {
-            AppointmentRequestTable.select(AppointmentRequestTable.id)
-                .where {
-                    (AppointmentRequestTable.businessId eq request.businessId)
-                        .and(AppointmentRequestTable.userId eq request.userId)
-                        .and(AppointmentRequestTable.dateStart.less(request.dateEnd))
-                        .and(AppointmentRequestTable.dateEnd.greater(request.date))
-                        .and(AppointmentRequestTable.status eq AppointmentRequestStatus.PENDING)
-                }
-                .limit(1)
-                .empty()
-                .not()
-        }
+    override suspend fun hasOverlapsWith(request: AppointmentRequest): Boolean = dbQuery {
+        AppointmentRequestTable.select(AppointmentRequestTable.id)
+            .where {
+                (AppointmentRequestTable.businessId eq request.businessId)
+                    .and(AppointmentRequestTable.initiatorUserId eq request.initiatorUserId)
+                    .and(AppointmentRequestTable.dateStart.less(request.dateEnd))
+                    .and(AppointmentRequestTable.dateEnd.greater(request.date))
+                    .and(AppointmentRequestTable.status eq AppointmentRequestStatus.PENDING)
+            }
+            .limit(1)
+            .empty()
+            .not()
     }
 
     override suspend fun cancelOutdated(before: Instant) = dbQuery<Unit> {
@@ -121,7 +119,7 @@ internal class AppointmentRequestDataSourceImpl(
             where = {
                 AppointmentRequestTable.status.eq(AppointmentRequestStatus.PENDING)
                     .and(AppointmentRequestTable.dateEnd.less(before))
-            }
+            },
         ) {
             it[AppointmentRequestTable.status] = AppointmentRequestStatus.CANCELLED
             it[AppointmentRequestTable.updatedAt] = Clock.System.now()
@@ -130,7 +128,10 @@ internal class AppointmentRequestDataSourceImpl(
 
     override suspend fun deleteForUser(userId: Uuid) = dbQuery<Unit> {
         AppointmentRequestTable.deleteWhere {
-            (AppointmentRequestTable.clientId eq userId) or (AppointmentRequestTable.employeeUserId eq userId)
+            (AppointmentRequestTable.clientUserId eq userId) or (AppointmentRequestTable.employeeUserId eq userId)
+        }
+        AppointmentRequestTable.update(where = { AppointmentRequestTable.initiatorUserId eq userId }) {
+            it[initiatorUserId] = Uuid.NIL
         }
     }
 
@@ -146,5 +147,21 @@ internal class AppointmentRequestDataSourceImpl(
         AppointmentRequestTable.update(where = { (AppointmentRequestTable.businessId eq businessId) and (AppointmentRequestTable.clientId eq fromClientId) }) {
             it[clientId] = toClientId
         }
+    }
+
+    override suspend fun linkClientUser(businessId: Uuid, clientId: Uuid, userId: Uuid) = dbQuery<Unit> {
+        AppointmentRequestTable.update(where = { (AppointmentRequestTable.businessId eq businessId) and (AppointmentRequestTable.clientId eq clientId) }) {
+            it[clientUserId] = userId
+        }
+    }
+
+    override suspend fun deleteForClient(businessId: Uuid, clientId: Uuid) = dbQuery<Unit> {
+        AppointmentRequestTable.deleteWhere {
+            (AppointmentRequestTable.businessId eq businessId) and (AppointmentRequestTable.clientId eq clientId)
+        }
+    }
+
+    override suspend fun deleteEndedBefore(before: Instant) = dbQuery<Unit> {
+        AppointmentRequestTable.deleteWhere { AppointmentRequestTable.dateEnd less before }
     }
 }

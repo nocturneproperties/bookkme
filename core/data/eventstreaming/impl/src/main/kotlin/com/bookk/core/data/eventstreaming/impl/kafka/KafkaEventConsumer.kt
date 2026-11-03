@@ -9,7 +9,7 @@ import com.bookk.core.data.eventstreaming.ExhaustedEventDataSource
 import com.bookk.core.data.eventstreaming.impl.IdempotentDelivery
 import com.bookk.core.data.eventstreaming.impl.logDelivered
 import com.bookk.core.data.eventstreaming.send
-import com.bookk.core.domain.entity.runSuspendCatching
+import com.bookk.core.domain.datasource.transaction.TransactionManager
 import io.ktor.util.collections.ConcurrentMap
 import io.ktor.util.logging.KtorSimpleLogger
 import kotlinx.coroutines.CoroutineScope
@@ -42,6 +42,7 @@ class KafkaEventConsumer(
     private val protoBuf: ProtoBuf,
     private val dltProducer: EventStreaming.Producer<String>,
     private val exhaustedEventDataSource: ExhaustedEventDataSource,
+    private val transactionManager: TransactionManager,
     private val maxAttempts: Int = DltRetry.DEFAULT_MAX_ATTEMPTS,
 ) : EventStreaming.Consumer<String> {
 
@@ -54,17 +55,17 @@ class KafkaEventConsumer(
             ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG to servers.joinToString { it },
             ConsumerConfig.GROUP_ID_CONFIG to consumerGroup,
             ConsumerConfig.AUTO_OFFSET_RESET_CONFIG to "earliest",
-            ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG to "false"
+            ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG to "false",
         ),
         StringDeserializer(),
-        ByteArrayDeserializer()
+        ByteArrayDeserializer(),
     )
 
     @Suppress("UNCHECKED_CAST")
     override fun <T : Event<String>> registerReceiver(
         topic: String,
         type: KType,
-        onEvent: suspend (T) -> Unit
+        onEvent: suspend (T) -> Unit,
     ): EventStreaming.Consumer<String> {
         receivers[topic] = { rawBytes, attempt ->
             runCatching {
@@ -83,6 +84,18 @@ class KafkaEventConsumer(
             }
         }
         return this
+    }
+
+    override suspend fun replay(exhausted: DltEvent): Boolean {
+        if (exhausted.originalTopic !in receivers) return false
+        dltProducer.send(
+            DltEvent(
+                payload = exhausted.payload,
+                originalTopic = exhausted.originalTopic,
+                topic = DltRetry.dltTopic(exhausted.originalTopic, consumerGroup),
+            ),
+        )
+        return true
     }
 
     override fun start(scope: CoroutineScope): Job {
@@ -137,7 +150,7 @@ class KafkaEventConsumer(
     }
 
     private suspend fun persistOrRequeue(dltEvent: DltEvent) {
-        runSuspendCatching { exhaustedEventDataSource.save(dltEvent) }
+        transactionManager.transaction { exhaustedEventDataSource.save(dltEvent) }
             .onFailure {
                 logger.error("Failed to persist exhausted event for topic: {}. Retrying. Error: {}", dltEvent.originalTopic, it.message)
                 dltProducer.send(dltEvent.copy(attempt = dltEvent.attempt + 1))

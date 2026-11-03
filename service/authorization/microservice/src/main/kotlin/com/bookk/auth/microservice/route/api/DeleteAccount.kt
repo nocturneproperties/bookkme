@@ -22,7 +22,8 @@ internal fun Route.deleteAccount() {
          * Tag: auth
          * Security: jwt
          * Body: application/x-protobuf [com.bookk.auth.domain.api.delete_account.entity.VerifyDeleteAccRequest]
-         * Response: 200 application/x-protobuf Success
+         * Response: 204 application/x-protobuf Account deleted
+         * Response: 422 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Delete account errors<br>CHALLENGE_WINDOW_EXPIRED (6) Challenge window expired<br>VERIFICATION_FAILED (4) Passkey verification failed<br>PASSKEY_OWNER_NOT_FOUND (7) Passkey owner not found<br>PASSKEY_NOT_OWNED (11) Passkey belongs to another account<br>VERIFICATION_FAILED (4) Invalid credentials
          * See: docs/operations/authorization/delete-account.md
          */
         delete<Api.Auth.Account> {

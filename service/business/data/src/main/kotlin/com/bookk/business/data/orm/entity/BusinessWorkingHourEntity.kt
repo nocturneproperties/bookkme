@@ -34,8 +34,6 @@ internal class BusinessWorkingHourEntity(id: EntityID<Uuid>) : UuidEntity(id) {
     }
 }
 
-internal fun Iterable<BusinessWorkingHourEntity>.toWorkingHours(): Map<DayOfWeek, List<WorkHour>> {
-    return this
-        .groupBy { DayOfWeek(it.dayOfWeek.toInt()) }
-        .mapValues { (_, rows) -> rows.map { it.domain() } }
-}
+internal fun Iterable<BusinessWorkingHourEntity>.toWorkingHours(): Map<DayOfWeek, List<WorkHour>> = this
+    .groupBy { DayOfWeek(it.dayOfWeek.toInt()) }
+    .mapValues { (_, rows) -> rows.map { it.domain() } }

@@ -5,7 +5,7 @@ import org.gradle.api.Project
 import org.gradle.api.plugins.ExtensionAware
 import org.gradle.api.plugins.ExtraPropertiesExtension
 import org.gradle.kotlin.dsl.getByType
-import java.util.*
+import java.util.Properties
 
 fun Project.includeLocalProperties(fileName: String) {
     runCatching {

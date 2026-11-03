@@ -36,9 +36,9 @@ internal class PostValidateSignInTest {
         requestId = Uuid.random().toString(),
         deviceInfo = VerifySignInRequest.DeviceInfo(
             deviceUUID = deviceId,
-            deviceName = ""
+            deviceName = "",
         ),
-        publicKeyCredentialJson = "mock"
+        publicKeyCredentialJson = "mock",
     )
 
     @Test
@@ -49,7 +49,7 @@ internal class PostValidateSignInTest {
             diModule = module {
                 single { useCase }
             },
-            routeUnderTest = { signIn() }
+            routeUnderTest = { signIn() },
         )
         val client = createTestClient()
         val answer = AuthTokens(accessToken = "token1", refreshToken = "token2")
@@ -76,7 +76,7 @@ internal class PostValidateSignInTest {
             diModule = module {
                 single { useCase }
             },
-            routeUnderTest = { signIn() }
+            routeUnderTest = { signIn() },
         )
         val client = createTestClient()
         val request = createSimpleRequest()
@@ -102,7 +102,7 @@ internal class PostValidateSignInTest {
             diModule = module {
                 single { useCase }
             },
-            routeUnderTest = { signIn() }
+            routeUnderTest = { signIn() },
         )
         val client = createTestClient()
         val request = createSimpleRequest()
@@ -128,7 +128,7 @@ internal class PostValidateSignInTest {
             diModule = module {
                 single { useCase }
             },
-            routeUnderTest = { signIn() }
+            routeUnderTest = { signIn() },
         )
         val client = createTestClient()
         val request = createSimpleRequest()
@@ -154,7 +154,7 @@ internal class PostValidateSignInTest {
             diModule = module {
                 single { useCase }
             },
-            routeUnderTest = { signIn() }
+            routeUnderTest = { signIn() },
         )
         val client = createTestClient()
         val request = createSimpleRequest()
@@ -179,7 +179,7 @@ internal class PostValidateSignInTest {
             diModule = module {
                 single { useCase }
             },
-            routeUnderTest = { signIn() }
+            routeUnderTest = { signIn() },
         )
         val client = createTestClient()
         val request = createSimpleRequest()

@@ -22,6 +22,7 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import kotlin.time.Clock
+import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
@@ -31,7 +32,11 @@ internal class AppointmentRequestDataSourceImplTest {
 
     private class SutFixture {
         val db = createTestDatabase(
-            AppointmentBusinessTable, WorkingHoursTable, DayOffsTable, AppointmentRequestTable, AppointmentRequestServicesTable
+            AppointmentBusinessTable,
+            WorkingHoursTable,
+            DayOffsTable,
+            AppointmentRequestTable,
+            AppointmentRequestServicesTable,
         )
         val cacheClient = InMemoryCacheClient()
         val sut = AppointmentRequestDataSourceImpl(cacheClient)
@@ -46,8 +51,8 @@ internal class AppointmentRequestDataSourceImplTest {
 
         fun buildRequest(
             userId: Uuid = Uuid.random(),
-            date: Instant = Instant.fromEpochMilliseconds(0)
-        ) = AppointmentRequest.stub(userId = userId, businessId = businessId, date = date)
+            date: Instant = Instant.fromEpochMilliseconds(0),
+        ) = AppointmentRequest.stub(initiatorUserId = userId, businessId = businessId, date = date)
     }
 
     @Test
@@ -112,7 +117,7 @@ internal class AppointmentRequestDataSourceImplTest {
         val declined = suspendTransaction { fixture.sut.create(fixture.buildRequest(userId = userId)) }
         suspendTransaction { fixture.sut.decline(declined.id, "Fully booked") }
         suspendTransaction { fixture.sut.create(fixture.buildRequest()) }
-        suspendTransaction { fixture.sut.create(AppointmentRequest.stub(userId = userId, businessId = otherBusiness.id)) }
+        suspendTransaction { fixture.sut.create(AppointmentRequest.stub(initiatorUserId = userId, businessId = otherBusiness.id)) }
 
         whenn()
         val pending = suspendTransaction { fixture.sut.getPendingByUser(userId, fixture.businessId) }
@@ -355,14 +360,47 @@ internal class AppointmentRequestDataSourceImplTest {
     }
 
     @Test
-    fun `should delete requests booked with the deleted user as client`() = runUnitTest {
+    fun `should delete requests the deleted user booked for themselves`() = runUnitTest {
         given()
         val fixture = SutFixture()
         fixture.setup()
         val userId = Uuid.random()
-        val request = fixture.buildRequest().let {
-            it.copy(client = it.client.copy(id = userId))
-        }
+        val created = suspendTransaction { fixture.sut.create(fixture.buildRequest(userId = userId)) }
+
+        whenn()
+        suspendTransaction { fixture.sut.deleteForUser(userId) }
+        val found = suspendTransaction { fixture.sut.get(created.id) }
+
+        then()
+        assertNull(found)
+    }
+
+    @Test
+    fun `should keep a request the deleted user only initiated and clear their id from it`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val userId = Uuid.random()
+        val request = fixture.buildRequest(userId = userId).let { it.copy(client = it.client.copy(userId = Uuid.random())) }
+        val created = suspendTransaction { fixture.sut.create(request) }
+
+        whenn()
+        suspendTransaction { fixture.sut.deleteForUser(userId) }
+        val found = suspendTransaction { fixture.sut.get(created.id) }
+
+        then()
+        assertNotNull(found)
+        assertEquals(Uuid.NIL, found?.initiatorUserId)
+        assertEquals(request.client, found?.client)
+    }
+
+    @Test
+    fun `should delete requests where the deleted user is the client, whoever booked them`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val userId = Uuid.random()
+        val request = fixture.buildRequest().let { it.copy(client = it.client.copy(userId = userId)) }
         val created = suspendTransaction { fixture.sut.create(request) }
 
         whenn()
@@ -422,6 +460,22 @@ internal class AppointmentRequestDataSourceImplTest {
     }
 
     @Test
+    fun `should keep the client's user id on a request`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val clientUserId = Uuid.random()
+        val request = fixture.buildRequest().let { it.copy(client = it.client.copy(userId = clientUserId)) }
+
+        whenn()
+        val created = suspendTransaction { fixture.sut.create(request) }
+        val found = suspendTransaction { fixture.sut.get(created.id) }
+
+        then()
+        assertEquals(clientUserId, found?.client?.userId)
+    }
+
+    @Test
     fun `should read request with a row lock`() = runUnitTest {
         given()
         val fixture = SutFixture()
@@ -468,6 +522,25 @@ internal class AppointmentRequestDataSourceImplTest {
     }
 
     @Test
+    fun `should give the client's requests in the business the linked account`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val clientId = Uuid.random()
+        val userId = Uuid.random()
+        val request = fixture.buildRequest().let { it.copy(client = it.client.copy(id = clientId, userId = null)) }
+        val created = suspendTransaction { fixture.sut.create(request) }
+        val other = suspendTransaction { fixture.sut.create(fixture.buildRequest().let { it.copy(client = it.client.copy(userId = null)) }) }
+
+        whenn()
+        suspendTransaction { fixture.sut.linkClientUser(fixture.businessId, clientId, userId) }
+
+        then()
+        assertEquals(userId, suspendTransaction { fixture.sut.get(created.id) }?.client?.userId)
+        assertNull(suspendTransaction { fixture.sut.get(other.id) }?.client?.userId)
+    }
+
+    @Test
     fun `should move the merged client's requests in the business to the remaining client`() = runUnitTest {
         given()
         val fixture = SutFixture()
@@ -490,5 +563,72 @@ internal class AppointmentRequestDataSourceImplTest {
         assertEquals(toClientId, suspendTransaction { fixture.sut.get(merged.id) }?.client?.id)
         assertEquals(unrelated.client.id, suspendTransaction { fixture.sut.get(unrelated.id) }?.client?.id)
         assertEquals(fromClientId, suspendTransaction { fixture.sut.get(inOtherBusiness.id) }?.client?.id)
+    }
+
+    @Test
+    fun `should delete the deleted client's requests in the business`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val created = suspendTransaction { fixture.sut.create(fixture.buildRequest()) }
+
+        whenn()
+        suspendTransaction { fixture.sut.deleteForClient(fixture.businessId, created.client.id) }
+        val found = suspendTransaction { fixture.sut.get(created.id) }
+
+        then()
+        assertNull(found)
+    }
+
+    @Test
+    fun `should keep requests of other clients and of another business when deleting a client's`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val deleted = suspendTransaction { fixture.sut.create(fixture.buildRequest()) }
+        val otherClient = suspendTransaction { fixture.sut.create(fixture.buildRequest()) }
+        val otherBusiness = BusinessSnapshot.stub()
+        suspendTransaction { fixture.subscriptionSut.attachBusiness(otherBusiness) }
+        val inOtherBusiness = suspendTransaction {
+            fixture.sut.create(fixture.buildRequest().copy(businessId = otherBusiness.id, client = deleted.client))
+        }
+
+        whenn()
+        suspendTransaction { fixture.sut.deleteForClient(fixture.businessId, deleted.client.id) }
+
+        then()
+        assertNotNull(suspendTransaction { fixture.sut.get(otherClient.id) })
+        assertNotNull(suspendTransaction { fixture.sut.get(inOtherBusiness.id) })
+    }
+
+    @Test
+    fun `should delete requests whose slot ended before the cutoff whatever their status`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val pending = suspendTransaction { fixture.sut.create(fixture.buildRequest(date = Instant.fromEpochMilliseconds(0))) }
+        val declined = suspendTransaction { fixture.sut.create(fixture.buildRequest(date = Instant.fromEpochMilliseconds(0) + 2.hours)) }
+        suspendTransaction { fixture.sut.decline(declined.id, "Fully booked") }
+
+        whenn()
+        suspendTransaction { fixture.sut.deleteEndedBefore(Clock.System.now() - 60.days) }
+
+        then()
+        assertNull(suspendTransaction { fixture.sut.get(pending.id) })
+        assertNull(suspendTransaction { fixture.sut.get(declined.id) })
+    }
+
+    @Test
+    fun `should keep requests whose slot ended after the cutoff`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val recent = suspendTransaction { fixture.sut.create(fixture.buildRequest(date = Clock.System.now() - 30.days)) }
+
+        whenn()
+        suspendTransaction { fixture.sut.deleteEndedBefore(Clock.System.now() - 60.days) }
+
+        then()
+        assertNotNull(suspendTransaction { fixture.sut.get(recent.id) })
     }
 }

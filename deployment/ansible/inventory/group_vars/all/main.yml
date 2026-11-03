@@ -46,6 +46,20 @@ infra_stacks:
     name: admin
     source: adminpanel
     compose: [admin-compose.yml]
+  backup:
+    name: backup
+    source: prod/backup
+    compose: [backup-compose.yml]
+    files:
+      backup_db_password: "{{ vault_monolith_db_backup_password }}"
+
+backup_host_dir: /srv/backups/bookk
+backup_fetch_dir: "{{ (inventory_dir ~ '/..') | realpath }}/backups"
+backup_public_key: "{{ deployment_dir }}/prod/backup/backup-public-key.asc"
+node_exporter_textfile_dir: /var/lib/node_exporter/textfile
+backup_stack_env:
+  BACKUP_HOST_DIR: "{{ backup_host_dir }}"
+  NODE_EXPORTER_TEXTFILE_DIR: "{{ node_exporter_textfile_dir }}"
 
 vpn_clients:
   - admin-2
@@ -83,3 +97,5 @@ monolith_env:
   APPLICATION_AUTH_SERVICE_HOSTNAME: monolith.service
   APPLICATION_USER_SERVICE_HOSTNAME: monolith.service
   APPLICATION_BUSINESS_SERVICE_HOSTNAME: monolith.service
+  APPLICATION_APPOINTMENTS_SERVICE_HOSTNAME: monolith.service
+  APPLICATION_NOTIFICATIONS_SERVICE_HOSTNAME: monolith.service

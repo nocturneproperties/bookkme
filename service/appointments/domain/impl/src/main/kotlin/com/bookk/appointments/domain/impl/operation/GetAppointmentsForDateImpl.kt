@@ -18,7 +18,7 @@ internal class GetAppointmentsForDateImpl(
     private val appointmentDataSource: AppointmentDataSource,
     private val appointmentPermissionDataSource: AppointmentPermissionDataSource,
     private val settingsDataSource: AppointmentSettingsDataSource,
-    private val transactionManager: TransactionManager
+    private val transactionManager: TransactionManager,
 ) : GetAppointmentsForDate {
     override suspend fun invoke(userId: Uuid, businessId: Uuid, date: LocalDate, employeeId: Uuid?): Result<List<Appointment>> = transactionManager.transaction {
         appointmentPermissionDataSource.getPermission(userId, businessId).assert(PermissionAction.VIEW)

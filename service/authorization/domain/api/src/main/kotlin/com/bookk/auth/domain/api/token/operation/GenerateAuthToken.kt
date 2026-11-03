@@ -16,10 +16,12 @@ interface GenerateAuthToken {
     }
 
     sealed interface Error {
-        class InvalidCredentials : BusinessError(
-            statusCode = HttpStatusCode.Unauthorized.value,
-            code = INVALID_CREDENTIALS,
-            message = "Invalid credentials"
-        ), Error
+        class InvalidCredentials :
+            BusinessError(
+                statusCode = HttpStatusCode.Unauthorized.value,
+                code = INVALID_CREDENTIALS,
+                message = "Invalid credentials",
+            ),
+            Error
     }
 }

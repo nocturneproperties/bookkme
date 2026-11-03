@@ -5,7 +5,7 @@ import kotlin.uuid.Uuid
 
 interface AppointmentRepresentation {
     val id: Uuid
-    val userId: Uuid
+    val initiatorUserId: Uuid
     val businessId: Uuid
     val employee: EmployeeSnapshot
     val date: Instant

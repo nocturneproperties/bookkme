@@ -10,6 +10,7 @@ all:
           vpn_address: "{{ vpn_host_address }}"
           swarm_labels:
             monitoring: "true"
+            backup: "true"
     workers:
       hosts:
         worker-1:

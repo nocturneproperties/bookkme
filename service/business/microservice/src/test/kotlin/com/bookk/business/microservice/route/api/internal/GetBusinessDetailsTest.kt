@@ -34,7 +34,7 @@ internal class GetBusinessDetailsTest {
 
         setupApplication(
             diModule = module { single { useCase } },
-            routeUnderTest = { getBusinessDetails() }
+            routeUnderTest = { getBusinessDetails() },
         )
 
         whenn()
@@ -53,7 +53,7 @@ internal class GetBusinessDetailsTest {
 
         setupApplication(
             diModule = module { single { useCase } },
-            routeUnderTest = { getBusinessDetails() }
+            routeUnderTest = { getBusinessDetails() },
         )
 
         whenn()

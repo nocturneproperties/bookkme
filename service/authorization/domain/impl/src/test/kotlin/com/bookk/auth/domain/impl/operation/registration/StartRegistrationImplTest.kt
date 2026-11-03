@@ -31,13 +31,13 @@ internal class StartRegistrationImplTest {
         challenge = "challenge",
         challengeJson = "{}",
         userHandle = "handle",
-        displayName = "John Doe"
+        displayName = "John Doe",
     )
 
     private val validRequest = CreateAccountRequest(
         firstName = "John",
         lastName = "Doe",
-        email = "john.doe@example.com"
+        email = "john.doe@example.com",
     )
 
     @Test
@@ -47,7 +47,7 @@ internal class StartRegistrationImplTest {
         val challenge = makeChallengeResponse()
         with(fixture) {
             coEvery { userClient.getUserByEmail(validRequest.email) } returns Result.failure(
-                object : BusinessError(HttpStatusCode.NotFound.value, 0, "not found") {}
+                object : BusinessError(HttpStatusCode.NotFound.value, 0, "not found") {},
             )
             coEvery { startPasskeyRegistration(any(), any()) } returns Result.success(challenge)
         }
@@ -67,7 +67,7 @@ internal class StartRegistrationImplTest {
         val invalidRequest = CreateAccountRequest(
             firstName = "John",
             lastName = "Doe",
-            email = "not-an-email"
+            email = "not-an-email",
         )
 
         whenn()

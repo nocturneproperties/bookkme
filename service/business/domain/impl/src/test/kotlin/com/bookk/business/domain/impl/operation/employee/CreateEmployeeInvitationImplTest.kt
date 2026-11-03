@@ -266,6 +266,7 @@ internal class CreateEmployeeInvitationImplTest {
             fixture.invitationDataSource.createInvitation(any())
         }
     }
+
     @Test
     fun `should return failure when the business already created the maximum number of invitations today`() = runUnitTest {
         given()

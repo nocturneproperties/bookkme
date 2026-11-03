@@ -11,8 +11,8 @@ import kotlin.uuid.Uuid
 internal class GetDashboardBusinessImpl(
     private val businessDataSource: BusinessDataSource,
     private val businessPermissionDataSource: BusinessPermissionDataSource,
-    private val transactionManager: TransactionManager
-): GetDashboardBusiness {
+    private val transactionManager: TransactionManager,
+) : GetDashboardBusiness {
     override suspend fun invoke(userId: Uuid): Result<Business> = transactionManager.transaction {
         val business = businessDataSource.getDashboardBusiness(userId) ?: throw NotFound()
         business.viewedBy(businessPermissionDataSource.getViewer(userId, business.id))

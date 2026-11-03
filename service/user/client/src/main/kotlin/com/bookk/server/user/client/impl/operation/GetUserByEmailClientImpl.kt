@@ -15,7 +15,7 @@ import io.ktor.client.request.setBody
 import io.ktor.http.isSuccess
 
 internal class GetUserByEmailClientImpl(
-    private val httpClient: HttpClient
+    private val httpClient: HttpClient,
 ) : GetUserByEmail {
     override suspend fun invoke(body: EmailBody): Result<User> = runSuspendCatching {
         val response = httpClient.get(UserRouting.Api.Internal.User.Email()) {

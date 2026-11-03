@@ -38,7 +38,7 @@ private data class Jwk(
     val alg: String = "RS256",
     val kid: String,
     val n: String,
-    val e: String
+    val e: String,
 )
 
 @Serializable
@@ -49,7 +49,7 @@ private fun createJwk(id: Uuid, publicKeyPem: String): Jwk {
     return Jwk(
         kid = id.toString(),
         n = publicKey.modulus.toBase64Url(),
-        e = publicKey.publicExponent.toBase64Url()
+        e = publicKey.publicExponent.toBase64Url(),
     )
 }
 

@@ -38,9 +38,9 @@ internal class UserMeTest {
         given()
         val useCase: GetUserById = mockk()
         val user = User.stub(id = userId)
-        
+
         coEvery { useCase.invoke(userId) } returns Result.success(user)
-        
+
         setupApplication(
             extension = {
                 install(Authentication) {
@@ -52,13 +52,13 @@ internal class UserMeTest {
             diModule = module {
                 single { useCase }
             },
-            routeUnderTest = { getCurrentUser() }
+            routeUnderTest = { getCurrentUser() },
         )
-        
+
         whenn()
         val client = createTestClient()
         val response = client.get(UserRouting.Api.User.Me())
-        
+
         then()
         assertEquals(HttpStatusCode.OK, response.status)
     }
@@ -82,7 +82,7 @@ internal class UserMeTest {
             diModule = module {
                 single { useCase }
             },
-            routeUnderTest = { patchUser() }
+            routeUnderTest = { patchUser() },
         )
 
         whenn()
@@ -110,7 +110,7 @@ internal class UserMeTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { getCurrentUser() }
+            routeUnderTest = { getCurrentUser() },
         )
 
         whenn()
@@ -138,7 +138,7 @@ internal class UserMeTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { patchUser() }
+            routeUnderTest = { patchUser() },
         )
 
         whenn()
@@ -168,7 +168,7 @@ internal class UserMeTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { patchUser() }
+            routeUnderTest = { patchUser() },
         )
 
         whenn()
@@ -190,7 +190,7 @@ internal class UserMeTest {
         setupApplication(
             extension = { install(Authentication) { bearer { authenticate { null } } } },
             diModule = module { single { useCase } },
-            routeUnderTest = { getCurrentUser() }
+            routeUnderTest = { getCurrentUser() },
         )
 
         whenn()
@@ -209,7 +209,7 @@ internal class UserMeTest {
         setupApplication(
             extension = { install(Authentication) { bearer { authenticate { null } } } },
             diModule = module { single { useCase } },
-            routeUnderTest = { patchUser() }
+            routeUnderTest = { patchUser() },
         )
 
         whenn()

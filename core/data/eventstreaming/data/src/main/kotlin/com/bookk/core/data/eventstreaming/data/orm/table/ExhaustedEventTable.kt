@@ -7,4 +7,5 @@ object ExhaustedEventTable : BaseUUIDTable("exhausted_event") {
     val idempotencyKey = varchar("idempotency_key", 255).uniqueIndex()
     val attempt = integer("attempt")
     val payload = blob("payload")
+    val replayRequested = bool("replay_requested").default(false)
 }

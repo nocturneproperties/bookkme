@@ -29,6 +29,14 @@ validation existed, e.g. `usd`) does not lock: its prices cannot be in that
 currency, and without this the business could neither price services nor
 repair its currency.
 
+`clientDataRetentionMonths` is how long the business keeps a client who
+stops visiting. The business sets it as the controller of its clients'
+data, within 12 to 120 months (default 36, `null` keeps the stored value).
+The [`business-deleteInactiveClients`](../scheduled-jobs.md) job deletes a
+client row once its `last_activity_at` (latest booked visit, creation or
+edit) is older than that, and announces it with `BusinessEvent.ClientDeleted`
+like [Delete client](delete-client.md).
+
 ```mermaid
 flowchart TD
     Start([PUT /api/business/id]) --> PathCheck{path id == body.id?}
@@ -50,8 +58,10 @@ flowchart TD
     WorkHours -- Yes --> R422a([422 BUSINESS_ACTIVE_DAY_WITHOUT_WORK_HOURS 200019])
     WorkHours -- No --> DayOffRange{any dayOff.start > end?}
     DayOffRange -- Yes --> R422b([422 BUSINESS_INVALID_DAY_OFF_RANGE 200020])
-    DayOffRange -- No --> CurrencySent{body.currencyCode present?}
-    ScheduleGiven -- No --> CurrencySent
+    DayOffRange -- No --> Retention{body.clientDataRetentionMonths present and outside 12..120?}
+    ScheduleGiven -- No --> Retention
+    Retention -- Yes --> R422r([422 BUSINESS_CLIENT_DATA_RETENTION_OUT_OF_RANGE 200041])
+    Retention -- No --> CurrencySent{body.currencyCode present?}
     CurrencySent -- No --> Truncate
     CurrencySent -- Yes --> SameCurrency{currencyCode == stored currency?}
     SameCurrency -- Yes --> Truncate

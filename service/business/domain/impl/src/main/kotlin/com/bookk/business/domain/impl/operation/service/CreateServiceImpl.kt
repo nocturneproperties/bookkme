@@ -17,7 +17,7 @@ internal class CreateServiceImpl(
     private val dataSource: ServiceDataSource,
     private val businessDataSource: BusinessDataSource,
     private val businessPermissionDataSource: BusinessPermissionDataSource,
-    private val transactionManager: TransactionManager
+    private val transactionManager: TransactionManager,
 ) : CreateService {
     override suspend fun invoke(requestUserId: Uuid, service: Service): Result<Service> {
         if (service.name.isBlank()) return Result.failure(Error.ValidationError())

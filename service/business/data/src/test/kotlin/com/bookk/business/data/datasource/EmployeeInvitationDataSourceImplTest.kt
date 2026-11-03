@@ -33,7 +33,12 @@ internal class EmployeeInvitationDataSourceImplTest {
 
     private class SutFixture {
         val db = createTestDatabase(
-            BusinessTable, BusinessDashboardTable, BusinessPermissionGrantsTable, BusinessWorkingHoursTable, BusinessDayOffTable, EmployeeInvitationTable
+            BusinessTable,
+            BusinessDashboardTable,
+            BusinessPermissionGrantsTable,
+            BusinessWorkingHoursTable,
+            BusinessDayOffTable,
+            EmployeeInvitationTable,
         )
         val sut = EmployeeInvitationDataSourceImpl()
         val businessSut = BusinessDataSourceImpl()
@@ -55,7 +60,7 @@ internal class EmployeeInvitationDataSourceImplTest {
         val invitation = EmployeeInvitation.stub(
             businessId = fixture.businessId,
             invitedBy = invitedBy,
-            code = "AAAA1111"
+            code = "AAAA1111",
         )
 
         whenn()
@@ -77,7 +82,7 @@ internal class EmployeeInvitationDataSourceImplTest {
         fixture.setup()
         val created = suspendTransaction {
             fixture.sut.createInvitation(
-                EmployeeInvitation.stub(businessId = fixture.businessId, code = "BBBB2222")
+                EmployeeInvitation.stub(businessId = fixture.businessId, code = "BBBB2222"),
             )
         }
 
@@ -114,7 +119,7 @@ internal class EmployeeInvitationDataSourceImplTest {
         fixture.setup()
         val created = suspendTransaction {
             fixture.sut.createInvitation(
-                EmployeeInvitation.stub(businessId = fixture.businessId, code = "CCCC3333")
+                EmployeeInvitation.stub(businessId = fixture.businessId, code = "CCCC3333"),
             )
         }
 
@@ -152,12 +157,12 @@ internal class EmployeeInvitationDataSourceImplTest {
         val invitedBy = Uuid.random()
         suspendTransaction {
             fixture.sut.createInvitation(
-                EmployeeInvitation.stub(businessId = fixture.businessId, invitedBy = invitedBy, code = "AAAA1111")
+                EmployeeInvitation.stub(businessId = fixture.businessId, invitedBy = invitedBy, code = "AAAA1111"),
             )
         }
         suspendTransaction {
             fixture.sut.createInvitation(
-                EmployeeInvitation.stub(businessId = fixture.businessId, invitedBy = Uuid.random(), code = "BBBB2222")
+                EmployeeInvitation.stub(businessId = fixture.businessId, invitedBy = Uuid.random(), code = "BBBB2222"),
             )
         }
 
@@ -177,13 +182,13 @@ internal class EmployeeInvitationDataSourceImplTest {
         val invitedBy = Uuid.random()
         val redeemed = suspendTransaction {
             fixture.sut.createInvitation(
-                EmployeeInvitation.stub(businessId = fixture.businessId, invitedBy = invitedBy, code = "AAAA1111")
+                EmployeeInvitation.stub(businessId = fixture.businessId, invitedBy = invitedBy, code = "AAAA1111"),
             )
         }
         suspendTransaction { fixture.sut.redeemInvitation(redeemed.id) }
         suspendTransaction {
             fixture.sut.createInvitation(
-                EmployeeInvitation.stub(businessId = fixture.businessId, invitedBy = invitedBy, code = "BBBB2222")
+                EmployeeInvitation.stub(businessId = fixture.businessId, invitedBy = invitedBy, code = "BBBB2222"),
             )
         }
 
@@ -203,7 +208,7 @@ internal class EmployeeInvitationDataSourceImplTest {
         fixture.setup()
         suspendTransaction {
             fixture.sut.createInvitation(
-                EmployeeInvitation.stub(businessId = fixture.businessId, invitedBy = Uuid.random())
+                EmployeeInvitation.stub(businessId = fixture.businessId, invitedBy = Uuid.random()),
             )
         }
 
@@ -490,7 +495,7 @@ internal class EmployeeInvitationDataSourceImplTest {
         val result = runCatching {
             suspendTransaction {
                 fixture.sut.createInvitation(
-                    EmployeeInvitation.stub(businessId = fixture.businessId, code = "SAMECODE")
+                    EmployeeInvitation.stub(businessId = fixture.businessId, code = "SAMECODE"),
                 )
             }
         }
@@ -644,7 +649,7 @@ internal class EmployeeInvitationDataSourceImplTest {
         then()
         assertEquals(
             EmployeeInvitationStatus.PENDING,
-            suspendTransaction { fixture.sut.getInvitation(fixture.businessId, pending.id) }?.status
+            suspendTransaction { fixture.sut.getInvitation(fixture.businessId, pending.id) }?.status,
         )
     }
 

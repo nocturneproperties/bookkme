@@ -35,7 +35,7 @@ internal class EmployeePermissionsRequest(
     @ProtoNumber(2) val employees: ResourcePermission?,
     @ProtoNumber(3) val clients: ResourcePermission?,
     @ProtoNumber(4) val services: ResourcePermission?,
-    @ProtoNumber(5) val appointments: ResourcePermission?
+    @ProtoNumber(5) val appointments: ResourcePermission?,
 ) {
     fun grants(): Map<BusinessResource, ResourcePermission> = buildMap {
         business?.let { put(BusinessResource.BUSINESS, it) }
@@ -48,7 +48,7 @@ internal class EmployeePermissionsRequest(
 
 @Serializable
 internal class EmployeeSuspensionRequest(
-    @ProtoNumber(1) val suspended: Boolean
+    @ProtoNumber(1) val suspended: Boolean,
 )
 
 fun Route.employeeCrud() {
@@ -100,7 +100,7 @@ fun Route.employeeCrud() {
                 call.respond(HttpStatusCode.BadRequest, "Bad request")
             } else {
                 call.respondWith(
-                    updateEmployee(requestUserId = principal.userId, employee = body)
+                    updateEmployee(requestUserId = principal.userId, employee = body),
                 )
             }
         }
@@ -126,8 +126,8 @@ fun Route.employeeCrud() {
                     requestUserId = principal.userId,
                     businessId = it.parent.parent.businessId,
                     employeeId = it.parent.id,
-                    grants = body.grants()
-                )
+                    grants = body.grants(),
+                ),
             )
         }
 
@@ -152,8 +152,8 @@ fun Route.employeeCrud() {
                     requestUserId = principal.userId,
                     businessId = it.parent.parent.businessId,
                     employeeId = it.parent.id,
-                    suspended = body.suspended
-                )
+                    suspended = body.suspended,
+                ),
             )
         }
     }

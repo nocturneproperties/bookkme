@@ -48,7 +48,7 @@ internal class BusinessPermissionDataSourceImplTest {
             EmployeeWorkingHoursTable,
             EmployeeDayOffTable,
             BusinessPermissionGrantsTable,
-            ClientTable
+            ClientTable,
         )
         val businessDataSource = BusinessDataSourceImpl()
         val employeeDataSource = EmployeeDataSourceImpl()
@@ -104,8 +104,8 @@ internal class BusinessPermissionDataSourceImplTest {
                 employee,
                 mapOf(
                     BusinessResource.CLIENTS to ResourcePermission.FULL,
-                    BusinessResource.SERVICES to ResourcePermission(view = true, update = true, delete = false)
-                )
+                    BusinessResource.SERVICES to ResourcePermission(view = true, update = true, delete = false),
+                ),
             )
         }
         val permissions = suspendTransaction { fixture.sut.getViewer(employee.userId, employee.businessId) }.permissions
@@ -115,9 +115,9 @@ internal class BusinessPermissionDataSourceImplTest {
             BusinessPermissions.stub(
                 business = ResourcePermission(view = true, update = false, delete = false),
                 clients = ResourcePermission.FULL,
-                services = ResourcePermission(view = true, update = true, delete = false)
+                services = ResourcePermission(view = true, update = true, delete = false),
             ),
-            permissions
+            permissions,
         )
     }
 
@@ -167,32 +167,6 @@ internal class BusinessPermissionDataSourceImplTest {
         assertEquals(ResourcePermission.NONE, permissions.business)
         assertEquals(ResourcePermission.NONE, permissions.employees)
         assertEquals(ResourcePermission.NONE, permissions.appointments)
-    }
-
-    @Test
-    fun `should delete user permissions across businesses`() = runUnitTest {
-        given()
-        val fixture = SutFixture()
-        val userId = Uuid.random()
-        val ownEmployee = fixture.employee(userId, businessName = "Salon")
-        val otherEmployee = fixture.employee(userId, businessName = "Other Salon")
-        suspendTransaction {
-            fixture.sut.setPermissions(ownEmployee, mapOf(BusinessResource.CLIENTS to ResourcePermission.FULL))
-            fixture.sut.setPermissions(otherEmployee, mapOf(BusinessResource.CLIENTS to ResourcePermission(view = true, update = false, delete = false)))
-        }
-
-        whenn()
-        suspendTransaction { fixture.sut.deleteUserPermissions(userId) }
-
-        then()
-        assertEquals(
-            ResourcePermission.NONE,
-            suspendTransaction { fixture.sut.getPermission(userId, ownEmployee.businessId, BusinessResource.CLIENTS) }
-        )
-        assertEquals(
-            ResourcePermission.NONE,
-            suspendTransaction { fixture.sut.getPermission(userId, otherEmployee.businessId, BusinessResource.CLIENTS) }
-        )
     }
 
     @Test
@@ -385,17 +359,5 @@ internal class BusinessPermissionDataSourceImplTest {
 
         then()
         assertEquals(ResourcePermission.FULL, stored)
-    }
-
-    @Test
-    fun `should not fail deleting permissions for a user with none`() = runUnitTest {
-        given()
-        val fixture = SutFixture()
-
-        whenn()
-        val result = runCatching { suspendTransaction { fixture.sut.deleteUserPermissions(Uuid.random()) } }
-
-        then()
-        assertTrue(result.isSuccess)
     }
 }

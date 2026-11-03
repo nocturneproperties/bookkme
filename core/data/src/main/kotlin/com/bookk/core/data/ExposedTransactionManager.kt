@@ -1,6 +1,5 @@
 package com.bookk.core.data
 
-
 import com.bookk.core.data.map.toDomain
 import com.bookk.core.domain.datasource.transaction.TransactionIsolation
 import com.bookk.core.domain.datasource.transaction.TransactionManager
@@ -20,11 +19,9 @@ import kotlin.time.Duration.Companion.milliseconds
 import org.jetbrains.exposed.v1.jdbc.transactions.TransactionManager as JdbcTransactionManager
 
 class ExposedTransactionManager(private val database: Database) : TransactionManager {
-    override suspend fun <T> transaction(transaction: suspend () -> T): Result<T> =
-        transaction(jdbcIsolation = null, transaction)
+    override suspend fun <T> transaction(transaction: suspend () -> T): Result<T> = transaction(jdbcIsolation = null, transaction)
 
-    override suspend fun <T> transaction(isolation: TransactionIsolation, transaction: suspend () -> T): Result<T> =
-        transaction(isolation.jdbcLevel(), transaction)
+    override suspend fun <T> transaction(isolation: TransactionIsolation, transaction: suspend () -> T): Result<T> = transaction(isolation.jdbcLevel(), transaction)
 
     private suspend fun <T> transaction(jdbcIsolation: Int?, transaction: suspend () -> T): Result<T> {
         if (currentCoroutineContext()[OutermostTransaction] != null) return attempt(jdbcIsolation, transaction)
@@ -44,18 +41,16 @@ class ExposedTransactionManager(private val database: Database) : TransactionMan
         }
     }
 
-    private suspend fun <T> attempt(jdbcIsolation: Int?, transaction: suspend () -> T): Result<T> {
-        return runSuspendCatching {
-            suspendTransaction(db = database, transactionIsolation = jdbcIsolation) {
-                maxAttempts = 1
-                transaction()
-            }
-        }.recoverCatching {
-            throw when (it) {
-                is BusinessError -> it
-                is Error -> it
-                else -> it.toDomain()
-            }
+    private suspend fun <T> attempt(jdbcIsolation: Int?, transaction: suspend () -> T): Result<T> = runSuspendCatching {
+        suspendTransaction(db = database, transactionIsolation = jdbcIsolation) {
+            maxAttempts = 1
+            transaction()
+        }
+    }.recoverCatching {
+        throw when (it) {
+            is BusinessError -> it
+            is Error -> it
+            else -> it.toDomain()
         }
     }
 
@@ -64,8 +59,7 @@ class ExposedTransactionManager(private val database: Database) : TransactionMan
         TransactionIsolation.REPEATABLE_READ -> Connection.TRANSACTION_REPEATABLE_READ
     }
 
-    private fun conflictBackoff(attempt: Int): Duration =
-        (Random.nextLong(MIN_CONFLICT_BACKOFF_MILLIS, MAX_CONFLICT_BACKOFF_MILLIS) * attempt).milliseconds
+    private fun conflictBackoff(attempt: Int): Duration = (Random.nextLong(MIN_CONFLICT_BACKOFF_MILLIS, MAX_CONFLICT_BACKOFF_MILLIS) * attempt).milliseconds
 
     private object OutermostTransaction : CoroutineContext.Element, CoroutineContext.Key<OutermostTransaction> {
         override val key: CoroutineContext.Key<*> get() = this

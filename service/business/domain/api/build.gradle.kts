@@ -9,4 +9,5 @@ dependencies {
     api(projects.library.money)
     api(projects.library.permissions)
     api(projects.library.schedule)
+    api(projects.library.export.api)
 }

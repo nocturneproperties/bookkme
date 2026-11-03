@@ -10,7 +10,7 @@ import library.signing.impl.key.SigningKeyPairGenerator
 internal class GetActiveSigningKeyImpl(
     private val signingKeyDataSource: SigningKeyDataSource,
     private val keyPairGenerator: SigningKeyPairGenerator,
-    private val transactionManager: TransactionManager
+    private val transactionManager: TransactionManager,
 ) : GetActiveSigningKey {
 
     private val mutex = Mutex()

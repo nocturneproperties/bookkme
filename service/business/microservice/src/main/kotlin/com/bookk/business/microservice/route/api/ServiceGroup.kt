@@ -47,8 +47,8 @@ fun Route.serviceGroupCrud() {
                 call.respondWith(
                     createServiceGroup(
                         requestUserId = principal.userId,
-                        service = body
-                    )
+                        service = body,
+                    ),
                 )
             }
         }
@@ -90,8 +90,8 @@ fun Route.serviceGroupCrud() {
                 deleteGroup(
                     requestUserId = principal.userId,
                     businessId = it.parent.businessId,
-                    id = it.id
-                )
+                    id = it.id,
+                ),
             )
         }
     }

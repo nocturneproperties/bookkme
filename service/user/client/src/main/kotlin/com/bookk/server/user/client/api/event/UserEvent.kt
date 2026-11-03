@@ -15,7 +15,7 @@ sealed interface UserEvent : EventStreaming.Event<String> {
         @ProtoNumber(4) val email: String,
         @ProtoNumber(5) val phone: String?,
         @ProtoNumber(6) val updatedAt: Instant,
-        @ProtoNumber(7) override val idempotencyKey: String = Uuid.random().toString()
+        @ProtoNumber(7) override val idempotencyKey: String = Uuid.random().toString(),
     ) : UserEvent {
         @ProtoNumber(8)
         override val topic: String = TOPIC
@@ -23,6 +23,21 @@ sealed interface UserEvent : EventStreaming.Event<String> {
 
         companion object {
             const val TOPIC = "user.updated"
+        }
+    }
+
+    @Serializable
+    data class DataExportReady(
+        @ProtoNumber(1) val userId: Uuid,
+        @ProtoNumber(2) val expiresAt: Instant,
+        @ProtoNumber(3) override val idempotencyKey: String = Uuid.random().toString(),
+    ) : UserEvent {
+        @ProtoNumber(4)
+        override val topic: String = TOPIC
+        override val partitionKey: String get() = userId.toString()
+
+        companion object {
+            const val TOPIC = "user.data_export_ready"
         }
     }
 }

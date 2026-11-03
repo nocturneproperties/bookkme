@@ -9,6 +9,7 @@ import com.bookk.auth.domain.api.identification.entity.DeviceInfo
 import com.bookk.auth.domain.api.identification.entity.PasskeyCredential
 import com.bookk.auth.domain.datasource.AccountDataSource
 import com.bookk.auth.domain.datasource.DeviceDataSource
+import com.bookk.auth.domain.datasource.ErasedAccountDataSource
 import com.bookk.core.data.eventstreaming.StandardEventProducer
 import com.bookk.core.domain.datasource.transaction.TransactionManager
 import com.bookk.core.domain.datasource.transaction.mockTransaction
@@ -22,7 +23,6 @@ import io.mockk.coVerify
 import io.mockk.mockk
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import kotlin.time.Clock
 import kotlin.uuid.Uuid
 
 internal class DeleteAccountImplTest {
@@ -31,29 +31,10 @@ internal class DeleteAccountImplTest {
         val finishAssertion = mockk<FinishAssertion>()
         val accountDataSource = mockk<AccountDataSource>()
         val deviceDataSource = mockk<DeviceDataSource>()
+        val erasedAccountDataSource = mockk<ErasedAccountDataSource>(relaxUnitFun = true)
         val eventProducer = mockk<StandardEventProducer>(relaxed = true)
         val transactionManager = mockk<TransactionManager>()
-        val sut = DeleteAccountImpl(finishAssertion, accountDataSource, deviceDataSource, eventProducer, transactionManager)
-    }
-
-    private fun makePasskeyCredential(): PasskeyCredential {
-        return PasskeyCredential(
-            id = Uuid.random(),
-            authId = Uuid.random(),
-            authInfo = Authentication(id = Uuid.random(), userId = Uuid.random(), uuid = Uuid.random()),
-            handle = Uuid.random(),
-            name = "test-passkey",
-            credDescriptor = PasskeyCredential.CredentialDescriptor(ByteArray(0), "public-key", emptySet()),
-            publicKey = "key",
-            signatureCount = 0,
-            isDiscoverable = true,
-            isBackupEligible = false,
-            isBackedUp = false,
-            attestationObject = ByteArray(0),
-            clientData = "{}",
-            createdAt = Clock.System.now(),
-            lastUsedAt = Clock.System.now()
-        )
+        val sut = DeleteAccountImpl(finishAssertion, accountDataSource, AccountEraser(accountDataSource, deviceDataSource, erasedAccountDataSource, eventProducer), transactionManager)
     }
 
     private fun makeDevice(authRecord: Authentication, deviceUUID: Uuid = Uuid.random()): Device = Device(
@@ -64,8 +45,8 @@ internal class DeleteAccountImplTest {
             refreshToken = null,
             previousRefreshToken = null,
             deviceName = "Test Device",
-            isSignedIn = true
-        )
+            isSignedIn = true,
+        ),
     )
 
     private fun makeRequest(): FinishAssertionRequest = object : FinishAssertionRequest {
@@ -74,7 +55,7 @@ internal class DeleteAccountImplTest {
     }
 
     @Test
-    fun `should delete account and emit user and device deleted events`() = runUnitTest {
+    fun `should delete the account record by its own id and emit user and device deleted events`() = runUnitTest {
         given()
         val fixture = SutFixture()
         val userId = Uuid.random()
@@ -82,13 +63,13 @@ internal class DeleteAccountImplTest {
         val deviceUUID = Uuid.random()
         val device = makeDevice(authRecord, deviceUUID)
         val request = makeRequest()
-        val credential = makePasskeyCredential()
+        val credential = PasskeyCredential.stub(authInfo = Authentication.stub(userId = userId))
         with(fixture) {
             transactionManager.mockTransaction()
             coEvery { finishAssertion(request) } returns Result.success(credential)
             coEvery { accountDataSource.getAuthRecordByUserId(userId) } returns authRecord
             coEvery { deviceDataSource.getDevices(authRecord.id) } returns listOf(device)
-            coEvery { accountDataSource.deleteAuthorization(authRecord.userId) } returns Unit
+            coEvery { accountDataSource.deleteAuthorization(authRecord.id) } returns Unit
         }
 
         whenn()
@@ -96,7 +77,7 @@ internal class DeleteAccountImplTest {
 
         then()
         assertTrue(result.isSuccess)
-        coVerify(exactly = 1) { fixture.accountDataSource.deleteAuthorization(authRecord.userId) }
+        coVerify(exactly = 1) { fixture.accountDataSource.deleteAuthorization(authRecord.id) }
         coVerify(atLeast = 1) { fixture.eventProducer.send(any<AuthEvent.UserDeleted>(), any()) }
         coVerify(atLeast = 1) { fixture.eventProducer.send(any<AuthEvent.DeviceDeleted>(), any()) }
     }
@@ -111,13 +92,13 @@ internal class DeleteAccountImplTest {
         val device2 = makeDevice(authRecord)
         val device3 = makeDevice(authRecord)
         val request = makeRequest()
-        val credential = makePasskeyCredential()
+        val credential = PasskeyCredential.stub(authInfo = Authentication.stub(userId = userId))
         with(fixture) {
             transactionManager.mockTransaction()
             coEvery { finishAssertion(request) } returns Result.success(credential)
             coEvery { accountDataSource.getAuthRecordByUserId(userId) } returns authRecord
             coEvery { deviceDataSource.getDevices(authRecord.id) } returns listOf(device1, device2, device3)
-            coEvery { accountDataSource.deleteAuthorization(authRecord.userId) } returns Unit
+            coEvery { accountDataSource.deleteAuthorization(authRecord.id) } returns Unit
         }
 
         whenn()
@@ -154,7 +135,7 @@ internal class DeleteAccountImplTest {
         val fixture = SutFixture()
         val userId = Uuid.random()
         val request = makeRequest()
-        val credential = makePasskeyCredential()
+        val credential = PasskeyCredential.stub(authInfo = Authentication.stub(userId = userId))
         with(fixture) {
             transactionManager.mockTransaction()
             coEvery { finishAssertion(request) } returns Result.success(credential)
@@ -167,5 +148,26 @@ internal class DeleteAccountImplTest {
         then()
         assertTrue(result.isFailure)
         assertTrue(result.exceptionOrNull() is DeleteAccount.Error.InvalidCredentials)
+    }
+
+    @Test
+    fun `should not delete the account when the passkey belongs to another account`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val request = makeRequest()
+        val otherAccountsPasskey = PasskeyCredential.stub(authInfo = Authentication.stub(userId = Uuid.random()))
+        with(fixture) {
+            transactionManager.mockTransaction()
+            coEvery { finishAssertion(request) } returns Result.success(otherAccountsPasskey)
+        }
+
+        whenn()
+        val result = fixture.sut(userId, request)
+
+        then()
+        assertTrue(result.exceptionOrNull() is FinishAssertion.Error.PasskeyNotOwned)
+        coVerify(exactly = 0) { fixture.eventProducer.send(any(), any()) }
+        coVerify(exactly = 0) { fixture.accountDataSource.deleteAuthorization(any()) }
     }
 }

@@ -39,14 +39,17 @@ internal class EditUserImplEventTest {
         val eventProducer = KafkaEventProducer(
             servers = KafkaTestBroker.servers,
             client = "edit-user-test",
-            protoBuf = KafkaTestBroker.protoBuf
+            protoBuf = KafkaTestBroker.protoBuf,
         )
         val sut = EditUserImpl(userDataSource, transactionManager, eventProducer)
     }
 
-
     private fun editModel(phone: String? = null) = UserEditModel(
-        id = null, firstName = "Jane", lastName = "Smith", email = "jane@example.com", phone = phone
+        id = null,
+        firstName = "Jane",
+        lastName = "Smith",
+        email = "jane@example.com",
+        phone = phone,
     )
 
     private fun publishedFor(userId: Uuid) = KafkaTestBroker

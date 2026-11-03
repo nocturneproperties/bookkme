@@ -44,7 +44,7 @@ internal class EnableAppointmentsForBusinessImplTest {
             settingsDataSource,
             appointmentPermissionDataSource,
             businessClient,
-            transactionManager
+            transactionManager,
         )
     }
 
@@ -53,13 +53,13 @@ internal class EnableAppointmentsForBusinessImplTest {
 
     private fun businessDto(
         id: Uuid = testBusinessId,
-        schedule: Schedule = Schedule()
+        schedule: Schedule = Schedule(),
     ) = BusinessDTO(
         id = id,
         name = "Business name",
         address = "Business address",
         timeZone = TimeZone.UTC,
-        schedule = schedule
+        schedule = schedule,
     )
 
     private fun SutFixture.acceptAttach() {
@@ -97,9 +97,9 @@ internal class EnableAppointmentsForBusinessImplTest {
         val schedule = Schedule(
             workingDays = listOf(DayOfWeek.SATURDAY),
             workingHours = mapOf(
-                DayOfWeek.SATURDAY to listOf(WorkHour(LocalTime(10, 0), LocalTime(14, 0)))
+                DayOfWeek.SATURDAY to listOf(WorkHour(LocalTime(10, 0), LocalTime(14, 0))),
             ),
-            dayOffs = listOf(DayOffRange(LocalDate(2099, 12, 30), LocalDate(2099, 12, 31)))
+            dayOffs = listOf(DayOffRange(LocalDate(2099, 12, 30), LocalDate(2099, 12, 31))),
         )
         with(fixture) {
             transactionManager.mockTransaction()
@@ -115,7 +115,7 @@ internal class EnableAppointmentsForBusinessImplTest {
         assertTrue(result.isSuccess)
         coVerify(exactly = 1) {
             fixture.subscriptionSource.attachBusiness(
-                match { it.id == testBusinessId && it.schedule == schedule }
+                match { it.id == testBusinessId && it.schedule == schedule },
             )
         }
     }

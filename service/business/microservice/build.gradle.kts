@@ -17,6 +17,7 @@ ktor {
 }
 
 dependencies {
+    implementation(libs.ktor.routing.openapi)
     implementation(projects.core)
     implementation(projects.core.service)
     implementation(projects.core.domain)
@@ -29,11 +30,14 @@ dependencies {
     implementation(projects.library.signing.impl)
     implementation(projects.library.signing.route)
     implementation(projects.library.scheduler)
+    implementation(projects.library.export.api)
+    implementation(projects.library.export.route)
     implementation(projects.service.business.data)
     implementation(projects.service.business.domain.api)
     implementation(projects.service.business.domain.impl)
     testImplementation(libs.joda.money)
     testImplementation(testFixtures(projects.core))
     testImplementation(testFixtures(projects.core.service))
+    testImplementation(testFixtures(projects.core.data.eventstreaming.data))
     testImplementation(testFixtures(projects.library.scheduler))
 }

@@ -22,6 +22,7 @@ import com.bookk.notifications.microservice.initFirebase
 import com.bookk.notifications.microservice.notificationsEmbeddedModule
 import com.bookk.notifications.microservice.route.notificationsRoute
 import com.bookk.user.domain.impl.di.UserScope
+import com.bookk.user.microservice.registerUserJobs
 import com.bookk.user.microservice.route.userRoute
 import com.bookk.user.microservice.userEmbeddedModule
 import io.ktor.server.application.Application
@@ -36,7 +37,7 @@ private fun diModules() = listOf(
     userEmbeddedModule(),
     businessEmbeddedModule(),
     appointmentsEmbeddedModule(),
-    notificationsEmbeddedModule()
+    notificationsEmbeddedModule(),
 )
 
 fun main() {
@@ -64,6 +65,7 @@ fun main() {
 
 fun Application.registerMonolithJobs(scheduler: SchedulerConfiguration) {
     registerAuthJobs(scheduler)
+    registerUserJobs(scheduler)
     registerBusinessJobs(scheduler)
     registerAppointmentsJobs(scheduler)
 }

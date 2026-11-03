@@ -18,7 +18,7 @@ secrets:
   firebase_key:
     external: true
   mariadb_users_init:
-    name: monolith-mariadb-users-init-v1
+    name: monolith-mariadb-users-init-v3
     file: ./db/users-init.sql
 
 configs:
@@ -26,7 +26,7 @@ configs:
     name: monolith-mariadb-encryption-v2
     file: ./db/my.cnf
   mariadb_tuning_config:
-    name: monolith-mariadb-tuning-v2
+    name: monolith-mariadb-tuning-v3
     file: ./db/tuning.cnf
   mariadb_init_schemas:
     name: monolith-mariadb-init-schemas-v1

@@ -27,19 +27,17 @@ internal class ServiceEntity(id: EntityID<Uuid>) : UuidEntity(id) {
 
     companion object : DecoratorUuidEntityClass<ServiceEntity>(ServiceTable)
 
-    fun toDomain(): Service {
-        return Service(
-            id = id.value,
-            businessId = businessId.value,
-            group = group.toDomain(),
-            duration = duration.minutes,
-            name = name,
-            price = Money.of(
-                CurrencyUnit.of(priceCurrency),
-                BigDecimal(BigInteger.valueOf(priceUnscaled), priceScale)
-            ),
-            isAvailable = available,
-            createdAt = createdAt
-        )
-    }
+    fun toDomain(): Service = Service(
+        id = id.value,
+        businessId = businessId.value,
+        group = group.toDomain(),
+        duration = duration.minutes,
+        name = name,
+        price = Money.of(
+            CurrencyUnit.of(priceCurrency),
+            BigDecimal(BigInteger.valueOf(priceUnscaled), priceScale),
+        ),
+        isAvailable = available,
+        createdAt = createdAt,
+    )
 }

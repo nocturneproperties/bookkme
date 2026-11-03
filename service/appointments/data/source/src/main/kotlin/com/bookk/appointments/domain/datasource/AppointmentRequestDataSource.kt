@@ -19,8 +19,11 @@ interface AppointmentRequestDataSource {
     suspend fun hasOverlapsWith(request: AppointmentRequest): Boolean
     suspend fun cancelOutdated(before: Instant)
     suspend fun deleteForUser(userId: Uuid)
+    suspend fun deleteForClient(businessId: Uuid, clientId: Uuid)
     suspend fun reassignClient(businessId: Uuid, fromClientId: Uuid, toClientId: Uuid)
+    suspend fun linkClientUser(businessId: Uuid, clientId: Uuid, userId: Uuid)
 
     suspend fun reserveOfferToken(token: String): Boolean
     suspend fun releaseOfferToken(token: String)
+    suspend fun deleteEndedBefore(before: Instant)
 }

@@ -4,6 +4,8 @@ import com.bookk.core.data.cache.CacheClient
 import com.bookk.core.data.eventstreaming.EventStreaming
 import com.bookk.core.data.eventstreaming.StandardEventConsumer
 import com.bookk.core.domain.datasource.transaction.TransactionManager
+import io.micrometer.core.instrument.MeterRegistry
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import io.mockk.mockk
 import org.koin.core.module.Module
 import org.koin.core.qualifier.Qualifier
@@ -14,6 +16,7 @@ import org.koin.dsl.module
 fun serviceScopeWithMockedInfrastructure(qualifier: Qualifier, serviceModule: Module): Scope {
     val infrastructure = module {
         single<CacheClient<String>> { mockk() }
+        single<MeterRegistry> { SimpleMeterRegistry() }
         scope(qualifier) {
             scoped<TransactionManager> { mockk() }
             scoped<EventStreaming.RawProducer<String>> { mockk() }

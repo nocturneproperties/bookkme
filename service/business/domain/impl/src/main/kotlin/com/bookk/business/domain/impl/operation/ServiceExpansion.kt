@@ -6,7 +6,7 @@ import kotlin.uuid.Uuid
 
 internal suspend fun ServiceDataSource.getServicesExpanded(
     businessId: Uuid,
-    serviceIds: List<Uuid>
+    serviceIds: List<Uuid>,
 ): List<Service>? {
     val distinctIds = serviceIds.toSet()
     val foundServices = getServicesByIds(distinctIds.toList())

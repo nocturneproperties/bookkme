@@ -14,7 +14,10 @@ import com.bookk.notifications.domain.impl.UpdateTargetInformation
 import com.bookk.notifications.domain.impl.notification.NotificationParameters
 import com.bookk.notifications.domain.impl.notification.NotificationType
 import com.bookk.notifications.domain.impl.notification.SendNotification
+import com.bookk.server.appointments.client.api.event.AppointmentEvent
+import com.bookk.server.auth.client.AuthEvent
 import com.bookk.server.business.client.api.event.BusinessEvent
+import com.bookk.server.user.client.api.event.UserEvent
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -22,9 +25,11 @@ import io.mockk.mockk
 import io.mockk.slot
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.datetime.TimeZone
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
 internal class NotificationEventHandlerTest {
@@ -45,7 +50,7 @@ internal class NotificationEventHandlerTest {
             updateTargetInformation,
             updateDeviceLanguage,
             sendNotification,
-            deleteUserNotificationData
+            deleteUserNotificationData,
         )
 
         @Suppress("UNCHECKED_CAST")
@@ -87,7 +92,7 @@ internal class NotificationEventHandlerTest {
             employeeUserId = Uuid.random(),
             employeeName = "Alice",
             businessId = Uuid.random(),
-            businessName = "Barbershop"
+            businessName = "Barbershop",
         )
         val params = slot<NotificationParameters>()
         coEvery { fixture.sendNotification.invoke(any(), capture(params)) } returns Result.success(Unit)
@@ -100,5 +105,112 @@ internal class NotificationEventHandlerTest {
         coVerify(exactly = 1) { fixture.sendNotification.invoke(event.inviterUserId, any()) }
         coVerify(exactly = 0) { fixture.sendNotification.invoke(event.employeeUserId, any()) }
         assertEquals(NotificationType.EMPLOYEE, params.captured.type)
+    }
+
+    private val from = Instant.fromEpochMilliseconds(1_700_000_000_000)
+    private val to = Instant.fromEpochMilliseconds(1_700_003_600_000)
+
+    @Test
+    fun `should notify nobody when an approved request's client has no account`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val event = AppointmentEvent.RequestApproved(
+            clientUserId = null, clientName = "Client", employeeUserId = Uuid.random(), employeeName = "Employee",
+            from = from, to = to, timeZone = TimeZone.UTC, businessName = "Salon", address = "1 Main St", price = "10 USD",
+        )
+        fixture.start(this)
+
+        whenn()
+        fixture.dispatch(AppointmentEvent.RequestApproved.TOPIC, event)
+
+        then()
+        coVerify(exactly = 0) { fixture.sendNotification.invoke(any(), any()) }
+    }
+
+    @Test
+    fun `should notify nobody when a rejected request's client has no account`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val event = AppointmentEvent.RequestRejected(
+            clientUserId = null, clientName = "Client", employeeUserId = Uuid.random(), employeeName = "Employee",
+            from = from, to = to, timeZone = TimeZone.UTC, address = "1 Main St", businessName = "Salon",
+            price = "10 USD", declineReason = "busy",
+        )
+        fixture.start(this)
+
+        whenn()
+        fixture.dispatch(AppointmentEvent.RequestRejected.TOPIC, event)
+
+        then()
+        coVerify(exactly = 0) { fixture.sendNotification.invoke(any(), any()) }
+    }
+
+    @Test
+    fun `should notify nobody when a cancelled appointment's client has no account`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val event = AppointmentEvent.Cancelled(
+            clientUserId = null, clientName = "Client", employeeUserId = Uuid.random(), employeeName = "Employee",
+            from = from, to = to, timeZone = TimeZone.UTC, address = "1 Main St", businessName = "Salon",
+            price = "10 USD", reason = "changed plans",
+        )
+        fixture.start(this)
+
+        whenn()
+        fixture.dispatch(AppointmentEvent.Cancelled.TOPIC, event)
+
+        then()
+        coVerify(exactly = 0) { fixture.sendNotification.invoke(any(), any()) }
+    }
+
+    @Test
+    fun `should warn the user whose account is about to be deleted for inactivity`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val event = AuthEvent.AccountDormancyWarning(userId = Uuid.random(), deletesAt = Instant.parse("2029-03-05T14:30:00Z"), final = false)
+        val params = slot<NotificationParameters>()
+        coEvery { fixture.sendNotification.invoke(any(), capture(params)) } returns Result.success(Unit)
+        fixture.start(this)
+
+        whenn()
+        fixture.dispatch(AuthEvent.AccountDormancyWarning.TOPIC, event)
+
+        then()
+        coVerify(exactly = 1) { fixture.sendNotification.invoke(event.userId, any()) }
+        assertEquals(NotificationType.ACCOUNT, params.captured.type)
+    }
+
+    @Test
+    fun `should tell the user their personal data export is ready`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val event = UserEvent.DataExportReady(userId = Uuid.random(), expiresAt = Instant.parse("2026-11-06T14:30:00Z"))
+        val params = slot<NotificationParameters>()
+        coEvery { fixture.sendNotification.invoke(any(), capture(params)) } returns Result.success(Unit)
+        fixture.start(this)
+
+        whenn()
+        fixture.dispatch(UserEvent.DataExportReady.TOPIC, event)
+
+        then()
+        coVerify(exactly = 1) { fixture.sendNotification.invoke(event.userId, any()) }
+        assertEquals(NotificationType.ACCOUNT, params.captured.type)
+    }
+
+    @Test
+    fun `should tell the owner their business data export is ready`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val event = BusinessEvent.ExportReady(businessId = Uuid.random(), ownerUserId = Uuid.random(), expiresAt = Instant.parse("2026-11-06T14:30:00Z"))
+        val params = slot<NotificationParameters>()
+        coEvery { fixture.sendNotification.invoke(any(), capture(params)) } returns Result.success(Unit)
+        fixture.start(this)
+
+        whenn()
+        fixture.dispatch(BusinessEvent.ExportReady.TOPIC, event)
+
+        then()
+        coVerify(exactly = 1) { fixture.sendNotification.invoke(event.ownerUserId, any()) }
+        assertEquals(NotificationType.ACCOUNT, params.captured.type)
     }
 }

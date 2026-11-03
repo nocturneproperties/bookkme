@@ -23,7 +23,7 @@ suspend inline fun <reified R : Any> RoutingCall.respondWith(result: Result<R>) 
                 is BusinessError -> {
                     respond(
                         status = HttpStatusCode.fromValue(error.statusCode),
-                        message = SimpleServerError(error.code, error.message)
+                        message = SimpleServerError(error.code, error.message),
                     )
                 }
 
@@ -32,16 +32,17 @@ suspend inline fun <reified R : Any> RoutingCall.respondWith(result: Result<R>) 
                         status = HttpStatusCode.Conflict,
                         message = SimpleServerError(
                             CoreErrorCodes.TRANSACTION_CONFLICT,
-                            "The request conflicted with concurrent changes, retry it"
-                        )
+                            "The request conflicted with concurrent changes, retry it",
+                        ),
                     )
                 }
 
                 is Error.OperationNotAllowed,
-                is Error.NotFound -> {
+                is Error.NotFound,
+                -> {
                     respond(
                         status = HttpStatusCode.NotFound,
-                        message = "Not found"
+                        message = "Not found",
                     )
                 }
 

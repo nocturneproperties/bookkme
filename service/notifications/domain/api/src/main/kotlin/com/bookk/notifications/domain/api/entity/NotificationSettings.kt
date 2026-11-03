@@ -28,21 +28,21 @@ data class NotificationSettings(
                 id = Uuid.random(),
                 channel = CommunicationChannel.PUSH_NOTIFICATIONS,
                 enabled = false,
-                availableToClients = true
+                availableToClients = true,
             ),
             NotificationChannelSettings(
                 id = Uuid.random(),
                 channel = CommunicationChannel.EMAIL,
                 enabled = false,
-                availableToClients = false
+                availableToClients = false,
             ),
             NotificationChannelSettings(
                 id = Uuid.random(),
                 channel = CommunicationChannel.TELEGRAM,
                 enabled = false,
-                availableToClients = false
-            )
-        )
+                availableToClients = false,
+            ),
+        ),
     )
 
     companion object {

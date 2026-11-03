@@ -12,14 +12,14 @@ import io.ktor.client.request.setBody
 import kotlin.uuid.Uuid
 
 internal class GetServicesByIdsClientImpl(
-    private val httpClient: HttpClient
+    private val httpClient: HttpClient,
 ) : GetServicesByIds {
 
     override suspend fun invoke(businessId: Uuid, serviceIds: List<Uuid>): Result<List<Service>> = runSuspendCatching {
         httpClient.post(
             BusinessRouting.Api.Internal.Business.Id.Services(
-                parent = BusinessRouting.Api.Internal.Business.Id(id = businessId)
-            )
+                parent = BusinessRouting.Api.Internal.Business.Id(id = businessId),
+            ),
         ) {
             setBody(ServicesByIdsRequest(serviceIds = serviceIds))
         }.bodyOrThrow()

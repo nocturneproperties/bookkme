@@ -27,16 +27,14 @@ import kotlin.time.Duration.Companion.minutes
 import kotlin.uuid.Uuid
 
 internal class PassKeyDataSourceImpl(
-    private val cacheClient: CacheClient<String>
+    private val cacheClient: CacheClient<String>,
 ) : DataSource(), PassKeyDataSource {
 
     override suspend fun saveChallengeToCache(requestId: String, challenge: String) = mapExceptions {
         cacheClient.set(requestId, challenge, 5.minutes)
     }
 
-    override suspend fun getCachedChallenge(requestId: String): String? {
-        return mapExceptions { cacheClient.get(requestId) }
-    }
+    override suspend fun getCachedChallenge(requestId: String): String? = mapExceptions { cacheClient.get(requestId) }
 
     override suspend fun deleteCachedChallenge(requestId: String) {
         mapExceptions { cacheClient.delete(requestId) }
@@ -66,7 +64,7 @@ internal class PassKeyDataSourceImpl(
                 AuthenticationTable,
                 onColumn = { authId },
                 otherColumn = { id },
-                additionalConstraint = { AuthenticationTable.uuid eq userHandle }
+                additionalConstraint = { AuthenticationTable.uuid eq userHandle },
             )
             .selectAll()
             .where { PasskeyCredentialTable.credDescriptorId eq credentialId }
@@ -103,7 +101,7 @@ internal class PassKeyDataSourceImpl(
                 otherTable = AuthenticationTable,
                 onColumn = { authId },
                 otherColumn = { id },
-                additionalConstraint = { AuthenticationTable.uuid eq username }
+                additionalConstraint = { AuthenticationTable.uuid eq username },
             )
             .selectAll()
             .map { PasskeyCredentialEntity.wrapRow(it).toDomain() }

@@ -2,7 +2,6 @@ package com.bookk.auth.domain.impl.operation.registration
 
 import com.bookk.auth.domain.api.authentication.entity.Authentication
 import com.bookk.auth.domain.api.registration.entity.VerifyAccountCreationRequest
-import com.bookk.auth.domain.api.registration.entity.VerifyAccountCreationRequest.UserInfo
 import com.bookk.auth.domain.api.registration.operation.FinishPasskeyRegistration
 import com.bookk.auth.domain.api.registration.operation.FinishRegistration
 import com.bookk.auth.domain.api.token.entity.AuthTokens
@@ -27,12 +26,12 @@ internal class FinishRegistrationImpl(
     private val generateAuthToken: GenerateAuthToken,
     private val eventProducer: StandardEventProducer,
     private val transactionManager: TransactionManager,
-    private val finishPasskeyRegistration: FinishPasskeyRegistration
+    private val finishPasskeyRegistration: FinishPasskeyRegistration,
 ) : FinishRegistration {
 
     override suspend fun invoke(request: VerifyAccountCreationRequest, language: Language): Result<AuthTokens> = runSuspendCatching {
         val verifiedPasskey = finishPasskeyRegistration.verifyRequest(request).getOrThrow()
-        val userId = userClient.createUser(createUserFrom(request.userInfo)).getOrThrow()
+        val userId = userClient.createUser(createUserFrom(request)).getOrThrow()
         val deviceName = request.deviceInfo.deviceName
         val deviceUuid = request.deviceInfo.deviceUUID
 
@@ -46,7 +45,7 @@ internal class FinishRegistrationImpl(
                 authId = owner.id,
                 uuid = deviceUuid,
                 name = deviceName,
-                language = language
+                language = language,
             ) ?: throw FinishRegistration.Error.AccountCreationFailed()
             eventProducer.send(AuthEvent.DeviceCreated(owner.id, userId, deviceUuid, language))
             generateAuthToken(Source.InitialAuthentication(owner.id, deviceUuid)).getOrThrow()
@@ -58,9 +57,10 @@ internal class FinishRegistrationImpl(
         }
     }
 
-    private fun createUserFrom(info: UserInfo): CreateUserRequest = CreateUserRequest(
-        name = info.name,
-        lastName = info.lastName,
-        email = info.email
+    private fun createUserFrom(request: VerifyAccountCreationRequest): CreateUserRequest = CreateUserRequest(
+        name = request.userInfo.name,
+        lastName = request.userInfo.lastName,
+        email = request.userInfo.email,
+        acceptedDocuments = request.acceptedDocuments,
     )
 }

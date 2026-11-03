@@ -5,5 +5,5 @@ import kotlinx.serialization.protobuf.ProtoNumber
 
 @Serializable
 data class EmailBody(
-    @ProtoNumber(1) val email: String
+    @ProtoNumber(1) val email: String,
 )

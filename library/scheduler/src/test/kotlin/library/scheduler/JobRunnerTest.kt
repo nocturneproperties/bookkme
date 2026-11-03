@@ -25,7 +25,7 @@ internal class JobRunnerTest {
             name = "test-job",
             interval = 10.seconds,
             initialDelay = Duration.ZERO,
-            action = { executions++ }
+            action = { executions++ },
         )
         val runner = JobRunner(listOf(job), dispatcher, mockk<Logger>(relaxed = true))
 
@@ -51,7 +51,7 @@ internal class JobRunnerTest {
             name = "test-job",
             interval = 10.seconds,
             initialDelay = 5.seconds,
-            action = { executions++ }
+            action = { executions++ },
         )
         val runner = JobRunner(listOf(job), dispatcher, mockk<Logger>(relaxed = true))
 
@@ -77,13 +77,13 @@ internal class JobRunnerTest {
             name = "fast-job",
             interval = 5.seconds,
             initialDelay = Duration.ZERO,
-            action = { fastExecutions++ }
+            action = { fastExecutions++ },
         )
         val slowJob = ScheduledJob(
             name = "slow-job",
             interval = 20.seconds,
             initialDelay = Duration.ZERO,
-            action = { slowExecutions++ }
+            action = { slowExecutions++ },
         )
         val runner = JobRunner(listOf(fastJob, slowJob), dispatcher, mockk<Logger>(relaxed = true))
 
@@ -111,7 +111,7 @@ internal class JobRunnerTest {
             action = {
                 executions++
                 if (executions == 1) throw RuntimeException("boom")
-            }
+            },
         )
         val runner = JobRunner(listOf(job), dispatcher, mockk<Logger>(relaxed = true))
 
@@ -135,7 +135,7 @@ internal class JobRunnerTest {
             name = "test-job",
             interval = 10.seconds,
             initialDelay = Duration.ZERO,
-            action = { executions++ }
+            action = { executions++ },
         )
         val runner = JobRunner(listOf(job), dispatcher, mockk<Logger>(relaxed = true))
         runner.start()

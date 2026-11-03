@@ -72,6 +72,20 @@ client's quote. If that release itself fails it is only logged and the
 original error is returned; the token then stays unusable until it expires
 and the client has to request a new quote.
 
+A booking from an account whose deletion appointments has already handled
+is rejected: it would otherwise store the deleted person's details after
+the erasure ran. The check reads `deleted_user` with a shared lock as the
+transaction's first statement, so a deletion running at the same moment
+either finishes first (and the booking is rejected) or waits for the
+booking to commit and then erases it by `client_user_id`.
+
+A booking for a client the business has deleted is rejected the same way
+(the client id from the booking context, checked in `deleted_client` with a shared lock right after the
+account): the business may have deleted the client after handing out its
+details and before the booking reached appointments. A client deletion
+running at the same moment either finishes first or waits for the booking
+and then erases it by `client_id`.
+
 ```mermaid
 flowchart TD
     Start([POST /api/appointments/request]) --> Auth{JWT valid?}
@@ -105,7 +119,11 @@ flowchart TD
     PriceCheck -- Yes --> DurationCheck{request.dateEnd - request.date == token.duration?}
     DurationCheck -- No --> R400c([400 DURATION_CHANGED 300017])
     DurationCheck -- Yes --> Tx[[Begin transaction]]
-    Tx --> Settings[AppointmentSettingsDataSource.getForUpdate businessId]
+    Tx --> Deleted["DeletedUserDataSource.isDeletedForShare userId - LOCK IN SHARE MODE, first statement"]
+    Deleted -- deleted --> R404del([404 Error.OperationNotAllowed - the account was deleted])
+    Deleted -- not deleted --> ClientDeleted["DeletedClientDataSource.isDeletedForShare businessId request.client.id - LOCK IN SHARE MODE"]
+    ClientDeleted -- deleted --> R404client([404 Error.OperationNotAllowed - the business deleted the client])
+    ClientDeleted -- not deleted --> Settings[AppointmentSettingsDataSource.getForUpdate businessId]
     Settings -- not found --> R404a([404 Error.NotFound])
     Settings -- found --> AutoApproval{settings.automaticApproval?}
     AutoApproval -- Yes --> Delegate[Delegate to CreateAppointment userId request]
@@ -124,13 +142,16 @@ flowchart TD
     OverlapAppointments -- No --> Create[AppointmentRequestDataSource.create request]
     Create --> Snapshot[AppointmentSubscriptionDataSource.getBusinessSnapshot businessId]
     Snapshot -- missing --> R404d([404 Error.NotFound - logged as data inconsistency])
-    Snapshot -- found --> Event[eventProducer.send AppointmentEvent.RequestCreated]
+    Snapshot -- found --> Visit[eventProducer.send AppointmentEvent.ClientVisitBooked businessId client.id dateEnd]
+    Visit --> Event["eventProducer.send AppointmentEvent.RequestCreated - clientUserId = request.client.userId"]
     Event --> Commit[[Commit transaction]]
     Commit --> R204([204 No Content - offerToken stays reserved])
 ```
 
 **Consumed by:** `AppointmentEvent.RequestCreated` → [notifications: notify the
-employee](../notifications/on-appointment-request-created.md). The
+employee](../notifications/on-appointment-request-created.md);
+`AppointmentEvent.ClientVisitBooked` → [business: record the client's
+visit](../business/on-client-visit-booked.md). The
 `automaticApproval` branch delegates into [Create appointment from a
 pending request](create-appointment-from-request.md)'s shared logic and
 sends `AppointmentEvent.RequestApproved` instead — see [notifications:

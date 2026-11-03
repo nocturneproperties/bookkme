@@ -51,7 +51,7 @@ internal class EditSettingsTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { settings() }
+            routeUnderTest = { settings() },
         )
 
         whenn()
@@ -85,7 +85,7 @@ internal class EditSettingsTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { settings() }
+            routeUnderTest = { settings() },
         )
 
         whenn()
@@ -116,7 +116,7 @@ internal class EditSettingsTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { settings() }
+            routeUnderTest = { settings() },
         )
 
         whenn()
@@ -148,7 +148,7 @@ internal class EditSettingsTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { settings() }
+            routeUnderTest = { settings() },
         )
 
         whenn()
@@ -169,7 +169,7 @@ internal class EditSettingsTest {
         setupApplication(
             extension = { install(Authentication) { bearer { authenticate { null } } } },
             diModule = module { single { useCase } },
-            routeUnderTest = { settings() }
+            routeUnderTest = { settings() },
         )
 
         whenn()

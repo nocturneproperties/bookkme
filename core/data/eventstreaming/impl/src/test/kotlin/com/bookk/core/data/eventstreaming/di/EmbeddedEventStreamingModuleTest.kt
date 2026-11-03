@@ -3,8 +3,10 @@ package com.bookk.core.data.eventstreaming.di
 import com.bookk.core.data.eventstreaming.EventIdempotencyStorage
 import com.bookk.core.data.eventstreaming.EventStreaming
 import com.bookk.core.data.eventstreaming.ExhaustedEventDataSource
+import com.bookk.core.data.eventstreaming.ExhaustedEventReplayer
 import com.bookk.core.data.eventstreaming.StandardEventConsumer
 import com.bookk.core.data.eventstreaming.StandardEventProducer
+import com.bookk.core.data.eventstreaming.impl.ExhaustedEventReplayerImpl
 import com.bookk.core.data.eventstreaming.impl.InMemoryExhaustedEventDataSource
 import com.bookk.core.data.eventstreaming.impl.embedded.EmbeddedEventConsumer
 import com.bookk.core.data.eventstreaming.impl.embedded.EmbeddedEventProducer
@@ -12,10 +14,14 @@ import com.bookk.core.data.eventstreaming.impl.embedded.publishEncoded
 import com.bookk.core.data.eventstreaming.impl.inMemoryEventIdempotencyStorage
 import com.bookk.core.data.eventstreaming.impl.kafka.KeyedTestEvent
 import com.bookk.core.data.eventstreaming.registerReceiver
+import com.bookk.core.domain.datasource.transaction.TransactionManager
+import com.bookk.core.domain.datasource.transaction.mockedTransactionManager
 import com.bookk.core.test.given
 import com.bookk.core.test.runUnitTest
 import com.bookk.core.test.then
 import com.bookk.core.test.whenn
+import io.micrometer.core.instrument.MeterRegistry
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import kotlinx.coroutines.test.runCurrent
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
@@ -35,22 +41,27 @@ internal class EmbeddedEventStreamingModuleTest {
         val qualifier = named("embedded-test")
         private val sharedModule = module {
             single<EventIdempotencyStorage> { inMemoryEventIdempotencyStorage() }
+            single<MeterRegistry> { SimpleMeterRegistry() }
         }
 
         private fun serviceModule(qualifier: Qualifier) = module {
-            scope(qualifier) { scoped<ExhaustedEventDataSource> { InMemoryExhaustedEventDataSource() } }
+            scope(qualifier) {
+                scoped<TransactionManager> { mockedTransactionManager() }
+                scoped<ExhaustedEventDataSource> { InMemoryExhaustedEventDataSource(get()) }
+            }
         }
 
-        fun scopeWith(eventStreaming: Module): Scope =
-            koinApplication { modules(topicQueueHolderModule(), sharedModule, serviceModule(qualifier), eventStreaming) }
-                .koin
-                .createScope("embedded-test-scope", qualifier)
+        fun scopeWith(eventStreaming: Module): Scope = koinApplication { modules(topicQueueHolderModule(), sharedModule, serviceModule(qualifier), eventStreaming) }
+            .koin
+            .createScope("embedded-test-scope", qualifier)
 
         fun scopesOf(vararg services: Pair<Qualifier, String>): List<Scope> {
             val koin = koinApplication {
-                modules(listOf(topicQueueHolderModule(), sharedModule) + services.flatMap { (qualifier, serviceName) ->
-                    listOf(serviceModule(qualifier), embeddedEventStreamingTransportModule(qualifier, serviceName))
-                })
+                modules(
+                    listOf(topicQueueHolderModule(), sharedModule) + services.flatMap { (qualifier, serviceName) ->
+                        listOf(serviceModule(qualifier), embeddedEventStreamingTransportModule(qualifier, serviceName))
+                    },
+                )
             }.koin
             return services.map { (qualifier, serviceName) -> koin.createScope("$serviceName-scope", qualifier) }
         }
@@ -108,5 +119,18 @@ internal class EmbeddedEventStreamingModuleTest {
         then()
         assertEquals(1, userReceived.size)
         assertEquals(1, businessReceived.size)
+    }
+
+    @Test
+    fun `should replay the service's parked events through its own consumer`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val scope = fixture.scopeWith(embeddedEventStreamingTransportModule(fixture.qualifier, "embedded-test"))
+
+        whenn()
+        val replayer = scope.get<ExhaustedEventReplayer>()
+
+        then()
+        assertTrue(replayer is ExhaustedEventReplayerImpl)
     }
 }

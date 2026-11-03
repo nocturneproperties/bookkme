@@ -41,8 +41,8 @@ internal class UpdateBusinessInformationTest {
         schedule = Schedule(
             workingDays = listOf(DayOfWeek.SATURDAY),
             workingHours = mapOf(DayOfWeek.SATURDAY to listOf(WorkHour(LocalTime(10, 0), LocalTime(14, 0)))),
-            dayOffs = listOf(DayOffRange(LocalDate(2099, 12, 30), LocalDate(2099, 12, 31)))
-        )
+            dayOffs = listOf(DayOffRange(LocalDate(2099, 12, 30), LocalDate(2099, 12, 31))),
+        ),
     )
 
     @Test
@@ -64,16 +64,16 @@ internal class UpdateBusinessInformationTest {
             fixture.subscriptionDataSource.updateBusiness(
                 match {
                     it.id == dto.id &&
-                    it.name == dto.name &&
-                    it.address == dto.address &&
-                    it.timeZone == dto.timeZone &&
-                    it.schedule.activeDays() == listOf(DayOfWeek.SATURDAY) &&
-                    it.schedule[DayOfWeek.SATURDAY].workingTime == listOf(
-                        WorkHour(LocalTime(10, 0), LocalTime(14, 0))
-                    ) &&
-                    it.schedule.dayOffs == listOf(DayOffRange(LocalDate(2099, 12, 30), LocalDate(2099, 12, 31)))
+                        it.name == dto.name &&
+                        it.address == dto.address &&
+                        it.timeZone == dto.timeZone &&
+                        it.schedule.activeDays() == listOf(DayOfWeek.SATURDAY) &&
+                        it.schedule[DayOfWeek.SATURDAY].workingTime == listOf(
+                            WorkHour(LocalTime(10, 0), LocalTime(14, 0)),
+                        ) &&
+                        it.schedule.dayOffs == listOf(DayOffRange(LocalDate(2099, 12, 30), LocalDate(2099, 12, 31)))
                 },
-                updatedAt
+                updatedAt,
             )
         }
     }

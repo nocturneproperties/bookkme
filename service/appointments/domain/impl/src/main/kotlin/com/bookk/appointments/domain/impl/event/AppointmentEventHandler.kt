@@ -1,8 +1,9 @@
 package com.bookk.appointments.domain.impl.event
 
+import com.bookk.appointments.domain.api.operation.DeleteClientAppointmentData
 import com.bookk.appointments.domain.api.operation.DeleteModule
 import com.bookk.appointments.domain.api.operation.DeleteUserAppointmentData
-import com.bookk.appointments.domain.impl.operation.MergeClient
+import com.bookk.appointments.domain.impl.operation.LinkClientUser
 import com.bookk.appointments.domain.impl.operation.SyncEmployeePermission
 import com.bookk.appointments.domain.impl.operation.UpdateBusinessInformation
 import com.bookk.core.data.eventstreaming.EventHandler
@@ -18,7 +19,8 @@ internal class AppointmentEventHandler(
     private val updateBusinessInformation: UpdateBusinessInformation,
     private val deleteUserAppointmentData: DeleteUserAppointmentData,
     private val syncEmployeePermission: SyncEmployeePermission,
-    private val mergeClient: MergeClient
+    private val linkClientUser: LinkClientUser,
+    private val deleteClientAppointmentData: DeleteClientAppointmentData,
 ) : EventHandler {
     override fun start(scope: CoroutineScope) {
         consumer
@@ -34,8 +36,11 @@ internal class AppointmentEventHandler(
             .registerResultReceiver(BusinessEvent.EmployeePermissionsChanged.TOPIC) { event: BusinessEvent.EmployeePermissionsChanged ->
                 syncEmployeePermission(event.employeeUserId, event.businessId, event.permissions.appointments, event.suspended)
             }
-            .registerResultReceiver(BusinessEvent.ClientMerged.TOPIC) { event: BusinessEvent.ClientMerged ->
-                mergeClient(event.businessId, event.fromClientId, event.toClientId)
+            .registerResultReceiver(BusinessEvent.ClientLinked.TOPIC) { event: BusinessEvent.ClientLinked ->
+                linkClientUser(event.businessId, event.clientId, event.userId, event.mergedClientIds)
+            }
+            .registerResultReceiver(BusinessEvent.ClientDeleted.TOPIC) { event: BusinessEvent.ClientDeleted ->
+                deleteClientAppointmentData(event.businessId, event.clientId)
             }
             .start(scope)
     }

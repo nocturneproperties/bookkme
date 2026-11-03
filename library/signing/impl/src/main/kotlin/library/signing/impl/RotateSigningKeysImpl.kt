@@ -10,7 +10,7 @@ import kotlin.time.Duration
 internal class RotateSigningKeysImpl(
     private val signingKeyDataSource: SigningKeyDataSource,
     private val keyPairGenerator: SigningKeyPairGenerator,
-    private val transactionManager: TransactionManager
+    private val transactionManager: TransactionManager,
 ) : RotateSigningKeys {
 
     override suspend fun invoke(retireInterval: Duration): Result<Unit> = transactionManager.transaction {

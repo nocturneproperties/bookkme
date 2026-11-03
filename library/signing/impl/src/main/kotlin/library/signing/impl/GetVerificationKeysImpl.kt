@@ -6,7 +6,7 @@ import library.signing.SigningKey
 
 internal class GetVerificationKeysImpl(
     private val signingKeyDataSource: SigningKeyDataSource,
-    private val transactionManager: TransactionManager
+    private val transactionManager: TransactionManager,
 ) : GetVerificationKeys {
 
     override suspend fun invoke(): Result<List<SigningKey>> = transactionManager.transaction {

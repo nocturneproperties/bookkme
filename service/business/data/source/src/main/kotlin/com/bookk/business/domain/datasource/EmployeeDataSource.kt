@@ -19,10 +19,11 @@ interface EmployeeDataSource {
         lastName: String,
         email: String,
         phone: String?,
-        updatedAt: Instant
+        updatedAt: Instant,
     ): Int
 
     suspend fun getServiceIds(employeeId: Uuid): List<Uuid>
     suspend fun getEmployeesByService(serviceId: Uuid): List<Employee>
-    suspend fun anonymizeEmployeesByUserId(userId: Uuid): Int
+    suspend fun deleteEmployeesByUserId(userId: Uuid)
+    suspend fun getOwnedBusinessMemberUserIds(ownerUserId: Uuid): List<Uuid>
 }

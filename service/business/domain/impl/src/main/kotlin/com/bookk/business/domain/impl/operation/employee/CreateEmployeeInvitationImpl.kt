@@ -20,32 +20,30 @@ internal class CreateEmployeeInvitationImpl(
     private val invitationDataSource: EmployeeInvitationDataSource,
     private val businessDataSource: BusinessDataSource,
     private val businessPermissionDataSource: BusinessPermissionDataSource,
-    private val transactionManager: TransactionManager
+    private val transactionManager: TransactionManager,
 ) : CreateEmployeeInvitation {
-    override suspend fun invoke(requestUserId: Uuid, businessId: Uuid): Result<EmployeeInvitation> {
-        return transactionManager.transaction {
-            businessDataSource.lockBusiness(businessId, RowLock.EXCLUSIVE) ?: throw Error.NotFound()
-            businessPermissionDataSource.getPermission(requestUserId, businessId, BusinessResource.EMPLOYEES)
-                .assert(PermissionAction.UPDATE)
-            val pendingInvitations = invitationDataSource.countPendingInvitations(businessId)
-            if (pendingInvitations >= CreateEmployeeInvitation.MAX_PENDING_INVITATIONS) {
-                throw CreateEmployeeInvitation.Error.PendingInvitationsLimitReached()
-            }
-            val invitationsToday = invitationDataSource.countInvitationsCreatedSince(
-                businessId,
-                Clock.System.now() - DAILY_QUOTA_WINDOW
-            )
-            if (invitationsToday >= CreateEmployeeInvitation.MAX_INVITATIONS_PER_DAY) {
-                throw CreateEmployeeInvitation.Error.DailyInvitationsLimitReached()
-            }
-            createInvitationWithUniqueCode(requestUserId, businessId)
+    override suspend fun invoke(requestUserId: Uuid, businessId: Uuid): Result<EmployeeInvitation> = transactionManager.transaction {
+        businessDataSource.lockBusiness(businessId, RowLock.EXCLUSIVE) ?: throw Error.NotFound()
+        businessPermissionDataSource.getPermission(requestUserId, businessId, BusinessResource.EMPLOYEES)
+            .assert(PermissionAction.UPDATE)
+        val pendingInvitations = invitationDataSource.countPendingInvitations(businessId)
+        if (pendingInvitations >= CreateEmployeeInvitation.MAX_PENDING_INVITATIONS) {
+            throw CreateEmployeeInvitation.Error.PendingInvitationsLimitReached()
         }
+        val invitationsToday = invitationDataSource.countInvitationsCreatedSince(
+            businessId,
+            Clock.System.now() - DAILY_QUOTA_WINDOW,
+        )
+        if (invitationsToday >= CreateEmployeeInvitation.MAX_INVITATIONS_PER_DAY) {
+            throw CreateEmployeeInvitation.Error.DailyInvitationsLimitReached()
+        }
+        createInvitationWithUniqueCode(requestUserId, businessId)
     }
 
     private suspend fun createInvitationWithUniqueCode(
         requestUserId: Uuid,
         businessId: Uuid,
-        remainingAttempts: Int = MAX_CODE_ATTEMPTS
+        remainingAttempts: Int = MAX_CODE_ATTEMPTS,
     ): EmployeeInvitation {
         val plainCode = EmployeeInvitationCode.generate()
         val invitation = EmployeeInvitation(
@@ -54,7 +52,7 @@ internal class CreateEmployeeInvitationImpl(
             invitedBy = requestUserId,
             code = EmployeeInvitationCode.hash(plainCode),
             status = EmployeeInvitationStatus.PENDING,
-            createdAt = Clock.System.now()
+            createdAt = Clock.System.now(),
         )
         return try {
             invitationDataSource.createInvitation(invitation).copy(code = plainCode)

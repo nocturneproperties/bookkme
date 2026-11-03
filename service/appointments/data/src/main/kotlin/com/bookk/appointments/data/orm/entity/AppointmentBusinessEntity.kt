@@ -29,7 +29,7 @@ internal class AppointmentBusinessEntity(id: EntityID<Uuid>) : UuidEntity(id) {
     fun schedule(): Schedule = Schedule(
         workingDays = workingDays.toWorkingDays(),
         workingHours = workingHours.toWorkingHours(),
-        dayOffs = dayOffs.map { it.domain() }
+        dayOffs = dayOffs.map { it.domain() },
     )
 
     fun domain(): BusinessSnapshot = BusinessSnapshot(
@@ -38,7 +38,7 @@ internal class AppointmentBusinessEntity(id: EntityID<Uuid>) : UuidEntity(id) {
         address = address,
         timeZone = TimeZone.of(timezone),
         isEnabled = enabled,
-        schedule = schedule()
+        schedule = schedule(),
     )
 
     private fun replaceSchedule(snapshot: BusinessSnapshot) {
@@ -56,18 +56,17 @@ internal class AppointmentBusinessEntity(id: EntityID<Uuid>) : UuidEntity(id) {
             workingDays = snapshot.schedule.activeDays().toWorkingDaysMask()
         }.apply { replaceSchedule(snapshot) }
 
-        fun findByIdAndUpdate(snapshot: BusinessSnapshot, updatedAt: Instant) =
-            findByIdAndUpdate(snapshot.id) {
-                val sourceUpdatedAt = it.sourceUpdatedAt
-                if (sourceUpdatedAt == null || sourceUpdatedAt < updatedAt) {
-                    it.name = snapshot.name
-                    it.address = snapshot.address
-                    it.timezone = snapshot.timeZone.id
-                    it.workingDays = snapshot.schedule.activeDays().toWorkingDaysMask()
-                    it.sourceUpdatedAt = updatedAt
-                    it.updatedAt = Clock.System.now()
-                    it.replaceSchedule(snapshot)
-                }
+        fun findByIdAndUpdate(snapshot: BusinessSnapshot, updatedAt: Instant) = findByIdAndUpdate(snapshot.id) {
+            val sourceUpdatedAt = it.sourceUpdatedAt
+            if (sourceUpdatedAt == null || sourceUpdatedAt < updatedAt) {
+                it.name = snapshot.name
+                it.address = snapshot.address
+                it.timezone = snapshot.timeZone.id
+                it.workingDays = snapshot.schedule.activeDays().toWorkingDaysMask()
+                it.sourceUpdatedAt = updatedAt
+                it.updatedAt = Clock.System.now()
+                it.replaceSchedule(snapshot)
             }
+        }
     }
 }

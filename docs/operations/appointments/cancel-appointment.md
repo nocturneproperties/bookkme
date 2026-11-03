@@ -28,10 +28,12 @@ flowchart TD
     Status -- COMPLETED --> R422a([422 ALREADY_COMPLETED 300006])
     Status -- CANCELLED --> R422b([422 ALREADY_CANCELLED 300005])
     Status -- NO_SHOW --> R422c([422 MARKED_NO_SHOW 300019])
-    Status -- SCHEDULED --> Cancel[AppointmentDataSource.cancel id reason]
+    Status -- SCHEDULED --> Window{appointment dateEnd + 7 days before now?}
+    Window -- Yes --> R422w([422 APPOINTMENT_EDIT_WINDOW_CLOSED 300026])
+    Window -- No --> Cancel[AppointmentDataSource.cancel id reason]
     Cancel --> Snapshot[AppointmentSubscriptionDataSource.getBusinessSnapshot businessId]
     Snapshot -- missing --> R404b([404 Error.NotFound - logged as data inconsistency])
-    Snapshot -- found --> Event[eventProducer.send AppointmentEvent.Cancelled]
+    Snapshot -- found --> Event["eventProducer.send AppointmentEvent.Cancelled - clientUserId = appointment.client.userId, empty for a client without an account"]
     Event --> R200([200 Cancelled Appointment])
 ```
 

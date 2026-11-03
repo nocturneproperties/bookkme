@@ -7,7 +7,7 @@ import kotlin.uuid.Uuid
 
 internal class SignOutImpl(
     private val deviceDataSource: DeviceDataSource,
-    private val transactionManager: TransactionManager
+    private val transactionManager: TransactionManager,
 ) : SignOut {
 
     override suspend fun invoke(deviceId: Uuid): Result<Unit> = transactionManager.transaction {

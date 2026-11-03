@@ -12,7 +12,7 @@ import kotlin.uuid.Uuid
 internal class GetPendingAppointmentRequestsImpl(
     private val requestsDataSource: AppointmentRequestDataSource,
     private val appointmentPermissionDataSource: AppointmentPermissionDataSource,
-    private val transactionManager: TransactionManager
+    private val transactionManager: TransactionManager,
 ) : GetPendingAppointmentRequests {
     override suspend fun invoke(userId: Uuid, businessId: Uuid): Result<List<AppointmentRequest>> = transactionManager.transaction {
         appointmentPermissionDataSource.getPermission(userId, businessId).assert(PermissionAction.VIEW)

@@ -24,7 +24,7 @@ internal class StartRegistrationImpl(
             .rethrowBusinessIf { it.statusCode != HttpStatusCode.NotFound.value }
         startPasskeyRegistration(
             userHandle = Uuid.random(),
-            passkeyDisplayName = "${request.firstName} ${request.lastName}"
+            passkeyDisplayName = "${request.firstName} ${request.lastName}",
         ).getOrThrow()
     }
 }

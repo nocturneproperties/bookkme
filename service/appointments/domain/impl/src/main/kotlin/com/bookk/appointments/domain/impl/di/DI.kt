@@ -5,7 +5,11 @@ import com.bookk.appointments.domain.api.operation.CancelAppointment
 import com.bookk.appointments.domain.api.operation.CompleteAppointment
 import com.bookk.appointments.domain.api.operation.CreateAppointment
 import com.bookk.appointments.domain.api.operation.CreateAppointmentRequest
+import com.bookk.appointments.domain.api.operation.CreateInstantAppointment
 import com.bookk.appointments.domain.api.operation.DeclineAppointmentRequest
+import com.bookk.appointments.domain.api.operation.DeleteClientAppointmentData
+import com.bookk.appointments.domain.api.operation.DeleteExpiredRequests
+import com.bookk.appointments.domain.api.operation.DeleteExpiredTombstones
 import com.bookk.appointments.domain.api.operation.DeleteModule
 import com.bookk.appointments.domain.api.operation.DeleteOutdatedRequests
 import com.bookk.appointments.domain.api.operation.DeleteUserAppointmentData
@@ -26,12 +30,18 @@ import com.bookk.appointments.domain.impl.operation.CancelAppointmentImpl
 import com.bookk.appointments.domain.impl.operation.CompleteAppointmentImpl
 import com.bookk.appointments.domain.impl.operation.CreateAppointmentImpl
 import com.bookk.appointments.domain.impl.operation.CreateAppointmentRequestImpl
+import com.bookk.appointments.domain.impl.operation.CreateInstantAppointmentImpl
 import com.bookk.appointments.domain.impl.operation.DeclineAppointmentRequestImpl
+import com.bookk.appointments.domain.impl.operation.DeleteClientAppointmentDataImpl
+import com.bookk.appointments.domain.impl.operation.DeleteExpiredRequestsImpl
+import com.bookk.appointments.domain.impl.operation.DeleteExpiredTombstonesImpl
 import com.bookk.appointments.domain.impl.operation.DeleteModuleImpl
 import com.bookk.appointments.domain.impl.operation.DeleteOutdatedRequestsImpl
 import com.bookk.appointments.domain.impl.operation.DeleteUserAppointmentDataImpl
 import com.bookk.appointments.domain.impl.operation.EditSettingsImpl
 import com.bookk.appointments.domain.impl.operation.EnableAppointmentsForBusinessImpl
+import com.bookk.appointments.domain.impl.operation.ExportBusinessAppointmentsImpl
+import com.bookk.appointments.domain.impl.operation.ExportUserAppointmentsImpl
 import com.bookk.appointments.domain.impl.operation.GetAppointmentHistoryImpl
 import com.bookk.appointments.domain.impl.operation.GetAppointmentRequestsImpl
 import com.bookk.appointments.domain.impl.operation.GetAppointmentsForDateImpl
@@ -39,13 +49,15 @@ import com.bookk.appointments.domain.impl.operation.GetClientBusinessesAppointme
 import com.bookk.appointments.domain.impl.operation.GetPendingAppointmentRequestsImpl
 import com.bookk.appointments.domain.impl.operation.GetSettingsImpl
 import com.bookk.appointments.domain.impl.operation.IsAppointmentsEnabledImpl
+import com.bookk.appointments.domain.impl.operation.LinkClientUser
 import com.bookk.appointments.domain.impl.operation.MarkAppointmentNoShowImpl
 import com.bookk.appointments.domain.impl.operation.MarkAppointmentsCompletedImpl
-import com.bookk.appointments.domain.impl.operation.MergeClient
 import com.bookk.appointments.domain.impl.operation.SyncEmployeePermission
 import com.bookk.appointments.domain.impl.operation.UpdateAppointmentImpl
 import com.bookk.appointments.domain.impl.operation.UpdateBusinessInformation
 import com.bookk.core.data.eventstreaming.EventHandler
+import com.bookk.server.appointments.client.api.export.ExportBusinessAppointments
+import com.bookk.server.appointments.client.api.export.ExportUserAppointments
 import org.koin.core.module.dsl.scopedOf
 import org.koin.core.qualifier.Qualifier
 import org.koin.core.qualifier.named
@@ -63,6 +75,7 @@ fun appointmentsDomainModule() = module {
         scopedOf(::EditSettingsImpl) bind EditSettings::class
         scopedOf(::GetSettingsImpl) bind GetSettings::class
         scopedOf(::CreateAppointmentRequestImpl) bind CreateAppointmentRequest::class
+        scopedOf(::CreateInstantAppointmentImpl) bind CreateInstantAppointment::class
         scopedOf(::GetAppointmentRequestsImpl) bind GetAppointmentRequests::class
         scopedOf(::GetPendingAppointmentRequestsImpl) bind GetPendingAppointmentRequests::class
         scopedOf(::GetAppointmentsForDateImpl) bind GetAppointmentsForDate::class
@@ -73,12 +86,17 @@ fun appointmentsDomainModule() = module {
         scopedOf(::CompleteAppointmentImpl) bind CompleteAppointment::class
         scopedOf(::UpdateBusinessInformation)
         scopedOf(::SyncEmployeePermission)
-        scopedOf(::MergeClient)
+        scopedOf(::LinkClientUser)
         scopedOf(::DeclineAppointmentRequestImpl) bind DeclineAppointmentRequest::class
         scopedOf(::IsAppointmentsEnabledImpl) bind IsAppointmentsEnabled::class
         scopedOf(::GetClientBusinessesAppointmentsStatusImpl) bind GetClientBusinessesAppointmentsStatus::class
         scopedOf(::MarkAppointmentsCompletedImpl) bind MarkAppointmentsCompleted::class
         scopedOf(::DeleteOutdatedRequestsImpl) bind DeleteOutdatedRequests::class
+        scopedOf(::DeleteExpiredRequestsImpl) bind DeleteExpiredRequests::class
+        scopedOf(::DeleteExpiredTombstonesImpl) bind DeleteExpiredTombstones::class
         scopedOf(::DeleteUserAppointmentDataImpl) bind DeleteUserAppointmentData::class
+        scopedOf(::ExportUserAppointmentsImpl) bind ExportUserAppointments::class
+        scopedOf(::ExportBusinessAppointmentsImpl) bind ExportBusinessAppointments::class
+        scopedOf(::DeleteClientAppointmentDataImpl) bind DeleteClientAppointmentData::class
     }
 }

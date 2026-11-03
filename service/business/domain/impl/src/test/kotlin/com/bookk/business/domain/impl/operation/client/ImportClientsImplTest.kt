@@ -48,7 +48,7 @@ internal class ImportClientsImplTest {
         val fixture = SutFixture()
         val clients = listOf(
             Client.Detached.stub(name = " Ann ", phone = "+1111", email = null),
-            Client.Detached.stub(name = "Ben", phone = null, email = "ben@client.com")
+            Client.Detached.stub(name = "Ben", phone = null, email = "ben@client.com"),
         )
 
         whenn()
@@ -68,7 +68,7 @@ internal class ImportClientsImplTest {
         val fixture = SutFixture()
         val clients = listOf(
             Client.Detached.stub(phone = "+1111 ", email = "a@client.com"),
-            Client.Detached.stub(phone = "+2222", email = null)
+            Client.Detached.stub(phone = "+2222", email = null),
         )
 
         whenn()
@@ -79,7 +79,7 @@ internal class ImportClientsImplTest {
             fixture.clientDataSource.getClientsByContacts(
                 businessId,
                 match { it.toSet() == setOf("+1111", "+2222") },
-                match { it.toSet() == setOf("a@client.com") }
+                match { it.toSet() == setOf("a@client.com") },
             )
         }
     }
@@ -93,7 +93,7 @@ internal class ImportClientsImplTest {
             Client.Detached.stub(name = "Valid", phone = "+1111", email = null),
             Client.Detached.stub(phone = null, email = null),
             Client.Detached.stub(phone = null, email = "broken"),
-            Client.Detached.stub(name = "A".repeat(MAX_CLIENT_NAME_LENGTH + 1), phone = "+2222", email = null)
+            Client.Detached.stub(name = "A".repeat(MAX_CLIENT_NAME_LENGTH + 1), phone = "+2222", email = null),
         )
 
         whenn()
@@ -106,9 +106,9 @@ internal class ImportClientsImplTest {
                 RejectedClient(0, BusinessErrorCodes.BUSINESS_CLIENT_NAME_VALIDATION_ERROR),
                 RejectedClient(2, BusinessErrorCodes.BUSINESS_CLIENT_MISSING_CONTACT_INFO),
                 RejectedClient(3, BusinessErrorCodes.BUSINESS_CLIENT_NAME_VALIDATION_ERROR),
-                RejectedClient(4, BusinessErrorCodes.BUSINESS_CLIENT_NAME_VALIDATION_ERROR)
+                RejectedClient(4, BusinessErrorCodes.BUSINESS_CLIENT_NAME_VALIDATION_ERROR),
             ),
-            result.rejected
+            result.rejected,
         )
     }
 
@@ -119,11 +119,11 @@ internal class ImportClientsImplTest {
         val clients = listOf(
             Client.Detached.stub(name = "SamePhone", phone = "+1111", email = null),
             Client.Detached.stub(name = "SameEmail", phone = null, email = "taken@client.com"),
-            Client.Detached.stub(name = "New", phone = "+3333", email = null)
+            Client.Detached.stub(name = "New", phone = "+3333", email = null),
         )
         coEvery { fixture.clientDataSource.getClientsByContacts(businessId, any(), any()) } returns listOf(
             Client.Detached.stub(phone = "+1111", email = null),
-            Client.Integrated.stub(phone = null, email = "TAKEN@client.com")
+            Client.Integrated.stub(phone = null, email = "TAKEN@client.com"),
         )
 
         whenn()
@@ -134,9 +134,9 @@ internal class ImportClientsImplTest {
         assertEquals(
             listOf(
                 RejectedClient(0, BusinessErrorCodes.BUSINESS_CLIENT_EXISTS),
-                RejectedClient(1, BusinessErrorCodes.BUSINESS_CLIENT_EXISTS)
+                RejectedClient(1, BusinessErrorCodes.BUSINESS_CLIENT_EXISTS),
             ),
-            result.rejected
+            result.rejected,
         )
     }
 
@@ -147,7 +147,7 @@ internal class ImportClientsImplTest {
         val clients = listOf(
             Client.Detached.stub(name = "First", phone = "+1111", email = "first@client.com"),
             Client.Detached.stub(name = "SamePhone", phone = "+1111", email = null),
-            Client.Detached.stub(name = "SameEmail", phone = null, email = "first@client.com")
+            Client.Detached.stub(name = "SameEmail", phone = null, email = "first@client.com"),
         )
 
         whenn()
@@ -158,9 +158,9 @@ internal class ImportClientsImplTest {
         assertEquals(
             listOf(
                 RejectedClient(1, BusinessErrorCodes.BUSINESS_CLIENT_EXISTS),
-                RejectedClient(2, BusinessErrorCodes.BUSINESS_CLIENT_EXISTS)
+                RejectedClient(2, BusinessErrorCodes.BUSINESS_CLIENT_EXISTS),
             ),
-            result.rejected
+            result.rejected,
         )
     }
 

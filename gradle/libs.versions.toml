@@ -1,5 +1,5 @@
 [versions]
-apache-common-pool = "2.4.3"
+apache-common-pool = "2.13.1"
 h2 = "2.3.232"
 testcontainers = "1.21.4"
 coroutines = "1.10.2"
@@ -9,10 +9,10 @@ kafka = "4.3.0"
 koin-bom = "4.1.0"
 kotlin = "2.3.21"
 kotlin-datetime = "0.7.1"
-ktor = "3.5.0"
+ktor = "3.6.1"
 logback = "1.5.13"
 mariadb-jdbc = "3.4.1"
-redis = "6.4.0.RELEASE"
+redis = "7.9.0.RELEASE"
 passkey = "2.7.0"
 exposed = "1.3.1"
 jwks-rsa = "0.22.1"
@@ -22,6 +22,9 @@ money = "2.0.2"
 firebase = "9.10.0"
 inmemcache = "3.2.4"
 icu4j = "78.3"
+micrometer = "1.17.1"
+ktlint = "1.8.0"
+spotless = "8.10.4"
 
 [libraries]
 flyway-core = { module = "org.flywaydb:flyway-core", version.ref = "flyway" }
@@ -47,9 +50,10 @@ ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
 ktor-client-cio = { module = "io.ktor:ktor-client-cio", version.ref = "ktor" }
 ktor-client-mock = { module = "io.ktor:ktor-client-mock", version.ref = "ktor" }
 ktor-swagger = { module = "io.ktor:ktor-server-swagger", version.ref = "ktor" }
-ktor-openapi = { module = "io.ktor:ktor-server-openapi", version.ref = "ktor" }
+ktor-routing-openapi = { module = "io.ktor:ktor-server-routing-openapi", version.ref = "ktor" }
 ktor-metrics = { module = "io.ktor:ktor-server-metrics-micrometer", version.ref = "ktor" }
-ktor-metrics-prometheus = { module = "io.micrometer:micrometer-registry-prometheus", version = "1.16.1" }
+ktor-metrics-prometheus = { module = "io.micrometer:micrometer-registry-prometheus", version.ref = "micrometer" }
+micrometer-core = { module = "io.micrometer:micrometer-core", version.ref = "micrometer" }
 ktor-json = { module = "io.ktor:ktor-serialization-kotlinx-json", version.ref = "ktor" }
 ktor-jwt = { module = "io.ktor:ktor-server-auth-jwt", version.ref = "ktor" }
 ktor-logging = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
@@ -95,3 +99,4 @@ kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 kotlin-fixtures = { id = "java-test-fixtures" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 ktor = { id = "io.ktor.plugin", version.ref = "ktor" }
+spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }

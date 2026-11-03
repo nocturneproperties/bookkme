@@ -5,7 +5,7 @@ import org.jetbrains.exposed.v1.core.dao.id.UuidTable
 import org.jetbrains.exposed.v1.datetime.timestamp
 import kotlin.time.Clock
 
-internal object PasskeyCredentialTable: UuidTable("passkey_credentials") {
+internal object PasskeyCredentialTable : UuidTable("passkey_credentials") {
     val authId = reference("auth_id", AuthenticationTable, onDelete = ReferenceOption.CASCADE)
     val name = varchar("name", 255)
     val credDescriptorId = binary("cred_descriptor_id", 24)

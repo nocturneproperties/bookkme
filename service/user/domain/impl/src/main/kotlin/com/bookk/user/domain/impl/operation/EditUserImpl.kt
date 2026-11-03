@@ -15,7 +15,7 @@ import kotlin.uuid.Uuid
 internal class EditUserImpl(
     private val userDataSource: UserDataSource,
     private val transactionManager: TransactionManager,
-    private val eventProducer: StandardEventProducer
+    private val eventProducer: StandardEventProducer,
 ) : EditUser {
     override suspend fun invoke(id: Uuid, user: UserEditModel): Result<Unit> = transactionManager.transaction {
         val updatedAt = Clock.System.now()
@@ -27,8 +27,8 @@ internal class EditUserImpl(
                 lastName = updated.lastName,
                 email = updated.email,
                 phone = updated.phone,
-                updatedAt = updatedAt
-            )
+                updatedAt = updatedAt,
+            ),
         )
     }.onConstraintFailure { throw Error.ContactTaken() }
 }

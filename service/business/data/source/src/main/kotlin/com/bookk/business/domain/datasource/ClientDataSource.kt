@@ -12,6 +12,7 @@ interface ClientDataSource {
     suspend fun getClients(businessId: Uuid): List<Client>
     suspend fun getClientsByContacts(businessId: Uuid, phones: Collection<String>, emails: Collection<String>): List<Client>
     suspend fun getClientById(businessId: Uuid, id: Uuid): Client?
+    suspend fun getClientForUpdate(businessId: Uuid, id: Uuid): Client?
     suspend fun getClientByUserId(businessId: Uuid, userId: Uuid): Client?
     suspend fun getOrCreateIntegratedClient(businessId: Uuid, client: Client.Integrated): Client
     suspend fun takeOverClient(businessId: Uuid, detachedClientId: Uuid, profile: Client.Integrated): Client?
@@ -24,8 +25,10 @@ interface ClientDataSource {
         lastName: String,
         email: String,
         phone: String?,
-        updatedAt: Instant
+        updatedAt: Instant,
     ): Int
-    suspend fun anonymizeClientsByUserId(userId: Uuid): Int
+    suspend fun deleteClientsByUserId(userId: Uuid)
     suspend fun getBusinessIdsByUserId(userId: Uuid): List<Uuid>
+    suspend fun recordVisit(businessId: Uuid, clientId: Uuid, visitEnd: Instant)
+    suspend fun deleteInactiveClients(businessId: Uuid, inactiveSince: Instant): List<Uuid>
 }

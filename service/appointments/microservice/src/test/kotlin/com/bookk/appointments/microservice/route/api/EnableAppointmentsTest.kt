@@ -57,7 +57,7 @@ internal class EnableAppointmentsTest {
             },
             routeUnderTest = {
                 appointmentInit()
-            }
+            },
         )
 
         whenn()
@@ -91,7 +91,7 @@ internal class EnableAppointmentsTest {
             },
             routeUnderTest = {
                 appointmentInit()
-            }
+            },
         )
 
         whenn()
@@ -110,7 +110,7 @@ internal class EnableAppointmentsTest {
         val userId = Uuid.random()
         val statuses = listOf(
             BusinessAppointmentsEnabled.stub(enabled = true),
-            BusinessAppointmentsEnabled.stub(enabled = false)
+            BusinessAppointmentsEnabled.stub(enabled = false),
         )
         coEvery { useCase.invoke(userId) } returns Result.success(statuses)
 
@@ -129,7 +129,7 @@ internal class EnableAppointmentsTest {
             },
             routeUnderTest = {
                 appointmentInit()
-            }
+            },
         )
 
         whenn()
@@ -159,7 +159,7 @@ internal class EnableAppointmentsTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { appointmentInit() }
+            routeUnderTest = { appointmentInit() },
         )
 
         whenn()
@@ -189,7 +189,7 @@ internal class EnableAppointmentsTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { appointmentInit() }
+            routeUnderTest = { appointmentInit() },
         )
 
         whenn()
@@ -218,7 +218,7 @@ internal class EnableAppointmentsTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { appointmentInit() }
+            routeUnderTest = { appointmentInit() },
         )
 
         whenn()
@@ -247,7 +247,7 @@ internal class EnableAppointmentsTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { appointmentInit() }
+            routeUnderTest = { appointmentInit() },
         )
 
         whenn()
@@ -267,7 +267,7 @@ internal class EnableAppointmentsTest {
         setupApplication(
             extension = { install(Authentication) { bearer { authenticate { null } } } },
             diModule = module { single { useCase } },
-            routeUnderTest = { appointmentInit() }
+            routeUnderTest = { appointmentInit() },
         )
 
         whenn()
@@ -286,7 +286,7 @@ internal class EnableAppointmentsTest {
         setupApplication(
             extension = { install(Authentication) { bearer { authenticate { null } } } },
             diModule = module { single { useCase } },
-            routeUnderTest = { appointmentInit() }
+            routeUnderTest = { appointmentInit() },
         )
 
         whenn()
@@ -305,7 +305,7 @@ internal class EnableAppointmentsTest {
         setupApplication(
             extension = { install(Authentication) { bearer { authenticate { null } } } },
             diModule = module { single { useCase } },
-            routeUnderTest = { appointmentInit() }
+            routeUnderTest = { appointmentInit() },
         )
 
         whenn()

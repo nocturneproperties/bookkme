@@ -15,5 +15,5 @@ data class EmployeeUpdateModel(
     @ProtoNumber(5) val phone: String?,
     @ProtoNumber(6) val email: String?,
     @ProtoNumber(8) val services: List<Service>,
-    @ProtoNumber(9) val schedule: Schedule
+    @ProtoNumber(9) val schedule: Schedule,
 )

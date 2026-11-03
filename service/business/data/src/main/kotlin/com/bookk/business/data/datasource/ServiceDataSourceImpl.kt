@@ -36,7 +36,7 @@ internal class ServiceDataSourceImpl : DataSource(), ServiceDataSource {
 
     override suspend fun editService(service: Service): Service = dbQuery {
         val updatedRows = ServiceTable.update(
-            where = { (ServiceTable.id eq service.id) and (ServiceTable.businessId eq service.businessId) }
+            where = { (ServiceTable.id eq service.id) and (ServiceTable.businessId eq service.businessId) },
         ) {
             it[groupId] = service.group.id
             it[name] = service.name

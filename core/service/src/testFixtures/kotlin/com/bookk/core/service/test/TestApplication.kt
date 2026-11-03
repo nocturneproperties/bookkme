@@ -20,7 +20,7 @@ fun Application.installTestPlugins() {
 fun ApplicationTestBuilder.setupApplication(
     extension: (Application.() -> Unit)? = null,
     diModule: Module,
-    routeUnderTest: Routing.() -> Unit
+    routeUnderTest: Routing.() -> Unit,
 ) {
     application {
         installTestPlugins()
