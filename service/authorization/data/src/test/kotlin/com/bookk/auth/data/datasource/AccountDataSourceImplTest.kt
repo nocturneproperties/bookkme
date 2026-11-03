@@ -1,6 +1,7 @@
 package com.bookk.auth.data.datasource
 
 import com.bookk.auth.data.orm.table.AuthenticationTable
+import com.bookk.auth.domain.api.authentication.entity.AccountActivity
 import com.bookk.auth.domain.api.authentication.entity.Authentication
 import com.bookk.auth.domain.api.authentication.entity.DormancyStage
 import com.bookk.auth.domain.api.authentication.entity.DormantAccount
@@ -236,5 +237,38 @@ internal class AccountDataSourceImplTest {
         then()
         assertEquals(setOf(first.userId), activity.keys)
         assertTrue(other.userId !in activity)
+    }
+
+    @Test
+    fun `should return an account's id, creation and last activity time by user id`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val created = suspendTransaction { fixture.sut.createAuthorization(Authentication.stub()) }
+        val createdAt = Instant.fromEpochMilliseconds(1_700_000_000_000)
+        val lastActiveAt = Instant.fromEpochMilliseconds(1_800_000_000_000)
+        suspendTransaction {
+            AuthenticationTable.update(where = { AuthenticationTable.id eq created.id }) {
+                it[AuthenticationTable.createdAt] = createdAt
+                it[AuthenticationTable.lastActiveAt] = lastActiveAt
+            }
+        }
+
+        whenn()
+        val found = suspendTransaction { fixture.sut.getAccountActivity(created.userId) }
+
+        then()
+        assertEquals(AccountActivity(created.id, createdAt, lastActiveAt), found)
+    }
+
+    @Test
+    fun `should return no activity for a user without an account`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+
+        whenn()
+        val found = suspendTransaction { fixture.sut.getAccountActivity(Uuid.random()) }
+
+        then()
+        assertNull(found)
     }
 }

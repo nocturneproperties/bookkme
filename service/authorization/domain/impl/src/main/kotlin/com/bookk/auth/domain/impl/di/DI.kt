@@ -32,6 +32,7 @@ import com.bookk.auth.domain.impl.operation.authentication.StartAssertionImpl
 import com.bookk.auth.domain.impl.operation.device.DeleteInactiveDevicesImpl
 import com.bookk.auth.domain.impl.operation.erasure.DeleteExpiredErasureRecordsImpl
 import com.bookk.auth.domain.impl.operation.erasure.ReapplyAccountErasuresImpl
+import com.bookk.auth.domain.impl.operation.export.ExportAccountDataImpl
 import com.bookk.auth.domain.impl.operation.identification.DeletePasskeyImpl
 import com.bookk.auth.domain.impl.operation.identification.GetAttachPasskeyToAccountChallengeImpl
 import com.bookk.auth.domain.impl.operation.identification.GetAvailablePasskeysImpl
@@ -43,6 +44,7 @@ import com.bookk.auth.domain.impl.operation.registration.StartRegistrationImpl
 import com.bookk.auth.domain.impl.operation.stepup.IssueStepUpTokenImpl
 import com.bookk.auth.domain.impl.operation.token.GenerateAuthTokenImpl
 import com.bookk.auth.domain.impl.operation.token.RefreshTokenImpl
+import com.bookk.server.auth.client.export.ExportAccountData
 import com.bookk.server.user.client.di.userClientModule
 import library.signing.impl.di.signingModule
 import org.koin.core.module.dsl.scopedOf
@@ -66,6 +68,7 @@ fun authDomainModule() = module {
         scopedOf(::ReapplyAccountErasuresImpl) bind ReapplyAccountErasures::class
         scopedOf(::DeleteExpiredErasureRecordsImpl) bind DeleteExpiredErasureRecords::class
         scopedOf(::IssueStepUpTokenImpl) bind IssueStepUpToken::class
+        scopedOf(::ExportAccountDataImpl) bind ExportAccountData::class
         scopedOf(::StartRegistrationImpl) bind StartRegistration::class
         scopedOf(::FinishRegistrationImpl) bind FinishRegistration::class
         scopedOf(::StartAssertionImpl) bind StartAssertion::class

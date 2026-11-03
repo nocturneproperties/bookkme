@@ -17,6 +17,7 @@ ktor {
 }
 
 dependencies {
+    implementation(libs.ktor.routing.openapi)
     implementation(projects.core)
     implementation(projects.core.service)
     implementation(projects.core.domain)

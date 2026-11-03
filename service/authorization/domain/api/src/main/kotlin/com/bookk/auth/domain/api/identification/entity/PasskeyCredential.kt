@@ -53,6 +53,8 @@ data class PasskeyCredential(
             isBackedUp: Boolean = false,
             attestationObject: ByteArray = ByteArray(32) { 0 },
             clientData: String = "{}",
+            createdAt: Instant = Instant.fromEpochMilliseconds(0),
+            lastUsedAt: Instant = Instant.fromEpochMilliseconds(0),
         ) = PasskeyCredential(
             id = id,
             authId = authInfo.id,
@@ -67,8 +69,8 @@ data class PasskeyCredential(
             isBackedUp = isBackedUp,
             attestationObject = attestationObject,
             clientData = clientData,
-            createdAt = Instant.fromEpochMilliseconds(0),
-            lastUsedAt = Instant.fromEpochMilliseconds(0),
+            createdAt = createdAt,
+            lastUsedAt = lastUsedAt,
         )
     }
 }

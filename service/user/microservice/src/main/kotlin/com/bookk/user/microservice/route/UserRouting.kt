@@ -41,6 +41,12 @@ object UserRouting {
 
             @Resource("/contactus")
             class ContactUs(val parent: User = User())
+
+            @Resource("/export")
+            class Export(val parent: User = User()) {
+                @Resource("/download")
+                class Download(val parent: Export = Export())
+            }
         }
     }
 }

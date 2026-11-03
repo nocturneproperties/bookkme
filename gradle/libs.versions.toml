@@ -9,7 +9,7 @@ kafka = "4.3.0"
 koin-bom = "4.1.0"
 kotlin = "2.3.21"
 kotlin-datetime = "0.7.1"
-ktor = "3.5.0"
+ktor = "3.6.1"
 logback = "1.5.13"
 mariadb-jdbc = "3.4.1"
 redis = "7.9.0.RELEASE"
@@ -51,6 +51,7 @@ ktor-client-cio = { module = "io.ktor:ktor-client-cio", version.ref = "ktor" }
 ktor-client-mock = { module = "io.ktor:ktor-client-mock", version.ref = "ktor" }
 ktor-swagger = { module = "io.ktor:ktor-server-swagger", version.ref = "ktor" }
 ktor-openapi = { module = "io.ktor:ktor-server-openapi", version.ref = "ktor" }
+ktor-routing-openapi = { module = "io.ktor:ktor-server-routing-openapi", version.ref = "ktor" }
 ktor-metrics = { module = "io.ktor:ktor-server-metrics-micrometer", version.ref = "ktor" }
 ktor-metrics-prometheus = { module = "io.micrometer:micrometer-registry-prometheus", version.ref = "micrometer" }
 micrometer-core = { module = "io.micrometer:micrometer-core", version.ref = "micrometer" }

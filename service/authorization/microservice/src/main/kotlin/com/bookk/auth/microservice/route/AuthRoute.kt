@@ -3,6 +3,7 @@ package com.bookk.auth.microservice.route
 import com.bookk.auth.domain.impl.di.AuthScope
 import com.bookk.auth.microservice.route.api.deleteAccount
 import com.bookk.auth.microservice.route.api.healthCheck
+import com.bookk.auth.microservice.route.api.internal.exportAccountData
 import com.bookk.auth.microservice.route.api.logOut
 import com.bookk.auth.microservice.route.api.passkeyOperations
 import com.bookk.auth.microservice.route.api.postRefreshToken
@@ -22,4 +23,5 @@ fun Routing.authRoute() {
     logOut()
     deleteAccount()
     stepUp()
+    exportAccountData()
 }

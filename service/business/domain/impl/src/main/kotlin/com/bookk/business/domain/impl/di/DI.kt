@@ -36,6 +36,7 @@ import com.bookk.business.domain.api.employee.operation.SetEmployeeSuspension
 import com.bookk.business.domain.api.employee.operation.UpdateEmployee
 import com.bookk.business.domain.api.erasure.operation.DeleteExpiredErasureRecords
 import com.bookk.business.domain.api.erasure.operation.ReapplyClientErasures
+import com.bookk.business.domain.api.export.ExportUserBusinessData
 import com.bookk.business.domain.api.service.operation.CreateService
 import com.bookk.business.domain.api.service.operation.CreateServiceGroup
 import com.bookk.business.domain.api.service.operation.DeleteService
@@ -82,6 +83,7 @@ import com.bookk.business.domain.impl.operation.employee.SetEmployeeSuspensionIm
 import com.bookk.business.domain.impl.operation.employee.UpdateEmployeeImpl
 import com.bookk.business.domain.impl.operation.erasure.DeleteExpiredErasureRecordsImpl
 import com.bookk.business.domain.impl.operation.erasure.ReapplyClientErasuresImpl
+import com.bookk.business.domain.impl.operation.export.ExportUserBusinessDataImpl
 import com.bookk.business.domain.impl.operation.service.CreateServiceGroupImpl
 import com.bookk.business.domain.impl.operation.service.CreateServiceImpl
 import com.bookk.business.domain.impl.operation.service.DeleteServiceGroupImpl
@@ -95,6 +97,7 @@ import com.bookk.business.domain.impl.operation.user.DeleteUserBusinessDataImpl
 import com.bookk.business.domain.impl.operation.user.SyncUserProfileImpl
 import com.bookk.core.data.eventstreaming.EventHandler
 import com.bookk.server.user.client.di.userClientModule
+import library.stepup.impl.di.stepUpModule
 import org.koin.core.module.dsl.scopedOf
 import org.koin.core.qualifier.Qualifier
 import org.koin.core.qualifier.named
@@ -104,7 +107,7 @@ import org.koin.dsl.module
 val BusinessScope: Qualifier = named(BUSINESS_SCHEMA)
 
 fun businessDomainModule() = module {
-    includes(userClientModule(BusinessScope, BUSINESS_SERVICE_NAME))
+    includes(userClientModule(BusinessScope, BUSINESS_SERVICE_NAME), stepUpModule(BusinessScope))
     scope(BusinessScope) {
         scopedOf(::GetBusinessByIdImpl) bind GetBusinessById::class
         scopedOf(::GetBusinessDetailsImpl) bind GetBusinessDetails::class
@@ -123,6 +126,7 @@ fun businessDomainModule() = module {
         scopedOf(::GetClientBusinessIdsImpl) bind GetClientBusinessIds::class
         scopedOf(::GetOwnedBusinessMemberIdsImpl) bind GetOwnedBusinessMemberIds::class
         scopedOf(::DeleteClientImpl) bind DeleteClient::class
+        scopedOf(::ExportUserBusinessDataImpl) bind ExportUserBusinessData::class
         scopedOf(::DeleteInactiveClientsImpl) bind DeleteInactiveClients::class
         scopedOf(::ReapplyClientErasuresImpl) bind ReapplyClientErasures::class
         scopedOf(::DeleteExpiredErasureRecordsImpl) bind DeleteExpiredErasureRecords::class

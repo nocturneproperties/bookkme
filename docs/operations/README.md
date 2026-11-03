@@ -130,6 +130,7 @@ Reactions to cross-service events (all handled by the same
 | `PATCH /api/user/me` | [Update user](user/update-user.md) |
 | `POST /api/user/contact_us` | [Send contact form](user/create-contact-form.md) |
 | `POST /api/user/me/legal` | [Accept legal documents](user/accept-legal-documents.md) |
+| `POST /api/user/export` | [Start personal data export](user/start-personal-data-export.md) |
 | `POST /api/internal/user` | [Create user (internal)](user/create-user-internal.md) |
 
 Reactions to cross-service events:
@@ -167,6 +168,7 @@ the operation committed, and reaches its consumers at least once. See
 | `BusinessEvent.ClientDeleted` | [Delete client](business/delete-client.md), [`business-deleteInactiveClients` job](scheduled-jobs.md), [`business-reapplyErasures` job](scheduled-jobs.md) | [appointments](appointments/on-client-deleted.md) |
 | `AppointmentEvent.ClientVisitBooked` | [Create appointment request](appointments/create-appointment-request.md), [Create appointment from a pending request](appointments/create-appointment-from-request.md), [Create instant appointment](appointments/create-appointment-instant.md), [Update appointment (reschedule)](appointments/update-appointment.md) | [business](business/on-client-visit-booked.md) |
 | `UserEvent.Updated` | [Update user](user/update-user.md) | [business](business/on-user-updated.md), [notifications](notifications/on-user-updated.md) |
+| `UserEvent.DataExportReady` | [Start personal data export](user/start-personal-data-export.md) (`user-buildDataExports` job) | none yet (push notification follows in #139) |
 | `AppointmentEvent.RequestCreated` | [Create appointment request](appointments/create-appointment-request.md) | [notifications](notifications/on-appointment-request-created.md) |
 | `AppointmentEvent.RequestApproved` | [Create appointment from a pending request](appointments/create-appointment-from-request.md), [Create appointment request](appointments/create-appointment-request.md) (auto-approval) | [notifications](notifications/on-appointment-request-approved.md) |
 | `AppointmentEvent.RequestRejected` | [Decline appointment request](appointments/decline-appointment-request.md) | [notifications](notifications/on-appointment-request-rejected.md) |

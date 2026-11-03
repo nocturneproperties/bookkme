@@ -7,6 +7,7 @@ import com.bookk.user.microservice.route.api.internal.getUserById
 import com.bookk.user.microservice.route.api.internal.postCreateUser
 import com.bookk.user.microservice.route.api.legalDocuments
 import com.bookk.user.microservice.route.api.patchUser
+import com.bookk.user.microservice.route.api.personalDataExport
 import com.bookk.user.microservice.route.api.postContactForm
 import io.ktor.server.routing.Routing
 
@@ -19,4 +20,5 @@ fun Routing.userRoute() {
     patchUser()
     postContactForm()
     legalDocuments()
+    personalDataExport()
 }

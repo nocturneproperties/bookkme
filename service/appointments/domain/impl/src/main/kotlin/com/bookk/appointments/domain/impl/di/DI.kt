@@ -40,6 +40,7 @@ import com.bookk.appointments.domain.impl.operation.DeleteOutdatedRequestsImpl
 import com.bookk.appointments.domain.impl.operation.DeleteUserAppointmentDataImpl
 import com.bookk.appointments.domain.impl.operation.EditSettingsImpl
 import com.bookk.appointments.domain.impl.operation.EnableAppointmentsForBusinessImpl
+import com.bookk.appointments.domain.impl.operation.ExportUserAppointmentsImpl
 import com.bookk.appointments.domain.impl.operation.GetAppointmentHistoryImpl
 import com.bookk.appointments.domain.impl.operation.GetAppointmentRequestsImpl
 import com.bookk.appointments.domain.impl.operation.GetAppointmentsForDateImpl
@@ -54,6 +55,7 @@ import com.bookk.appointments.domain.impl.operation.SyncEmployeePermission
 import com.bookk.appointments.domain.impl.operation.UpdateAppointmentImpl
 import com.bookk.appointments.domain.impl.operation.UpdateBusinessInformation
 import com.bookk.core.data.eventstreaming.EventHandler
+import com.bookk.server.appointments.client.api.export.ExportUserAppointments
 import org.koin.core.module.dsl.scopedOf
 import org.koin.core.qualifier.Qualifier
 import org.koin.core.qualifier.named
@@ -91,6 +93,7 @@ fun appointmentsDomainModule() = module {
         scopedOf(::DeleteExpiredRequestsImpl) bind DeleteExpiredRequests::class
         scopedOf(::DeleteExpiredTombstonesImpl) bind DeleteExpiredTombstones::class
         scopedOf(::DeleteUserAppointmentDataImpl) bind DeleteUserAppointmentData::class
+        scopedOf(::ExportUserAppointmentsImpl) bind ExportUserAppointments::class
         scopedOf(::DeleteClientAppointmentDataImpl) bind DeleteClientAppointmentData::class
     }
 }

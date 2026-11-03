@@ -11,4 +11,5 @@ dependencies {
     api(projects.library.schedule)
 
     testImplementation(testFixtures(projects.core))
+    testImplementation(libs.ktor.client.mock)
 }

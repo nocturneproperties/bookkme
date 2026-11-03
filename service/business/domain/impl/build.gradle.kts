@@ -17,6 +17,7 @@ dependencies {
     implementation(projects.library.permissions)
     implementation(projects.library.signing.api)
     implementation(projects.library.stepup.api)
+    implementation(projects.library.stepup.impl)
     implementation(projects.library.validation)
     testImplementation(testFixtures(projects.core))
     testImplementation(projects.core.data.eventstreaming.impl)

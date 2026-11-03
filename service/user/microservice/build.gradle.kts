@@ -9,6 +9,7 @@ application {
 }
 
 dependencies {
+    implementation(libs.ktor.routing.openapi)
     implementation(projects.core)
     implementation(projects.core.service)
     implementation(projects.core.domain)
@@ -20,7 +21,12 @@ dependencies {
     implementation(projects.service.user.data)
     implementation(projects.service.user.domain.api)
     implementation(projects.service.user.domain.impl)
+    implementation(projects.library.export.api)
+    implementation(projects.library.export.route)
+    implementation(projects.library.scheduler)
     testImplementation(testFixtures(projects.core))
     testImplementation(testFixtures(projects.core.data.eventstreaming.data))
     testImplementation(testFixtures(projects.core.service))
+    testImplementation(testFixtures(projects.library.scheduler))
+    testImplementation(projects.library.signing.api)
 }

@@ -3,6 +3,7 @@ package com.bookk.auth.data.datasource
 import com.bookk.auth.data.map.toDomain
 import com.bookk.auth.data.orm.entity.AuthenticationEntity
 import com.bookk.auth.data.orm.table.AuthenticationTable
+import com.bookk.auth.domain.api.authentication.entity.AccountActivity
 import com.bookk.auth.domain.api.authentication.entity.Authentication
 import com.bookk.auth.domain.api.authentication.entity.DormancyStage
 import com.bookk.auth.domain.api.authentication.entity.DormantAccount
@@ -55,6 +56,13 @@ internal class AccountDataSourceImpl : DataSource(), AccountDataSource {
             .where { AuthenticationTable.userId eq userId }
             .map { AuthenticationEntity.wrapRow(it).toDomain() }
             .singleOrNull()
+    }
+
+    override suspend fun getAccountActivity(userId: Uuid): AccountActivity? = dbQuery {
+        AuthenticationTable.select(AuthenticationTable.id, AuthenticationTable.createdAt, AuthenticationTable.lastActiveAt)
+            .where { AuthenticationTable.userId eq userId }
+            .singleOrNull()
+            ?.let { AccountActivity(it[AuthenticationTable.id].value, it[AuthenticationTable.createdAt], it[AuthenticationTable.lastActiveAt]) }
     }
 
     override suspend fun deleteAuthorization(authId: Uuid) = dbQuery<Unit> {

@@ -70,6 +70,15 @@ Registered in `registerBusinessJobs` (`BusinessMicroservice.kt`).
 | `business-reapplyErasures` | 1 minute, and at every start | `ReapplyClientErasures` | Deletes again the clients a backup restore brought back: per `business.erased_client` row with `reapply_requested`, in its own transaction, claims it first (`claimReapply`), deletes the client row if it exists (`ClientDataSource.deleteClient`) and sends `BusinessEvent.ClientDeleted` either way, which appointments erases like any client deletion ([React to client deletion](appointments/on-client-deleted.md)). One failing client doesn't stop the others. |
 | `business-deleteExpiredErasureRecords` | 1 day | `DeleteExpiredErasureRecords` | Deletes `business.erased_client` rows older than 60 days. |
 
+## User service
+
+`Application.registerUserJobs` in `service/user/microservice/src/main/kotlin/com/bookk/user/microservice/UserMicroservice.kt`.
+
+| Job | Interval | Operation | What it does |
+|---|---|---|---|
+| `user-buildDataExports` | 10 seconds | `BuildDataExports` (`library/export`, with `PersonalDataExportAssembler`) | Builds the queued personal data exports: fails abandoned builds that used up their 3 attempts, claims each queued row with a conditional `UPDATE` and a 10-minute lease (one instance per row), gathers the user's data from every service outside a transaction, then stores the gzipped document under the claim and sends `UserEvent.DataExportReady` in the same transaction. A failed build goes back to the queue, and is `FAILED` after the third attempt. See [Start personal data export](user/start-personal-data-export.md) and [Data export](../data-export.md). |
+| `user-deleteExpiredDataExports` | 1 hour | `DeleteExpiredDataExports` (`library/export`) | Deletes `user.data_export` rows whose `expires_at` passed (72 hours after the document was built or the export failed). |
+
 ## Adding a new job
 
 1. Write the operation like any other (`domain/api` interface + `domain/impl` impl +
