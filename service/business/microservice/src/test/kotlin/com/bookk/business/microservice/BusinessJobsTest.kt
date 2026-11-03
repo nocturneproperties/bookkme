@@ -28,7 +28,6 @@ import org.junit.jupiter.api.Test
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
-import kotlin.time.Duration.Companion.seconds
 
 internal class BusinessJobsTest {
 
@@ -78,7 +77,7 @@ internal class BusinessJobsTest {
                 "business-deleteInactiveClients" to 1.days,
                 "business-reapplyErasures" to 1.minutes,
                 "business-deleteExpiredErasureRecords" to 1.days,
-                "business-buildDataExports" to 10.seconds,
+                "business-buildDataExports" to 1.minutes,
                 "business-deleteExpiredDataExports" to 1.hours,
             ),
             fixture.scheduler.registeredJobs(),

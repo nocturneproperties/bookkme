@@ -19,7 +19,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
 import kotlin.time.Duration.Companion.hours
-import kotlin.time.Duration.Companion.seconds
+import kotlin.time.Duration.Companion.minutes
 
 internal class UserJobsTest {
 
@@ -48,7 +48,7 @@ internal class UserJobsTest {
         then()
         assertEquals(
             mapOf(
-                "user-buildDataExports" to 10.seconds,
+                "user-buildDataExports" to 1.minutes,
                 "user-deleteExpiredDataExports" to 1.hours,
             ),
             fixture.scheduler.registeredJobs(),
