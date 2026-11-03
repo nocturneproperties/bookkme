@@ -28,9 +28,7 @@
     <logger name="io.netty" level="info"/>
     <logger name="com.wolt" level="warn"/>
     <logger name="Exposed" level="warn"/>
-    <logger name="com.github.jknack.handlebars.internal" level="info"/>
     <logger name="reactor.util" level="warn"/>
-    <logger name="io.swagger.codegen" level="error"/>
     <logger name="ch.qos.logback.core" level="warn"/>
     <logger name="io.micrometer" level="warn"/>
     <logger name="io.ktor.auth.jwt" level="warn"/>

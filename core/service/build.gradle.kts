@@ -17,7 +17,6 @@ dependencies {
     implementation(libs.ktor.logging.call)
     implementation(libs.ktor.metrics)
     implementation(libs.ktor.swagger)
-    implementation(libs.ktor.openapi)
     implementation(libs.ktor.metrics.prometheus)
     implementation(projects.core)
     implementation(projects.core.data)

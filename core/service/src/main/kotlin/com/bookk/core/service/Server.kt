@@ -18,7 +18,6 @@ import io.ktor.server.engine.embeddedServer
 import io.ktor.server.metrics.micrometer.MicrometerMetrics
 import io.ktor.server.plugins.calllogging.CallLogging
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
-import io.ktor.server.plugins.openapi.openAPI
 import io.ktor.server.plugins.swagger.swaggerUI
 import io.ktor.server.request.httpMethod
 import io.ktor.server.request.path
@@ -90,12 +89,6 @@ fun startServer(
                     contact = contact,
                 )
                 swaggerUI("/${config.root}/internal/swagger") {
-                    info = apiInfo
-                    source = OpenApiDocSource.Routing {
-                        routingRoot.descendants()
-                    }
-                }
-                openAPI(path = "/${config.root}/internal/openapi") {
                     info = apiInfo
                     source = OpenApiDocSource.Routing {
                         routingRoot.descendants()

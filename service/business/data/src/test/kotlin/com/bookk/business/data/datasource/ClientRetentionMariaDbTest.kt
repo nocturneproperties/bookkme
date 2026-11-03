@@ -42,6 +42,7 @@ internal class ClientRetentionMariaDbTest {
         private const val PASSWORD = "test-password"
         private const val PORT = 3306
         private const val LOCK_WAIT_TIMEOUT = 1205
+        private val LONG_AGO = Instant.parse("2000-01-01T00:00:00Z")
 
         private val container = GenericContainer(DockerImageName.parse("mariadb:11.8.3-ubi9"))
             .withEnv("MARIADB_ROOT_PASSWORD", PASSWORD)
@@ -148,8 +149,8 @@ internal class ClientRetentionMariaDbTest {
         val inactive = fixture.createClient(businessId)
         val active = fixture.createClient(businessId)
         val inactiveElsewhere = fixture.createClient(otherBusinessId)
-        fixture.backdate(inactive, Instant.fromEpochMilliseconds(0))
-        fixture.backdate(inactiveElsewhere, Instant.fromEpochMilliseconds(0))
+        fixture.backdate(inactive, LONG_AGO)
+        fixture.backdate(inactiveElsewhere, LONG_AGO)
 
         whenn()
         val deleted = suspendTransaction(db = database) { fixture.clients.deleteInactiveClients(businessId, Clock.System.now() - 1.days) }
@@ -166,7 +167,7 @@ internal class ClientRetentionMariaDbTest {
         given()
         val fixture = SutFixture()
         val businessId = fixture.createBusiness()
-        fixture.backdate(fixture.createClient(businessId), Instant.fromEpochMilliseconds(0))
+        fixture.backdate(fixture.createClient(businessId), LONG_AGO)
 
         whenn()
         val creation = fixture.secondWhileFirstHolds(
@@ -184,7 +185,7 @@ internal class ClientRetentionMariaDbTest {
         given()
         val fixture = SutFixture()
         val businessId = fixture.createBusiness()
-        fixture.backdate(fixture.createClient(businessId), Instant.fromEpochMilliseconds(0))
+        fixture.backdate(fixture.createClient(businessId), LONG_AGO)
 
         whenn()
         val creation = fixture.secondWhileFirstHolds(
