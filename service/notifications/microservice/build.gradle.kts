@@ -17,6 +17,7 @@ ktor {
 }
 
 dependencies {
+    implementation(libs.ktor.routing.openapi)
     implementation(libs.firebase.admin)
 
     implementation(projects.core)

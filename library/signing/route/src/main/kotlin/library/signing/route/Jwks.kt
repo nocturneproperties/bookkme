@@ -19,6 +19,8 @@ import kotlin.uuid.Uuid
 
 fun Route.jwks(qualifier: Qualifier) {
     /**
+     * JSON Web Key Set
+     *
      * Summary: JSON Web Key Set
      * Description: Publishes the public keys used to verify tokens issued by this service.
      */

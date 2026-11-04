@@ -33,6 +33,8 @@ internal class ContactFormBody(
 internal fun Route.postContactForm() {
     authenticate {
         /**
+         * Send contact form
+         *
          * Summary: Send contact form
          * Description: Create contact/support form
          * Tag: user

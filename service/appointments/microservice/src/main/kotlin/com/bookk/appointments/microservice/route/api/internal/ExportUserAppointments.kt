@@ -11,6 +11,8 @@ import io.ktor.server.routing.application
 
 fun Routing.exportUserAppointments() {
     /**
+     * Export a user's appointments
+     *
      * Summary: Export a user's appointments
      * Description: Every appointment and request where the user is the client, the employee or the one who booked, with the user's roles in each. Client details, notes and reasons appear only where the user is the client. Used by the user service to build the user's personal data export
      * Tag: internal

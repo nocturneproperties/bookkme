@@ -9,9 +9,7 @@ import com.bookk.business.microservice.route.BusinessRouting.Api
 import com.bookk.core.service.di.injectScoped
 import com.bookk.core.service.enity.respondWith
 import com.bookk.server.auth.client.AppPrincipal
-import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
-import io.ktor.openapi.jsonSchema
 import io.ktor.server.auth.authenticate
 import io.ktor.server.auth.principal
 import io.ktor.server.request.receive
@@ -21,11 +19,12 @@ import io.ktor.server.resources.post
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.application
-import io.ktor.server.routing.openapi.describe
 
 fun Route.serviceGroupCrud() {
     authenticate {
         /**
+         * Create a new service group
+         *
          * Summary: Create a new service group
          * Description: Creates a new service group that can be presented to the clients
          * Tag: service_group
@@ -54,26 +53,23 @@ fun Route.serviceGroupCrud() {
         }
 
         /**
+         * Get all service groups
+         *
          * Summary: Get all service groups
          * Description: Get all service groups of a business with specific id
          * Tag: service_group
          * Security: jwt
+         * Response: 200 application/protobuf [com.bookk.business.domain.api.service.entity.ServiceGroup]+ List of service groups
          */
         get<Api.ServiceGroup> {
             val getGroups by application.injectScoped<GetServiceGroups>(BusinessScope)
 
             call.respondWith(getGroups(it.businessId))
-        }.describe {
-            responses {
-                response(HttpStatusCode.OK.value) {
-                    schema = jsonSchema<List<ServiceGroup>>()
-                    description = "List of service groups"
-                    ContentType.Application.ProtoBuf()
-                }
-            }
         }
 
         /**
+         * Delete service group
+         *
          * Summary: Delete service group
          * Description: Delete service group with all services that belongs to it. A group id of another business is left untouched
          * Tag: service_group

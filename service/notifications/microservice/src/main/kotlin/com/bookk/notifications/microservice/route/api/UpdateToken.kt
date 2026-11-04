@@ -19,6 +19,8 @@ internal class UpdateTokenRequest(@ProtoNumber(1) val token: String)
 internal fun Route.notificationToken() {
     authenticate {
         /**
+         * Update push notification token
+         *
          * Summary: Update push notification token
          * Description: Update the push notification token for a device
          * Tag: notification

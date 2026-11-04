@@ -18,6 +18,8 @@ import io.ktor.server.routing.application
 
 internal fun Route.signIn() {
     /**
+     * Get sign in challenge
+     *
      * Summary: Get sign in challenge
      * Description: Get sign in passkey challenge.
      * Tag: auth
@@ -28,6 +30,8 @@ internal fun Route.signIn() {
         call.respondWith(startAssertion())
     }
     /**
+     * Verify sign in
+     *
      * Summary: Verify sign in
      * Description: Verify user-signed challenge and return authentication tokens
      * Tag: auth

@@ -1,6 +1,5 @@
 package com.bookk.appointments.microservice.route.api
 
-import com.bookk.appointments.domain.api.entity.Appointment
 import com.bookk.appointments.domain.api.entity.AppointmentCancellation
 import com.bookk.appointments.domain.api.entity.AppointmentUpdate
 import com.bookk.appointments.domain.api.entity.InstantAppointmentDraft
@@ -15,13 +14,10 @@ import com.bookk.appointments.domain.api.operation.MarkAppointmentNoShow
 import com.bookk.appointments.domain.api.operation.UpdateAppointment
 import com.bookk.appointments.domain.impl.di.AppointmentsScope
 import com.bookk.appointments.microservice.route.AppointmentsRouting.Api
-import com.bookk.core.domain.entity.SimpleServerError
 import com.bookk.core.service.di.injectScoped
 import com.bookk.core.service.enity.respondWith
 import com.bookk.server.auth.client.AppPrincipal
-import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
-import io.ktor.openapi.jsonSchema
 import io.ktor.server.auth.authenticate
 import io.ktor.server.auth.principal
 import io.ktor.server.request.receive
@@ -32,7 +28,6 @@ import io.ktor.server.resources.put
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Routing
 import io.ktor.server.routing.application
-import io.ktor.server.routing.openapi.describe
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.protobuf.ProtoNumber
 import kotlin.uuid.Uuid
@@ -50,6 +45,8 @@ internal class CompleteAppointmentRequest(
 fun Routing.appointment() {
     authenticate {
         /**
+         * Update appointment
+         *
          * Summary: Update appointment
          * Description: Reschedule a scheduled appointment - date, note, assigned employee and services. The body carries only ids, the employee and any newly added service are resolved from the business service, a service already on the appointment keeps its stored price. The client and business always stay those of the stored appointment
          * Tag: appointment
@@ -79,32 +76,25 @@ fun Routing.appointment() {
             }
         }
         /**
+         * Get appointments for specific date
+         *
          * Summary: Get appointments for specific date
          * Description: Get appointments of a business for a date, optionally only those assigned to the employee with the given employeeId
          * Tag: appointment
          * Security: jwt
+         * Response: 200 application/protobuf [com.bookk.appointments.domain.api.entity.Appointment]+ List of appointments
+         * Response: 403 application/protobuf [com.bookk.core.domain.entity.SimpleServerError] Caller is a suspended employee of this business - BUSINESS_EMPLOYEE_ACCESS_SUSPENDED (200034)
          */
         get<Api.Appointments> {
             val principal = requireNotNull(call.principal<AppPrincipal>())
             val getAppointments by application.injectScoped<GetAppointmentsForDate>(AppointmentsScope)
 
             call.respondWith(getAppointments(principal.userId, it.businessId, it.date, it.employeeId))
-        }.describe {
-            responses {
-                response(HttpStatusCode.OK.value) {
-                    schema = jsonSchema<List<Appointment>>()
-                    description = "List of appointments"
-                    ContentType.Application.ProtoBuf()
-                }
-                response(HttpStatusCode.Forbidden.value) {
-                    schema = jsonSchema<SimpleServerError>()
-                    description = "Caller is a suspended employee of this business - BUSINESS_EMPLOYEE_ACCESS_SUSPENDED (200034)"
-                    ContentType.Application.ProtoBuf()
-                }
-            }
         }
 
         /**
+         * Get appointments history
+         *
          * Summary: Get appointments history
          * Description: Get paginated appointments history, optionally filtered by a query matching client name or service names
          * Tag: appointment
@@ -128,6 +118,8 @@ fun Routing.appointment() {
         }
 
         /**
+         * Create appointment
+         *
          * Summary: Create appointment
          * Description: Create new appointment from request
          * Tag: appointment
@@ -152,6 +144,8 @@ fun Routing.appointment() {
         }
 
         /**
+         * Create instant appointment
+         *
          * Summary: Create instant appointment
          * Description: An employee books a client of the business straight into a schedule, without a request. A caller with the appointments update grant may book any employee of the business, a caller with only the view grant only themselves. The body names the business, the employee, an existing client of the business, the services with counts, the date, a note and the quote token for those services. The employee, client and services are resolved from the business, and the quote token is spent once
          * Tag: appointment
@@ -173,6 +167,8 @@ fun Routing.appointment() {
         }
 
         /**
+         * Cancel appointment
+         *
          * Summary: Cancel appointment
          * Description: Cancel appointment with specific reason
          * Tag: appointment
@@ -201,6 +197,8 @@ fun Routing.appointment() {
         }
 
         /**
+         * Mark appointment as no-show
+         *
          * Summary: Mark appointment as no-show
          * Description: Mark a started scheduled or completed appointment as missed by the client
          * Tag: appointment
@@ -218,6 +216,8 @@ fun Routing.appointment() {
         }
 
         /**
+         * Complete appointment
+         *
          * Summary: Complete appointment
          * Description: Mark a started scheduled appointment as completed by the caller. An already completed appointment keeps its status and completer. The optional body attaches a price adjustment (final charged price, additional catalog services resolved by id, optional reason) to the completed appointment, replacing any previous one
          * Tag: appointment

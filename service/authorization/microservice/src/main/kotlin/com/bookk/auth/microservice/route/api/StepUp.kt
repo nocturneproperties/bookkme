@@ -17,6 +17,8 @@ import io.ktor.server.routing.application
 internal fun Route.stepUp() {
     authenticate {
         /**
+         * Confirm a sensitive action with a passkey
+         *
          * Summary: Confirm a sensitive action with a passkey
          * Description: Verify a fresh passkey assertion of the caller's own passkey (challenge from GET passkey/sign_in/challenge) and return a single-use step-up token for one action on one target, valid for 2 minutes
          * Tag: auth

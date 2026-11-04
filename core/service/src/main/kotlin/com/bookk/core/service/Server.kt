@@ -5,7 +5,6 @@ import com.bookk.core.AppLevelConstants.SupportedSerializers
 import com.bookk.core.service.di.commonModule
 import com.bookk.server.auth.client.authTokenValidator
 import io.ktor.http.HttpStatusCode
-import io.ktor.openapi.OpenApiInfo
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.serialization.kotlinx.protobuf.protobuf
 import io.ktor.server.application.Application
@@ -18,16 +17,13 @@ import io.ktor.server.engine.embeddedServer
 import io.ktor.server.metrics.micrometer.MicrometerMetrics
 import io.ktor.server.plugins.calllogging.CallLogging
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
-import io.ktor.server.plugins.swagger.swaggerUI
 import io.ktor.server.request.httpMethod
 import io.ktor.server.request.path
 import io.ktor.server.resources.Resources
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Routing
 import io.ktor.server.routing.get
-import io.ktor.server.routing.openapi.OpenApiDocSource
 import io.ktor.server.routing.routing
-import io.ktor.server.routing.routingRoot
 import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.distribution.DistributionStatisticConfig
 import io.micrometer.prometheusmetrics.PrometheusConfig
@@ -79,21 +75,7 @@ fun startServer(
                 get("/metrics") {
                     call.respond(prometheusRegistry.scrape())
                 }
-                val contact = OpenApiInfo.Contact(
-                    name = "Michael Antiufieiev",
-                    email = "antufeevmichael@gmail.com",
-                )
-                val apiInfo = OpenApiInfo(
-                    config.title,
-                    config.version,
-                    contact = contact,
-                )
-                swaggerUI("/${config.root}/internal/swagger") {
-                    info = apiInfo
-                    source = OpenApiDocSource.Routing {
-                        routingRoot.descendants()
-                    }
-                }
+                installSwagger(config)
                 modules(this)
             }
         },

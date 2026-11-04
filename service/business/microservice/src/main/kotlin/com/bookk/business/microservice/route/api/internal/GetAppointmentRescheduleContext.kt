@@ -13,6 +13,8 @@ import io.ktor.server.routing.application
 
 internal fun Route.getAppointmentRescheduleContext() {
     /**
+     * Get appointment reschedule context
+     *
      * Summary: Get appointment reschedule context
      * Description: Resolve the employee (when given) and services (in request order, repeated per count) for rescheduling an appointment of this business. Unlike the booking context it never resolves or creates a client. Used by other services to build a verified appointment snapshot
      * Tag: internal

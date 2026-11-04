@@ -8,6 +8,8 @@ import io.ktor.server.routing.Route
 
 internal fun Route.getHealthCheck() {
     /**
+     * Health check
+     *
      * Summary: Health check
      * Description: Check service health
      * Tag: user

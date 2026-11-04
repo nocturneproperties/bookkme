@@ -22,6 +22,8 @@ internal class QuoteRequest(@ProtoNumber(1) val serviceIds: List<Uuid>)
 fun Route.quote() {
     authenticate {
         /**
+         * Issue service price quote
+         *
          * Summary: Issue service price quote
          * Description: Issues a quote token for a set of services, returning full service models and a signed quote token
          * Tag: service

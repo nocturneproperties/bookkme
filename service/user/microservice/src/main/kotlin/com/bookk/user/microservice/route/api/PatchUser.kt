@@ -17,6 +17,8 @@ import io.ktor.server.routing.application
 internal fun Route.patchUser() {
     authenticate {
         /**
+         * Update user
+         *
          * Summary: Update user
          * Description: Update current user from authentication token.
          * Tag: user

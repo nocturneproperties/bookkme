@@ -15,6 +15,8 @@ import io.ktor.server.routing.application
 internal fun Route.logOut() {
     authenticate {
         /**
+         * Sign Out
+         *
          * Summary: Sign Out
          * Description: Mark user as signed out
          * Tag: auth
