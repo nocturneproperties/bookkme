@@ -13,16 +13,16 @@ and the document's sections: [Data export](../../data-export.md).
 Only the owner may export (`BusinessDataSource.isOwner`); an employee
 permission is not enough, since the document holds every client at once.
 Anyone else gets 404, like every permission failure. The owner check runs
-twice: in its own transaction before the step-up token is spent, so a
+twice: in its own transaction before the action confirmation token is spent, so a
 non-owner's token is not burned and a non-owner never learns whether the
 business exported today (429), and again right after the export row is
 locked, so an owner who lost the business while waiting is refused.
 
-The export must be confirmed with a passkey: the body carries a step-up
+The export must be confirmed with a passkey: the body carries an action confirmation
 token from [Confirm a sensitive action with a
-passkey](../authorization/step-up.md), issued for this caller, the action
+passkey](../authorization/action-confirmation.md), issued for this caller, the action
 `business.export` (`EXPORT_BUSINESS_DATA`) and this business as both
-business and target. `StepUpGate.spend` checks it and spends its `jti`
+business and target. `ActionConfirmationGate.spend` checks it and spends its `jti`
 once; any failure after that gives the token back.
 
 The read routes don't mutate and have no diagram: `GET
@@ -36,9 +36,9 @@ flowchart TD
     Auth -- No --> R401([401 Unauthorized])
     Auth -- Yes --> Owner{"Transaction - BusinessDataSource.isOwner caller businessId"}
     Owner -- No --> R404([404 Error.OperationNotAllowed - token not spent])
-    Owner -- Yes --> StepUp{"StepUpGate.spend - verify body.stepUpToken caller business.export businessId businessId, reserve jti - SET NX"}
-    StepUp -- missing, expired, used or for another action or business --> R403([403 BUSINESS_STEP_UP_INVALID 200040])
-    StepUp -- spent --> Tx[[Begin transaction]]
+    Owner -- Yes --> ActionConfirmation{"ActionConfirmationGate.spend - verify body.confirmationToken caller business.export businessId businessId, reserve jti - SET NX"}
+    ActionConfirmation -- missing, expired, used or for another action or business --> R403([403 BUSINESS_ACTION_CONFIRMATION_INVALID 200040])
+    ActionConfirmation -- spent --> Tx[[Begin transaction]]
     Tx --> Lock["DataExports.start - DataExportDataSource.getForUpdate businessId - SELECT FOR UPDATE"]
     Lock -- no row --> Insert[DataExportDataSource.insert businessId now - PENDING]
     Lock -- PENDING or RUNNING --> Same[Return the export being built]

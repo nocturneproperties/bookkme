@@ -22,6 +22,7 @@ import com.bookk.server.business.client.di.businessClientModule
 import io.ktor.server.application.Application
 import io.ktor.server.application.install
 import io.ktor.server.routing.application
+import library.actionconfirmation.impl.di.actionConfirmationModule
 import library.scheduler.Scheduler
 import library.scheduler.SchedulerConfiguration
 import library.signing.RotateSigningKeys
@@ -35,6 +36,7 @@ fun authModule() = module {
         authDomainModule(),
         authDataModule(),
         signingModule(AuthScope),
+        actionConfirmationModule(AuthScope),
         eventStreamingTransportModule(AuthScope, AUTH_SERVICE_NAME),
         outboxModule(AuthScope),
         cacheModule(),
@@ -47,6 +49,7 @@ fun authEmbeddedModule() = module {
         authDomainModule(),
         authDataModule(),
         signingModule(AuthScope),
+        actionConfirmationModule(AuthScope),
         embeddedEventStreamingTransportModule(AuthScope, AUTH_SERVICE_NAME),
         outboxModule(AuthScope),
         cacheModule(),

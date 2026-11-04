@@ -13,10 +13,10 @@ import com.bookk.core.domain.datasource.transaction.TransactionManager
 import com.bookk.core.domain.entity.Error
 import com.bookk.core.domain.entity.runSuspendCatching
 import com.bookk.server.business.client.api.event.BusinessEvent
+import library.actionconfirmation.ActionConfirmationGate
+import library.actionconfirmation.ActionConfirmationGrant
 import library.permissions.PermissionAction
 import library.permissions.assert
-import library.stepup.StepUpGate
-import library.stepup.StepUpGrant
 import kotlin.uuid.Uuid
 
 internal class DeleteClientImpl(
@@ -25,11 +25,11 @@ internal class DeleteClientImpl(
     private val businessPermissionDataSource: BusinessPermissionDataSource,
     private val businessDataSource: BusinessDataSource,
     private val eventProducer: StandardEventProducer,
-    private val stepUpGate: StepUpGate,
+    private val actionConfirmationGate: ActionConfirmationGate,
     private val erasedClientDataSource: ErasedClientDataSource,
 ) : DeleteClient {
-    override suspend fun invoke(requestUserId: Uuid, businessId: Uuid, id: Uuid, stepUpToken: String): Result<Unit> = runSuspendCatching {
-        stepUpGate.spend(stepUpToken, StepUpGrant.clientDeletion(requestUserId, businessId, id), DeleteClient.Error::StepUpInvalid) {
+    override suspend fun invoke(requestUserId: Uuid, businessId: Uuid, id: Uuid, confirmationToken: String): Result<Unit> = runSuspendCatching {
+        actionConfirmationGate.spend(confirmationToken, ActionConfirmationGrant.clientDeletion(requestUserId, businessId, id), DeleteClient.Error::ActionConfirmationInvalid) {
             deleteClient(requestUserId, businessId, id).getOrThrow()
         }
     }

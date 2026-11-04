@@ -21,7 +21,7 @@ import library.export.route.respondDataExport
 
 @Serializable
 internal class DataExportRequest(
-    @ProtoNumber(1) val stepUpToken: String?,
+    @ProtoNumber(1) val confirmationToken: String?,
 )
 
 internal fun Route.businessDataExport() {
@@ -30,22 +30,22 @@ internal fun Route.businessDataExport() {
          * Start business data export
          *
          * Summary: Start business data export
-         * Description: Starts building a JSON copy of everything the business holds (profile, services, employees, pending invitations, clients, appointment settings, appointments and pending requests), for its owner only. The owner confirms it with a passkey step-up token issued for EXPORT_BUSINESS_DATA with the business id as business and target. The document is built in the background, a push notification and the status route tell when it is ready. While an export is being built, the same export is returned. One export can be started per day, a failed one can be started again at once
+         * Description: Starts building a JSON copy of everything the business holds (profile, services, employees, pending invitations, clients, appointment settings, appointments and pending requests), for its owner only. The owner confirms it with a passkey action confirmation token issued for EXPORT_BUSINESS_DATA with the business id as business and target. The document is built in the background, a push notification and the status route tell when it is ready. While an export is being built, the same export is returned. One export can be started per day, a failed one can be started again at once
          * Tag: business
          * Security: jwt
          * Body: application/x-protobuf [com.bookk.business.microservice.route.api.DataExportRequest]
          * Response: 200 application/x-protobuf [library.export.DataExport] The export being built
-         * Response: 403 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Export not confirmed<br>BUSINESS_STEP_UP_INVALID (200040) Confirm exporting the business's data with your passkey (step-up token from POST auth/passkey/step_up missing, expired, already used or issued for another action or business)
+         * Response: 403 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Export not confirmed<br>BUSINESS_ACTION_CONFIRMATION_INVALID (200040) Confirm exporting the business's data with your passkey (action confirmation token from POST auth/passkey/confirm_action missing, expired, already used or issued for another action or business)
          * Response: 404 application/x-protobuf The caller doesn't own the business
          * Response: 429 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Export already made today<br>DATA_EXPORT_TOO_FREQUENT (900002) Only one data export can be started per day
          * See: docs/operations/business/start-business-data-export.md
          */
         post<Api.Business.Id.Export> { path ->
             val principal = requireNotNull(call.principal<AppPrincipal>())
-            val stepUpToken = call.receiveNullable<DataExportRequest>()?.stepUpToken.orEmpty()
+            val confirmationToken = call.receiveNullable<DataExportRequest>()?.confirmationToken.orEmpty()
             val startBusinessDataExport by application.injectScoped<StartBusinessDataExport>(BusinessScope)
 
-            call.respondWith(startBusinessDataExport(principal.userId, path.parent.id, stepUpToken))
+            call.respondWith(startBusinessDataExport(principal.userId, path.parent.id, confirmationToken))
         }
 
         /**

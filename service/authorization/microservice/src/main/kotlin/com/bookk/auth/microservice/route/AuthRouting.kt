@@ -44,8 +44,8 @@ object AuthRouting {
                 @Resource("/add/finish")
                 class AddFinish(val parent: PassKey = PassKey())
 
-                @Resource("/step_up")
-                class StepUp(val parent: PassKey = PassKey())
+                @Resource("/confirm_action")
+                class ConfirmAction(val parent: PassKey = PassKey())
 
                 @Resource("{id}")
                 class Id(val parent: PassKey = PassKey(), val id: Uuid)

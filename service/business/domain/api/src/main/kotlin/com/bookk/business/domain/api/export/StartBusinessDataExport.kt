@@ -7,13 +7,13 @@ import library.export.DataExport
 import kotlin.uuid.Uuid
 
 interface StartBusinessDataExport {
-    suspend operator fun invoke(userId: Uuid, businessId: Uuid, stepUpToken: String): Result<DataExport>
+    suspend operator fun invoke(userId: Uuid, businessId: Uuid, confirmationToken: String): Result<DataExport>
 
     sealed interface Error {
-        class StepUpInvalid :
+        class ActionConfirmationInvalid :
             BusinessError(
                 statusCode = HttpStatusCode.Forbidden.value,
-                code = BusinessErrorCodes.BUSINESS_STEP_UP_INVALID,
+                code = BusinessErrorCodes.BUSINESS_ACTION_CONFIRMATION_INVALID,
                 message = "Confirm exporting the business's data with your passkey",
             ),
             Error

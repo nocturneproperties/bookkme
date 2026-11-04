@@ -6,7 +6,7 @@ import io.ktor.http.HttpStatusCode
 import kotlin.uuid.Uuid
 
 interface DeleteClient {
-    suspend operator fun invoke(requestUserId: Uuid, businessId: Uuid, id: Uuid, stepUpToken: String): Result<Unit>
+    suspend operator fun invoke(requestUserId: Uuid, businessId: Uuid, id: Uuid, confirmationToken: String): Result<Unit>
 
     sealed interface Error {
         class NotFound :
@@ -17,10 +17,10 @@ interface DeleteClient {
             ),
             Error
 
-        class StepUpInvalid :
+        class ActionConfirmationInvalid :
             BusinessError(
                 statusCode = HttpStatusCode.Forbidden.value,
-                code = BusinessErrorCodes.BUSINESS_STEP_UP_INVALID,
+                code = BusinessErrorCodes.BUSINESS_ACTION_CONFIRMATION_INVALID,
                 message = "Confirm deleting the client with your passkey",
             ),
             Error

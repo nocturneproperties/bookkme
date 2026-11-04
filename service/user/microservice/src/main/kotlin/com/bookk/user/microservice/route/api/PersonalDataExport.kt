@@ -21,7 +21,7 @@ import library.export.route.respondDataExport
 
 @Serializable
 internal class DataExportRequest(
-    @ProtoNumber(1) val stepUpToken: String?,
+    @ProtoNumber(1) val confirmationToken: String?,
 )
 
 internal fun Route.personalDataExport() {
@@ -30,22 +30,22 @@ internal fun Route.personalDataExport() {
          * Start personal data export
          *
          * Summary: Start personal data export
-         * Description: Starts building a JSON copy of everything Bookk holds about the caller, from every service. The caller confirms it with a passkey step-up token issued for EXPORT_PERSONAL_DATA, the nil business id and the caller's own user id as target. The document is built in the background, a push notification and the status route tell when it is ready. While an export is being built, the same export is returned. One export can be started per day, a failed one can be started again at once
+         * Description: Starts building a JSON copy of everything Bookk holds about the caller, from every service. The caller confirms it with a passkey action confirmation token issued for EXPORT_PERSONAL_DATA, the nil business id and the caller's own user id as target. The document is built in the background, a push notification and the status route tell when it is ready. While an export is being built, the same export is returned. One export can be started per day, a failed one can be started again at once
          * Tag: user
          * Security: jwt
          * Body: application/x-protobuf [com.bookk.user.microservice.route.api.DataExportRequest]
          * Response: 200 application/x-protobuf [library.export.DataExport] The export being built
-         * Response: 403 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Export not confirmed<br>USER_STEP_UP_INVALID (100005) Confirm exporting your data with your passkey (step-up token from POST auth/passkey/step_up missing, expired, already used or issued for another action)
+         * Response: 403 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Export not confirmed<br>USER_ACTION_CONFIRMATION_INVALID (100005) Confirm exporting your data with your passkey (action confirmation token from POST auth/passkey/confirm_action missing, expired, already used or issued for another action)
          * Response: 404 application/x-protobuf The caller's profile does not exist
          * Response: 429 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Export already made today<br>DATA_EXPORT_TOO_FREQUENT (900002) Only one data export can be started per day
          * See: docs/operations/user/start-personal-data-export.md
          */
         post<Api.User.Export> {
             val principal = requireNotNull(call.principal<AppPrincipal>())
-            val stepUpToken = call.receiveNullable<DataExportRequest>()?.stepUpToken.orEmpty()
+            val confirmationToken = call.receiveNullable<DataExportRequest>()?.confirmationToken.orEmpty()
             val startPersonalDataExport by application.injectScoped<StartPersonalDataExport>(UserScope)
 
-            call.respondWith(startPersonalDataExport(principal.userId, stepUpToken))
+            call.respondWith(startPersonalDataExport(principal.userId, confirmationToken))
         }
 
         /**

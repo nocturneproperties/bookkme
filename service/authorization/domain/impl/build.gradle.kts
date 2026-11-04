@@ -10,7 +10,7 @@ dependencies {
     implementation(projects.core.data.eventstreaming.api)
     implementation(projects.service.authorization.domain.api)
     implementation(projects.library.signing.api)
-    implementation(projects.library.stepup.api)
+    implementation(projects.library.actionconfirmation.api)
     implementation(projects.library.validation)
     implementation(projects.service.authorization.data.source)
     implementation(projects.service.authorization.client)
@@ -18,4 +18,5 @@ dependencies {
     implementation(projects.service.business.client)
     testImplementation(testFixtures(projects.core))
     testImplementation(testFixtures(projects.core.domain.datasource))
+    testImplementation(testFixtures(projects.library.actionconfirmation.impl))
 }

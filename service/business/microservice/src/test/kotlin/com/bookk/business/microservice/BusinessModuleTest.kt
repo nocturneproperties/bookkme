@@ -59,7 +59,7 @@ internal class BusinessModuleTest {
     }
 
     @Test
-    fun `should guard client deletion with a step-up gate in the standalone microservice`() = runUnitTest {
+    fun `should guard client deletion with an action confirmation gate in the standalone microservice`() = runUnitTest {
         given()
         val fixture = SutFixture(businessModule())
 
@@ -71,7 +71,7 @@ internal class BusinessModuleTest {
     }
 
     @Test
-    fun `should guard client deletion with a step-up gate in the monolith`() = runUnitTest {
+    fun `should guard client deletion with an action confirmation gate in the monolith`() = runUnitTest {
         given()
         val fixture = SutFixture(businessEmbeddedModule())
 

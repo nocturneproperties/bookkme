@@ -20,9 +20,9 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.coVerifyOrder
 import io.mockk.mockk
+import library.actionconfirmation.ActionConfirmationGrant
+import library.actionconfirmation.test.ActionConfirmationTestTokens
 import library.permissions.ResourcePermission
-import library.stepup.StepUpGrant
-import library.stepup.test.StepUpTestTokens
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -41,7 +41,7 @@ internal class DeleteClientImplTest {
         val transactionManager = mockk<TransactionManager>()
         val sentEvents = mutableListOf<BusinessEvent.ClientDeleted>()
         val sentInTransaction = mutableListOf<Boolean>()
-        val stepUpTokens = StepUpTestTokens()
+        val confirmationTokens = ActionConfirmationTestTokens()
         val tokenSpentWhenLocking = mutableListOf<Boolean>()
         val sut = DeleteClientImpl(
             transactionManager,
@@ -49,7 +49,7 @@ internal class DeleteClientImplTest {
             businessPermissionDataSource,
             businessDataSource,
             eventProducer,
-            stepUpTokens.gate,
+            confirmationTokens.gate,
             erasedClientDataSource,
         )
 
@@ -73,13 +73,13 @@ internal class DeleteClientImplTest {
 
         fun stored(client: Client?, id: Uuid = client?.id ?: Uuid.random()): Uuid {
             coEvery { clientDataSource.getClientForUpdate(businessId, id) } coAnswers {
-                tokenSpentWhenLocking += stepUpTokens.isSpent(TOKEN_ID)
+                tokenSpentWhenLocking += confirmationTokens.isSpent(TOKEN_ID)
                 client
             }
             return id
         }
 
-        fun tokenFor(clientId: Uuid): String = stepUpTokens.tokenFor(StepUpGrant.clientDeletion(requestUserId, businessId, clientId), tokenId = TOKEN_ID)
+        fun tokenFor(clientId: Uuid): String = confirmationTokens.tokenFor(ActionConfirmationGrant.clientDeletion(requestUserId, businessId, clientId), tokenId = TOKEN_ID)
 
         fun makeOwner() {
             coEvery { businessDataSource.isOwner(requestUserId, businessId) } returns true
@@ -237,7 +237,7 @@ internal class DeleteClientImplTest {
     }
 
     @Test
-    fun `should refuse to delete without a valid step-up token for this client`() = runUnitTest {
+    fun `should refuse to delete without a valid action confirmation token for this client`() = runUnitTest {
         given()
         val fixture = SutFixture()
         val id = fixture.stored(Client.Detached.stub())
@@ -246,14 +246,14 @@ internal class DeleteClientImplTest {
         val result = fixture.sut(fixture.requestUserId, fixture.businessId, id, fixture.tokenFor(Uuid.random()))
 
         then()
-        assertTrue(result.exceptionOrNull() is DeleteClient.Error.StepUpInvalid)
+        assertTrue(result.exceptionOrNull() is DeleteClient.Error.ActionConfirmationInvalid)
         coVerify(exactly = 0) { fixture.clientDataSource.getClientForUpdate(any(), any()) }
-        assertFalse(fixture.stepUpTokens.isSpent(TOKEN_ID))
+        assertFalse(fixture.confirmationTokens.isSpent(TOKEN_ID))
         assertTrue(fixture.sentEvents.isEmpty())
     }
 
     @Test
-    fun `should refuse a step-up token that was already used`() = runUnitTest {
+    fun `should refuse an action confirmation token that was already used`() = runUnitTest {
         given()
         val fixture = SutFixture()
         val id = fixture.stored(Client.Detached.stub())
@@ -264,13 +264,13 @@ internal class DeleteClientImplTest {
         val result = fixture.sut(fixture.requestUserId, fixture.businessId, id, token)
 
         then()
-        assertTrue(result.exceptionOrNull() is DeleteClient.Error.StepUpInvalid)
+        assertTrue(result.exceptionOrNull() is DeleteClient.Error.ActionConfirmationInvalid)
         coVerify(exactly = 1) { fixture.clientDataSource.deleteClient(any(), any()) }
-        assertTrue(fixture.stepUpTokens.isSpent(TOKEN_ID))
+        assertTrue(fixture.confirmationTokens.isSpent(TOKEN_ID))
     }
 
     @Test
-    fun `should spend the step-up token before deleting and keep it spent`() = runUnitTest {
+    fun `should spend the action confirmation token before deleting and keep it spent`() = runUnitTest {
         given()
         val fixture = SutFixture()
         val id = fixture.stored(Client.Detached.stub())
@@ -280,11 +280,11 @@ internal class DeleteClientImplTest {
 
         then()
         assertEquals(listOf(true), fixture.tokenSpentWhenLocking)
-        assertTrue(fixture.stepUpTokens.isSpent(TOKEN_ID))
+        assertTrue(fixture.confirmationTokens.isSpent(TOKEN_ID))
     }
 
     @Test
-    fun `should give the step-up token back when the deletion fails`() = runUnitTest {
+    fun `should give the action confirmation token back when the deletion fails`() = runUnitTest {
         given()
         val fixture = SutFixture()
         val id = fixture.stored(null)
@@ -294,7 +294,7 @@ internal class DeleteClientImplTest {
 
         then()
         assertTrue(result.exceptionOrNull() is DeleteClient.Error.NotFound)
-        assertFalse(fixture.stepUpTokens.isSpent(TOKEN_ID))
+        assertFalse(fixture.confirmationTokens.isSpent(TOKEN_ID))
     }
 
     private companion object {

@@ -2,6 +2,7 @@ package com.bookk.auth.domain.impl.di
 
 import com.bookk.auth.domain.api.AUTH_SCHEMA
 import com.bookk.auth.domain.api.AUTH_SERVICE_NAME
+import com.bookk.auth.domain.api.actionconfirmation.operation.ConfirmAction
 import com.bookk.auth.domain.api.authentication.operation.FinishAssertion
 import com.bookk.auth.domain.api.authentication.operation.HandleDormantAccounts
 import com.bookk.auth.domain.api.authentication.operation.SignIn
@@ -19,12 +20,12 @@ import com.bookk.auth.domain.api.registration.operation.FinishRegistration
 import com.bookk.auth.domain.api.registration.operation.StartPasskeyRegistration
 import com.bookk.auth.domain.api.registration.operation.StartRegistration
 import com.bookk.auth.domain.api.signout.operation.SignOut
-import com.bookk.auth.domain.api.stepup.operation.IssueStepUpToken
 import com.bookk.auth.domain.api.token.operation.GenerateAuthToken
 import com.bookk.auth.domain.api.token.operation.RefreshToken
 import com.bookk.auth.domain.impl.operation.AccountEraser
 import com.bookk.auth.domain.impl.operation.DeleteAccountImpl
 import com.bookk.auth.domain.impl.operation.SignOutImpl
+import com.bookk.auth.domain.impl.operation.actionconfirmation.ConfirmActionImpl
 import com.bookk.auth.domain.impl.operation.authentication.FinishAssertionImpl
 import com.bookk.auth.domain.impl.operation.authentication.HandleDormantAccountsImpl
 import com.bookk.auth.domain.impl.operation.authentication.SignInImpl
@@ -41,7 +42,6 @@ import com.bookk.auth.domain.impl.operation.registration.FinishPasskeyRegistrati
 import com.bookk.auth.domain.impl.operation.registration.FinishRegistrationImpl
 import com.bookk.auth.domain.impl.operation.registration.StartPasskeyRegistrationImpl
 import com.bookk.auth.domain.impl.operation.registration.StartRegistrationImpl
-import com.bookk.auth.domain.impl.operation.stepup.IssueStepUpTokenImpl
 import com.bookk.auth.domain.impl.operation.token.GenerateAuthTokenImpl
 import com.bookk.auth.domain.impl.operation.token.RefreshTokenImpl
 import com.bookk.server.auth.client.export.ExportAccountData
@@ -65,7 +65,7 @@ fun authDomainModule() = module {
         scopedOf(::DeleteAccountImpl) bind DeleteAccount::class
         scopedOf(::ReapplyAccountErasuresImpl) bind ReapplyAccountErasures::class
         scopedOf(::DeleteExpiredErasureRecordsImpl) bind DeleteExpiredErasureRecords::class
-        scopedOf(::IssueStepUpTokenImpl) bind IssueStepUpToken::class
+        scopedOf(::ConfirmActionImpl) bind ConfirmAction::class
         scopedOf(::ExportAccountDataImpl) bind ExportAccountData::class
         scopedOf(::StartRegistrationImpl) bind StartRegistration::class
         scopedOf(::FinishRegistrationImpl) bind FinishRegistration::class

@@ -61,7 +61,7 @@ Reactions to cross-service events:
 | `POST /api/auth/refresh` | [Refresh access token](authorization/refresh-token.md) |
 | `DELETE /api/auth/session` | [Sign out](authorization/sign-out.md) |
 | `DELETE /api/auth/account` | [Delete account](authorization/delete-account.md) |
-| `POST /api/auth/passkey/step_up` | [Confirm a sensitive action with a passkey](authorization/step-up.md) |
+| `POST /api/auth/passkey/confirm_action` | [Confirm a sensitive action with a passkey](authorization/action-confirmation.md) |
 | `POST /api/auth/passkey/add/finish` | [Add passkey to account](authorization/add-passkey.md) |
 | `DELETE /api/auth/passkey/{id}` | [Delete passkey](authorization/delete-passkey.md) |
 

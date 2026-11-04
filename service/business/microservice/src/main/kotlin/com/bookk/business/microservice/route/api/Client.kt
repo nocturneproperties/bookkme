@@ -32,7 +32,7 @@ import kotlin.uuid.Uuid
 
 @Serializable
 internal class DeleteClientRequest(
-    @ProtoNumber(1) val stepUpToken: String?,
+    @ProtoNumber(1) val confirmationToken: String?,
 )
 
 @Serializable
@@ -144,12 +144,12 @@ fun Route.clientCrud() {
          * Body: application/x-protobuf [com.bookk.business.microservice.route.api.DeleteClientRequest]
          * Response: 204 application/x-protobuf Entity deleted
          * Response: 404 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Client not found, or user is not allowed to delete it (a client with an account can be deleted only by the owner)
-         * Response: 403 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Deletion not confirmed, or the caller is suspended<br>BUSINESS_STEP_UP_INVALID (200040) Confirm deleting the client with your passkey (step-up token from POST auth/passkey/step_up missing, expired, already used or issued for another client)<br>BUSINESS_EMPLOYEE_ACCESS_SUSPENDED (200034) Your access to this business is suspended
+         * Response: 403 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Deletion not confirmed, or the caller is suspended<br>BUSINESS_ACTION_CONFIRMATION_INVALID (200040) Confirm deleting the client with your passkey (action confirmation token from POST auth/passkey/confirm_action missing, expired, already used or issued for another client)<br>BUSINESS_EMPLOYEE_ACCESS_SUSPENDED (200034) Your access to this business is suspended
          * See: docs/operations/business/delete-client.md
          */
         delete<Api.Clients.Id> {
             val principal = requireNotNull(call.principal<AppPrincipal>())
-            val stepUpToken = call.receiveNullable<DeleteClientRequest>()?.stepUpToken.orEmpty()
+            val confirmationToken = call.receiveNullable<DeleteClientRequest>()?.confirmationToken.orEmpty()
             val deleteClient by application.injectScoped<DeleteClient>(BusinessScope)
 
             call.respondWith(
@@ -157,7 +157,7 @@ fun Route.clientCrud() {
                     requestUserId = principal.userId,
                     businessId = it.parent.businessId,
                     id = it.id,
-                    stepUpToken = stepUpToken,
+                    confirmationToken = confirmationToken,
                 ),
             )
         }

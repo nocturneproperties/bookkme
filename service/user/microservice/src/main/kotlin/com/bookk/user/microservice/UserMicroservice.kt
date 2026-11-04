@@ -17,11 +17,11 @@ import com.bookk.user.microservice.route.userRoute
 import io.ktor.server.application.Application
 import io.ktor.server.application.install
 import io.ktor.server.routing.application
+import library.actionconfirmation.impl.di.actionConfirmationModule
 import library.export.BuildDataExports
 import library.export.DeleteExpiredDataExports
 import library.scheduler.Scheduler
 import library.scheduler.SchedulerConfiguration
-import library.stepup.impl.di.stepUpModule
 import org.koin.dsl.module
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
@@ -30,7 +30,7 @@ fun userModule() = module {
     includes(
         userDomainModule(),
         userDataModule(),
-        stepUpModule(UserScope),
+        actionConfirmationModule(UserScope),
         cacheModule(),
         eventStreamingTransportModule(UserScope, USER_SERVICE_NAME),
         outboxModule(UserScope),
@@ -41,7 +41,7 @@ fun userEmbeddedModule() = module {
     includes(
         userDomainModule(),
         userDataModule(),
-        stepUpModule(UserScope),
+        actionConfirmationModule(UserScope),
         cacheModule(),
         embeddedEventStreamingTransportModule(UserScope, USER_SERVICE_NAME),
         outboxModule(UserScope),

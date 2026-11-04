@@ -28,10 +28,10 @@ internal class TokenValidatorFactoryImpl : TokenValidatorFactory {
             )
         }
 
-        ValidationType.STEP_UP -> validationCache.getOrPut(type) {
+        ValidationType.ACTION_CONFIRMATION -> validationCache.getOrPut(type) {
             TokenValidation(
                 issuer = TokenConstants.authServiceHostname,
-                audience = TokenAudience.stepUp,
+                audience = TokenAudience.actionConfirmation,
                 remoteProviderHostname = TokenConstants.authServiceHostname,
             )
         }

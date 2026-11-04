@@ -15,11 +15,11 @@ dependencies {
     implementation(projects.service.business.client)
     implementation(projects.service.appointments.client)
     implementation(projects.service.notifications.client)
-    implementation(projects.library.stepup.api)
+    implementation(projects.library.actionconfirmation.api)
     implementation(projects.library.export.api)
     testImplementation(testFixtures(projects.core))
     testImplementation(projects.core.data.eventstreaming.impl)
     testImplementation(testFixtures(projects.core.data.eventstreaming.impl))
     testImplementation(testFixtures(projects.core.domain.datasource))
-    testImplementation(testFixtures(projects.library.stepup.impl))
+    testImplementation(testFixtures(projects.library.actionconfirmation.impl))
 }

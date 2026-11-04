@@ -13,10 +13,10 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.coVerifyOrder
 import io.mockk.mockk
+import library.actionconfirmation.ActionConfirmationGrant
+import library.actionconfirmation.test.ActionConfirmationTestTokens
 import library.export.DataExport
 import library.export.DataExports
-import library.stepup.StepUpGrant
-import library.stepup.test.StepUpTestTokens
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -28,11 +28,11 @@ internal class StartBusinessDataExportImplTest {
     private class SutFixture {
         val userId = Uuid.random()
         val businessId = Uuid.random()
-        val stepUpTokens = StepUpTestTokens()
+        val confirmationTokens = ActionConfirmationTestTokens()
         val dataExports = mockk<DataExports>()
         val businessDataSource = mockk<BusinessDataSource>()
         val transactionManager = mockk<TransactionManager>()
-        val sut = StartBusinessDataExportImpl(stepUpTokens.gate, dataExports, businessDataSource, transactionManager)
+        val sut = StartBusinessDataExportImpl(confirmationTokens.gate, dataExports, businessDataSource, transactionManager)
         val started = DataExport.stub()
         val startedInTransaction = mutableListOf<Boolean>()
 
@@ -45,7 +45,7 @@ internal class StartBusinessDataExportImplTest {
             }
         }
 
-        fun token(grant: StepUpGrant = StepUpGrant.businessDataExport(userId, businessId)) = stepUpTokens.tokenFor(grant, tokenId = TOKEN_ID)
+        fun token(grant: ActionConfirmationGrant = ActionConfirmationGrant.businessDataExport(userId, businessId)) = confirmationTokens.tokenFor(grant, tokenId = TOKEN_ID)
 
         fun notOwner() {
             coEvery { businessDataSource.isOwner(userId, businessId) } returns false
@@ -63,7 +63,7 @@ internal class StartBusinessDataExportImplTest {
         then()
         assertEquals(fixture.started, result.getOrNull())
         assertEquals(listOf(true), fixture.startedInTransaction)
-        assertTrue(fixture.stepUpTokens.isSpent(TOKEN_ID))
+        assertTrue(fixture.confirmationTokens.isSpent(TOKEN_ID))
     }
 
     @Test
@@ -94,7 +94,7 @@ internal class StartBusinessDataExportImplTest {
         then()
         assertTrue(result.exceptionOrNull() is Error.OperationNotAllowed)
         coVerify(exactly = 0) { fixture.dataExports.start(any()) }
-        assertFalse(fixture.stepUpTokens.isSpent(TOKEN_ID))
+        assertFalse(fixture.confirmationTokens.isSpent(TOKEN_ID))
     }
 
     @Test
@@ -112,32 +112,32 @@ internal class StartBusinessDataExportImplTest {
     }
 
     @Test
-    fun `should refuse a step-up token issued for another business`() = runUnitTest {
+    fun `should refuse an action confirmation token issued for another business`() = runUnitTest {
         given()
         val fixture = SutFixture()
 
         whenn()
-        val result = fixture.sut(fixture.userId, fixture.businessId, fixture.token(StepUpGrant.businessDataExport(fixture.userId, Uuid.random())))
+        val result = fixture.sut(fixture.userId, fixture.businessId, fixture.token(ActionConfirmationGrant.businessDataExport(fixture.userId, Uuid.random())))
 
         then()
-        assertTrue(result.exceptionOrNull() is StartBusinessDataExport.Error.StepUpInvalid)
+        assertTrue(result.exceptionOrNull() is StartBusinessDataExport.Error.ActionConfirmationInvalid)
         coVerify(exactly = 0) { fixture.dataExports.start(any()) }
     }
 
     @Test
-    fun `should refuse a step-up token issued for the personal export`() = runUnitTest {
+    fun `should refuse an action confirmation token issued for the personal export`() = runUnitTest {
         given()
         val fixture = SutFixture()
 
         whenn()
-        val result = fixture.sut(fixture.userId, fixture.businessId, fixture.token(StepUpGrant.personalDataExport(fixture.userId)))
+        val result = fixture.sut(fixture.userId, fixture.businessId, fixture.token(ActionConfirmationGrant.personalDataExport(fixture.userId)))
 
         then()
-        assertTrue(result.exceptionOrNull() is StartBusinessDataExport.Error.StepUpInvalid)
+        assertTrue(result.exceptionOrNull() is StartBusinessDataExport.Error.ActionConfirmationInvalid)
     }
 
     @Test
-    fun `should refuse a step-up token that was already used`() = runUnitTest {
+    fun `should refuse an action confirmation token that was already used`() = runUnitTest {
         given()
         val fixture = SutFixture()
         val token = fixture.token()
@@ -147,7 +147,7 @@ internal class StartBusinessDataExportImplTest {
         val result = fixture.sut(fixture.userId, fixture.businessId, token)
 
         then()
-        assertTrue(result.exceptionOrNull() is StartBusinessDataExport.Error.StepUpInvalid)
+        assertTrue(result.exceptionOrNull() is StartBusinessDataExport.Error.ActionConfirmationInvalid)
         coVerify(exactly = 1) { fixture.dataExports.start(fixture.businessId) }
     }
 
@@ -162,7 +162,7 @@ internal class StartBusinessDataExportImplTest {
 
         then()
         assertTrue(result.exceptionOrNull() is DataExports.Error.TooFrequent)
-        assertFalse(fixture.stepUpTokens.isSpent(TOKEN_ID))
+        assertFalse(fixture.confirmationTokens.isSpent(TOKEN_ID))
     }
 
     @Test
@@ -176,7 +176,7 @@ internal class StartBusinessDataExportImplTest {
 
         then()
         assertTrue(result.exceptionOrNull() is Error.OperationNotAllowed)
-        assertFalse(fixture.stepUpTokens.isSpent(TOKEN_ID))
+        assertFalse(fixture.confirmationTokens.isSpent(TOKEN_ID))
     }
 
     private companion object {
