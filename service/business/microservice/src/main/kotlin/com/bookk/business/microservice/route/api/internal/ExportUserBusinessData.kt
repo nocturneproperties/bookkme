@@ -11,6 +11,8 @@ import io.ktor.server.routing.application
 
 internal fun Route.exportUserBusinessData() {
     /**
+     * Export a user's business data
+     *
      * Summary: Export a user's business data
      * Description: The business the user owns, their employee rows (suspended ones included) with permissions, working hours and days off, their client rows as each business keeps them, and the business their dashboard shows. Used by the user service to build the user's personal data export
      * Tag: internal

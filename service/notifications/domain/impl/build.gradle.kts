@@ -3,7 +3,6 @@ plugins {
 }
 
 dependencies {
-    implementation(projects.core)
     implementation(projects.core.domain)
     implementation(projects.core.domain.datasource)
     implementation(projects.core.i18n)
@@ -15,11 +14,9 @@ dependencies {
     implementation(projects.service.notifications.domain.api)
     implementation(projects.service.notifications.client)
     implementation(projects.service.notifications.data.source)
-    implementation(projects.library.permissions)
     implementation(libs.firebase.admin)
     testImplementation(testFixtures(projects.core))
     testImplementation(projects.core.data.eventstreaming.impl)
     testImplementation(testFixtures(projects.core.data.eventstreaming.impl))
     testImplementation(testFixtures(projects.core.domain.datasource))
-    testImplementation(libs.kotlin.coroutines.test)
 }

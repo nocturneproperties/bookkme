@@ -11,6 +11,8 @@ import io.ktor.server.routing.application
 
 fun Routing.exportUserNotificationData() {
     /**
+     * Export a user's notification data
+     *
      * Summary: Export a user's notification data
      * Description: The user's notification settings and channels, their devices (language and whether push is registered, never the push token) and the email and Telegram targets notifications are sent to. Used by the user service to build the user's personal data export
      * Tag: internal

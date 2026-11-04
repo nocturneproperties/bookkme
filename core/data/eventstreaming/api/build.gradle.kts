@@ -3,9 +3,8 @@ plugins {
 }
 
 dependencies {
-    implementation(libs.kotlin.coroutines)
-    implementation(libs.ktor.core)
-    implementation(platform(libs.koin.bom))
-    implementation(libs.koin.core)
-    implementation(libs.koin.ktor)
+    api(libs.kotlin.coroutines)
+    api(libs.ktor.core)
+    api(platform(libs.koin.bom))
+    api(libs.koin.core)
 }

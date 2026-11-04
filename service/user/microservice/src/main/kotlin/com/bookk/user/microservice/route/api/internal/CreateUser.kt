@@ -13,6 +13,8 @@ import io.ktor.server.routing.application
 
 internal fun Route.postCreateUser() {
     /**
+     * Create new user
+     *
      * Summary: Create new user
      * Description: Create new user from provided info
      * Tag: internal

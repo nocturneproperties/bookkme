@@ -11,6 +11,8 @@ import io.ktor.server.routing.application
 
 fun Routing.exportBusinessAppointments() {
     /**
+     * Export a business's appointments
+     *
      * Summary: Export a business's appointments
      * Description: The business's appointment settings, every appointment and every pending request, with client and employee snapshots, times, services, prices, adjustments, status, notes and reasons. Used by the business service to build the business data export
      * Tag: internal

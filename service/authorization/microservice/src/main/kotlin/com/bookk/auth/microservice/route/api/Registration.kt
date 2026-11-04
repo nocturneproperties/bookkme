@@ -18,6 +18,8 @@ import io.ktor.server.routing.application
 
 internal fun Route.registration() {
     /**
+     * Get sign up challenge
+     *
      * Summary: Get sign up challenge
      * Description: Get sign up challenge for passkey creation.
      * Tag: auth
@@ -33,6 +35,8 @@ internal fun Route.registration() {
         call.respondWith(startRegistration(info))
     }
     /**
+     * Validate passkey data
+     *
      * Summary: Validate passkey data
      * Description: Validate passkey data from native credentials API. acceptedDocuments must name the version in effect of every published legal document (GET /api/user/legal), and is recorded with the new account.
      * Tag: auth

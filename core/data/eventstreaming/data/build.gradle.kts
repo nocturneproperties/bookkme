@@ -4,12 +4,10 @@ plugins {
 }
 
 dependencies {
-    implementation(projects.core.data)
-    implementation(projects.core.data.eventstreaming.api)
-    implementation(projects.core.domain.datasource)
+    api(projects.core.data)
+    api(projects.core.data.eventstreaming.api)
+    api(projects.core.domain.datasource)
 
-    testFixturesApi(platform(libs.koin.bom))
-    testFixturesApi(libs.koin.core)
     testFixturesImplementation(libs.mockk)
     testFixturesImplementation(libs.micrometer.core)
     testFixturesImplementation(projects.core.data.cache.api)

@@ -22,6 +22,8 @@ import io.ktor.server.routing.application
 internal fun Route.passkeyOperations() {
     authenticate {
         /**
+         * Get Passkeys
+         *
          * Summary: Get Passkeys
          * Description: Get list of all available passkeys for current auth method authId
          * Tag: auth
@@ -35,6 +37,8 @@ internal fun Route.passkeyOperations() {
             call.respondWith(getPasskeys(principal.authId))
         }
         /**
+         * Get challenge for new passkey
+         *
          * Summary: Get challenge for new passkey
          * Description: Creates challenge for process of attaching passkey to current account
          * Tag: auth
@@ -49,6 +53,8 @@ internal fun Route.passkeyOperations() {
             call.respondWith(getChallenge(principal.authId, principal.deviceId, principal.userId))
         }
         /**
+         * Add new passkey
+         *
          * Summary: Add new passkey
          * Description: Adds new passkey to account represented by current auth method
          * Tag: auth
@@ -66,6 +72,8 @@ internal fun Route.passkeyOperations() {
             call.respondWith(attachPasskey(principal.authId, body))
         }
         /**
+         * Delete passkey
+         *
          * Summary: Delete passkey
          * Description: Delete passkey by id
          * Tag: auth

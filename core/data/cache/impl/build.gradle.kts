@@ -4,12 +4,11 @@ plugins {
 }
 
 dependencies {
-    api(libs.ktor.protobuf)
+    api(libs.kotlin.serialization.protobuf)
     api(projects.core.data.cache.api)
-    implementation(libs.kotlin.coroutines)
-    implementation(libs.kotlin.coroutines.reactive)
-    implementation(libs.redis.client)
+    api(libs.redis.client)
     implementation(libs.redis.pool)
+    runtimeOnly(libs.kotlin.coroutines.reactive)
     implementation(projects.core)
     implementation(projects.core.domain)
 
@@ -17,5 +16,4 @@ dependencies {
 
     testImplementation(testFixtures(projects.core))
     testImplementation(libs.testcontainers.junit)
-    testImplementation(libs.kotlin.coroutines.test)
 }

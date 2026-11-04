@@ -5,8 +5,8 @@ plugins {
 dependencies {
     implementation(projects.library.signing.api)
     implementation(projects.core.service)
-    implementation(libs.ktor.core)
-    implementation(libs.ktor.json)
-    implementation(libs.koin.ktor)
-    implementation(platform(libs.koin.bom))
+    api(libs.ktor.core)
+    implementation(libs.kotlin.serialization.json)
+    api(libs.koin.core)
+    api(platform(libs.koin.bom))
 }

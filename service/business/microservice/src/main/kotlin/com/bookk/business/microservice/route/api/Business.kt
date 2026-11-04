@@ -26,6 +26,8 @@ import io.ktor.server.routing.application
 fun Route.businessCrud() {
     authenticate {
         /**
+         * Create business
+         *
          * Summary: Create business
          * Description: Create new business with specific name
          * Tag: business
@@ -42,6 +44,8 @@ fun Route.businessCrud() {
             call.respondWith(createBusiness(userId = principal.userId, request = body))
         }
         /**
+         * Update business
+         *
          * Summary: Update business
          * Description: Partially update business. The currency can only change while the business has no services, sending the stored currency again is always accepted. clientDataRetentionMonths sets how long the business keeps client details on ended appointments and requests before they are anonymized or deleted (12 to 120 months, default 36)
          * Tag: business
@@ -66,6 +70,8 @@ fun Route.businessCrud() {
             }
         }
         /**
+         * Get caller's businesses
+         *
          * Summary: Get caller's businesses
          * Description: Get every business the caller owns or is an active employee of, with the caller's permissions, employee id and client id in each, plus the dashboard business id. Dashboard business is a business that user selected to be displayed as main business
          * Tag: business
@@ -79,6 +85,8 @@ fun Route.businessCrud() {
             call.respondWith(getUserBusinesses(userId = principal.userId))
         }
         /**
+         * Get business by id
+         *
          * Summary: Get business by id
          * Description: Get business info with the caller's permissions, employee id and client id in it. Employee id is empty while the caller's employee access is suspended
          * Tag: business
@@ -92,6 +100,8 @@ fun Route.businessCrud() {
             call.respondWith(getBusinessById(id = path.id, requestingUserId = principal.userId))
         }
         /**
+         * Set dashboard business
+         *
          * Summary: Set dashboard business
          * Description: Select which of the caller's businesses is displayed as the dashboard business
          * Tag: business

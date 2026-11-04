@@ -1,7 +1,6 @@
 package com.bookk.appointments.microservice.route.api
 
 import com.bookk.appointments.domain.api.entity.AppointmentCancellation
-import com.bookk.appointments.domain.api.entity.AppointmentRequest
 import com.bookk.appointments.domain.api.entity.AppointmentRequestDraft
 import com.bookk.appointments.domain.api.operation.CreateAppointmentRequest
 import com.bookk.appointments.domain.api.operation.DeclineAppointmentRequest
@@ -9,13 +8,10 @@ import com.bookk.appointments.domain.api.operation.GetAppointmentRequests
 import com.bookk.appointments.domain.api.operation.GetPendingAppointmentRequests
 import com.bookk.appointments.domain.impl.di.AppointmentsScope
 import com.bookk.appointments.microservice.route.AppointmentsRouting.Api
-import com.bookk.core.domain.entity.SimpleServerError
 import com.bookk.core.service.di.injectScoped
 import com.bookk.core.service.enity.respondWith
 import com.bookk.server.auth.client.AppPrincipal
-import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
-import io.ktor.openapi.jsonSchema
 import io.ktor.server.auth.authenticate
 import io.ktor.server.auth.principal
 import io.ktor.server.request.receive
@@ -24,57 +20,44 @@ import io.ktor.server.resources.post
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Routing
 import io.ktor.server.routing.application
-import io.ktor.server.routing.openapi.describe
 
 fun Routing.requests() {
     authenticate {
         /**
+         * Get pending appointment requests
+         *
          * Summary: Get pending appointment requests
          * Tag: appointment
          * Security: jwt
+         * Response: 200 application/protobuf [com.bookk.appointments.domain.api.entity.AppointmentRequest]+ List of appointment requests
+         * Response: 403 application/protobuf [com.bookk.core.domain.entity.SimpleServerError] Caller is a suspended employee of this business - BUSINESS_EMPLOYEE_ACCESS_SUSPENDED (200034)
          */
         get<Api.Appointment.Requests> {
             val principal = requireNotNull(call.principal<AppPrincipal>())
             val getRequests by application.injectScoped<GetPendingAppointmentRequests>(AppointmentsScope)
 
             call.respondWith(getRequests(principal.userId, it.businessId))
-        }.describe {
-            responses {
-                response(HttpStatusCode.OK.value) {
-                    schema = jsonSchema<List<AppointmentRequest>>()
-                    description = "List of appointment requests"
-                    ContentType.Application.ProtoBuf()
-                }
-                response(HttpStatusCode.Forbidden.value) {
-                    schema = jsonSchema<SimpleServerError>()
-                    description = "Caller is a suspended employee of this business - BUSINESS_EMPLOYEE_ACCESS_SUSPENDED (200034)"
-                    ContentType.Application.ProtoBuf()
-                }
-            }
         }
 
         /**
+         * Get own pending appointment requests
+         *
          * Summary: Get own pending appointment requests
          * Description: Get pending appointment requests the caller made in the business
          * Tag: appointment
          * Security: jwt
+         * Response: 200 application/protobuf [com.bookk.appointments.domain.api.entity.AppointmentRequest]+ List of the caller's pending appointment requests
          */
         get<Api.Appointment.Requests.Own> {
             val principal = requireNotNull(call.principal<AppPrincipal>())
             val getRequests by application.injectScoped<GetAppointmentRequests>(AppointmentsScope)
 
             call.respondWith(getRequests(principal.userId, it.parent.businessId))
-        }.describe {
-            responses {
-                response(HttpStatusCode.OK.value) {
-                    schema = jsonSchema<List<AppointmentRequest>>()
-                    description = "List of the caller's pending appointment requests"
-                    ContentType.Application.ProtoBuf()
-                }
-            }
         }
 
         /**
+         * Create appointment request
+         *
          * Summary: Create appointment request
          * Description: Create new appointment request
          * Tag: appointment
@@ -100,6 +83,8 @@ fun Routing.requests() {
         }
 
         /**
+         * Cancel appointment request
+         *
          * Summary: Cancel appointment request
          * Description: Cancel appointment request with specific reason
          * Tag: appointment

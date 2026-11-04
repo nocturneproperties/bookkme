@@ -11,8 +11,7 @@ application {
 }
 
 dependencies {
-    implementation(libs.ktor.json)
-    implementation(libs.ktor.logging)
+    implementation(libs.ktor.routing.openapi)
     implementation(libs.ktor.status)
     implementation(libs.ktor.logging.call)
     implementation(libs.ktor.metrics)
@@ -20,10 +19,8 @@ dependencies {
     implementation(libs.ktor.metrics.prometheus)
     implementation(projects.core)
     implementation(projects.core.data)
-    implementation(projects.core.data.cache.api)
     implementation(projects.core.data.eventstreaming.api)
     implementation(projects.core.domain)
-    implementation(projects.core.domain.datasource)
     implementation(projects.library.idempotency)
     implementation(projects.library.signing.api)
     implementation(projects.library.signing.impl)

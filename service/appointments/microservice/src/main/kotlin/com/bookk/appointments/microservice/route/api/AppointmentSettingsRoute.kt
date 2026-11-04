@@ -21,6 +21,8 @@ import io.ktor.server.routing.application
 fun Routing.settings() {
     authenticate {
         /**
+         * Get settings
+         *
          * Summary: Get settings
          * Description: Get appointment settings
          * Tag: appointment
@@ -42,6 +44,8 @@ fun Routing.settings() {
         }
 
         /**
+         * Update settings
+         *
          * Summary: Update settings
          * Description: Update appointment settings. The working schedule and day offs belong to the business and are updated through the business endpoint
          * Tag: appointment

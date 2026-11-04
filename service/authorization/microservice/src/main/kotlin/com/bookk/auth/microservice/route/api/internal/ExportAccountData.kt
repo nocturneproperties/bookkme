@@ -11,6 +11,8 @@ import io.ktor.server.routing.application
 
 internal fun Route.exportAccountData() {
     /**
+     * Export a user's account data
+     *
      * Summary: Export a user's account data
      * Description: The account's creation and last activity times, its passkeys (name and dates, never key material) and its devices. Used by the user service to build the user's personal data export
      * Tag: internal

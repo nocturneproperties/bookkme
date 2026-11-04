@@ -9,13 +9,12 @@ application {
 }
 
 dependencies {
-    implementation(projects.core)
+    implementation(projects.library.signing.impl)
     implementation(projects.core.service)
     implementation(projects.core.domain)
     implementation(projects.core.data.eventstreaming.api)
     implementation(projects.core.data.eventstreaming.impl)
     implementation(projects.core.data.eventstreaming.data)
-    implementation(projects.core.data.cache.api)
     implementation(projects.core.data.cache.impl)
     implementation(projects.library.scheduler)
     implementation(projects.library.signing.api)
@@ -28,5 +27,4 @@ dependencies {
     testImplementation(testFixtures(projects.core))
     testImplementation(testFixtures(projects.core.service))
     testImplementation(testFixtures(projects.library.scheduler))
-    testImplementation(projects.library.stepup.api)
 }

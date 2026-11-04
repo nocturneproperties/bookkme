@@ -25,6 +25,7 @@ import io.ktor.server.routing.application
 import library.scheduler.Scheduler
 import library.scheduler.SchedulerConfiguration
 import library.signing.RotateSigningKeys
+import library.signing.impl.di.signingModule
 import org.koin.dsl.module
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.minutes
@@ -33,6 +34,7 @@ fun authModule() = module {
     includes(
         authDomainModule(),
         authDataModule(),
+        signingModule(AuthScope),
         eventStreamingTransportModule(AuthScope, AUTH_SERVICE_NAME),
         outboxModule(AuthScope),
         cacheModule(),
@@ -44,6 +46,7 @@ fun authEmbeddedModule() = module {
     includes(
         authDomainModule(),
         authDataModule(),
+        signingModule(AuthScope),
         embeddedEventStreamingTransportModule(AuthScope, AUTH_SERVICE_NAME),
         outboxModule(AuthScope),
         cacheModule(),

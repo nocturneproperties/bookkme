@@ -13,6 +13,8 @@ import io.ktor.server.routing.application
 
 internal fun Route.getStaffBookingContext() {
     /**
+     * Get staff booking context
+     *
      * Summary: Get staff booking context
      * Description: Resolve the employee, an existing client of this business and the services for an employee booking that client. Read only, nothing is created or linked. Used by appointments to build a verified appointment snapshot for an instant appointment
      * Tag: internal

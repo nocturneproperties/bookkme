@@ -11,6 +11,8 @@ import io.ktor.server.routing.application
 
 internal fun Route.getBusinessPermission() {
     /**
+     * Get user permission for business resource
+     *
      * Summary: Get user permission for business resource
      * Description: The view/update/delete grant the user holds on the given business resource, all false when the user holds none. Used by other services to authorize business scoped actions
      * Tag: internal

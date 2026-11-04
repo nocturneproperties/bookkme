@@ -14,6 +14,8 @@ import io.ktor.server.routing.application
 
 internal fun Route.postRefreshToken() {
     /**
+     * Refresh access token
+     *
      * Summary: Refresh access token
      * Description: This request generates new access/refresh pair.
      * Tag: auth

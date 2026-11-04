@@ -17,6 +17,8 @@ import io.ktor.server.routing.application
 internal fun Route.deleteAccount() {
     authenticate {
         /**
+         * Delete Account
+         *
          * Summary: Delete Account
          * Description: Delete user account and all associated data attached to current auth token
          * Tag: auth

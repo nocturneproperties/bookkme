@@ -27,16 +27,11 @@ class ClientConventionPlugin : Plugin<Project> {
             }
 
             target.dependencies {
-                add("implementation", libs.ktor.protobuf)
-                add("implementation", libs.ktor.json)
-                add("implementation", libs.ktor.logging)
-                add("implementation", libs.ktor.client.log)
+                add("api", libs.kotlin.serialization.protobuf)
                 add("implementation", libs.ktor.client.resources)
-                add("implementation", libs.ktor.client.negotiation)
-                add("implementation", platform(libs.koin.bom))
-                add("implementation", libs.koin.core)
-                add("implementation", libs.ktor.client.core)
-                add("implementation", libs.ktor.client.cio)
+                add("api", platform(libs.koin.bom))
+                add("api", libs.koin.core)
+                add("api", libs.ktor.client.core)
                 add("implementation", libs.kotlin.coroutines)
                 add("testImplementation", libs.kotlin.test)
             }

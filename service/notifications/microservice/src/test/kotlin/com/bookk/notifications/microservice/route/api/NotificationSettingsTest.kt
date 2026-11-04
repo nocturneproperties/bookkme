@@ -11,6 +11,7 @@ import com.bookk.notifications.domain.api.UpdateNotificationSettings
 import com.bookk.notifications.domain.api.entity.CommunicationChannel
 import com.bookk.notifications.domain.api.entity.NotificationChannelSettings
 import com.bookk.notifications.domain.api.entity.NotificationSettings
+import com.bookk.notifications.domain.api.entity.NotificationSettingsUpdate
 import com.bookk.notifications.microservice.route.NotificationsRouting.Api
 import com.bookk.server.auth.client.AppPrincipal
 import io.ktor.client.call.body
@@ -146,7 +147,7 @@ internal class NotificationSettingsTest {
         whenn()
         val client = createTestClient()
         val response = client.put(Api.Notification.Settings()) {
-            setBody(NotificationSettings.Update(id = Uuid.random(), appointmentEnabled = false, channels = channels))
+            setBody(NotificationSettingsUpdate(id = Uuid.random(), appointmentEnabled = false, channels = channels))
         }
 
         then()
@@ -177,7 +178,7 @@ internal class NotificationSettingsTest {
         whenn()
         val client = createTestClient()
         val response = client.put(Api.Notification.Settings()) {
-            setBody(NotificationSettings.Update(id = Uuid.random(), appointmentEnabled = true, channels = emptyList()))
+            setBody(NotificationSettingsUpdate(id = Uuid.random(), appointmentEnabled = true, channels = emptyList()))
         }
 
         then()
@@ -201,7 +202,7 @@ internal class NotificationSettingsTest {
         whenn()
         val client = createTestClient()
         val response = client.put(Api.Notification.Settings()) {
-            setBody(NotificationSettings.Update(id = Uuid.random(), appointmentEnabled = true, channels = emptyList()))
+            setBody(NotificationSettingsUpdate(id = Uuid.random(), appointmentEnabled = true, channels = emptyList()))
         }
 
         then()

@@ -4,8 +4,7 @@ plugins {
 }
 
 dependencies {
-    implementation(libs.kotlin.coroutines)
-    implementation(libs.ktor.json)
+    implementation(libs.kotlin.serialization.json)
     implementation(projects.core)
     implementation(projects.core.domain)
     implementation(projects.core.domain.datasource)
@@ -19,7 +18,6 @@ dependencies {
     implementation(projects.library.permissions)
     implementation(projects.library.signing.api)
     implementation(projects.library.stepup.api)
-    implementation(projects.library.stepup.impl)
     implementation(projects.library.export.api)
     implementation(projects.library.validation)
     testImplementation(testFixtures(projects.core))

@@ -106,7 +106,6 @@ import com.bookk.core.data.eventstreaming.EventHandler
 import com.bookk.server.appointments.client.di.appointmentsClientModule
 import com.bookk.server.user.client.di.userClientModule
 import library.export.DataExportAssembler
-import library.stepup.impl.di.stepUpModule
 import org.koin.core.module.dsl.scopedOf
 import org.koin.core.qualifier.Qualifier
 import org.koin.core.qualifier.named
@@ -120,7 +119,6 @@ fun businessDomainModule() = module {
     includes(
         userClientModule(BusinessScope, BUSINESS_SERVICE_NAME),
         appointmentsClientModule(BusinessScope, BUSINESS_SERVICE_NAME),
-        stepUpModule(BusinessScope),
     )
     scope(BusinessScope) {
         scopedOf(::GetBusinessByIdImpl) bind GetBusinessById::class

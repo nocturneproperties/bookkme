@@ -1,11 +1,17 @@
 plugins {
-    alias(libs.plugins.bookk.domain.api)
+    alias(libs.plugins.bookk.kotlin)
     alias(libs.plugins.kotlin.fixtures)
 }
 
+tasks.withType<Test> {
+    useJUnitPlatform()
+}
+
 dependencies {
-    implementation(projects.core)
-    implementation(libs.ktor.core)
+    api(libs.kotlin.coroutines)
+    api(libs.ktor.core)
+    testImplementation(libs.kotlin.test)
+    testImplementation(libs.mockk)
     testImplementation(testFixtures(projects.core))
     testImplementation(libs.kotlin.coroutines.test)
 }

@@ -27,6 +27,8 @@ internal class DataExportRequest(
 internal fun Route.businessDataExport() {
     authenticate {
         /**
+         * Start business data export
+         *
          * Summary: Start business data export
          * Description: Starts building a JSON copy of everything the business holds (profile, services, employees, pending invitations, clients, appointment settings, appointments and pending requests), for its owner only. The owner confirms it with a passkey step-up token issued for EXPORT_BUSINESS_DATA with the business id as business and target. The document is built in the background, a push notification and the status route tell when it is ready. While an export is being built, the same export is returned. One export can be started per day, a failed one can be started again at once
          * Tag: business
@@ -47,6 +49,8 @@ internal fun Route.businessDataExport() {
         }
 
         /**
+         * Get business data export
+         *
          * Summary: Get business data export
          * Description: The business's latest export, for its owner. NONE when there is none or it expired, RUNNING while it is built, READY with the time its document is deleted, or FAILED. availableAgainAt tells when the next export can be started
          * Tag: business
@@ -62,6 +66,8 @@ internal fun Route.businessDataExport() {
         }
 
         /**
+         * Download business data export
+         *
          * Summary: Download business data export
          * Description: The business's ready export as a JSON file, for its owner. It can be downloaded again until it expires, 72 hours after it was built. Sent gzip-encoded when the request accepts gzip
          * Tag: business

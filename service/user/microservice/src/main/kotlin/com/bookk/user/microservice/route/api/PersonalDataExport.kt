@@ -27,6 +27,8 @@ internal class DataExportRequest(
 internal fun Route.personalDataExport() {
     authenticate {
         /**
+         * Start personal data export
+         *
          * Summary: Start personal data export
          * Description: Starts building a JSON copy of everything Bookk holds about the caller, from every service. The caller confirms it with a passkey step-up token issued for EXPORT_PERSONAL_DATA, the nil business id and the caller's own user id as target. The document is built in the background, a push notification and the status route tell when it is ready. While an export is being built, the same export is returned. One export can be started per day, a failed one can be started again at once
          * Tag: user
@@ -47,6 +49,8 @@ internal fun Route.personalDataExport() {
         }
 
         /**
+         * Get personal data export
+         *
          * Summary: Get personal data export
          * Description: The caller's latest export, NONE when there is none or it expired, RUNNING while it is built, READY with the time its document is deleted, or FAILED. availableAgainAt tells when the next export can be started
          * Tag: user
@@ -61,6 +65,8 @@ internal fun Route.personalDataExport() {
         }
 
         /**
+         * Download personal data export
+         *
          * Summary: Download personal data export
          * Description: The caller's ready export as a JSON file. It can be downloaded again until it expires, 72 hours after it was built. Sent gzip-encoded when the request accepts gzip
          * Tag: user

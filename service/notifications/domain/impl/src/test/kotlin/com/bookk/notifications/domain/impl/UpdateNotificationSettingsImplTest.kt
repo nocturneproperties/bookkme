@@ -9,6 +9,7 @@ import com.bookk.core.test.whenn
 import com.bookk.notifications.domain.api.entity.CommunicationChannel
 import com.bookk.notifications.domain.api.entity.NotificationChannelSettings
 import com.bookk.notifications.domain.api.entity.NotificationSettings
+import com.bookk.notifications.domain.api.entity.NotificationSettingsUpdate
 import com.bookk.notifications.domain.datasource.NotificationSettingsDataSource
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -37,7 +38,7 @@ internal class UpdateNotificationSettingsImplTest {
             NotificationChannelSettings.stub(channel = CommunicationChannel.TELEGRAM, enabled = false),
             NotificationChannelSettings.stub(channel = CommunicationChannel.PUSH_NOTIFICATIONS, enabled = true),
         )
-        val update = NotificationSettings.Update(id = settingsId, appointmentEnabled = false, channels = channels)
+        val update = NotificationSettingsUpdate(id = settingsId, appointmentEnabled = false, channels = channels)
         val expectedSettings = NotificationSettings.stub(id = settingsId, userId = userId, appointmentEnabled = false, channels = channels)
         with(fixture) {
             transactionManager.mockTransaction()
@@ -58,7 +59,7 @@ internal class UpdateNotificationSettingsImplTest {
         given()
         val fixture = SutFixture()
         val userId = Uuid.random()
-        val update = NotificationSettings.Update(id = Uuid.random(), appointmentEnabled = true, channels = emptyList())
+        val update = NotificationSettingsUpdate(id = Uuid.random(), appointmentEnabled = true, channels = emptyList())
         with(fixture) {
             transactionManager.mockTransaction()
             coEvery { notificationSettingsDataSource.upsert(any<NotificationSettings>()) } throws RuntimeException("db error")
