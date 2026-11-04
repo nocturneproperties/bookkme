@@ -17,14 +17,11 @@ ktor {
 }
 
 dependencies {
-    implementation(libs.ktor.routing.openapi)
-    implementation(projects.core)
+    implementation(projects.library.stepup.impl)
     implementation(projects.core.service)
-    implementation(projects.core.domain)
     implementation(projects.core.data.eventstreaming.api)
     implementation(projects.core.data.eventstreaming.impl)
     implementation(projects.core.data.eventstreaming.data)
-    implementation(projects.core.data.cache.api)
     implementation(projects.core.data.cache.impl)
     implementation(projects.library.signing.api)
     implementation(projects.library.signing.impl)

@@ -3,8 +3,7 @@ plugins {
 }
 
 dependencies {
-    implementation(projects.core)
-    implementation(projects.core.domain)
-    implementation(projects.core.data.eventstreaming.api)
+    implementation(libs.ktor.http)
+    api(projects.core.domain)
     api(projects.library.export.api)
 }

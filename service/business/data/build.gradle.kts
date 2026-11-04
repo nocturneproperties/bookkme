@@ -3,14 +3,12 @@ plugins {
 }
 
 dependencies {
-    implementation(projects.core.data)
+    api(projects.core.data)
     implementation(projects.core.data.eventstreaming.api)
     implementation(projects.core.data.eventstreaming.data)
-    implementation(projects.core.data.cache.api)
     implementation(projects.core.domain.datasource)
-    implementation(projects.service.business.domain.api)
+    api(projects.service.business.domain.api)
     implementation(projects.service.business.data.source)
-    implementation(projects.library.signing.impl)
     implementation(projects.library.export.impl)
 
     testImplementation(testFixtures(projects.core))

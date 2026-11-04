@@ -3,6 +3,5 @@ plugins {
 }
 
 dependencies {
-    implementation(projects.core)
     api(libs.joda.money)
 }

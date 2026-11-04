@@ -3,9 +3,9 @@ plugins {
 }
 
 dependencies {
-    implementation(projects.core)
-    implementation(projects.core.domain)
-    implementation(projects.core.data.eventstreaming.api)
+    implementation(libs.ktor.http)
+    api(libs.kotlin.datetime)
+    api(projects.core.domain)
     api(projects.library.money)
     api(projects.library.permissions)
     api(projects.library.schedule)

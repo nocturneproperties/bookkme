@@ -120,7 +120,7 @@ internal class AppointmentEventHandlerEventTest {
         coEvery {
             fixture.updateBusinessInformation(any(), any())
         } answers {
-            arrived.countDown()
+            if (firstArg<BusinessDTO>().id == businessId) arrived.countDown()
             Result.success(Unit)
         }
 
@@ -152,7 +152,7 @@ internal class AppointmentEventHandlerEventTest {
         coEvery {
             fixture.updateBusinessInformation(any(), any())
         } answers {
-            arrived.countDown()
+            if (firstArg<BusinessDTO>().id == businessId) arrived.countDown()
             Result.success(Unit)
         }
 
@@ -166,7 +166,7 @@ internal class AppointmentEventHandlerEventTest {
 
         then()
         coVerify(exactly = 1) {
-            fixture.updateBusinessInformation(match { it.schedule.dayOffs == dayOffs }, updatedAt)
+            fixture.updateBusinessInformation(match { it.id == businessId && it.schedule.dayOffs == dayOffs }, updatedAt)
         }
     }
 

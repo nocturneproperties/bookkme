@@ -7,7 +7,7 @@ tasks.withType<Test> {
 }
 
 dependencies {
-    implementation(projects.core.domain)
+    api(projects.core.domain)
     implementation(libs.icu4j)
     testImplementation(libs.kotlin.test)
 }

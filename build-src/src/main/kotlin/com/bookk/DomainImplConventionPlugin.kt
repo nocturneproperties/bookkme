@@ -26,8 +26,8 @@ class DomainImplConventionPlugin : Plugin<Project> {
             }
 
             target.dependencies {
-                add("implementation", libs.koin.core)
-                add("implementation", platform(libs.koin.bom))
+                add("api", libs.koin.core)
+                add("api", platform(libs.koin.bom))
                 add("implementation", libs.kotlin.coroutines)
                 add("implementation", libs.kotlin.datetime)
                 add("testImplementation", libs.kotlin.test)

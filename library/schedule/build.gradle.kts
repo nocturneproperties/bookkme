@@ -3,6 +3,6 @@ plugins {
 }
 
 dependencies {
-    implementation(projects.core)
+    api(libs.kotlin.datetime)
     testImplementation(testFixtures(projects.core))
 }

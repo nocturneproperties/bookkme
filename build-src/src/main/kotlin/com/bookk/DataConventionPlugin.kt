@@ -28,24 +28,17 @@ class DataConventionPlugin : Plugin<Project> {
             }
 
             target.dependencies {
-                add("implementation", libs.exposed.core)
-                add("implementation", libs.exposed.dao)
-                add("implementation", libs.exposed.migration)
-                add("implementation", libs.exposed.migration.jdbc)
-                add("implementation", libs.exposed.jdbc)
+                add("api", libs.exposed.core)
+                add("api", libs.exposed.dao)
+                add("api", libs.exposed.jdbc)
                 add("implementation", libs.exposed.kotlin.datetime)
-                add("implementation", libs.hikari.cp)
-                add("implementation", libs.koin.core)
-                add("implementation", libs.flyway.core)
-                add("implementation", libs.flyway.mysql)
-                add("implementation", platform(libs.koin.bom))
-                add("implementation", libs.mariadb.jdbc)
+                add("api", libs.koin.core)
+                add("api", platform(libs.koin.bom))
                 add("implementation", libs.kotlin.coroutines)
-                add("implementation", libs.ktor.protobuf)
-                add("implementation", libs.ktor.logging)
+                add("implementation", libs.kotlin.serialization.protobuf)
                 add("testImplementation", libs.kotlin.test)
                 add("testImplementation", libs.mockk)
-                add("testImplementation", libs.h2)
+                add("testRuntimeOnly", libs.h2)
                 add("testImplementation", libs.kotlin.coroutines.test)
             }
         }

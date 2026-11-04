@@ -4,11 +4,11 @@ plugins {
 
 dependencies {
     api(projects.library.export.api)
-    implementation(libs.ktor.core)
+    api(libs.ktor.core)
 
     testImplementation(testFixtures(projects.core))
     testImplementation(testFixtures(projects.core.service))
     testImplementation(libs.ktor.test)
-    testImplementation(libs.koin.ktor)
+    testImplementation(libs.koin.core)
     testImplementation(platform(libs.koin.bom))
 }

@@ -29,6 +29,7 @@ import library.scheduler.Scheduler
 import library.scheduler.SchedulerConfiguration
 import library.signing.RotateSigningKeys
 import library.signing.impl.di.signingModule
+import library.stepup.impl.di.stepUpModule
 import org.koin.dsl.module
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.hours
@@ -38,6 +39,7 @@ fun businessModule() = module {
     includes(
         businessDomainModule(),
         businessDataModule(),
+        stepUpModule(BusinessScope),
         cacheModule(),
         eventStreamingTransportModule(BusinessScope, BUSINESS_SERVICE_NAME),
         outboxModule(BusinessScope),
@@ -49,6 +51,7 @@ fun businessEmbeddedModule() = module {
     includes(
         businessDomainModule(),
         businessDataModule(),
+        stepUpModule(BusinessScope),
         cacheModule(),
         embeddedEventStreamingTransportModule(BusinessScope, BUSINESS_SERVICE_NAME),
         outboxModule(BusinessScope),

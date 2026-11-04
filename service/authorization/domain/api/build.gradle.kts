@@ -3,7 +3,7 @@ plugins {
 }
 
 dependencies {
-    implementation(projects.core)
-    implementation(projects.core.domain)
+    implementation(libs.ktor.http)
+    api(projects.core.domain)
     api(projects.service.user.domain.api)
 }

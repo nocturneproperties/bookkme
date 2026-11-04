@@ -46,7 +46,6 @@ import com.bookk.auth.domain.impl.operation.token.GenerateAuthTokenImpl
 import com.bookk.auth.domain.impl.operation.token.RefreshTokenImpl
 import com.bookk.server.auth.client.export.ExportAccountData
 import com.bookk.server.user.client.di.userClientModule
-import library.signing.impl.di.signingModule
 import org.koin.core.module.dsl.scopedOf
 import org.koin.core.qualifier.Qualifier
 import org.koin.core.qualifier.named
@@ -57,7 +56,6 @@ val AuthScope: Qualifier = named(AUTH_SCHEMA)
 
 fun authDomainModule() = module {
     includes(userClientModule(AuthScope, AUTH_SERVICE_NAME))
-    includes(signingModule(AuthScope))
     scope(AuthScope) {
         scopedOf(::GenerateAuthTokenImpl) bind GenerateAuthToken::class
         scopedOf(::RefreshTokenImpl) bind RefreshToken::class

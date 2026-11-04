@@ -34,7 +34,6 @@ import com.bookk.user.domain.impl.operation.GetUserByEmailImpl
 import com.bookk.user.domain.impl.operation.GetUserByIdImpl
 import com.bookk.user.domain.impl.operation.StartPersonalDataExportImpl
 import library.export.DataExportAssembler
-import library.stepup.impl.di.stepUpModule
 import org.koin.core.module.dsl.scopedOf
 import org.koin.core.qualifier.Qualifier
 import org.koin.core.qualifier.named
@@ -50,7 +49,6 @@ fun userDomainModule() = module {
         businessClientModule(UserScope, USER_SERVICE_NAME),
         appointmentsClientModule(UserScope, USER_SERVICE_NAME),
         notificationsClientModule(UserScope, USER_SERVICE_NAME),
-        stepUpModule(UserScope),
     )
     scope(UserScope) {
         scopedOf(::GetUserByIdImpl) bind GetUserById::class

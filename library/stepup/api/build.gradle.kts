@@ -1,3 +1,3 @@
 plugins {
-    alias(libs.plugins.bookk.domain.api)
+    alias(libs.plugins.bookk.kotlin)
 }
