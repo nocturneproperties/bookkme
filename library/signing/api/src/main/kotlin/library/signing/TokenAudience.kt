@@ -6,6 +6,6 @@ object TokenAudience {
     val access: String
         get() = AppLevelConstants.domainName
 
-    val stepUp: String
-        get() = "${AppLevelConstants.domainName}/step-up"
+    val actionConfirmation: String
+        get() = "${AppLevelConstants.domainName}/action-confirmation"
 }

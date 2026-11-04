@@ -23,13 +23,13 @@ import com.bookk.core.service.startServer
 import io.ktor.server.application.Application
 import io.ktor.server.application.install
 import io.ktor.server.routing.application
+import library.actionconfirmation.impl.di.actionConfirmationModule
 import library.export.BuildDataExports
 import library.export.DeleteExpiredDataExports
 import library.scheduler.Scheduler
 import library.scheduler.SchedulerConfiguration
 import library.signing.RotateSigningKeys
 import library.signing.impl.di.signingModule
-import library.stepup.impl.di.stepUpModule
 import org.koin.dsl.module
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.hours
@@ -39,7 +39,7 @@ fun businessModule() = module {
     includes(
         businessDomainModule(),
         businessDataModule(),
-        stepUpModule(BusinessScope),
+        actionConfirmationModule(BusinessScope),
         cacheModule(),
         eventStreamingTransportModule(BusinessScope, BUSINESS_SERVICE_NAME),
         outboxModule(BusinessScope),
@@ -51,7 +51,7 @@ fun businessEmbeddedModule() = module {
     includes(
         businessDomainModule(),
         businessDataModule(),
-        stepUpModule(BusinessScope),
+        actionConfirmationModule(BusinessScope),
         cacheModule(),
         embeddedEventStreamingTransportModule(BusinessScope, BUSINESS_SERVICE_NAME),
         outboxModule(BusinessScope),

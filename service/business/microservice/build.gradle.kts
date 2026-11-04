@@ -17,7 +17,7 @@ ktor {
 }
 
 dependencies {
-    implementation(projects.library.stepup.impl)
+    implementation(projects.library.actionconfirmation.impl)
     implementation(projects.core.service)
     implementation(projects.core.data.eventstreaming.api)
     implementation(projects.core.data.eventstreaming.impl)

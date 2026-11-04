@@ -7,5 +7,5 @@ object UserErrorCodes {
     const val USER_CONTACT_TAKEN = BASE + 2
     const val LEGAL_DOCUMENT_VERSION_UNKNOWN = BASE + 3
     const val LEGAL_DOCUMENTS_NOT_ACCEPTED = BASE + 4
-    const val USER_STEP_UP_INVALID = BASE + 5
+    const val USER_ACTION_CONFIRMATION_INVALID = BASE + 5
 }

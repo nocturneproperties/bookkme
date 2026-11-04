@@ -11,12 +11,12 @@ deleting it erases that user's booking history at this business. Their
 account and their other businesses are untouched.
 
 The deletion must be confirmed with a passkey: the request body carries a
-step-up token from [Confirm a sensitive action with a
-passkey](../authorization/step-up.md), issued for this caller, the action
+action confirmation token from [Confirm a sensitive action with a
+passkey](../authorization/action-confirmation.md), issued for this caller, the action
 `client.delete`, this business and this client
-(`StepUpGrant.clientDeletion`). `StepUpGate.spend` (`library/stepup`) checks
-its signature (auth's keys, step-up audience), expiry and claims, then spends
-its `jti` once (Valkey `SET NX` on `step_up:<jti>` until the token expires).
+(`ActionConfirmationGrant.clientDeletion`). `ActionConfirmationGate.spend` (`library/actionconfirmation`) checks
+its signature (auth's keys, action confirmation audience), expiry and claims, then spends
+its `jti` once (Valkey `SET NX` on `action_confirmation:<jti>` until the token expires).
 If the deletion then fails for any reason, the reservation is released, so a
 rejected call doesn't burn the token. An app that sends no body gets the same 403, so it knows to ask for
 the passkey.
@@ -30,9 +30,9 @@ the row gone and creates a new one instead.
 flowchart TD
     Start([DELETE /api/business/businessId/clients/id]) --> Auth{JWT valid?}
     Auth -- No --> R401([401 Unauthorized])
-    Auth -- Yes --> StepUp{"StepUpGate.spend - verify body.stepUpToken caller client.delete businessId id"}
-    StepUp -- missing, expired, wrong audience or claims --> R403step([403 BUSINESS_STEP_UP_INVALID 200040])
-    StepUp -- valid --> Reserve{"StepUpGate.spend - reserve jti for its remaining lifetime - SET NX"}
+    Auth -- Yes --> ActionConfirmation{"ActionConfirmationGate.spend - verify body.confirmationToken caller client.delete businessId id"}
+    ActionConfirmation -- missing, expired, wrong audience or claims --> R403step([403 BUSINESS_ACTION_CONFIRMATION_INVALID 200040])
+    ActionConfirmation -- valid --> Reserve{"ActionConfirmationGate.spend - reserve jti for its remaining lifetime - SET NX"}
     Reserve -- already used --> R403step
     Reserve -- reserved --> Tx[[Begin transaction]]
     Tx --> Lock["ClientDataSource.getClientForUpdate businessId id - SELECT FOR UPDATE"]
@@ -50,7 +50,7 @@ flowchart TD
     Delete --> Record["ErasedClientDataSource.record businessId id - INSERT IGNORE erased_client, so a backup restore can delete it again"]
     Record --> Send["eventProducer.send BusinessEvent.ClientDeleted businessId clientId - outbox row in this transaction"]
     Send --> R204([204 Entity deleted - token stays spent])
-    Tx -- any failure after the reservation --> Release["StepUpGate.spend - release jti - NonCancellable, best effort"]
+    Tx -- any failure after the reservation --> Release["ActionConfirmationGate.spend - release jti - NonCancellable, best effort"]
 ```
 
 **Consumed by:** `BusinessEvent.ClientDeleted` → [appointments: erase the client](../appointments/on-client-deleted.md).

@@ -3,7 +3,7 @@
 A user can download everything Bookk holds about them (GDPR Art. 15 and 20),
 and the owner of a business can download everything the business holds
 (Art. 28(3)(g)). Both are one JSON document, built in the background,
-confirmed with a passkey step-up token, and kept 72 hours. Scope and
+confirmed with a passkey action confirmation token, and kept 72 hours. Scope and
 decisions: issue #139.
 
 ## Lifecycle (`library/export`)
@@ -65,10 +65,10 @@ backups for up to 30 days, the same as the data it copies.
 
 ## Personal export
 
-`POST /api/user/export` with `DataExportRequest(stepUpToken)`: the token is
-issued by `POST /api/auth/passkey/step_up` for `EXPORT_PERSONAL_DATA`, the
+`POST /api/user/export` with `DataExportRequest(confirmationToken)`: the token is
+issued by `POST /api/auth/passkey/confirm_action` for `EXPORT_PERSONAL_DATA`, the
 nil business id and the caller's own user id as target
-(`StepUpGrant.personalDataExport`). `GET /api/user/export` reports the
+(`ActionConfirmationGrant.personalDataExport`). `GET /api/user/export` reports the
 state, `GET /api/user/export/download` hands out the file
 (`bookk-personal-data.json`). Diagram: [Start personal data
 export](operations/user/start-personal-data-export.md).
@@ -102,10 +102,10 @@ When the build is done, the user service sends `UserEvent.DataExportReady(userId
 
 ## Business export
 
-`POST /api/business/{businessId}/export` with `DataExportRequest(stepUpToken)`,
+`POST /api/business/{businessId}/export` with `DataExportRequest(confirmationToken)`,
 owner only (anyone else gets 404): the token is issued for
 `EXPORT_BUSINESS_DATA` with the business id as business and target
-(`StepUpGrant.businessDataExport`). `GET /api/business/{businessId}/export`
+(`ActionConfirmationGrant.businessDataExport`). `GET /api/business/{businessId}/export`
 reports the state, `GET /api/business/{businessId}/export/download` hands out
 `bookk-business-data.json`. The export row is keyed by the business id in
 `business.data_export`. Diagram: [Start business data

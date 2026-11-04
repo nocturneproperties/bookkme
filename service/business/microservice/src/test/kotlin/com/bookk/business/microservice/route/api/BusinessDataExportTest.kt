@@ -62,13 +62,13 @@ internal class BusinessDataExportTest {
     )
 
     @Test
-    fun `should start the business export with the owner's step-up token`() = routeTest {
+    fun `should start the business export with the owner's action confirmation token`() = routeTest {
         given()
-        coEvery { start(userId, businessId, "step-up-token") } returns Result.success(running)
+        coEvery { start(userId, businessId, "action-confirmation-token") } returns Result.success(running)
         serve()
 
         whenn()
-        val response = createTestClient().post(exportResource()) { setBody(DataExportRequest(stepUpToken = "step-up-token")) }
+        val response = createTestClient().post(exportResource()) { setBody(DataExportRequest(confirmationToken = "action-confirmation-token")) }
 
         then()
         assertEquals(HttpStatusCode.OK, response.status)
@@ -76,9 +76,9 @@ internal class BusinessDataExportTest {
     }
 
     @Test
-    fun `should refuse to start without a confirmed step-up`() = routeTest {
+    fun `should refuse to start without action confirmation`() = routeTest {
         given()
-        coEvery { start(userId, businessId, "") } returns Result.failure(StartBusinessDataExport.Error.StepUpInvalid())
+        coEvery { start(userId, businessId, "") } returns Result.failure(StartBusinessDataExport.Error.ActionConfirmationInvalid())
         serve()
 
         whenn()
@@ -86,17 +86,17 @@ internal class BusinessDataExportTest {
 
         then()
         assertEquals(HttpStatusCode.Forbidden, response.status)
-        assertEquals(BusinessErrorCodes.BUSINESS_STEP_UP_INVALID, response.body<SimpleServerError>().errorCode)
+        assertEquals(BusinessErrorCodes.BUSINESS_ACTION_CONFIRMATION_INVALID, response.body<SimpleServerError>().errorCode)
     }
 
     @Test
     fun `should refuse a second export within a day`() = routeTest {
         given()
-        coEvery { start(userId, businessId, "step-up-token") } returns Result.failure(DataExports.Error.TooFrequent())
+        coEvery { start(userId, businessId, "action-confirmation-token") } returns Result.failure(DataExports.Error.TooFrequent())
         serve()
 
         whenn()
-        val response = createTestClient().post(exportResource()) { setBody(DataExportRequest(stepUpToken = "step-up-token")) }
+        val response = createTestClient().post(exportResource()) { setBody(DataExportRequest(confirmationToken = "action-confirmation-token")) }
 
         then()
         assertEquals(HttpStatusCode.TooManyRequests, response.status)
@@ -106,7 +106,7 @@ internal class BusinessDataExportTest {
     @Test
     fun `should answer 404 to anyone but the owner`() = routeTest {
         given()
-        coEvery { start(userId, businessId, "step-up-token") } returns Result.failure(Error.OperationNotAllowed())
+        coEvery { start(userId, businessId, "action-confirmation-token") } returns Result.failure(Error.OperationNotAllowed())
         coEvery { status(userId, businessId) } returns Result.failure(Error.OperationNotAllowed())
         coEvery { download(userId, businessId) } returns Result.failure(Error.OperationNotAllowed())
         serve()
@@ -114,7 +114,7 @@ internal class BusinessDataExportTest {
         whenn()
         val client = createTestClient()
         val statuses = listOf(
-            client.post(exportResource()) { setBody(DataExportRequest(stepUpToken = "step-up-token")) }.status,
+            client.post(exportResource()) { setBody(DataExportRequest(confirmationToken = "action-confirmation-token")) }.status,
             client.get(exportResource()).status,
             client.get(BusinessRouting.Api.Business.Id.Export.Download(exportResource())).status,
         )

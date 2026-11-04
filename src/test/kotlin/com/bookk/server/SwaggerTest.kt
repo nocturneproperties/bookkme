@@ -57,7 +57,7 @@ internal class SwaggerTest {
                 "post /api/auth/sign_up",
                 "post /api/auth/sign_in",
                 "post /api/auth/passkey/add/finish",
-                "post /api/auth/passkey/step_up",
+                "post /api/auth/passkey/confirm_action",
                 "delete /api/auth/account",
             ),
         ),
@@ -228,6 +228,12 @@ internal class SwaggerTest {
             val resolved = resolveSchema(document, schema)
             assertTrue("acceptedDocuments" in resolved.getValue("properties").jsonObject)
             assertTrue(JsonPrimitive("acceptedDocuments") in (resolved.getValue("required") as JsonArray))
+            val deletion = operations.getValue("delete /api/auth/account")
+            val deletionSchema = deletion.getValue("requestBody").jsonObject.getValue("content").jsonObject
+                .getValue("application/x-protobuf").jsonObject.getValue("schema").jsonObject
+            assertEquals("#/components/schemas/DeleteAccountRequest", deletionSchema.getValue("\$ref").jsonPrimitive.content)
+            assertEquals(setOf("confirmationToken"), resolveSchema(document, deletionSchema).getValue("properties").jsonObject.keys)
+            assertTrue(deletion.getValue("responses").jsonObject.keys.containsAll(setOf("204", "403", "422")))
         }
     }
 

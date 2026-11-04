@@ -20,7 +20,7 @@ internal class TokenValidationTest {
     private class SutFixture {
         val algorithm: Algorithm = Algorithm.HMAC256("test-secret")
         val access = TokenValidation(ISSUER, TokenAudience.access, algorithm)
-        val stepUp = TokenValidation(ISSUER, TokenAudience.stepUp, algorithm)
+        val actionConfirmation = TokenValidation(ISSUER, TokenAudience.actionConfirmation, algorithm)
 
         fun token(audience: String, expiresIn: Duration = 2.minutes): String = JWT.create()
             .withIssuer(ISSUER)
@@ -32,48 +32,60 @@ internal class TokenValidationTest {
     private fun TokenValidation.accepts(token: String) = runCatching { verifier.verify(token) }.isSuccess
 
     @Test
-    fun `should accept a step-up token as a step-up proof`() = runUnitTest {
+    fun `should accept an action confirmation token as an action confirmation proof`() = runUnitTest {
         given()
         val fixture = SutFixture()
 
         whenn()
-        val accepted = fixture.stepUp.accepts(fixture.token(TokenAudience.stepUp))
+        val accepted = fixture.actionConfirmation.accepts(fixture.token(TokenAudience.actionConfirmation))
 
         then()
         assertTrue(accepted)
     }
 
     @Test
-    fun `should not accept a step-up token as an access token`() = runUnitTest {
+    fun `should not accept an action confirmation token as an access token`() = runUnitTest {
         given()
         val fixture = SutFixture()
 
         whenn()
-        val accepted = fixture.access.accepts(fixture.token(TokenAudience.stepUp))
+        val accepted = fixture.access.accepts(fixture.token(TokenAudience.actionConfirmation))
 
         then()
         assertFalse(accepted)
     }
 
     @Test
-    fun `should not accept an access token as a step-up proof`() = runUnitTest {
+    fun `should not accept an access token as an action confirmation proof`() = runUnitTest {
         given()
         val fixture = SutFixture()
 
         whenn()
-        val accepted = fixture.stepUp.accepts(fixture.token(TokenAudience.access))
+        val accepted = fixture.actionConfirmation.accepts(fixture.token(TokenAudience.access))
 
         then()
         assertFalse(accepted)
     }
 
     @Test
-    fun `should not accept an expired step-up token`() = runUnitTest {
+    fun `should reject a token issued for the retired confirmation audience`() = runUnitTest {
         given()
         val fixture = SutFixture()
 
         whenn()
-        val accepted = fixture.stepUp.accepts(fixture.token(TokenAudience.stepUp, expiresIn = (-1).minutes))
+        val accepted = fixture.actionConfirmation.accepts(fixture.token("${TokenAudience.access}/step-up"))
+
+        then()
+        assertFalse(accepted)
+    }
+
+    @Test
+    fun `should not accept an expired action confirmation token`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+
+        whenn()
+        val accepted = fixture.actionConfirmation.accepts(fixture.token(TokenAudience.actionConfirmation, expiresIn = (-1).minutes))
 
         then()
         assertFalse(accepted)

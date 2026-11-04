@@ -8,11 +8,11 @@ Queues a JSON copy of everything Bookk holds about the caller, built in the
 background and kept 72 hours. Lifecycle, storage and the document's
 sections: [Data export](../../data-export.md).
 
-The export must be confirmed with a passkey: the body carries a step-up
+The export must be confirmed with a passkey: the body carries an action confirmation
 token from [Confirm a sensitive action with a
-passkey](../authorization/step-up.md), issued for this caller, the action
+passkey](../authorization/action-confirmation.md), issued for this caller, the action
 `user.export` (`EXPORT_PERSONAL_DATA`), the nil business id and the caller's
-own user id as target. `StepUpGate.spend` checks it and spends its `jti`
+own user id as target. `ActionConfirmationGate.spend` checks it and spends its `jti`
 once before the transaction; any failure after that gives the token back,
 so a refused start (429) doesn't burn it. An app that sends no body gets
 the same 403.
@@ -26,9 +26,9 @@ none is ready).
 flowchart TD
     Start([POST /api/user/export body DataExportRequest]) --> Auth{JWT valid?}
     Auth -- No --> R401([401 Unauthorized])
-    Auth -- Yes --> StepUp{"StepUpGate.spend - verify body.stepUpToken caller user.export NIL caller, reserve jti - SET NX"}
-    StepUp -- missing, expired, used or for another action or user --> R403([403 USER_STEP_UP_INVALID 100005])
-    StepUp -- spent --> Tx[[Begin transaction]]
+    Auth -- Yes --> ActionConfirmation{"ActionConfirmationGate.spend - verify body.confirmationToken caller user.export NIL caller, reserve jti - SET NX"}
+    ActionConfirmation -- missing, expired, used or for another action or user --> R403([403 USER_ACTION_CONFIRMATION_INVALID 100005])
+    ActionConfirmation -- spent --> Tx[[Begin transaction]]
     Tx --> Lock["DataExports.start - DataExportDataSource.getForUpdate userId - SELECT FOR UPDATE"]
     Lock -- no row --> Insert[DataExportDataSource.insert userId now - PENDING]
     Lock -- PENDING or RUNNING --> Same[Return the export being built]

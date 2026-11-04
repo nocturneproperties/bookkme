@@ -60,13 +60,13 @@ internal class PersonalDataExportTest {
     )
 
     @Test
-    fun `should start the caller's export with their step-up token`() = routeTest {
+    fun `should start the caller's export with their action confirmation token`() = routeTest {
         given()
-        coEvery { start(userId, "step-up-token") } returns Result.success(running)
+        coEvery { start(userId, "action-confirmation-token") } returns Result.success(running)
         serve()
 
         whenn()
-        val response = createTestClient().post(UserRouting.Api.User.Export()) { setBody(DataExportRequest(stepUpToken = "step-up-token")) }
+        val response = createTestClient().post(UserRouting.Api.User.Export()) { setBody(DataExportRequest(confirmationToken = "action-confirmation-token")) }
 
         then()
         assertEquals(HttpStatusCode.OK, response.status)
@@ -74,9 +74,9 @@ internal class PersonalDataExportTest {
     }
 
     @Test
-    fun `should refuse to start without a confirmed step-up`() = routeTest {
+    fun `should refuse to start without action confirmation`() = routeTest {
         given()
-        coEvery { start(userId, "") } returns Result.failure(StartPersonalDataExport.Error.StepUpInvalid())
+        coEvery { start(userId, "") } returns Result.failure(StartPersonalDataExport.Error.ActionConfirmationInvalid())
         serve()
 
         whenn()
@@ -84,17 +84,17 @@ internal class PersonalDataExportTest {
 
         then()
         assertEquals(HttpStatusCode.Forbidden, response.status)
-        assertEquals(UserErrorCodes.USER_STEP_UP_INVALID, response.body<SimpleServerError>().errorCode)
+        assertEquals(UserErrorCodes.USER_ACTION_CONFIRMATION_INVALID, response.body<SimpleServerError>().errorCode)
     }
 
     @Test
     fun `should refuse a second export within a day`() = routeTest {
         given()
-        coEvery { start(userId, "step-up-token") } returns Result.failure(DataExports.Error.TooFrequent())
+        coEvery { start(userId, "action-confirmation-token") } returns Result.failure(DataExports.Error.TooFrequent())
         serve()
 
         whenn()
-        val response = createTestClient().post(UserRouting.Api.User.Export()) { setBody(DataExportRequest(stepUpToken = "step-up-token")) }
+        val response = createTestClient().post(UserRouting.Api.User.Export()) { setBody(DataExportRequest(confirmationToken = "action-confirmation-token")) }
 
         then()
         assertEquals(HttpStatusCode.TooManyRequests, response.status)
