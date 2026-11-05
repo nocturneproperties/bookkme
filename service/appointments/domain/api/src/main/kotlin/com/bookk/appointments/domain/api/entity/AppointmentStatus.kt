@@ -16,4 +16,7 @@ enum class AppointmentStatus {
 
     @ProtoNumber(3)
     NO_SHOW,
+
+    @ProtoNumber(4)
+    UNRESOLVED,
 }

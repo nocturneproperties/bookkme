@@ -39,10 +39,55 @@ Registered in `registerAppointmentsJobs` (`AppointmentsMicroservice.kt`).
 
 | Job | Interval | Operation | What it does |
 |---|---|---|---|
-| `appointments-markAppointmentsAsCompleted` | 5 minutes | `MarkAppointmentsCompleted` | `AppointmentDataSource.markCompleted(now)` — marks every `SCHEDULED` appointment with `dateEnd < now` as completed with `completedBy = SYSTEM`, but only for businesses whose `appointment_settings.automatic_completion` is on. Businesses with it off complete appointments themselves via [Complete appointment](appointments/complete-appointment.md) (`completedBy = USER`). |
+| `appointments-markAppointmentsAsCompleted` | 5 minutes | `MarkAppointmentsCompleted` | Marks expired scheduled appointments `UNRESOLVED`, then automatically completes eligible appointments after their business-local end day, in one `READ_COMMITTED` transaction. See [Appointment finalization](#appointment-finalization). |
 | `appointments-deleteOutdatedRequests` | 1 hour | `DeleteOutdatedRequests` | `AppointmentRequestDataSource.cancelOutdated(now)` — cancels pending appointment requests whose slot has passed (`dateEnd < now`). |
 | `appointments-deleteExpiredRequests` | 1 day | `DeleteExpiredRequests` | `AppointmentRequestDataSource.deleteEndedBefore(now - 60 days)` in a `READ_COMMITTED` transaction: deletes every request whose slot ended more than 60 days ago, whatever its status (pending ones were already cancelled by `deleteOutdatedRequests`, approved ones live on as appointments). Uses the `appointment_request.date_end` index. |
 | `appointments-deleteExpiredTombstones` | 1 day | `DeleteExpiredTombstones` | `DeletedUserDataSource.deleteMarkedBefore` and `DeletedClientDataSource.deleteMarkedBefore` with `now - 60 days`, in one `READ_COMMITTED` transaction. 60 days is twice the 30-day backup window, so a restore still finds the tombstones it needs, and longer than parked events live (30 days), so a late `ClientLinked` replayed from `exhausted_event` still finds its tombstone. |
+
+### Appointment finalization
+
+`automaticCompletion` controls end-of-day completion only. For each timezone
+used by a business with the setting enabled, `markCompleted(now)` calculates
+the start of the current local date with `atStartOfDayIn`. Scheduled appointments
+whose `dateEnd` is strictly before that instant become `COMPLETED`, with
+`completedBy = SYSTEM`. This handles daylight-saving changes and offsets
+without relying on the database's timezone configuration. A visit crossing
+midnight belongs to the day it ends; an appointment ending exactly at midnight
+belongs to the new day and waits until that day has passed.
+
+The same job first calls `markUnresolved(now - Appointment.EDIT_WINDOW)` for
+all businesses. A remaining `SCHEDULED` appointment becomes `UNRESOLVED`
+only once more than 7 days have passed since its end. Its `completedBy` stays
+null. Expiration runs before completion, so a visit the job missed for more
+than a week becomes unresolved even when automatic completion is enabled.
+The exact 7-day boundary stays editable. Completed, cancelled, no-show and
+already unresolved appointments keep their recorded outcomes.
+
+Staff can correct scheduled, completed and no-show appointments within the
+edit window: cancel, reschedule, adjust the price or correct the recorded outcome. Rescheduling reopens
+the appointment as `SCHEDULED` and clears its previous completion attribution
+and checkout adjustment when its date or employee changes. Detail-only edits
+preserve the recorded outcome and checkout. Cancellation is terminal: cancelled
+appointments cannot be restored, and staff must create a new booking. `UNRESOLVED` is terminal; every correction is
+refused with 422 `APPOINTMENT_EDIT_WINDOW_CLOSED` (300026).
+
+```mermaid
+flowchart TD
+    Start([Every 5 minutes]) --> Tx[[READ_COMMITTED transaction]]
+    Tx --> Now[Capture now once]
+    Now --> Expire[AppointmentDataSource.markUnresolved now - 7 days]
+    Expire --> Unresolved[Update SCHEDULED rows with dateEnd before cutoff to UNRESOLVED, completedBy null]
+    Unresolved --> Complete[AppointmentDataSource.markCompleted now]
+    Complete --> Zones[Distinct business timezones where automaticCompletion is enabled]
+    Zones --> Day[For each timezone compute the start of today's local date]
+    Day --> Update[Update SCHEDULED rows of enabled businesses in that timezone with dateEnd before local day start to COMPLETED, completedBy SYSTEM]
+    Update --> Commit([Commit])
+    Expire -- infrastructure failure --> Rollback([Rollback and fail job, retry next tick])
+    Complete -- infrastructure failure --> Rollback
+```
+
+No event is published. The updates are safe to repeat and conditional on the
+current status, so a concurrent staff correction is preserved.
 
 ## Authorization service
 

@@ -23,6 +23,7 @@ import com.bookk.core.test.given
 import com.bookk.core.test.runUnitTest
 import com.bookk.core.test.then
 import com.bookk.core.test.whenn
+import kotlinx.datetime.TimeZone
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
 import org.joda.money.Money
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -55,12 +56,12 @@ internal class AppointmentDataSourceImplTest {
         val settingsSut = AppointmentSettingsDataSourceImpl()
         lateinit var businessId: Uuid
 
-        suspend fun setup(automaticCompletion: Boolean = true) {
-            businessId = attachBusiness(automaticCompletion)
+        suspend fun setup(automaticCompletion: Boolean = true, timeZone: TimeZone = TimeZone.UTC) {
+            businessId = attachBusiness(automaticCompletion, timeZone)
         }
 
-        suspend fun attachBusiness(automaticCompletion: Boolean): Uuid {
-            val snapshot = BusinessSnapshot.stub()
+        suspend fun attachBusiness(automaticCompletion: Boolean, timeZone: TimeZone = TimeZone.UTC): Uuid {
+            val snapshot = BusinessSnapshot.stub(timeZone = timeZone)
             suspendTransaction {
                 subscriptionSut.attachBusiness(snapshot)
                 settingsSut.create(AppointmentSettings.stub(snapshot.id).copy(automaticCompletion = automaticCompletion))
@@ -605,6 +606,22 @@ internal class AppointmentDataSourceImplTest {
 
         then()
         assertTrue(result.exceptionOrNull() is Error.NotFound)
+    }
+
+    @Test
+    fun `should not complete appointments ending exactly at the cutoff`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val created = suspendTransaction { fixture.sut.create(fixture.buildRequest()) }
+
+        whenn()
+        suspendTransaction { fixture.sut.markCompleted(created.dateEnd) }
+
+        then()
+        val found = suspendTransaction { fixture.sut.get(created.id) }
+        assertEquals(AppointmentStatus.SCHEDULED, found.status)
+        assertNull(found.completedBy)
     }
 
     @Test
@@ -1445,5 +1462,305 @@ internal class AppointmentDataSourceImplTest {
         assertNull(found.client.email)
         assertNull(found.client.userId)
         assertEquals("Discount for a regular", found.priceAdjustment?.reason)
+    }
+
+    @Test
+    fun `should keep appointments scheduled until their local end day has passed`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup(timeZone = TimeZone.of("Europe/Warsaw"))
+        val created = suspendTransaction { fixture.sut.create(fixture.buildRequest(date = Instant.parse("2026-11-04T10:00:00Z"))) }
+
+        whenn()
+        suspendTransaction { fixture.sut.markCompleted(Instant.parse("2026-11-04T22:59:59Z")) }
+
+        then()
+        val found = suspendTransaction { fixture.sut.get(created.id) }
+        assertEquals(AppointmentStatus.SCHEDULED, found.status)
+        assertNull(found.completedBy)
+    }
+
+    @Test
+    fun `should complete appointments at the next local midnight`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup(timeZone = TimeZone.of("Europe/Warsaw"))
+        val created = suspendTransaction { fixture.sut.create(fixture.buildRequest(date = Instant.parse("2026-11-04T10:00:00Z"))) }
+
+        whenn()
+        suspendTransaction { fixture.sut.markCompleted(Instant.parse("2026-11-04T23:00:00Z")) }
+
+        then()
+        val found = suspendTransaction { fixture.sut.get(created.id) }
+        assertEquals(AppointmentStatus.COMPLETED, found.status)
+        assertEquals(AppointmentCompletedBy.SYSTEM, found.completedBy)
+    }
+
+    @Test
+    fun `should keep an appointment ending at midnight open for its new local day`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup(timeZone = TimeZone.of("Europe/Warsaw"))
+        val created = suspendTransaction { fixture.sut.create(fixture.buildRequest(date = Instant.parse("2026-11-04T22:30:00Z"))) }
+
+        whenn()
+        suspendTransaction { fixture.sut.markCompleted(Instant.parse("2026-11-04T23:00:00Z")) }
+
+        then()
+        val found = suspendTransaction { fixture.sut.get(created.id) }
+        assertEquals(AppointmentStatus.SCHEDULED, found.status)
+        assertNull(found.completedBy)
+    }
+
+    @Test
+    fun `should use the ending day for appointments crossing local midnight`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup(timeZone = TimeZone.of("Europe/Warsaw"))
+        val created = suspendTransaction { fixture.sut.create(fixture.buildRequest(date = Instant.parse("2026-11-04T22:45:00Z"))) }
+
+        whenn()
+        suspendTransaction { fixture.sut.markCompleted(Instant.parse("2026-11-05T12:00:00Z")) }
+
+        then()
+        val found = suspendTransaction { fixture.sut.get(created.id) }
+        assertEquals(AppointmentStatus.SCHEDULED, found.status)
+        assertNull(found.completedBy)
+    }
+
+    @Test
+    fun `should wait for midnight in a business west of UTC`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup(timeZone = TimeZone.of("America/Los_Angeles"))
+        val created = suspendTransaction { fixture.sut.create(fixture.buildRequest(date = Instant.parse("2026-11-04T18:00:00Z"))) }
+
+        whenn()
+        suspendTransaction { fixture.sut.markCompleted(Instant.parse("2026-11-05T07:59:59Z")) }
+
+        then()
+        val found = suspendTransaction { fixture.sut.get(created.id) }
+        assertEquals(AppointmentStatus.SCHEDULED, found.status)
+        assertNull(found.completedBy)
+    }
+
+    @Test
+    fun `should respect the short local day when daylight saving starts`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup(timeZone = TimeZone.of("Europe/Warsaw"))
+        val created = suspendTransaction { fixture.sut.create(fixture.buildRequest(date = Instant.parse("2026-03-29T01:00:00Z"))) }
+
+        whenn()
+        suspendTransaction { fixture.sut.markCompleted(Instant.parse("2026-03-29T22:00:00Z")) }
+
+        then()
+        val found = suspendTransaction { fixture.sut.get(created.id) }
+        assertEquals(AppointmentStatus.COMPLETED, found.status)
+        assertEquals(AppointmentCompletedBy.SYSTEM, found.completedBy)
+    }
+
+    @Test
+    fun `should respect the long local day when daylight saving ends`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup(timeZone = TimeZone.of("Europe/Warsaw"))
+        val created = suspendTransaction { fixture.sut.create(fixture.buildRequest(date = Instant.parse("2026-10-25T01:00:00Z"))) }
+
+        whenn()
+        suspendTransaction { fixture.sut.markCompleted(Instant.parse("2026-10-25T22:59:59Z")) }
+
+        then()
+        val found = suspendTransaction { fixture.sut.get(created.id) }
+        assertEquals(AppointmentStatus.SCHEDULED, found.status)
+        assertNull(found.completedBy)
+    }
+
+    @Test
+    fun `should complete only businesses whose local end day has passed`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val easternBusinessId = fixture.attachBusiness(true, TimeZone.of("Pacific/Kiritimati"))
+        val date = Instant.parse("2026-01-01T08:00:00Z")
+        val utcAppointment = suspendTransaction { fixture.sut.create(fixture.buildRequest(date = date)) }
+        val easternAppointment = suspendTransaction {
+            fixture.sut.create(AppointmentRequest.stub(businessId = easternBusinessId, date = date))
+        }
+
+        whenn()
+        suspendTransaction { fixture.sut.markCompleted(Instant.parse("2026-01-01T12:00:00Z")) }
+
+        then()
+        assertEquals(AppointmentStatus.SCHEDULED, suspendTransaction { fixture.sut.get(utcAppointment.id) }.status)
+        assertEquals(AppointmentStatus.COMPLETED, suspendTransaction { fixture.sut.get(easternAppointment.id) }.status)
+    }
+
+    @Test
+    fun `should mark expired scheduled appointments unresolved regardless of automatic completion`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val disabledBusinessId = fixture.attachBusiness(false)
+        val enabled = suspendTransaction { fixture.sut.create(fixture.buildRequest()) }
+        val disabled = suspendTransaction { fixture.sut.create(AppointmentRequest.stub(businessId = disabledBusinessId)) }
+
+        whenn()
+        suspendTransaction { fixture.sut.markUnresolved(enabled.dateEnd + 1.minutes) }
+
+        then()
+        for (id in listOf(enabled.id, disabled.id)) {
+            val found = suspendTransaction { fixture.sut.get(id) }
+            assertEquals(AppointmentStatus.UNRESOLVED, found.status)
+            assertNull(found.completedBy)
+        }
+        assertEquals(AppointmentStatus.UNRESOLVED, suspendTransaction { fixture.sut.getAll(fixture.businessId) }.single().status)
+    }
+
+    @Test
+    fun `should leave the unresolved cutoff editable and expire it only after the boundary`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup(automaticCompletion = false)
+        val created = suspendTransaction { fixture.sut.create(fixture.buildRequest()) }
+
+        whenn()
+        suspendTransaction { fixture.sut.markUnresolved(created.dateEnd) }
+        val atBoundary = suspendTransaction { fixture.sut.get(created.id) }
+        suspendTransaction { fixture.sut.markUnresolved(created.dateEnd + 1.minutes) }
+        suspendTransaction { fixture.sut.markUnresolved(created.dateEnd + 1.minutes) }
+
+        then()
+        assertEquals(AppointmentStatus.SCHEDULED, atBoundary.status)
+        val expired = suspendTransaction { fixture.sut.get(created.id) }
+        assertEquals(AppointmentStatus.UNRESOLVED, expired.status)
+        assertNull(expired.completedBy)
+    }
+
+    @Test
+    fun `should preserve recorded outcomes when expiring scheduled appointments`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val completed = suspendTransaction { fixture.sut.create(fixture.buildRequest()) }
+        val cancelled = suspendTransaction { fixture.sut.create(fixture.buildRequest()) }
+        val noShow = suspendTransaction { fixture.sut.create(fixture.buildRequest()) }
+        suspendTransaction {
+            fixture.sut.markCompletedByUser(completed.id)
+            fixture.sut.cancel(cancelled.id, "Cancelled")
+            fixture.sut.markNoShow(noShow.id)
+        }
+
+        whenn()
+        suspendTransaction { fixture.sut.markUnresolved(Clock.System.now()) }
+        suspendTransaction { fixture.sut.markCompleted(Clock.System.now()) }
+
+        then()
+        val confirmed = suspendTransaction { fixture.sut.get(completed.id) }
+        assertEquals(AppointmentStatus.COMPLETED, confirmed.status)
+        assertEquals(AppointmentCompletedBy.USER, confirmed.completedBy)
+        assertEquals(AppointmentStatus.CANCELLED, suspendTransaction { fixture.sut.get(cancelled.id) }.status)
+        assertEquals(AppointmentStatus.NO_SHOW, suspendTransaction { fixture.sut.get(noShow.id) }.status)
+    }
+
+    @Test
+    fun `should preserve unresolved appointments when automatic completion runs`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val created = suspendTransaction { fixture.sut.create(fixture.buildRequest()) }
+        suspendTransaction { fixture.sut.markUnresolved(Clock.System.now()) }
+
+        whenn()
+        suspendTransaction { fixture.sut.markCompleted(Clock.System.now()) }
+
+        then()
+        val found = suspendTransaction { fixture.sut.get(created.id) }
+        assertEquals(AppointmentStatus.UNRESOLVED, found.status)
+        assertNull(found.completedBy)
+    }
+
+    @Test
+    fun `should clear completion attribution when cancelling a completed appointment`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val created = suspendTransaction { fixture.sut.create(fixture.buildRequest()) }
+        suspendTransaction { fixture.sut.markCompleted(Clock.System.now()) }
+
+        whenn()
+        val cancelled = suspendTransaction { fixture.sut.cancel(created.id, "Corrected") }
+
+        then()
+        assertEquals(AppointmentStatus.CANCELLED, cancelled.status)
+        assertNull(cancelled.completedBy)
+        assertNull(suspendTransaction { fixture.sut.get(created.id) }.completedBy)
+    }
+
+    @Test
+    fun `should reopen a system completed appointment when rescheduled and clear its old checkout`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val created = suspendTransaction { fixture.sut.create(fixture.buildRequest()) }
+        suspendTransaction {
+            fixture.sut.markCompleted(Clock.System.now())
+            fixture.sut.adjustPrice(created.id, PriceAdjustment.stub())
+        }
+        val completed = suspendTransaction { fixture.sut.get(created.id) }
+        val rescheduled = completed.copy(
+            date = Clock.System.now() + 24.hours,
+            status = AppointmentStatus.SCHEDULED,
+            completedBy = null,
+            priceAdjustment = null,
+        )
+
+        whenn()
+        val updated = suspendTransaction {
+            fixture.sut.getForUpdate(created.id)
+            fixture.sut.update(rescheduled)
+        }
+
+        then()
+        assertEquals(rescheduled, updated)
+        assertEquals(rescheduled, suspendTransaction { fixture.sut.get(created.id) })
+    }
+
+    @Test
+    fun `should preserve a completed outcome and checkout when only its note changes`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val created = suspendTransaction { fixture.sut.create(fixture.buildRequest()) }
+        val recorded = suspendTransaction {
+            fixture.sut.markCompletedByUser(created.id)
+            fixture.sut.adjustPrice(created.id, PriceAdjustment.stub())
+        }
+
+        whenn()
+        val updated = suspendTransaction { fixture.sut.update(recorded.copy(note = "Corrected note")) }
+
+        then()
+        assertEquals(recorded.copy(note = "Corrected note"), updated)
+        assertEquals(updated, suspendTransaction { fixture.sut.get(created.id) })
+    }
+
+    @Test
+    fun `should preserve a no-show outcome and checkout when only its note changes`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val created = suspendTransaction { fixture.sut.create(fixture.buildRequest()) }
+        val recorded = suspendTransaction {
+            fixture.sut.markNoShow(created.id)
+            fixture.sut.adjustPrice(created.id, PriceAdjustment.stub())
+        }
+
+        whenn()
+        val updated = suspendTransaction { fixture.sut.update(recorded.copy(note = "Corrected note")) }
+
+        then()
+        assertEquals(recorded.copy(note = "Corrected note"), updated)
+        assertEquals(updated, suspendTransaction { fixture.sut.get(created.id) })
     }
 }

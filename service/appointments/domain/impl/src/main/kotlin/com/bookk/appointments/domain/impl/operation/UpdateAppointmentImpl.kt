@@ -1,6 +1,7 @@
 package com.bookk.appointments.domain.impl.operation
 
 import com.bookk.appointments.domain.api.entity.Appointment
+import com.bookk.appointments.domain.api.entity.AppointmentStatus
 import com.bookk.appointments.domain.api.entity.AppointmentUpdate
 import com.bookk.appointments.domain.api.entity.EmployeeSnapshot
 import com.bookk.appointments.domain.api.entity.ServiceSnapshot
@@ -45,9 +46,11 @@ internal class UpdateAppointmentImpl(
             val locked = appointmentDataSource.getForUpdate(update.id)
             if (locked != existing) return@transactionOrThrow null
             requireReschedulable(userId, locked, update)
-            if (!settings.isInWorkday(rescheduled.date)) throw UpdateAppointment.Error.RequestForThisDateNotAllowed()
-            if (!settings.isInWorktime(rescheduled.date, rescheduled.dateEnd)) throw UpdateAppointment.Error.RequestForThisTimeNotAllowed()
-            if (appointmentDataSource.hasOverlapsWith(rescheduled)) throw UpdateAppointment.Error.AppointmentForThisTimeExists()
+            if (rescheduled.status == AppointmentStatus.SCHEDULED) {
+                if (!settings.isInWorkday(rescheduled.date)) throw UpdateAppointment.Error.RequestForThisDateNotAllowed()
+                if (!settings.isInWorktime(rescheduled.date, rescheduled.dateEnd)) throw UpdateAppointment.Error.RequestForThisTimeNotAllowed()
+                if (appointmentDataSource.hasOverlapsWith(rescheduled)) throw UpdateAppointment.Error.AppointmentForThisTimeExists()
+            }
             appointmentDataSource.update(rescheduled).also {
                 eventProducer.send(AppointmentEvent.ClientVisitBooked(it.businessId, it.client.id, it.dateEnd))
             }
@@ -58,8 +61,9 @@ internal class UpdateAppointmentImpl(
     private suspend fun requireReschedulable(userId: Uuid, appointment: Appointment, update: AppointmentUpdate) {
         appointmentPermissionDataSource.getPermission(userId, appointment.businessId)
             .assertOrSelf(PermissionAction.UPDATE, actorId = userId, assigneeId = appointment.employee.userId)
-        appointment.requireScheduled()
-        if (update.date < Clock.System.now()) throw UpdateAppointment.Error.DateInThePastNotAllowed()
+        appointment.requireEditable()
+        val rescheduling = update.date != appointment.date || update.employeeId != appointment.employee.id
+        if (rescheduling && update.date < Clock.System.now()) throw UpdateAppointment.Error.DateInThePastNotAllowed()
     }
 
     private fun AppointmentUpdate.hasValidServiceSelection(): Boolean {
@@ -73,12 +77,16 @@ internal class UpdateAppointmentImpl(
         val addedServiceIds = update.services.map { it.serviceId }.filterNot { it in storedServices }
         val context = resolveChanges(existing.businessId, changedEmployeeId, addedServiceIds)
         val availableServices = storedServices + context.services.associate { it.id to it.toSnapshot() }
+        val rescheduling = update.date != existing.date || update.employeeId != existing.employee.id
 
         return existing.copy(
             employee = context.employee?.toSnapshot() ?: existing.employee,
             services = update.services.flatMap { requested -> List(requested.count) { availableServices.getValue(requested.serviceId) } },
             date = update.date,
             note = update.note,
+            status = if (rescheduling) AppointmentStatus.SCHEDULED else existing.status,
+            completedBy = if (rescheduling) null else existing.completedBy,
+            priceAdjustment = if (rescheduling) null else existing.priceAdjustment,
         )
     }
 

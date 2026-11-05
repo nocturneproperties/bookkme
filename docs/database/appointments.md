@@ -56,7 +56,7 @@ erDiagram
         timestamp date_start
         timestamp date_end
         string note
-        enum status
+        enum status "SCHEDULED 0, COMPLETED 1, CANCELLED 2, NO_SHOW 3, UNRESOLVED 4; stored as an integer"
         string cancellation_reason
         enum completed_by "nullable; SYSTEM (MarkAppointmentsCompleted job) or USER (CompleteAppointment); set only while status = COMPLETED"
         timestamp createdAt
@@ -152,7 +152,7 @@ erDiagram
         int in_between_break_in_minutes
         string appointment_note
         bool automatic_approval
-        bool automatic_completion "default true; gates the MarkAppointmentsCompleted job for this business"
+        bool automatic_completion "default true; completes appointments after their business-local end day; unresolved expiry always runs"
         timestamp createdAt
         timestamp updatedAt
     }

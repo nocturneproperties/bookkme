@@ -7,11 +7,13 @@ the business service and are not touched here (see the `Description` in the
 route KDoc).
 
 `automaticCompletion` controls whether the `MarkAppointmentsCompleted` job
-completes this business's past appointments (see [Scheduled (recurring)
-jobs](../scheduled-jobs.md)); when off, staff use [Complete
-appointment](complete-appointment.md). It is optional on the request — a
-`null` keeps the stored value, so clients that predate the field don't
-switch it back on.
+completes scheduled appointments after their end day has passed in the
+business's timezone (see [Appointment finalization](../scheduled-jobs.md#appointment-finalization)).
+When off, staff record the outcome manually. Regardless of this setting,
+a scheduled appointment left open becomes `UNRESOLVED` after its 7-day edit
+window expires. Changing the setting does not reopen an unresolved appointment.
+The field is optional on the request — a `null` keeps the stored value, so
+clients that predate the field don't switch it back on.
 
 ```mermaid
 flowchart TD

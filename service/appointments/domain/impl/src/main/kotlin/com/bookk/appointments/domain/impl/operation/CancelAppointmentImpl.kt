@@ -2,7 +2,6 @@ package com.bookk.appointments.domain.impl.operation
 
 import com.bookk.appointments.domain.api.entity.Appointment
 import com.bookk.appointments.domain.api.entity.AppointmentCancellation
-import com.bookk.appointments.domain.api.entity.AppointmentStatus
 import com.bookk.appointments.domain.api.operation.CancelAppointment
 import com.bookk.appointments.domain.datasource.AppointmentDataSource
 import com.bookk.appointments.domain.datasource.AppointmentPermissionDataSource
@@ -32,13 +31,10 @@ internal class CancelAppointmentImpl(
         val appointment = appointmentDataSource.getForUpdate(cancellation.id)
         appointmentPermissionDataSource.getPermission(userId, appointment.businessId)
             .assertOrSelf(PermissionAction.UPDATE, actorId = userId, assigneeId = appointment.employee.userId)
-        appointment.requireScheduled()
+        appointment.requireEditable()
         val cancelled = appointmentDataSource.cancel(cancellation.id, cancellation.reason)
         sendAppointmentCancelledEvent(cancelled)
-        appointment.copy(
-            status = AppointmentStatus.CANCELLED,
-            cancellationReason = cancellation.reason,
-        )
+        cancelled
     }
 
     private suspend fun sendAppointmentCancelledEvent(appointment: Appointment) {

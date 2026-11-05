@@ -27,6 +27,9 @@ jobs](scheduled-jobs.md).
 
 ## Appointments service
 
+The scheduled [appointment finalization](scheduled-jobs.md#appointment-finalization)
+flow covers end-of-day completion and unresolved outcomes after the edit window.
+
 | Route | Diagram |
 |---|---|
 | `POST /api/appointments/enabled/{businessId}` | [Enable appointments for business](appointments/enable-appointments-for-business.md) |
