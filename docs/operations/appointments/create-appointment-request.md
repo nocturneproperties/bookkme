@@ -2,6 +2,8 @@
 
 `POST /api/appointments/request` → `CreateAppointmentRequest`
 
+`BookingQuoteVerifier` validates the offer with `ValidationType.SERVICE_QUOTE`, fetching the business signing key by the token's `kid` from `/jwks.json`. In the monolith this endpoint publishes auth and business verification keys together, including retiring keys; standalone business publishes its own keys.
+
 A client submits an `AppointmentRequestDraft` carrying the signed
 `offerToken` produced earlier by the business service's
 `POST /api/service/quote` (`IssueServiceQuote`, read-only — not diagrammed
@@ -96,7 +98,7 @@ flowchart TD
     CountCheck -- No --> R422i([422 SERVICES_VALIDATION_FAILED 300014])
     CountCheck -- Yes --> DistinctCheck{draft.services has no duplicate serviceId?}
     DistinctCheck -- No --> R422j([422 SERVICES_VALIDATION_FAILED 300014])
-    DistinctCheck -- Yes --> Verify[Verify offerToken signature - SERVICE_QUOTE]
+    DistinctCheck -- Yes --> Verify[Verify offerToken signature - SERVICE_QUOTE - business key from /jwks.json by kid]
     Verify -- invalid signature --> R422b([422 SERVICES_VALIDATION_FAILED 300014])
     Verify -- valid --> ServicesCheck{draft.services per-id counts and businessId match token claims?}
     ServicesCheck -- No --> R400b([400 SERVICES_VALIDATION_FAILED 300014])

@@ -5,6 +5,7 @@ import com.bookk.auth.data.orm.entity.AuthDeviceEntity
 import com.bookk.auth.data.orm.table.AuthDeviceTable
 import com.bookk.auth.data.orm.table.AuthenticationTable
 import com.bookk.auth.domain.api.identification.entity.Device
+import com.bookk.auth.domain.api.identification.entity.DeviceIdentity
 import com.bookk.auth.domain.datasource.DeviceDataSource
 import com.bookk.core.data.DataSource
 import com.bookk.core.domain.entity.Error
@@ -139,10 +140,10 @@ internal class DeviceDataSourceImpl : DataSource(), DeviceDataSource {
         }
     }
 
-    override suspend fun deleteInactiveDevices(olderThan: Instant): List<Uuid> = dbQuery {
+    override suspend fun deleteInactiveDevices(olderThan: Instant): List<DeviceIdentity> = dbQuery {
         AuthDeviceTable
-            .deleteReturning(listOf(AuthDeviceTable.deviceUUID)) { AuthDeviceTable.lastLogInAt less olderThan }
-            .map { it[AuthDeviceTable.deviceUUID] }
+            .deleteReturning(listOf(AuthDeviceTable.userAuthId, AuthDeviceTable.deviceUUID)) { AuthDeviceTable.lastLogInAt less olderThan }
+            .map { DeviceIdentity(it[AuthDeviceTable.userAuthId].value, it[AuthDeviceTable.deviceUUID]) }
     }
 
     companion object {

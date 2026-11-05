@@ -50,3 +50,9 @@ flowchart TD
    The schema is the consumer's service: `auth_group` → `authorization`, every other `<service>_group` → `<service>`.
 3. The alert clears within a minute or two once the replay succeeds. If the event fails again, it is parked again and the alert stays.
 4. A row logged as `Cannot replay a parked event` can't be replayed by this version. Handle it by hand, then `DELETE` it, or the alert stays.
+
+## Device events after account scoping
+
+`AuthEvent.DeviceCreated` keeps its wire format. With notifications V4, a repeated `(authId, deviceUuid, userId)` succeeds while preserving the existing token and language; different accounts can share an installation UUID. A conflicting user for an existing account/device pair still fails. Before replaying a parked creation, check authorization still has that account/device association: creation and deletion events on different topics have no relative ordering, so an obsolete creation can recreate a deleted association.
+
+`AuthEvent.DeviceDeleted` and `AuthEvent.DeviceLanguageUpdated` now carry `authId` as an added ProtoBuf field. Legacy payloads decode with `Uuid.NIL` and the notification handler rejects them, keeping them parked instead of changing another account's device. Determine the original account from source records or logs, apply the intended change to that account/device pair, and delete only that reconciled exhausted-event row. A missing account cannot safely be inferred from the UUID alone. New events include the account on every producer path, including inactive-device cleanup. Failed sign-up only compensates the remote user: its device insert and creation outbox entry roll back together, so no device deletion is emitted.

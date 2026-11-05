@@ -2,6 +2,7 @@ package com.bookk.appointments.domain.impl.operation
 
 import com.bookk.appointments.domain.api.entity.Appointment
 import com.bookk.appointments.domain.api.entity.AppointmentCancellation
+import com.bookk.appointments.domain.api.entity.AppointmentCompletedBy
 import com.bookk.appointments.domain.api.entity.AppointmentStatus
 import com.bookk.appointments.domain.api.entity.AppointmentStatusError
 import com.bookk.appointments.domain.api.entity.BusinessSnapshot
@@ -98,40 +99,49 @@ internal class CancelAppointmentImplTest {
     }
 
     @Test
-    fun `should return failure when appointment already completed`() = runUnitTest {
+    fun `should allow cancelling a completed appointment within its edit window`() = runUnitTest {
         val fixture = SutFixture()
         given()
         fixture.transactionManager.mockTransaction()
-        val appointment = Appointment.stub(id = testCancellation.id, businessId = testBusinessId, date = upcoming)
+        val appointment = Appointment.stub(id = testCancellation.id, businessId = testBusinessId, date = Clock.System.now() - 1.days)
             .copy(status = AppointmentStatus.COMPLETED)
 
         coEvery { fixture.appointmentPermissionDataSource.getPermission(testUserId, testBusinessId) } returns ResourcePermission(view = false, update = true, delete = false)
         coEvery { fixture.appointmentDataSource.getForUpdate(testCancellation.id) } returns appointment
 
+        val cancelled = appointment.copy(status = AppointmentStatus.CANCELLED, completedBy = null, cancellationReason = testCancellation.reason)
+        coEvery { fixture.appointmentDataSource.cancel(testCancellation.id, testCancellation.reason) } returns cancelled
+        coEvery { fixture.subscriptionDataSource.getBusinessSnapshot(testBusinessId) } returns BusinessSnapshot.stub(id = testBusinessId)
+
         whenn()
         val result = fixture.sut.invoke(testUserId, testCancellation)
 
         then()
-        assertTrue(result.isFailure)
-        assertTrue(result.exceptionOrNull() is AppointmentStatusError.AlreadyCompleted)
+        assertTrue(result.isSuccess)
+        assertEquals(cancelled, result.getOrNull())
     }
 
     @Test
-    fun `should return failure when appointment is marked as no-show`() = runUnitTest {
+    fun `should allow cancelling a no-show appointment within its edit window`() = runUnitTest {
         val fixture = SutFixture()
         given()
         fixture.transactionManager.mockTransaction()
-        val appointment = Appointment.stub(id = testCancellation.id, businessId = testBusinessId, date = upcoming)
+        val appointment = Appointment.stub(id = testCancellation.id, businessId = testBusinessId, date = Clock.System.now() - 1.days)
             .copy(status = AppointmentStatus.NO_SHOW)
 
         coEvery { fixture.appointmentPermissionDataSource.getPermission(testUserId, testBusinessId) } returns ResourcePermission(view = false, update = true, delete = false)
         coEvery { fixture.appointmentDataSource.getForUpdate(testCancellation.id) } returns appointment
 
+        val cancelled = appointment.copy(status = AppointmentStatus.CANCELLED, completedBy = null, cancellationReason = testCancellation.reason)
+        coEvery { fixture.appointmentDataSource.cancel(testCancellation.id, testCancellation.reason) } returns cancelled
+        coEvery { fixture.subscriptionDataSource.getBusinessSnapshot(testBusinessId) } returns BusinessSnapshot.stub(id = testBusinessId)
+
         whenn()
         val result = fixture.sut.invoke(testUserId, testCancellation)
 
         then()
-        assertTrue(result.exceptionOrNull() is AppointmentStatusError.MarkedNoShow)
+        assertEquals(cancelled, result.getOrNull())
+        coVerify(exactly = 1) { fixture.eventProducer.send(any(AppointmentEvent.Cancelled::class), any()) }
     }
 
     @Test
@@ -281,12 +291,12 @@ internal class CancelAppointmentImplTest {
     }
 
     @Test
-    fun `should not cancel an appointment that is not scheduled`() = runUnitTest {
+    fun `should not publish another cancellation for an already cancelled appointment`() = runUnitTest {
         val fixture = SutFixture()
         given()
         fixture.transactionManager.mockTransaction()
         val appointment = Appointment.stub(id = testCancellation.id, businessId = testBusinessId, date = upcoming)
-            .copy(status = AppointmentStatus.COMPLETED)
+            .copy(status = AppointmentStatus.CANCELLED)
 
         coEvery { fixture.appointmentPermissionDataSource.getPermission(testUserId, testBusinessId) } returns ResourcePermission(view = false, update = true, delete = false)
         coEvery { fixture.appointmentDataSource.getForUpdate(testCancellation.id) } returns appointment
@@ -305,6 +315,47 @@ internal class CancelAppointmentImplTest {
         val fixture = SutFixture()
         fixture.transactionManager.mockTransaction()
         val appointment = Appointment.stub(id = testCancellation.id, businessId = testBusinessId, date = Clock.System.now() - 30.days)
+        coEvery { fixture.appointmentPermissionDataSource.getPermission(testUserId, testBusinessId) } returns ResourcePermission(view = false, update = true, delete = false)
+        coEvery { fixture.appointmentDataSource.getForUpdate(testCancellation.id) } returns appointment
+
+        whenn()
+        val result = fixture.sut.invoke(testUserId, testCancellation)
+
+        then()
+        assertTrue(result.exceptionOrNull() is AppointmentStatusError.EditWindowClosed)
+        coVerify(exactly = 0) { fixture.appointmentDataSource.cancel(any(), any()) }
+    }
+
+    @Test
+    fun `should cancel a system completed appointment within its edit window`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.transactionManager.mockTransaction()
+        val appointment = Appointment.stub(date = Clock.System.now() - 1.days).copy(
+            status = AppointmentStatus.COMPLETED,
+            completedBy = AppointmentCompletedBy.SYSTEM,
+        )
+        val cancellation = AppointmentCancellation(appointment.id, "Corrected outcome")
+        val cancelled = appointment.copy(status = AppointmentStatus.CANCELLED, completedBy = null, cancellationReason = cancellation.reason)
+        coEvery { fixture.appointmentDataSource.getForUpdate(appointment.id) } returns appointment
+        coEvery { fixture.appointmentPermissionDataSource.getPermission(testUserId, appointment.businessId) } returns ResourcePermission.FULL
+        coEvery { fixture.appointmentDataSource.cancel(appointment.id, cancellation.reason) } returns cancelled
+        coEvery { fixture.subscriptionDataSource.getBusinessSnapshot(appointment.businessId) } returns BusinessSnapshot.stub(id = appointment.businessId)
+
+        whenn()
+        val result = fixture.sut(testUserId, cancellation)
+
+        then()
+        assertEquals(cancelled, result.getOrNull())
+        coVerify(exactly = 1) { fixture.eventProducer.send(any(AppointmentEvent.Cancelled::class), any()) }
+    }
+
+    @Test
+    fun `should reject cancelling an unresolved appointment`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.transactionManager.mockTransaction()
+        val appointment = Appointment.stub(id = testCancellation.id, businessId = testBusinessId, date = Clock.System.now()).copy(status = AppointmentStatus.UNRESOLVED)
         coEvery { fixture.appointmentPermissionDataSource.getPermission(testUserId, testBusinessId) } returns ResourcePermission(view = false, update = true, delete = false)
         coEvery { fixture.appointmentDataSource.getForUpdate(testCancellation.id) } returns appointment
 

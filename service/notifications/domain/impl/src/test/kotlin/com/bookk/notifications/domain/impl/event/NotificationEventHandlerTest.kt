@@ -2,6 +2,8 @@ package com.bookk.notifications.domain.impl.event
 
 import com.bookk.core.data.eventstreaming.EventStreaming
 import com.bookk.core.data.eventstreaming.StandardEventConsumer
+import com.bookk.core.domain.entity.Language
+import com.bookk.core.domain.entity.runSuspendCatching
 import com.bookk.core.test.given
 import com.bookk.core.test.runUnitTest
 import com.bookk.core.test.then
@@ -212,5 +214,46 @@ internal class NotificationEventHandlerTest {
         then()
         coVerify(exactly = 1) { fixture.sendNotification.invoke(event.ownerUserId, any()) }
         assertEquals(NotificationType.ACCOUNT, params.captured.type)
+    }
+
+    @Test
+    fun `should scope device updates and deletion to the event account`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val authId = Uuid.random()
+        val deviceUuid = Uuid.random()
+        coEvery { fixture.updateDeviceLanguage(authId, deviceUuid, Language.UK) } returns Result.success(Unit)
+        coEvery { fixture.deleteDeviceByUUID(authId, deviceUuid) } returns Result.success(Unit)
+        fixture.start(this)
+
+        whenn()
+        fixture.dispatch(AuthEvent.DeviceLanguageUpdated.TOPIC, AuthEvent.DeviceLanguageUpdated(deviceUuid, Language.UK, authId = authId))
+        fixture.dispatch(AuthEvent.DeviceDeleted.TOPIC, AuthEvent.DeviceDeleted(deviceUuid, authId = authId))
+
+        then()
+        coVerify(exactly = 1) { fixture.updateDeviceLanguage(authId, deviceUuid, Language.UK) }
+        coVerify(exactly = 1) { fixture.deleteDeviceByUUID(authId, deviceUuid) }
+    }
+
+    @Test
+    fun `should reject legacy device events without an account instead of touching another account`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val deviceUuid = Uuid.random()
+        fixture.start(this)
+
+        whenn()
+        val update = runSuspendCatching {
+            fixture.dispatch(AuthEvent.DeviceLanguageUpdated.TOPIC, AuthEvent.DeviceLanguageUpdated(deviceUuid, Language.UK))
+        }
+        val deletion = runSuspendCatching {
+            fixture.dispatch(AuthEvent.DeviceDeleted.TOPIC, AuthEvent.DeviceDeleted(deviceUuid))
+        }
+
+        then()
+        assertTrue(update.exceptionOrNull() is IllegalArgumentException)
+        assertTrue(deletion.exceptionOrNull() is IllegalArgumentException)
+        coVerify(exactly = 0) { fixture.updateDeviceLanguage(any(), any(), any()) }
+        coVerify(exactly = 0) { fixture.deleteDeviceByUUID(any(), any()) }
     }
 }

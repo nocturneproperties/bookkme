@@ -61,6 +61,6 @@ internal class AccountEraserTest {
         then()
         coVerify(exactly = 1) { fixture.accountDataSource.deleteAuthorization(authRecord.id) }
         coVerify(exactly = 1) { fixture.eventProducer.send(match<AuthEvent.UserDeleted> { it.userId == authRecord.userId }, any()) }
-        coVerify(exactly = 1) { fixture.eventProducer.send(match<AuthEvent.DeviceDeleted> { it.deviceUuid == deviceUUID }, any()) }
+        coVerify(exactly = 1) { fixture.eventProducer.send(match<AuthEvent.DeviceDeleted> { it.authId == authRecord.id && it.deviceUuid == deviceUUID }, any()) }
     }
 }

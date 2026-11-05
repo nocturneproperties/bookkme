@@ -18,7 +18,7 @@ internal class AccountEraser(
         val devices = deviceDataSource.getDevices(authId)
         erasedAccountDataSource.record(userId)
         eventProducer.send(AuthEvent.UserDeleted(userId))
-        devices.forEach { eventProducer.send(AuthEvent.DeviceDeleted(it.deviceInfo.deviceUUID)) }
+        devices.forEach { eventProducer.send(AuthEvent.DeviceDeleted(it.deviceInfo.deviceUUID, authId = authId)) }
         accountDataSource.deleteAuthorization(authId)
     }
 }

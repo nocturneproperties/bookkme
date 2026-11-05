@@ -214,6 +214,16 @@ internal class SwaggerTest {
             }
         }
         assertSchemaReferences(document, document)
+        if (Service.APPOINTMENTS in services) {
+            val appointment = operations.getValue("get /api/appointments/{id}")
+            assertTrue(appointment.getValue("responses").jsonObject.keys.containsAll(setOf("200", "401", "403", "404")))
+            val schema = appointment.getValue("responses").jsonObject.getValue("200").jsonObject
+                .getValue("content").jsonObject.getValue("application/x-protobuf").jsonObject.getValue("schema").jsonObject
+            assertEquals("#/components/schemas/Appointment", schema.getValue("\$ref").jsonPrimitive.content)
+            assertFalse(appointment["security"]?.let { it as JsonArray }.isNullOrEmpty())
+            val notFoundContent = appointment.getValue("responses").jsonObject.getValue("404").jsonObject.getValue("content").jsonObject
+            assertTrue("text/plain" in notFoundContent)
+        }
         if (Service.NOTIFICATIONS in services) {
             val update = operations.getValue("put /api/notifications/settings")
             val schema = update.getValue("requestBody").jsonObject.getValue("content").jsonObject

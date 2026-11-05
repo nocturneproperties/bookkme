@@ -35,33 +35,23 @@ data class Appointment(
 
     fun hasStarted(now: Instant = Clock.System.now()): Boolean = date <= now
 
-    fun requireScheduled(now: Instant = Clock.System.now()) {
+    fun requireEditable(now: Instant = Clock.System.now()) {
         when (status) {
-            AppointmentStatus.SCHEDULED -> Unit
             AppointmentStatus.CANCELLED -> throw AppointmentStatusError.AlreadyCancelled()
-            AppointmentStatus.COMPLETED -> throw AppointmentStatusError.AlreadyCompleted()
-            AppointmentStatus.NO_SHOW -> throw AppointmentStatusError.MarkedNoShow()
+            AppointmentStatus.UNRESOLVED -> throw AppointmentStatusError.EditWindowClosed()
+            AppointmentStatus.SCHEDULED, AppointmentStatus.COMPLETED, AppointmentStatus.NO_SHOW -> Unit
         }
         requireWithinEditWindow(now)
     }
 
     fun requireCompletable(now: Instant = Clock.System.now()) {
-        when (status) {
-            AppointmentStatus.COMPLETED -> Unit
-            AppointmentStatus.SCHEDULED -> requireStarted(now)
-            AppointmentStatus.CANCELLED -> throw AppointmentStatusError.AlreadyCancelled()
-            AppointmentStatus.NO_SHOW -> throw AppointmentStatusError.MarkedNoShow()
-        }
-        requireWithinEditWindow(now)
+        requireEditable(now)
+        if (status != AppointmentStatus.COMPLETED) requireStarted(now)
     }
 
     fun requireNoShowMarkable(now: Instant = Clock.System.now()) {
-        when (status) {
-            AppointmentStatus.NO_SHOW -> Unit
-            AppointmentStatus.SCHEDULED, AppointmentStatus.COMPLETED -> requireStarted(now)
-            AppointmentStatus.CANCELLED -> throw AppointmentStatusError.AlreadyCancelled()
-        }
-        requireWithinEditWindow(now)
+        requireEditable(now)
+        if (status != AppointmentStatus.NO_SHOW) requireStarted(now)
     }
 
     private fun requireWithinEditWindow(now: Instant) {

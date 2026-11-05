@@ -13,9 +13,9 @@ import com.bookk.auth.microservice.route.api.signIn
 import io.ktor.server.routing.Routing
 import library.signing.route.jwks
 
-fun Routing.authRoute() {
+fun Routing.authRoute(includeJwks: Boolean = true) {
     healthCheck()
-    jwks(AuthScope)
+    if (includeJwks) jwks(AuthScope)
     passkeyOperations()
     signIn()
     registration()

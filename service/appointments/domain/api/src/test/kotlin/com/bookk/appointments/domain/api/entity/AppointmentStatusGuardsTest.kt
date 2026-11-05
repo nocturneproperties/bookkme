@@ -25,7 +25,7 @@ internal class AppointmentStatusGuardsTest {
         val appointment = appointment(AppointmentStatus.SCHEDULED)
 
         whenn()
-        val error = runCatching { appointment.requireScheduled(now) }.exceptionOrNull()
+        val error = runCatching { appointment.requireEditable(now) }.exceptionOrNull()
 
         then()
         assertNull(error)
@@ -37,34 +37,34 @@ internal class AppointmentStatusGuardsTest {
         val appointment = appointment(AppointmentStatus.CANCELLED)
 
         whenn()
-        val error = runCatching { appointment.requireScheduled(now) }.exceptionOrNull()
+        val error = runCatching { appointment.requireEditable(now) }.exceptionOrNull()
 
         then()
         assertTrue(error is AppointmentStatusError.AlreadyCancelled)
     }
 
     @Test
-    fun `should reject changing a completed appointment`() = runUnitTest {
+    fun `should allow changing a completed appointment`() = runUnitTest {
         given()
         val appointment = appointment(AppointmentStatus.COMPLETED)
 
         whenn()
-        val error = runCatching { appointment.requireScheduled(now) }.exceptionOrNull()
+        val error = runCatching { appointment.requireEditable(now) }.exceptionOrNull()
 
         then()
-        assertTrue(error is AppointmentStatusError.AlreadyCompleted)
+        assertNull(error)
     }
 
     @Test
-    fun `should reject changing a no-show appointment`() = runUnitTest {
+    fun `should allow changing a no-show appointment`() = runUnitTest {
         given()
         val appointment = appointment(AppointmentStatus.NO_SHOW)
 
         whenn()
-        val error = runCatching { appointment.requireScheduled(now) }.exceptionOrNull()
+        val error = runCatching { appointment.requireEditable(now) }.exceptionOrNull()
 
         then()
-        assertTrue(error is AppointmentStatusError.MarkedNoShow)
+        assertNull(error)
     }
 
     @Test
@@ -128,7 +128,7 @@ internal class AppointmentStatusGuardsTest {
     }
 
     @Test
-    fun `should reject completing a no-show appointment`() = runUnitTest {
+    fun `should allow completing a no-show appointment`() = runUnitTest {
         given()
         val appointment = appointment(AppointmentStatus.NO_SHOW)
 
@@ -136,7 +136,7 @@ internal class AppointmentStatusGuardsTest {
         val error = runCatching { appointment.requireCompletable(now) }.exceptionOrNull()
 
         then()
-        assertTrue(error is AppointmentStatusError.MarkedNoShow)
+        assertNull(error)
     }
 
     @Test
@@ -218,7 +218,7 @@ internal class AppointmentStatusGuardsTest {
         val laterThanTheWindow = appointment.dateEnd + Appointment.EDIT_WINDOW + 1.minutes
 
         whenn()
-        val error = runCatching { appointment.requireScheduled(laterThanTheWindow) }.exceptionOrNull()
+        val error = runCatching { appointment.requireEditable(laterThanTheWindow) }.exceptionOrNull()
 
         then()
         assertTrue(error is AppointmentStatusError.EditWindowClosed)
@@ -231,7 +231,7 @@ internal class AppointmentStatusGuardsTest {
         val endOfTheWindow = appointment.dateEnd + Appointment.EDIT_WINDOW
 
         whenn()
-        val error = runCatching { appointment.requireScheduled(endOfTheWindow) }.exceptionOrNull()
+        val error = runCatching { appointment.requireEditable(endOfTheWindow) }.exceptionOrNull()
 
         then()
         assertNull(error)
@@ -351,5 +351,91 @@ internal class AppointmentStatusGuardsTest {
 
         then()
         assertTrue(window == expected)
+    }
+
+    @Test
+    fun `should allow correcting a system completed appointment within its edit window`() = runUnitTest {
+        given()
+        val appointment = Appointment.stub(date = started).copy(
+            status = AppointmentStatus.COMPLETED,
+            completedBy = AppointmentCompletedBy.SYSTEM,
+        )
+
+        whenn()
+        val error = runCatching { appointment.requireEditable(now) }.exceptionOrNull()
+
+        then()
+        assertNull(error)
+    }
+
+    @Test
+    fun `should reject all corrections of an unresolved appointment`() = runUnitTest {
+        given()
+        val appointment = Appointment.stub(date = started).copy(status = AppointmentStatus.UNRESOLVED)
+
+        whenn()
+        val errors = listOf(
+            runCatching { appointment.requireEditable(now) }.exceptionOrNull(),
+            runCatching { appointment.requireCompletable(now) }.exceptionOrNull(),
+            runCatching { appointment.requireNoShowMarkable(now) }.exceptionOrNull(),
+        )
+
+        then()
+        assertTrue(errors.all { it is AppointmentStatusError.EditWindowClosed })
+    }
+
+    @Test
+    fun `should reject correcting a system completed appointment after its edit window`() = runUnitTest {
+        given()
+        val appointment = Appointment.stub(date = started).copy(
+            status = AppointmentStatus.COMPLETED,
+            completedBy = AppointmentCompletedBy.SYSTEM,
+        )
+
+        whenn()
+        val error = runCatching { appointment.requireEditable(appointment.dateEnd + Appointment.EDIT_WINDOW + 1.minutes) }.exceptionOrNull()
+
+        then()
+        assertTrue(error is AppointmentStatusError.EditWindowClosed)
+    }
+
+    @Test
+    fun `should allow correcting every non-terminal outcome at the exact edit window boundary`() = runUnitTest {
+        given()
+        val appointments = listOf(AppointmentStatus.SCHEDULED, AppointmentStatus.COMPLETED, AppointmentStatus.NO_SHOW)
+            .map { Appointment.stub(date = started).copy(status = it) }
+
+        whenn()
+        val errors = appointments.flatMap { appointment ->
+            val boundary = appointment.dateEnd + Appointment.EDIT_WINDOW
+            listOf(
+                runCatching { appointment.requireEditable(boundary) }.exceptionOrNull(),
+                runCatching { appointment.requireCompletable(boundary) }.exceptionOrNull(),
+                runCatching { appointment.requireNoShowMarkable(boundary) }.exceptionOrNull(),
+            )
+        }
+
+        then()
+        assertTrue(errors.all { it == null })
+    }
+
+    @Test
+    fun `should reject correcting every non-terminal outcome after its edit window`() = runUnitTest {
+        given()
+        val appointments = listOf(AppointmentStatus.SCHEDULED, AppointmentStatus.COMPLETED, AppointmentStatus.NO_SHOW)
+            .map { Appointment.stub(date = started).copy(status = it) }
+
+        whenn()
+        val errors = appointments.flatMap { appointment ->
+            val expired = appointment.dateEnd + Appointment.EDIT_WINDOW + 1.minutes
+            listOf(
+                runCatching { appointment.requireEditable(expired) }.exceptionOrNull(),
+                runCatching { appointment.requireCompletable(expired) }.exceptionOrNull(),
+                runCatching { appointment.requireNoShowMarkable(expired) }.exceptionOrNull(),
+            )
+        }
+
+        then()
+        assertTrue(errors.all { it is AppointmentStatusError.EditWindowClosed })
     }
 }

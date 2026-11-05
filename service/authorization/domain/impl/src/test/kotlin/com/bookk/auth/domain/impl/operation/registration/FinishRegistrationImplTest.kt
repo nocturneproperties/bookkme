@@ -168,7 +168,7 @@ internal class FinishRegistrationImplTest {
     }
 
     @Test
-    fun `should return failure and emit cleanup events when transaction fails`() = runUnitTest {
+    fun `should compensate the remote user without deleting device associations when registration fails`() = runUnitTest {
         given()
         val fixture = SutFixture()
         val deviceId = Uuid.random()
@@ -188,11 +188,11 @@ internal class FinishRegistrationImplTest {
         then()
         assertTrue(result.isFailure)
         coVerify(exactly = 1) { fixture.eventProducer.send(any<AuthEvent.UserDeleted>(), any()) }
-        coVerify(exactly = 1) { fixture.eventProducer.send(any<AuthEvent.DeviceDeleted>(), any()) }
+        coVerify(exactly = 0) { fixture.eventProducer.send(any<AuthEvent.DeviceDeleted>(), any()) }
     }
 
     @Test
-    fun `should emit cleanup events inside a transaction when registration fails`() = runUnitTest {
+    fun `should emit user cleanup inside a transaction when registration fails`() = runUnitTest {
         given()
         val fixture = SutFixture()
         val request = makeRequest()
@@ -213,7 +213,7 @@ internal class FinishRegistrationImplTest {
 
         then()
         coVerify(exactly = 1) { fixture.eventProducer.send(any<AuthEvent.UserDeleted>(), any()) }
-        coVerify(exactly = 1) { fixture.eventProducer.send(any<AuthEvent.DeviceDeleted>(), any()) }
+        coVerify(exactly = 0) { fixture.eventProducer.send(any<AuthEvent.DeviceDeleted>(), any()) }
         assertEquals(emptyList<Any>(), eventsSentOutsideTransaction)
     }
 
@@ -242,7 +242,35 @@ internal class FinishRegistrationImplTest {
         assertTrue(result.isFailure)
         assertTrue(result.exceptionOrNull() is FinishRegistration.Error.AccountCreationFailed)
         coVerify(exactly = 1) { fixture.eventProducer.send(any<AuthEvent.UserDeleted>(), any()) }
-        coVerify(exactly = 1) { fixture.eventProducer.send(any<AuthEvent.DeviceDeleted>(), any()) }
+        coVerify(exactly = 0) { fixture.eventProducer.send(any<AuthEvent.DeviceDeleted>(), any()) }
+    }
+
+    @Test
+    fun `should only compensate the remote user when token creation fails after staging a device event`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val request = makeRequest()
+        val userId = Uuid.random()
+        val passkey = makePasskeyCredential()
+        val authRecord = Authentication.stub(userId = userId, uuid = passkey.handle)
+        with(fixture) {
+            transactionManager.mockTransaction()
+            coEvery { finishPasskeyRegistration.verifyRequest(request) } returns Result.success(passkey)
+            coEvery { userClient.createUser(any()) } returns Result.success(userId)
+            coEvery { accountDataSource.createAuthorization(any()) } returns authRecord
+            coEvery { finishPasskeyRegistration.attachOwner(authRecord.id, passkey) } returns Unit
+            coEvery { deviceDataSource.insertDevice(authRecord.id, request.deviceInfo.deviceUUID, any(), Language.EN) } returns Uuid.random()
+            coEvery { generateAuthToken(any<GenerateAuthToken.Source.InitialAuthentication>()) } returns Result.failure(RuntimeException("token failure"))
+        }
+
+        whenn()
+        val result = fixture.sut.invoke(request, Language.EN)
+
+        then()
+        assertTrue(result.isFailure)
+        coVerify(exactly = 1) { fixture.eventProducer.send(any<AuthEvent.DeviceCreated>(), any()) }
+        coVerify(exactly = 1) { fixture.eventProducer.send(match<AuthEvent.UserDeleted> { it.userId == userId }, any()) }
+        coVerify(exactly = 0) { fixture.eventProducer.send(any<AuthEvent.DeviceDeleted>(), any()) }
     }
 
     @Test

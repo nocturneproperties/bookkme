@@ -2,8 +2,11 @@
 
 `PUT /api/appointments/{id}` → `UpdateAppointment`
 
-Reschedules a `SCHEDULED` appointment — date, note, assigned employee and
-services. The body (`AppointmentUpdate`) carries only ids: `employeeId` and
+Edits a `SCHEDULED`, `COMPLETED` or `NO_SHOW` appointment within its 7-day
+edit window — date, note, assigned employee and services. `CANCELLED` is
+terminal; staff must create a new appointment rather than restore it.
+`UNRESOLVED` is immutable and returns `APPOINTMENT_EDIT_WINDOW_CLOSED` (300026).
+The body (`AppointmentUpdate`) carries only ids: `employeeId` and
 `services` as `RequestedService(serviceId, count)`. No name, contact or price
 is ever taken from the client:
 
@@ -22,7 +25,11 @@ service. Otherwise one call, `BusinessClient.getAppointmentRescheduleContext`
 the changed employee and the added services together. Unlike the booking
 context it never resolves or creates a client.
 
-The status only changes through [Cancel appointment](cancel-appointment.md),
+Changing the date or assigned employee reopens an eligible appointment as
+`SCHEDULED`, clears `completedBy` and removes its previous checkout adjustment
+and additional checkout services. Edits that keep the date and employee preserve
+the recorded status, completion attribution and checkout, even when the original
+date is in the past. A changed time or employee must use a future date. Other status changes happen through [Cancel appointment](cancel-appointment.md),
 [Complete appointment](complete-appointment.md) and [Mark appointment as
 no-show](mark-appointment-no-show.md), or the `MarkAppointmentsCompleted`
 job. The response is the stored appointment, not an echo of the body.
@@ -33,8 +40,8 @@ plain read:
 
 1. **Check.** A short transaction reads the appointment
    (`AppointmentDataSource.get`), checks the caller's permission, that it is
-   still `SCHEDULED` (`Appointment.requireScheduled()`) and that the new date
-   isn't in the past. The appointment is fetched before the permission check
+   still eligible (`Appointment.requireEditable()`) and that a changed date or
+   employee does not move the booking into the past. The appointment is fetched before the permission check
    so a `view`-only employee can be let through when it's their own — see
    [Managing your own resource on a `view`
    grant](../../object-permissions.md#managing-your-own-resource-on-a-view-grant).
@@ -46,8 +53,10 @@ plain read:
    committed in between), nothing is written and the route answers 409
    `TRANSACTION_CONFLICT`, so the app retries with fresh data. Otherwise the
    permission, status and date are checked again, now that the snapshot is
-   taken after both locks, followed by workday, worktime and overlaps, and
-   the appointment is written.
+   taken after both locks. A resulting `SCHEDULED` booking is checked for workday,
+   worktime and overlaps. Historical corrections that preserve `COMPLETED` or
+   `NO_SHOW` reserve no slot and skip those booking checks. The appointment is
+   then written.
 
 The settings lock serializes every booking write of the business and is the
 double-booking guard — the `(user_id, business_id, date_start)` index is
@@ -75,15 +84,14 @@ flowchart TD
     subgraph Check [requireReschedulable - run in both transactions]
         Suspended{AppointmentPermissionDataSource.getPermission businessId - grant row marked suspended?}
         Suspended -- No --> Perm{caller update permission, or view permission and stored employee.userId == userId?}
-        Perm -- Yes --> Stored{Appointment.requireScheduled - stored status}
-        Stored -- SCHEDULED --> Window{stored dateEnd + 7 days before now?}
-        Window -- No --> Past{body.date before now?}
+        Perm -- Yes --> Stored{Appointment.requireEditable - stored status}
+        Stored -- SCHEDULED, COMPLETED or NO_SHOW --> Window{stored dateEnd + 7 days before now?}
+        Window -- No --> Past{date or employee changed and body.date before now?}
     end
     Suspended -- Yes --> R403s([403 BUSINESS_EMPLOYEE_ACCESS_SUSPENDED 200034])
     Perm -- No --> R404b([404 Error.OperationNotAllowed])
     Stored -- CANCELLED --> R422c([422 ALREADY_CANCELLED 300005])
-    Stored -- COMPLETED --> R422d([422 ALREADY_COMPLETED 300006])
-    Stored -- NO_SHOW --> R422e([422 MARKED_NO_SHOW 300019])
+    Stored -- UNRESOLVED --> R422w
     Window -- Yes --> R422w([422 APPOINTMENT_EDIT_WINDOW_CLOSED 300026])
     Past -- Yes --> R422p([422 DATE_IN_PAST 300012])
     Past -- No, in transaction 1 --> Changes{employeeId changed or a service id not on the appointment?}
@@ -92,7 +100,7 @@ flowchart TD
     Resolve -- employee missing --> R404e([404 BUSINESS_EMPLOYEE_NOT_EXISTS 200024])
     Resolve -- employee suspended --> R422es([422 BUSINESS_EMPLOYEE_SUSPENDED 200033])
     Resolve -- service missing or foreign --> R422sv([422 BUSINESS_QUOTE_SERVICE_NOT_FOUND 200013])
-    Resolve -- resolved --> Rebuild[rescheduled = checked copy with date, note, employee snapshot, services expanded per count - stored snapshots reused]
+    Resolve -- resolved --> Rebuild[rescheduled = checked copy with date, note, employee snapshot, services expanded per count - stored snapshots reused, keep outcome and checkout unless date or employee changed]
     Rebuild --> Tx2[[Transaction 2 - book]]
     Tx2 --> Settings[AppointmentSettingsDataSource.getForUpdate businessId - first lock]
     Settings -- missing --> R404s([404 Error.NotFound])
@@ -100,8 +108,10 @@ flowchart TD
     Lock --> Same{locked appointment == the one checked in transaction 1?}
     Same -- No --> R409([409 TRANSACTION_CONFLICT 900001 - nothing written])
     Same -- Yes, check again --> Check
-    Past -- No, in transaction 2 --> Workday{settings.isInWorkday date?}
-    Workday -- No --> R422w([422 DATE_NOT_ALLOWED 300003])
+    Past -- No, in transaction 2 --> Booking{resulting status is SCHEDULED?}
+    Booking -- No --> Write
+    Booking -- Yes --> Workday{settings.isInWorkday date?}
+    Workday -- No --> R422d([422 DATE_NOT_ALLOWED 300003])
     Workday -- Yes --> Worktime{settings.isInWorktime date, dateEnd?}
     Worktime -- No --> R422t([422 TIME_NOT_ALLOWED 300002])
     Worktime -- Yes --> Overlap{AppointmentDataSource.hasOverlapsWith rescheduled?}

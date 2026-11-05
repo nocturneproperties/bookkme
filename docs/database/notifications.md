@@ -10,8 +10,8 @@ erDiagram
 
     DEVICE {
         uuid id PK
-        uuid auth_id "logical FK -> authentication.id; UK with device_uuid, user_id"
-        uuid device_uuid UK
+        uuid auth_id UK "logical FK -> authentication.id; composite with device_uuid"
+        uuid device_uuid UK "composite with auth_id"
         uuid user_id "logical FK -> user.profile.id"
         text notification_token
         enum language
@@ -71,3 +71,5 @@ foreign-keyed to `notification_settings` in the schema — they are joined to a
 user's settings at query time via the shared `user_id`.
 
 `EXHAUSTED_EVENT` is not part of the notifications domain model — it's the shared DLT landing table (`core/data/eventstreaming/data`, one instance per service schema) that `KafkaEventConsumer`/`EmbeddedEventConsumer` write to when an event exhausts its retry budget, so a failed event survives a process restart or crash instead of being lost. Every start, and every row an operator sets `replay_requested` on, is replayed through the consumer group's DLT topic by `ExhaustedEventReplayer`, which also exports the parked rows as the `events_exhausted` metric. See [Exhausted events](../exhausted-events.md).
+
+`device` is unique on `(auth_id, device_uuid)`, matching authorization. One installation UUID can belong to several accounts, with independent tokens and languages. Repeated `DeviceCreated` events preserve the existing association and reject a conflicting `user_id`.

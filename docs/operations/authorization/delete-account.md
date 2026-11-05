@@ -21,7 +21,7 @@ The erasure is recorded in `authorization.erased_account` in the same
 transaction, so a backup restore to an earlier point can erase the account
 again ([Restoring prod](../../../deployment/ansible/README.md#restoring-prod)).
 `AccountEraser` writes `AuthEvent.UserDeleted` and one `AuthEvent.DeviceDeleted`
-per device to the outbox before removing the auth record, which cascades to
+per device, carrying both authId and deviceUuid, to the outbox before removing the auth record, which cascades to
 its passkeys and devices. A successful deletion keeps the token spent. A
 failure or cancellation releases its reservation under `NonCancellable`,
 best effort, so the same token can be retried while it remains valid.
@@ -42,7 +42,7 @@ flowchart TD
     GetAuth -- found --> GetDevices[DeviceDataSource.getDevices authRecord.id]
     GetDevices --> Record["ErasedAccountDataSource.record userId - INSERT IGNORE erased_account"]
     Record --> UserDeletedEvt["eventProducer.send AuthEvent.UserDeleted - outbox row"]
-    UserDeletedEvt --> DeviceLoop["For each device - eventProducer.send AuthEvent.DeviceDeleted - outbox row"]
+    UserDeletedEvt --> DeviceLoop["For each device - eventProducer.send AuthEvent.DeviceDeleted authId deviceUuid - outbox row"]
     DeviceLoop --> DeleteAuth["AccountDataSource.deleteAuthorization authRecord.id - cascades to passkeys and devices"]
     DeleteAuth --> Commit[[Commit transaction]]
     Commit --> R204([204 Account deleted - token stays spent])

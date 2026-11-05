@@ -3,6 +3,7 @@ package com.bookk.appointments.microservice.route.api
 import com.bookk.appointments.domain.api.entity.Appointment
 import com.bookk.appointments.domain.api.entity.AppointmentCancellation
 import com.bookk.appointments.domain.api.entity.AppointmentErrorCodes
+import com.bookk.appointments.domain.api.entity.AppointmentStatus
 import com.bookk.appointments.domain.api.entity.AppointmentStatusError
 import com.bookk.appointments.domain.api.operation.CancelAppointment
 import com.bookk.appointments.microservice.route.AppointmentsRouting.Api
@@ -117,7 +118,7 @@ internal class DeclineAppointmentTest {
     }
 
     @Test
-    fun `should return unprocessable entity when already completed`() = routeTest {
+    fun `should return cancellation after correcting a completed outcome`() = routeTest {
         given()
         val useCase: CancelAppointment = mockk()
         val userId = Uuid.random()
@@ -129,7 +130,7 @@ internal class DeclineAppointmentTest {
                 userId,
                 cancellation,
             )
-        } returns Result.failure(AppointmentStatusError.AlreadyCompleted())
+        } returns Result.success(Appointment.stub(id = appointmentId).copy(status = AppointmentStatus.CANCELLED))
 
         setupApplication(
             extension = {
@@ -156,19 +157,18 @@ internal class DeclineAppointmentTest {
         }
 
         then()
-        assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
-        val body = response.body<SimpleServerError>()
-        assertEquals(AppointmentErrorCodes.APPOINTMENT_ALREADY_COMPLETED, body.errorCode)
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertEquals(AppointmentStatus.CANCELLED, response.body<Appointment>().status)
     }
 
     @Test
-    fun `should return unprocessable entity when appointment is marked as no-show`() = routeTest {
+    fun `should return cancellation after correcting a no-show outcome`() = routeTest {
         given()
         val useCase: CancelAppointment = mockk()
         val userId = Uuid.random()
         val appointmentId = Uuid.random()
         val cancellation = AppointmentCancellation(id = appointmentId, reason = "Reason")
-        coEvery { useCase.invoke(userId, cancellation) } returns Result.failure(AppointmentStatusError.MarkedNoShow())
+        coEvery { useCase.invoke(userId, cancellation) } returns Result.success(Appointment.stub(id = appointmentId).copy(status = AppointmentStatus.CANCELLED))
 
         setupApplication(
             extension = {
@@ -195,8 +195,8 @@ internal class DeclineAppointmentTest {
         }
 
         then()
-        assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
-        assertEquals(AppointmentErrorCodes.APPOINTMENT_MARKED_NO_SHOW, response.body<SimpleServerError>().errorCode)
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertEquals(AppointmentStatus.CANCELLED, response.body<Appointment>().status)
     }
 
     @Test

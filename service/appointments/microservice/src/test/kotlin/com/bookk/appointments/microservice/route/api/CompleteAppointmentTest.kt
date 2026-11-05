@@ -136,12 +136,12 @@ internal class CompleteAppointmentTest {
     }
 
     @Test
-    fun `should return unprocessable entity when appointment is marked as no-show`() = routeTest {
+    fun `should return completion after correcting a no-show outcome`() = routeTest {
         given()
         val useCase: CompleteAppointment = mockk()
         val userId = Uuid.random()
         val appointmentId = Uuid.random()
-        coEvery { useCase.invoke(userId, appointmentId, null) } returns Result.failure(AppointmentStatusError.MarkedNoShow())
+        coEvery { useCase.invoke(userId, appointmentId, null) } returns Result.success(Appointment.stub(id = appointmentId).copy(status = AppointmentStatus.COMPLETED, completedBy = AppointmentCompletedBy.USER))
 
         setupApplication(
             extension = {
@@ -162,8 +162,8 @@ internal class CompleteAppointmentTest {
         val response = client.post(Api.Appointment.Complete(id = appointmentId))
 
         then()
-        assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
-        assertEquals(AppointmentErrorCodes.APPOINTMENT_MARKED_NO_SHOW, response.body<SimpleServerError>().errorCode)
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertEquals(AppointmentStatus.COMPLETED, response.body<Appointment>().status)
     }
 
     @Test

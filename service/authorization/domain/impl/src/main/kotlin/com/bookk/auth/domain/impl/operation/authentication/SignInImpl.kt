@@ -47,7 +47,7 @@ internal class SignInImpl(
             producer.send(AuthEvent.DeviceCreated(ownerId, userId, deviceInfo.deviceUUID, language))
         } else {
             deviceDataSource.updateLanguage(ownerId, deviceInfo.deviceUUID, language)
-            producer.send(AuthEvent.DeviceLanguageUpdated(deviceInfo.deviceUUID, language))
+            producer.send(AuthEvent.DeviceLanguageUpdated(deviceInfo.deviceUUID, language, authId = ownerId))
         }
     }
 }

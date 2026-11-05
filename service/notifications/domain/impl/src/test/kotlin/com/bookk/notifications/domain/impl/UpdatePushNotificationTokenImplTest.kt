@@ -29,20 +29,21 @@ internal class UpdatePushNotificationTokenImplTest {
         given()
         val fixture = SutFixture()
         val deviceId = Uuid.random()
+        val authId = Uuid.random()
         val token = "fcm-token-abc123"
-        val updatedDevice = Device.stub(deviceId = deviceId, notificationToken = token)
+        val updatedDevice = Device.stub(authId = authId, deviceId = deviceId, notificationToken = token)
         with(fixture) {
             transactionManager.mockTransaction()
-            coEvery { deviceDataSource.updateToken(deviceId, token) } returns updatedDevice
+            coEvery { deviceDataSource.updateToken(authId, deviceId, token) } returns updatedDevice
         }
 
         whenn()
-        val result = fixture.sut.invoke(deviceId, token)
+        val result = fixture.sut.invoke(authId, deviceId, token)
 
         then()
         assertTrue(result.isSuccess)
         assertEquals(updatedDevice, result.getOrNull())
-        coVerify(exactly = 1) { fixture.deviceDataSource.updateToken(deviceId, token) }
+        coVerify(exactly = 1) { fixture.deviceDataSource.updateToken(authId, deviceId, token) }
     }
 
     @Test
@@ -50,14 +51,15 @@ internal class UpdatePushNotificationTokenImplTest {
         given()
         val fixture = SutFixture()
         val deviceId = Uuid.random()
+        val authId = Uuid.random()
         val token = "fcm-token-abc123"
         with(fixture) {
             transactionManager.mockTransaction()
-            coEvery { deviceDataSource.updateToken(deviceId, token) } throws RuntimeException("device not found")
+            coEvery { deviceDataSource.updateToken(authId, deviceId, token) } throws RuntimeException("device not found")
         }
 
         whenn()
-        val result = fixture.sut.invoke(deviceId, token)
+        val result = fixture.sut.invoke(authId, deviceId, token)
 
         then()
         assertTrue(result.isFailure)

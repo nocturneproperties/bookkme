@@ -251,7 +251,7 @@ internal class UpdateAppointmentTest {
     }
 
     @Test
-    fun `should return unprocessable entity when appointment is completed`() = routeTest {
+    fun `should return the preserved completed outcome after editing details`() = routeTest {
         given()
         val useCase: UpdateAppointment = mockk()
         val userId = Uuid.random()
@@ -261,7 +261,7 @@ internal class UpdateAppointmentTest {
                 userId,
                 any(),
             )
-        } returns Result.failure(AppointmentStatusError.AlreadyCompleted())
+        } returns Result.success(testAppointment.copy(status = AppointmentStatus.COMPLETED))
 
         setupApplication(
             extension = {
@@ -288,13 +288,12 @@ internal class UpdateAppointmentTest {
         }
 
         then()
-        assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
-        val body = response.body<SimpleServerError>()
-        assertEquals(AppointmentErrorCodes.APPOINTMENT_ALREADY_COMPLETED, body.errorCode)
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertEquals(AppointmentStatus.COMPLETED, response.body<Appointment>().status)
     }
 
     @Test
-    fun `should return unprocessable entity when appointment is marked as no-show`() = routeTest {
+    fun `should return the preserved no-show outcome after editing details`() = routeTest {
         given()
         val useCase: UpdateAppointment = mockk()
         val userId = Uuid.random()
@@ -304,7 +303,7 @@ internal class UpdateAppointmentTest {
                 userId,
                 any(),
             )
-        } returns Result.failure(AppointmentStatusError.MarkedNoShow())
+        } returns Result.success(testAppointment.copy(status = AppointmentStatus.NO_SHOW))
 
         setupApplication(
             extension = {
@@ -331,9 +330,8 @@ internal class UpdateAppointmentTest {
         }
 
         then()
-        assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
-        val body = response.body<SimpleServerError>()
-        assertEquals(AppointmentErrorCodes.APPOINTMENT_MARKED_NO_SHOW, body.errorCode)
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertEquals(AppointmentStatus.NO_SHOW, response.body<Appointment>().status)
     }
 
     @Test

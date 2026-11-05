@@ -170,19 +170,21 @@ internal class CompleteAppointmentImplTest {
     }
 
     @Test
-    fun `should return failure when appointment is marked as no-show`() = runUnitTest {
+    fun `should correct a no-show appointment to completed within the edit window`() = runUnitTest {
         given()
         val fixture = SutFixture()
         val userId = Uuid.random()
         val appointment = Appointment.stub(date = recentlyStarted).copy(status = AppointmentStatus.NO_SHOW)
         fixture.givenLockedAppointment(userId, appointment)
+        val completed = appointment.copy(status = AppointmentStatus.COMPLETED, completedBy = AppointmentCompletedBy.USER)
+        coEvery { fixture.appointmentDataSource.markCompletedByUser(appointment.id) } returns completed
 
         whenn()
         val result = fixture.sut.invoke(userId, appointment.id, priceAdjustment = null)
 
         then()
-        assertTrue(result.exceptionOrNull() is AppointmentStatusError.MarkedNoShow)
-        coVerify(exactly = 0) { fixture.appointmentDataSource.markCompletedByUser(any()) }
+        assertEquals(completed, result.getOrNull())
+        coVerify(exactly = 1) { fixture.appointmentDataSource.markCompletedByUser(appointment.id) }
     }
 
     @Test
@@ -464,6 +466,23 @@ internal class CompleteAppointmentImplTest {
         val fixture = SutFixture()
         val userId = Uuid.random()
         val appointment = Appointment.stub(date = Clock.System.now() - 30.days).copy(status = AppointmentStatus.COMPLETED)
+        fixture.givenLockedAppointment(userId, appointment)
+
+        whenn()
+        val result = fixture.sut.invoke(userId, appointment.id, priceAdjustment = PriceAdjustmentDraft.stub())
+
+        then()
+        assertTrue(result.exceptionOrNull() is AppointmentStatusError.EditWindowClosed)
+        coVerify(exactly = 0) { fixture.appointmentDataSource.markCompletedByUser(any()) }
+        coVerify(exactly = 0) { fixture.appointmentDataSource.adjustPrice(any(), any()) }
+    }
+
+    @Test
+    fun `should reject correcting an unresolved appointment`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val appointment = Appointment.stub(date = Clock.System.now()).copy(status = AppointmentStatus.UNRESOLVED)
         fixture.givenLockedAppointment(userId, appointment)
 
         whenn()

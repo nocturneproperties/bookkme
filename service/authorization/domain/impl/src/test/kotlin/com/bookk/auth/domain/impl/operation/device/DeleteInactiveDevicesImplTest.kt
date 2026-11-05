@@ -1,5 +1,6 @@
 package com.bookk.auth.domain.impl.operation.device
 
+import com.bookk.auth.domain.api.identification.entity.DeviceIdentity
 import com.bookk.auth.domain.datasource.DeviceDataSource
 import com.bookk.core.data.eventstreaming.StandardEventProducer
 import com.bookk.core.domain.datasource.transaction.TransactionManager
@@ -14,7 +15,6 @@ import io.mockk.coVerify
 import io.mockk.mockk
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import kotlin.uuid.Uuid
 
 internal class DeleteInactiveDevicesImplTest {
 
@@ -29,11 +29,11 @@ internal class DeleteInactiveDevicesImplTest {
     fun `should delete inactive devices and emit DeviceDeleted event for each`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        val deviceUuid1 = Uuid.random()
-        val deviceUuid2 = Uuid.random()
+        val device1 = DeviceIdentity.stub()
+        val device2 = DeviceIdentity.stub(deviceUuid = device1.deviceUuid)
         with(fixture) {
             transactionManager.mockTransaction()
-            coEvery { deviceDataSource.deleteInactiveDevices(any()) } returns listOf(deviceUuid1, deviceUuid2)
+            coEvery { deviceDataSource.deleteInactiveDevices(any()) } returns listOf(device1, device2)
         }
 
         whenn()
@@ -41,7 +41,9 @@ internal class DeleteInactiveDevicesImplTest {
 
         then()
         assertTrue(result.isSuccess)
-        coVerify(exactly = 2) { fixture.eventProducer.send(any<AuthEvent.DeviceDeleted>(), any()) }
+        listOf(device1, device2).forEach { device ->
+            coVerify(exactly = 1) { fixture.eventProducer.send(match<AuthEvent.DeviceDeleted> { it.authId == device.authId && it.deviceUuid == device.deviceUuid }, any()) }
+        }
     }
 
     @Test

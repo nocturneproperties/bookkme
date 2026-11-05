@@ -59,7 +59,7 @@ flowchart TD
     Decode -- No, e.g. the Appointment body of older apps --> R400body([400 Bad Request])
     Decode -- Yes --> Reserve{"AppointmentRequestDataSource.reserveOfferToken offerToken - SET NX"}
     Reserve -- already used --> R422t([422 QUOTE_TOKEN_ALREADY_USED 300016])
-    Reserve -- reserved --> Quote{"BookingQuoteVerifier.verify - counts positive and distinct, signature valid, business and counts match the draft"}
+    Reserve -- reserved --> Quote{"BookingQuoteVerifier.verify - SERVICE_QUOTE business key from /jwks.json by kid, counts positive and distinct, signature valid, business and counts match the draft"}
     Quote -- No --> R400s([400 SERVICES_VALIDATION_FAILED 300014])
     Quote -- Yes --> Resolve[["BusinessClient.getStaffBookingContext businessId employeeId clientId distinct serviceIds"]]
     Resolve -- employee missing --> R404e([404 BUSINESS_EMPLOYEE_NOT_EXISTS 200024])

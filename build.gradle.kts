@@ -40,6 +40,7 @@ dependencies {
     implementation(projects.core.data.eventstreaming.api)
     implementation(projects.core.data.eventstreaming.impl)
     implementation(projects.library.scheduler)
+    implementation(projects.library.signing.route)
     implementation(projects.service.authorization.microservice)
     implementation(projects.service.authorization.domain.impl)
     implementation(projects.service.user.microservice)

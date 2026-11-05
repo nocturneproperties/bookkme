@@ -3,6 +3,7 @@ package com.bookk.appointments.data.datasource
 import com.bookk.appointments.data.orm.entity.AppointmentEntity
 import com.bookk.appointments.data.orm.entity.AppointmentServiceEntity
 import com.bookk.appointments.data.orm.entity.withDetails
+import com.bookk.appointments.data.orm.table.AppointmentBusinessTable
 import com.bookk.appointments.data.orm.table.AppointmentServicesTable
 import com.bookk.appointments.data.orm.table.AppointmentTable
 import com.bookk.appointments.data.orm.table.SettingsTable
@@ -17,6 +18,9 @@ import com.bookk.appointments.domain.datasource.AppointmentDataSource
 import com.bookk.core.data.DataSource
 import com.bookk.core.domain.entity.Error
 import com.bookk.core.domain.entity.PaginationMetadata
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.atStartOfDayIn
+import kotlinx.datetime.toLocalDateTime
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
@@ -169,24 +173,50 @@ internal class AppointmentDataSourceImpl : DataSource(), AppointmentDataSource {
     override suspend fun cancel(id: Uuid, reason: String): Appointment = dbQuery {
         AppointmentEntity.findByIdAndUpdate(id) {
             it.status = AppointmentStatus.CANCELLED
+            it.completedBy = null
             it.cancellationReason = reason
             it.updatedAt = Clock.System.now()
         }?.domain() ?: throw Error.NotFound()
     }
 
-    override suspend fun markCompleted(before: Instant) = dbQuery<Unit> {
-        val autoCompletingBusinessIds = SettingsTable
-            .select(SettingsTable.businessId)
+    override suspend fun markCompleted(now: Instant) = dbQuery<Unit> {
+        val timeZoneIds = (SettingsTable innerJoin AppointmentBusinessTable)
+            .select(AppointmentBusinessTable.timeZone)
             .where { SettingsTable.automaticCompletion eq true }
+            .withDistinct()
+            .map { it[AppointmentBusinessTable.timeZone] }
+        timeZoneIds.forEach { timeZoneId ->
+            val timeZone = TimeZone.of(timeZoneId)
+            val startOfToday = now.toLocalDateTime(timeZone).date.atStartOfDayIn(timeZone)
+            val autoCompletingBusinessIds = (SettingsTable innerJoin AppointmentBusinessTable)
+                .select(SettingsTable.businessId)
+                .where {
+                    (SettingsTable.automaticCompletion eq true)
+                        .and(AppointmentBusinessTable.timeZone eq timeZoneId)
+                }
+            AppointmentTable.update(
+                where = {
+                    AppointmentTable.status.eq(AppointmentStatus.SCHEDULED)
+                        .and(AppointmentTable.dateEnd.less(startOfToday))
+                        .and(AppointmentTable.businessId.inSubQuery(autoCompletingBusinessIds))
+                },
+            ) {
+                it[AppointmentTable.status] = AppointmentStatus.COMPLETED
+                it[AppointmentTable.completedBy] = AppointmentCompletedBy.SYSTEM
+                it[AppointmentTable.updatedAt] = now
+            }
+        }
+    }
+
+    override suspend fun markUnresolved(before: Instant) = dbQuery<Unit> {
         AppointmentTable.update(
             where = {
                 AppointmentTable.status.eq(AppointmentStatus.SCHEDULED)
                     .and(AppointmentTable.dateEnd.less(before))
-                    .and(AppointmentTable.businessId.inSubQuery(autoCompletingBusinessIds))
             },
         ) {
-            it[AppointmentTable.status] = AppointmentStatus.COMPLETED
-            it[AppointmentTable.completedBy] = AppointmentCompletedBy.SYSTEM
+            it[AppointmentTable.status] = AppointmentStatus.UNRESOLVED
+            it[AppointmentTable.completedBy] = null
             it[AppointmentTable.updatedAt] = Clock.System.now()
         }
     }

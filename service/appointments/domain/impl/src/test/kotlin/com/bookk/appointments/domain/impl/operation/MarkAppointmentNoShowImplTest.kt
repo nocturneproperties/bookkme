@@ -242,4 +242,20 @@ internal class MarkAppointmentNoShowImplTest {
         assertTrue(result.exceptionOrNull() is AppointmentStatusError.EditWindowClosed)
         coVerify(exactly = 0) { fixture.appointmentDataSource.markNoShow(any()) }
     }
+
+    @Test
+    fun `should reject correcting an unresolved appointment`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val appointment = Appointment.stub(date = Clock.System.now()).copy(status = AppointmentStatus.UNRESOLVED)
+        fixture.givenLockedAppointment(userId, appointment)
+
+        whenn()
+        val result = fixture.sut.invoke(userId, appointment.id)
+
+        then()
+        assertTrue(result.exceptionOrNull() is AppointmentStatusError.EditWindowClosed)
+        coVerify(exactly = 0) { fixture.appointmentDataSource.markNoShow(any()) }
+    }
 }

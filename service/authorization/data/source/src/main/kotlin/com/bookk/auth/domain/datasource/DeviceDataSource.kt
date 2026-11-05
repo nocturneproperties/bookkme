@@ -1,6 +1,7 @@
 package com.bookk.auth.domain.datasource
 
 import com.bookk.auth.domain.api.identification.entity.Device
+import com.bookk.auth.domain.api.identification.entity.DeviceIdentity
 import com.bookk.core.domain.entity.Language
 import kotlin.time.Instant
 import kotlin.uuid.Uuid
@@ -15,5 +16,5 @@ interface DeviceDataSource {
     suspend fun attachRefreshTokenToDevice(deviceId: Uuid, tokenId: Uuid, tokenHash: String)
     suspend fun rotateRefreshToken(deviceId: Uuid, tokenId: Uuid, tokenHash: String)
     suspend fun deleteTokenFromDevice(deviceId: Uuid)
-    suspend fun deleteInactiveDevices(olderThan: Instant): List<Uuid>
+    suspend fun deleteInactiveDevices(olderThan: Instant): List<DeviceIdentity>
 }
