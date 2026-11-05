@@ -1,5 +1,6 @@
 package com.bookk.appointments.microservice
 
+import com.bookk.appointments.domain.api.operation.GetAppointment
 import com.bookk.appointments.domain.impl.di.AppointmentsScope
 import com.bookk.core.data.eventstreaming.EventHandler
 import com.bookk.core.data.eventstreaming.ExhaustedEventReplayer
@@ -93,5 +94,29 @@ internal class AppointmentsModuleTest {
 
         then()
         assertNotNull(replayer)
+    }
+
+    @Test
+    fun `should resolve get appointment in the standalone microservice`() = runUnitTest {
+        given()
+        val fixture = SutFixture(appointmentsModule())
+
+        whenn()
+        val operation = fixture.scope.get<GetAppointment>()
+
+        then()
+        assertNotNull(operation)
+    }
+
+    @Test
+    fun `should resolve get appointment in the monolith`() = runUnitTest {
+        given()
+        val fixture = SutFixture(appointmentsEmbeddedModule())
+
+        whenn()
+        val operation = fixture.scope.get<GetAppointment>()
+
+        then()
+        assertNotNull(operation)
     }
 }

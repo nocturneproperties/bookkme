@@ -8,6 +8,7 @@ import com.bookk.appointments.domain.api.operation.CancelAppointment
 import com.bookk.appointments.domain.api.operation.CompleteAppointment
 import com.bookk.appointments.domain.api.operation.CreateAppointment
 import com.bookk.appointments.domain.api.operation.CreateInstantAppointment
+import com.bookk.appointments.domain.api.operation.GetAppointment
 import com.bookk.appointments.domain.api.operation.GetAppointmentHistory
 import com.bookk.appointments.domain.api.operation.GetAppointmentsForDate
 import com.bookk.appointments.domain.api.operation.MarkAppointmentNoShow
@@ -44,6 +45,25 @@ internal class CompleteAppointmentRequest(
 
 fun Routing.appointment() {
     authenticate {
+        /**
+         * Get appointment by id
+         *
+         * Summary: Get appointment by id
+         * Description: Get an appointment by its id with the appointments view grant for its business
+         * Tag: appointment
+         * Security: jwt
+         * Response: 200 application/x-protobuf [com.bookk.appointments.domain.api.entity.Appointment] Appointment entity
+         * Response: 401 application/x-protobuf Authentication required
+         * Response: 403 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Caller is a suspended employee of this business<br>BUSINESS_EMPLOYEE_ACCESS_SUSPENDED (200034) Your access to this business is suspended
+         * Response: 404 text/plain Appointment not found or caller lacks the appointments view grant for its business
+         */
+        get<Api.Appointment.Id> {
+            val principal = requireNotNull(call.principal<AppPrincipal>())
+            val getAppointment by application.injectScoped<GetAppointment>(AppointmentsScope)
+
+            call.respondWith(getAppointment(userId = principal.userId, appointmentId = it.id))
+        }
+
         /**
          * Update appointment
          *
