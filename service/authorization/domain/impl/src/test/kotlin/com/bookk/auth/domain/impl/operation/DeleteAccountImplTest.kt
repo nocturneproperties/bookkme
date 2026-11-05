@@ -85,7 +85,7 @@ internal class DeleteAccountImplTest {
         assertTrue(result.isSuccess)
         coVerify(exactly = 1) { fixture.accountDataSource.deleteAuthorization(fixture.authRecord.id) }
         coVerify(exactly = 1) { fixture.eventProducer.send(match<AuthEvent.UserDeleted> { it.userId == fixture.userId }, any()) }
-        coVerify(exactly = 1) { fixture.eventProducer.send(match<AuthEvent.DeviceDeleted> { it.deviceUuid == deviceUUID }, any()) }
+        coVerify(exactly = 1) { fixture.eventProducer.send(match<AuthEvent.DeviceDeleted> { it.authId == fixture.authRecord.id && it.deviceUuid == deviceUUID }, any()) }
         assertEquals(listOf(true), fixture.recordedInTransaction)
         assertEquals(listOf(true), fixture.tokenSpentWhenReading)
         assertTrue(fixture.confirmationTokens.isSpent(TOKEN_ID))
@@ -105,7 +105,7 @@ internal class DeleteAccountImplTest {
         assertTrue(result.isSuccess)
         coVerify(exactly = 1) { fixture.eventProducer.send(any<AuthEvent.UserDeleted>(), any()) }
         devices.forEach { device ->
-            coVerify(exactly = 1) { fixture.eventProducer.send(match<AuthEvent.DeviceDeleted> { it.deviceUuid == device.deviceInfo.deviceUUID }, any()) }
+            coVerify(exactly = 1) { fixture.eventProducer.send(match<AuthEvent.DeviceDeleted> { it.authId == fixture.authRecord.id && it.deviceUuid == device.deviceInfo.deviceUUID }, any()) }
         }
     }
 

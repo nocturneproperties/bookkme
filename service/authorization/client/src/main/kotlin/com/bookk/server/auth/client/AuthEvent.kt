@@ -57,6 +57,7 @@ interface AuthEvent : EventStreaming.Event<String> {
     data class DeviceLanguageUpdated(
         @ProtoNumber(1) val deviceUuid: Uuid,
         @ProtoNumber(2) val language: Language,
+        @ProtoNumber(5) val authId: Uuid = Uuid.NIL,
         @ProtoNumber(3) override val idempotencyKey: String = Uuid.random().toString(),
     ) : AuthEvent {
         @ProtoNumber(4)
@@ -71,6 +72,7 @@ interface AuthEvent : EventStreaming.Event<String> {
     @Serializable
     data class DeviceDeleted(
         @ProtoNumber(1) val deviceUuid: Uuid,
+        @ProtoNumber(4) val authId: Uuid = Uuid.NIL,
         @ProtoNumber(2) override val idempotencyKey: String = Uuid.random().toString(),
     ) : AuthEvent {
         @ProtoNumber(3)

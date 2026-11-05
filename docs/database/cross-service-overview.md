@@ -40,6 +40,8 @@ erDiagram
     }
     DEVICE {
         uuid id PK
+        uuid auth_id UK "composite with device_uuid"
+        uuid device_uuid UK "composite with auth_id"
     }
     BUSINESS {
         uuid id PK

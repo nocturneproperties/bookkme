@@ -52,7 +52,6 @@ internal class FinishRegistrationImpl(
         }.onFailure {
             transactionManager.transaction {
                 eventProducer.send(AuthEvent.UserDeleted(userId))
-                eventProducer.send(AuthEvent.DeviceDeleted(deviceUuid))
             }
         }
     }

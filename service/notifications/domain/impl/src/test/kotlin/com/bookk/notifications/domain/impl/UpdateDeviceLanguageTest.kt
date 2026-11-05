@@ -28,16 +28,17 @@ internal class UpdateDeviceLanguageTest {
         given()
         val fixture = SutFixture()
         val deviceUuid = Uuid.random()
+        val authId = Uuid.random()
         with(fixture) {
-            coEvery { deviceDataSource.updateLanguage(deviceUuid, Language.UK) } returns Device.stub(deviceId = deviceUuid, language = Language.UK)
+            coEvery { deviceDataSource.updateLanguage(authId, deviceUuid, Language.UK) } returns Device.stub(deviceId = deviceUuid, language = Language.UK)
         }
 
         whenn()
-        val result = fixture.sut.invoke(deviceUuid, Language.UK)
+        val result = fixture.sut.invoke(authId, deviceUuid, Language.UK)
 
         then()
         assertTrue(result.isSuccess)
-        coVerify(exactly = 1) { fixture.deviceDataSource.updateLanguage(deviceUuid, Language.UK) }
+        coVerify(exactly = 1) { fixture.deviceDataSource.updateLanguage(authId, deviceUuid, Language.UK) }
     }
 
     @Test
@@ -45,16 +46,17 @@ internal class UpdateDeviceLanguageTest {
         given()
         val fixture = SutFixture()
         val deviceUuid = Uuid.random()
+        val authId = Uuid.random()
         var updatedInTransaction = false
         with(fixture) {
-            coEvery { deviceDataSource.updateLanguage(deviceUuid, Language.UK) } coAnswers {
+            coEvery { deviceDataSource.updateLanguage(authId, deviceUuid, Language.UK) } coAnswers {
                 updatedInTransaction = transactionManager.isInTransaction()
                 Device.stub(deviceId = deviceUuid, language = Language.UK)
             }
         }
 
         whenn()
-        fixture.sut.invoke(deviceUuid, Language.UK)
+        fixture.sut.invoke(authId, deviceUuid, Language.UK)
 
         then()
         assertTrue(updatedInTransaction)
@@ -65,12 +67,13 @@ internal class UpdateDeviceLanguageTest {
         given()
         val fixture = SutFixture()
         val deviceUuid = Uuid.random()
+        val authId = Uuid.random()
         with(fixture) {
-            coEvery { deviceDataSource.updateLanguage(deviceUuid, Language.EN) } throws RuntimeException("db error")
+            coEvery { deviceDataSource.updateLanguage(authId, deviceUuid, Language.EN) } throws RuntimeException("db error")
         }
 
         whenn()
-        val result = fixture.sut.invoke(deviceUuid, Language.EN)
+        val result = fixture.sut.invoke(authId, deviceUuid, Language.EN)
 
         then()
         assertTrue(result.isFailure)

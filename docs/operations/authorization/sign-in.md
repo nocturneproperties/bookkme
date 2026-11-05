@@ -15,9 +15,9 @@ flowchart TD
     Verify -- expired --> R422b([422 CHALLENGE_WINDOW_EXPIRED 6])
     Verify -- signature invalid --> R422c([422 VERIFICATION_FAILED 4])
     Verify -- ok credentials --> InsertDevice[DeviceDataSource.insertDevice ownerId uuid name language]
-    InsertDevice -- new device row --> DeviceCreatedEvt[eventProducer.send AuthEvent.DeviceCreated]
+    InsertDevice -- new device row --> DeviceCreatedEvt[eventProducer.send AuthEvent.DeviceCreated authId deviceUuid userId language]
     InsertDevice -- device already exists --> UpdateLang[DeviceDataSource.updateLanguage ownerId uuid language]
-    UpdateLang --> LangEvt[eventProducer.send AuthEvent.DeviceLanguageUpdated]
+    UpdateLang --> LangEvt[eventProducer.send AuthEvent.DeviceLanguageUpdated authId deviceUuid language]
     DeviceCreatedEvt --> GenToken[GenerateAuthToken InitialAuthentication ownerId deviceUuid - also AccountDataSource.recordActivity]
     LangEvt --> GenToken
     GenToken --> R200([200 AuthTokens])

@@ -39,10 +39,12 @@ internal class NotificationEventHandler(
                 deleteUserNotificationData(event.userId)
             }
             .registerResultReceiver(AuthEvent.DeviceLanguageUpdated.TOPIC) { event: AuthEvent.DeviceLanguageUpdated ->
-                updateDeviceLanguage(event.deviceUuid, event.language)
+                require(event.authId != Uuid.NIL) { "DeviceLanguageUpdated requires authId" }
+                updateDeviceLanguage(event.authId, event.deviceUuid, event.language)
             }
             .registerResultReceiver(AuthEvent.DeviceDeleted.TOPIC) { event: AuthEvent.DeviceDeleted ->
-                deleteDeviceByUUID(event.deviceUuid)
+                require(event.authId != Uuid.NIL) { "DeviceDeleted requires authId" }
+                deleteDeviceByUUID(event.authId, event.deviceUuid)
             }
             .registerResultReceiver(AuthEvent.AccountDormancyWarning.TOPIC) { event: AuthEvent.AccountDormancyWarning ->
                 sendNotification(event.userId, event.notification)

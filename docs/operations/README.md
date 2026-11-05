@@ -107,7 +107,7 @@ Reactions to cross-service events:
 | Route | Diagram |
 |---|---|
 | `PUT /api/notification/settings` | [Update notification settings](notifications/update-notification-settings.md) |
-| `PUT /api/notification/token/{deviceUuid}` | [Update push notification token](notifications/update-push-token.md) |
+| `PUT /api/notifications/{deviceUuid}/token` | [Update push notification token](notifications/update-push-token.md) |
 
 Reactions to cross-service events (all handled by the same
 `NotificationEventHandler`):
@@ -161,8 +161,8 @@ the operation committed, and reaches its consumers at least once. See
 
 | Event | Producer | Consumer(s) |
 |---|---|---|
-| `AuthEvent.UserDeleted` | [Delete account](authorization/delete-account.md), [`auth-handleDormantAccounts` job](scheduled-jobs.md), [`auth-reapplyErasures` job](scheduled-jobs.md) | [appointments](appointments/on-user-deleted.md), [business](business/on-user-deleted.md), [notifications](notifications/on-user-deleted.md), [user](user/on-user-deleted.md) |
-| `AuthEvent.DeviceDeleted` | [Delete account](authorization/delete-account.md), [`auth-handleDormantAccounts` job](scheduled-jobs.md) | [notifications](notifications/on-device-deleted.md) |
+| `AuthEvent.UserDeleted` | [Delete account](authorization/delete-account.md), [sign-up compensation](authorization/sign-up.md), [`auth-handleDormantAccounts` job](scheduled-jobs.md), [`auth-reapplyErasures` job](scheduled-jobs.md) | [appointments](appointments/on-user-deleted.md), [business](business/on-user-deleted.md), [notifications](notifications/on-user-deleted.md), [user](user/on-user-deleted.md) |
+| `AuthEvent.DeviceDeleted` | [Delete account](authorization/delete-account.md), [`auth-deleteInactiveDevices`, `auth-handleDormantAccounts` and `auth-reapplyErasures` jobs](scheduled-jobs.md) | [notifications](notifications/on-device-deleted.md) |
 | `AuthEvent.DeviceCreated` | [Verify sign-up](authorization/sign-up.md), [Verify sign-in](authorization/sign-in.md) | [notifications](notifications/on-device-created.md) |
 | `AuthEvent.DeviceLanguageUpdated` | [Verify sign-in](authorization/sign-in.md) | [notifications](notifications/on-device-language-updated.md) |
 | `AuthEvent.AccountDormancyWarning` | [`auth-handleDormantAccounts` job](scheduled-jobs.md) | [notifications](notifications/on-account-dormancy-warning.md) |
@@ -181,3 +181,5 @@ the operation committed, and reaches its consumers at least once. See
 | `AppointmentEvent.RequestRejected` | [Decline appointment request](appointments/decline-appointment-request.md) | [notifications](notifications/on-appointment-request-rejected.md) |
 | `AppointmentEvent.Cancelled` | [Cancel appointment](appointments/cancel-appointment.md), [React to client deletion (appointments)](appointments/on-client-deleted.md), [React to user deletion (appointments)](appointments/on-user-deleted.md) | [notifications](notifications/on-appointment-cancelled.md) |
 | `AppointmentEvent.CancelledForDeletedClient` | [React to user deletion (appointments)](appointments/on-user-deleted.md), [React to client deletion (appointments)](appointments/on-client-deleted.md), [React to a client getting an account (appointments)](appointments/on-client-linked.md) | [notifications](notifications/on-appointment-cancelled-for-deleted-client.md) |
+
+Device identity is `(authId, deviceUuid)` in authorization and notifications. `DeviceDeleted` and `DeviceLanguageUpdated` carry the account; legacy events without it stay parked for manual reconciliation.

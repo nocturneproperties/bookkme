@@ -12,4 +12,5 @@ dependencies {
 
     testImplementation(testFixtures(projects.core))
     testImplementation(testFixtures(projects.core.data))
+    testImplementation(libs.testcontainers.junit)
 }

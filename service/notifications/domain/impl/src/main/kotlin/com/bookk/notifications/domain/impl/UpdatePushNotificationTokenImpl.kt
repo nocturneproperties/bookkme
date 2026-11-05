@@ -9,7 +9,7 @@ internal class UpdatePushNotificationTokenImpl(
     private val deviceDataSource: DeviceDataSource,
     private val transactionManager: TransactionManager,
 ) : UpdatePushNotificationToken {
-    override suspend fun invoke(deviceUuid: Uuid, token: String) = transactionManager.transaction {
-        deviceDataSource.updateToken(deviceUuid = deviceUuid, token = token)
+    override suspend fun invoke(authId: Uuid, deviceUuid: Uuid, token: String) = transactionManager.transaction {
+        deviceDataSource.updateToken(authId = authId, deviceUuid = deviceUuid, token = token)
     }
 }

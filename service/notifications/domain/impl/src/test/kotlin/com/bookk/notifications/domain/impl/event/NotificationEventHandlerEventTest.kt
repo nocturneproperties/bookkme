@@ -145,9 +145,10 @@ internal class NotificationEventHandlerEventTest {
         given()
         val fixture = SutFixture()
         val deviceUuid = Uuid.random()
+        val authId = Uuid.random()
         val arrived = CountDownLatch(1)
         coEvery {
-            fixture.updateDeviceLanguage(deviceUuid, any<Language>())
+            fixture.updateDeviceLanguage(authId, deviceUuid, any<Language>())
         } answers {
             arrived.countDown()
             Result.success(Unit)
@@ -156,13 +157,13 @@ internal class NotificationEventHandlerEventTest {
         whenn()
         withContext(Dispatchers.IO) {
             fixture.start()
-            producer().send(AuthEvent.DeviceLanguageUpdated(deviceUuid = deviceUuid, language = Language.EN))
+            producer().send(AuthEvent.DeviceLanguageUpdated(deviceUuid = deviceUuid, language = Language.EN, authId = authId))
             arrived.await(20, TimeUnit.SECONDS)
         }
         fixture.stop()
 
         then()
-        coVerify(exactly = 1) { fixture.updateDeviceLanguage(deviceUuid, Language.EN) }
+        coVerify(exactly = 1) { fixture.updateDeviceLanguage(authId, deviceUuid, Language.EN) }
     }
 
     private val from = Instant.fromEpochMilliseconds(1_700_000_000_000)
@@ -247,8 +248,9 @@ internal class NotificationEventHandlerEventTest {
         given()
         val fixture = SutFixture()
         val deviceUuid = Uuid.random()
+        val authId = Uuid.random()
         val arrived = CountDownLatch(1)
-        coEvery { fixture.deleteDeviceByUUID(deviceUuid) } answers {
+        coEvery { fixture.deleteDeviceByUUID(authId, deviceUuid) } answers {
             arrived.countDown()
             Result.success(Unit)
         }
@@ -257,12 +259,12 @@ internal class NotificationEventHandlerEventTest {
         publishAndAwait(
             fixture,
             arrived,
-            AuthEvent.DeviceDeleted(deviceUuid = deviceUuid),
+            AuthEvent.DeviceDeleted(deviceUuid = deviceUuid, authId = authId),
             typeOf<AuthEvent.DeviceDeleted>(),
         )
 
         then()
-        coVerify(exactly = 1) { fixture.deleteDeviceByUUID(deviceUuid) }
+        coVerify(exactly = 1) { fixture.deleteDeviceByUUID(authId, deviceUuid) }
     }
 
     @Test

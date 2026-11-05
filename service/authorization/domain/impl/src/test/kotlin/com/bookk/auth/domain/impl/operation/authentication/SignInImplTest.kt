@@ -137,7 +137,7 @@ internal class SignInImplTest {
         then()
         assertTrue(result.isSuccess)
         coVerify(exactly = 1) { fixture.deviceDataSource.updateLanguage(authId, deviceId, Language.UK) }
-        coVerify(exactly = 1) { fixture.producer.send(any<AuthEvent.DeviceLanguageUpdated>(), any()) }
+        coVerify(exactly = 1) { fixture.producer.send(match<AuthEvent.DeviceLanguageUpdated> { it.authId == authId && it.deviceUuid == deviceId && it.language == Language.UK }, any()) }
         coVerify(exactly = 0) { fixture.producer.send(any<AuthEvent.DeviceCreated>(), any()) }
     }
 
