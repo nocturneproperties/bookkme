@@ -14,13 +14,13 @@ internal class CreateDeviceEntryImpl(
         deviceUUID: Uuid,
         authId: Uuid,
         userId: Uuid,
-        language: Language
+        language: Language,
     ) = transactionManager.transaction {
         deviceDataSource.getOrCreate(
             authId = authId,
             deviceUUID = deviceUUID,
             userId = userId,
-            language = language
+            language = language,
         )
     }
 }
