@@ -12,9 +12,9 @@ import library.signing.route.jwks
 
 internal fun Routing.monolithRoute() {
     jwks(AuthScope, BusinessScope)
-    authRoute(includeJwks = false)
+    authRoute()
     userRoute()
-    businessRoute(includeJwks = false)
+    businessRoute()
     appointmentsRoute()
     notificationsRoute()
 }

@@ -10,4 +10,5 @@ dependencies {
 
     testImplementation(testFixtures(projects.core))
     testImplementation(libs.ktor.client.mock)
+    testImplementation(libs.mockk)
 }

@@ -1718,12 +1718,67 @@ internal class AppointmentDataSourceImplTest {
         whenn()
         val updated = suspendTransaction {
             fixture.sut.getForUpdate(created.id)
+            fixture.sut.reopen(created.id)
             fixture.sut.update(rescheduled)
         }
 
         then()
         assertEquals(rescheduled, updated)
         assertEquals(rescheduled, suspendTransaction { fixture.sut.get(created.id) })
+    }
+
+    @Test
+    fun `should keep the recorded outcome and checkout when the date changes`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val created = suspendTransaction { fixture.sut.create(fixture.buildRequest()) }
+        val recorded = suspendTransaction {
+            fixture.sut.markCompletedByUser(created.id)
+            fixture.sut.adjustPrice(created.id, PriceAdjustment.stub())
+        }
+        val moved = recorded.copy(date = Clock.System.now() + 24.hours)
+
+        whenn()
+        val updated = suspendTransaction { fixture.sut.update(moved.copy(status = AppointmentStatus.SCHEDULED, completedBy = null, priceAdjustment = null)) }
+
+        then()
+        assertEquals(moved, updated)
+        assertEquals(moved, suspendTransaction { fixture.sut.get(created.id) })
+    }
+
+    @Test
+    fun `should reopen a recorded appointment and clear its checkout`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val created = suspendTransaction { fixture.sut.create(fixture.buildRequest()) }
+        val recorded = suspendTransaction {
+            fixture.sut.markCompletedByUser(created.id)
+            fixture.sut.adjustPrice(created.id, PriceAdjustment.stub())
+        }
+
+        whenn()
+        suspendTransaction { fixture.sut.reopen(created.id) }
+
+        then()
+        assertEquals(
+            recorded.copy(status = AppointmentStatus.SCHEDULED, completedBy = null, priceAdjustment = null),
+            suspendTransaction { fixture.sut.get(created.id) },
+        )
+    }
+
+    @Test
+    fun `should fail to reopen a missing appointment`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+
+        whenn()
+        val result = runCatching { suspendTransaction { fixture.sut.reopen(Uuid.random()) } }
+
+        then()
+        assertTrue(result.exceptionOrNull() is Error.NotFound)
     }
 
     @Test

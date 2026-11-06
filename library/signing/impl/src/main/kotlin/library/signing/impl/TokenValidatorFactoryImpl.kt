@@ -11,29 +11,20 @@ internal class TokenValidatorFactoryImpl : TokenValidatorFactory {
 
     private val validationCache = ConcurrentHashMap<ValidationType, TokenValidator>()
 
-    override fun forType(type: ValidationType): TokenValidator = when (type) {
-        ValidationType.AUTH_TOKEN -> validationCache.getOrPut(type) {
-            TokenValidation(
-                issuer = TokenConstants.authServiceHostname,
-                audience = TokenAudience.access,
-                remoteProviderHostname = TokenConstants.authServiceHostname,
-            )
-        }
-
-        ValidationType.SERVICE_QUOTE -> validationCache.getOrPut(type) {
-            TokenValidation(
-                issuer = TokenConstants.businessServiceHostname,
-                audience = TokenAudience.access,
-                remoteProviderHostname = TokenConstants.businessServiceHostname,
-            )
-        }
-
-        ValidationType.ACTION_CONFIRMATION -> validationCache.getOrPut(type) {
-            TokenValidation(
-                issuer = TokenConstants.authServiceHostname,
-                audience = TokenAudience.actionConfirmation,
-                remoteProviderHostname = TokenConstants.authServiceHostname,
-            )
-        }
+    override fun forType(type: ValidationType): TokenValidator = validationCache.getOrPut(type) {
+        TokenValidation(issuer = type.issuer, audience = type.audience, remoteProviderHostname = type.issuer)
     }
 }
+
+private val ValidationType.issuer: String
+    get() = when (this) {
+        ValidationType.AUTH_TOKEN, ValidationType.ACTION_CONFIRMATION -> TokenConstants.authServiceHostname
+        ValidationType.SERVICE_QUOTE -> TokenConstants.businessServiceHostname
+    }
+
+internal val ValidationType.audience: String
+    get() = when (this) {
+        ValidationType.AUTH_TOKEN -> TokenAudience.access
+        ValidationType.SERVICE_QUOTE -> TokenAudience.serviceQuote
+        ValidationType.ACTION_CONFIRMATION -> TokenAudience.actionConfirmation
+    }

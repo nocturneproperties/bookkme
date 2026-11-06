@@ -46,11 +46,14 @@ internal class UpdateAppointmentImpl(
             val locked = appointmentDataSource.getForUpdate(update.id)
             if (locked != existing) return@transactionOrThrow null
             requireReschedulable(userId, locked, update)
-            if (rescheduled.status == AppointmentStatus.SCHEDULED) {
+            val reschedules = update.reschedules(locked)
+            val reservesSlot = reschedules || locked.status == AppointmentStatus.SCHEDULED
+            if (reservesSlot) {
                 if (!settings.isInWorkday(rescheduled.date)) throw UpdateAppointment.Error.RequestForThisDateNotAllowed()
                 if (!settings.isInWorktime(rescheduled.date, rescheduled.dateEnd)) throw UpdateAppointment.Error.RequestForThisTimeNotAllowed()
                 if (appointmentDataSource.hasOverlapsWith(rescheduled)) throw UpdateAppointment.Error.AppointmentForThisTimeExists()
             }
+            if (reschedules) appointmentDataSource.reopen(update.id)
             appointmentDataSource.update(rescheduled).also {
                 eventProducer.send(AppointmentEvent.ClientVisitBooked(it.businessId, it.client.id, it.dateEnd))
             }
@@ -62,8 +65,7 @@ internal class UpdateAppointmentImpl(
         appointmentPermissionDataSource.getPermission(userId, appointment.businessId)
             .assertOrSelf(PermissionAction.UPDATE, actorId = userId, assigneeId = appointment.employee.userId)
         appointment.requireEditable()
-        val rescheduling = update.date != appointment.date || update.employeeId != appointment.employee.id
-        if (rescheduling && update.date < Clock.System.now()) throw UpdateAppointment.Error.DateInThePastNotAllowed()
+        if (update.reschedules(appointment) && update.date < Clock.System.now()) throw UpdateAppointment.Error.DateInThePastNotAllowed()
     }
 
     private fun AppointmentUpdate.hasValidServiceSelection(): Boolean {
@@ -77,7 +79,7 @@ internal class UpdateAppointmentImpl(
         val addedServiceIds = update.services.map { it.serviceId }.filterNot { it in storedServices }
         val context = resolveChanges(existing.businessId, changedEmployeeId, addedServiceIds)
         val availableServices = storedServices + context.services.associate { it.id to it.toSnapshot() }
-        val rescheduling = update.date != existing.date || update.employeeId != existing.employee.id
+        val rescheduling = update.reschedules(existing)
 
         return existing.copy(
             employee = context.employee?.toSnapshot() ?: existing.employee,

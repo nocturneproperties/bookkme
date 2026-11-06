@@ -10,7 +10,17 @@ internal class CreateDeviceEntryImpl(
     private val deviceDataSource: DeviceDataSource,
     private val transactionManager: TransactionManager,
 ) : CreateDeviceEntry {
-    override suspend fun invoke(deviceUUID: Uuid, authId: Uuid, userId: Uuid, language: Language) = transactionManager.transaction {
-        deviceDataSource.create(authId = authId, deviceUUID = deviceUUID, userId = userId, language = language)
+    override suspend fun invoke(
+        deviceUUID: Uuid,
+        authId: Uuid,
+        userId: Uuid,
+        language: Language
+    ) = transactionManager.transaction {
+        deviceDataSource.getOrCreate(
+            authId = authId,
+            deviceUUID = deviceUUID,
+            userId = userId,
+            language = language
+        )
     }
 }

@@ -32,7 +32,7 @@ internal class DeleteDeviceByUUIDImplTest {
         val authId = Uuid.random()
         with(fixture) {
             transactionManager.mockTransaction()
-            coEvery { deviceDataSource.deleteByDeviceUuid(authId, deviceUUID) } just Runs
+            coEvery { deviceDataSource.delete(authId, deviceUUID) } just Runs
         }
 
         whenn()
@@ -40,7 +40,7 @@ internal class DeleteDeviceByUUIDImplTest {
 
         then()
         assertTrue(result.isSuccess)
-        coVerify(exactly = 1) { fixture.deviceDataSource.deleteByDeviceUuid(authId, deviceUUID) }
+        coVerify(exactly = 1) { fixture.deviceDataSource.delete(authId, deviceUUID) }
     }
 
     @Test
@@ -51,7 +51,7 @@ internal class DeleteDeviceByUUIDImplTest {
         val authId = Uuid.random()
         with(fixture) {
             transactionManager.mockTransaction()
-            coEvery { deviceDataSource.deleteByDeviceUuid(authId, deviceUUID) } throws RuntimeException("db error")
+            coEvery { deviceDataSource.delete(authId, deviceUUID) } throws RuntimeException("db error")
         }
 
         whenn()

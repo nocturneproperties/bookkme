@@ -21,6 +21,7 @@ internal class TokenValidationTest {
         val algorithm: Algorithm = Algorithm.HMAC256("test-secret")
         val access = TokenValidation(ISSUER, TokenAudience.access, algorithm)
         val actionConfirmation = TokenValidation(ISSUER, TokenAudience.actionConfirmation, algorithm)
+        val serviceQuote = TokenValidation(ISSUER, TokenAudience.serviceQuote, algorithm)
 
         fun token(audience: String, expiresIn: Duration = 2.minutes): String = JWT.create()
             .withIssuer(ISSUER)
@@ -62,6 +63,42 @@ internal class TokenValidationTest {
 
         whenn()
         val accepted = fixture.actionConfirmation.accepts(fixture.token(TokenAudience.access))
+
+        then()
+        assertFalse(accepted)
+    }
+
+    @Test
+    fun `should accept a service quote as a service quote`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+
+        whenn()
+        val accepted = fixture.serviceQuote.accepts(fixture.token(TokenAudience.serviceQuote))
+
+        then()
+        assertTrue(accepted)
+    }
+
+    @Test
+    fun `should not accept a service quote as an access token`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+
+        whenn()
+        val accepted = fixture.access.accepts(fixture.token(TokenAudience.serviceQuote))
+
+        then()
+        assertFalse(accepted)
+    }
+
+    @Test
+    fun `should not accept an access token as a service quote`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+
+        whenn()
+        val accepted = fixture.serviceQuote.accepts(fixture.token(TokenAudience.access))
 
         then()
         assertFalse(accepted)

@@ -84,9 +84,13 @@ internal class AppointmentEntity(id: EntityID<Uuid>) : UuidEntity(id) {
     )
 
     fun replacePriceAdjustment(adjustment: PriceAdjustment) {
+        clearPriceAdjustment()
+        PriceAdjustmentEntity.new(id, adjustment)
+    }
+
+    fun clearPriceAdjustment() {
         val entityId = id
         PriceAdjustmentTable.deleteWhere { PriceAdjustmentTable.appointmentId eq entityId }
-        PriceAdjustmentEntity.new(entityId, adjustment)
     }
 
     companion object : DecoratorUuidEntityClass<AppointmentEntity>(AppointmentTable) {
@@ -128,7 +132,6 @@ internal class AppointmentEntity(id: EntityID<Uuid>) : UuidEntity(id) {
         }
 
         fun findByIdAndUpdate(appointment: Appointment) = findByIdAndUpdate(appointment.id) {
-            val rescheduling = it.dateStart != appointment.date || it.employeeId != appointment.employee.id
             it.initiatorUserId = appointment.initiatorUserId
             it.businessId = EntityID(appointment.businessId, table = AppointmentBusinessTable)
             it.employeeId = appointment.employee.id
@@ -142,11 +145,6 @@ internal class AppointmentEntity(id: EntityID<Uuid>) : UuidEntity(id) {
             it.dateStart = appointment.date
             it.dateEnd = appointment.dateEnd
             it.note = appointment.note
-            if (rescheduling) {
-                it.status = AppointmentStatus.SCHEDULED
-                it.completedBy = null
-                it.priceAdjustments.toList().forEach { adjustment -> adjustment.delete() }
-            }
             it.updatedAt = Clock.System.now()
         }
     }

@@ -5,9 +5,9 @@ import com.bookk.business.domain.api.service.entity.ServiceQuote
 import com.bookk.business.domain.api.service.operation.IssueServiceQuote
 import com.bookk.business.domain.datasource.ServiceDataSource
 import com.bookk.business.domain.impl.operation.getServicesExpanded
-import com.bookk.core.AppLevelConstants
 import com.bookk.core.domain.datasource.transaction.TransactionManager
 import com.bookk.server.business.client.api.QuoteClaims
+import library.signing.TokenAudience
 import library.signing.TokenIssuer
 import kotlin.time.Duration.Companion.minutes
 import kotlin.uuid.Uuid
@@ -36,7 +36,7 @@ internal class IssueQuoteImpl(
         val totalDuration = services.map { it.duration }.reduce { acc, duration -> acc + duration }
         return tokenIssuer.issue(QUOTE_TTL) {
             withJWTId(quoteId.toString())
-                .withAudience(AppLevelConstants.domainName)
+                .withAudience(TokenAudience.serviceQuote)
                 .withClaim(QuoteClaims.CLAIM_BUSINESS_ID, businessId.toString())
                 .withClaim(QuoteClaims.CLAIM_SERVICES, QuoteClaims.encodeServiceCounts(serviceIds))
                 .withClaim(QuoteClaims.CLAIM_TOTAL, total.toString())

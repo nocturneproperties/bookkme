@@ -8,4 +8,7 @@ object TokenAudience {
 
     val actionConfirmation: String
         get() = "${AppLevelConstants.domainName}/action-confirmation"
+
+    val serviceQuote: String
+        get() = "${AppLevelConstants.domainName}/service-quote"
 }

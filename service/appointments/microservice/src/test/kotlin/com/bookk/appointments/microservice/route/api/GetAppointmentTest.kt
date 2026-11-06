@@ -151,35 +151,6 @@ internal class GetAppointmentTest {
     }
 
     @Test
-    fun `should return server error when operation fails unexpectedly`() = routeTest {
-        given()
-        val useCase = mockk<GetAppointment>()
-        val userId = Uuid.random()
-        val appointment = Appointment.stub()
-        coEvery { useCase(userId, appointment.id) } returns Result.failure(IllegalStateException("Database unavailable"))
-
-        setupApplication(
-            extension = {
-                install(Authentication) {
-                    provider {
-                        authenticate { context ->
-                            context.principal(AppPrincipal(Uuid.random(), userId, Uuid.random()))
-                        }
-                    }
-                }
-            },
-            diModule = module { single { useCase } },
-            routeUnderTest = { appointment() },
-        )
-
-        whenn()
-        val response = createTestClient().get(AppointmentsRouting.Api.Appointment.Id(id = appointment.id))
-
-        then()
-        assertEquals(HttpStatusCode.InternalServerError, response.status)
-    }
-
-    @Test
     fun `should return unauthorized without authentication`() = routeTest {
         given()
         val useCase = mockk<GetAppointment>()

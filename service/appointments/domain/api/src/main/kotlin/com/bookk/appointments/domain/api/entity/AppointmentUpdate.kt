@@ -13,6 +13,8 @@ data class AppointmentUpdate(
     @ProtoNumber(13) val employeeId: Uuid,
     @ProtoNumber(14) val services: List<RequestedService>,
 ) {
+    fun reschedules(appointment: Appointment): Boolean = date != appointment.date || employeeId != appointment.employee.id
+
     companion object {
         fun stub(
             id: Uuid = Uuid.random(),

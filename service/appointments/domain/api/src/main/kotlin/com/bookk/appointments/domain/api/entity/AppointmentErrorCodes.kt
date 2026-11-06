@@ -8,7 +8,6 @@ object AppointmentErrorCodes {
     const val DATE_NOT_ALLOWED = BASE + 3
     const val APPOINTMENT_EXISTS = BASE + 4
     const val APPOINTMENT_ALREADY_CANCELED = BASE + 5
-    const val APPOINTMENT_ALREADY_COMPLETED = BASE + 6
     const val REQUEST_ALREADY_DECLINED = BASE + 7
     const val REQUEST_ALREADY_APPROVED = BASE + 8
     const val PLUGIN_ALREADY_ENABLED = BASE + 9
@@ -18,7 +17,6 @@ object AppointmentErrorCodes {
     const val QUOTE_TOKEN_ALREADY_USED = BASE + 16
     const val DURATION_CHANGED = BASE + 17
     const val APPOINTMENT_NOT_STARTED = BASE + 18
-    const val APPOINTMENT_MARKED_NO_SHOW = BASE + 19
     const val PRICE_ADJUSTMENT_NEGATIVE_PRICE = BASE + 21
     const val PRICE_ADJUSTMENT_CURRENCY_MISMATCH = BASE + 22
     const val PRICE_ADJUSTMENT_REASON_TOO_LONG = BASE + 23
