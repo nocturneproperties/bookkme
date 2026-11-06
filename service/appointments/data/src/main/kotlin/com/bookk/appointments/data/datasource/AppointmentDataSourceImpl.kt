@@ -26,6 +26,7 @@ import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.greater
 import org.jetbrains.exposed.v1.core.greaterEq
+import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.core.inSubQuery
 import org.jetbrains.exposed.v1.core.less
 import org.jetbrains.exposed.v1.core.lessEq
@@ -180,33 +181,27 @@ internal class AppointmentDataSourceImpl : DataSource(), AppointmentDataSource {
     }
 
     override suspend fun markCompleted(now: Instant) = dbQuery<Unit> {
-        val timeZoneIds = (SettingsTable innerJoin AppointmentBusinessTable)
-            .select(AppointmentBusinessTable.timeZone)
+        (SettingsTable innerJoin AppointmentBusinessTable)
+            .select(SettingsTable.businessId, AppointmentBusinessTable.timeZone)
             .where { SettingsTable.automaticCompletion eq true }
-            .withDistinct()
-            .map { it[AppointmentBusinessTable.timeZone] }
-        timeZoneIds.forEach { timeZoneId ->
-            val timeZone = TimeZone.of(timeZoneId)
-            val startOfToday = now.toLocalDateTime(timeZone).date.atStartOfDayIn(timeZone)
-            val autoCompletingBusinessIds = (SettingsTable innerJoin AppointmentBusinessTable)
-                .select(SettingsTable.businessId)
-                .where {
-                    (SettingsTable.automaticCompletion eq true)
-                        .and(AppointmentBusinessTable.timeZone eq timeZoneId)
+            .toList()
+            .groupBy({ it[AppointmentBusinessTable.timeZone] }, { it[SettingsTable.businessId] })
+            .forEach { (timeZoneId, businessIds) ->
+                AppointmentTable.update(
+                    where = {
+                        AppointmentTable.status.eq(AppointmentStatus.SCHEDULED)
+                            .and(AppointmentTable.dateEnd.less(now.startOfLocalDay(TimeZone.of(timeZoneId))))
+                            .and(AppointmentTable.businessId.inList(businessIds))
+                    },
+                ) {
+                    it[AppointmentTable.status] = AppointmentStatus.COMPLETED
+                    it[AppointmentTable.completedBy] = AppointmentCompletedBy.SYSTEM
+                    it[AppointmentTable.updatedAt] = now
                 }
-            AppointmentTable.update(
-                where = {
-                    AppointmentTable.status.eq(AppointmentStatus.SCHEDULED)
-                        .and(AppointmentTable.dateEnd.less(startOfToday))
-                        .and(AppointmentTable.businessId.inSubQuery(autoCompletingBusinessIds))
-                },
-            ) {
-                it[AppointmentTable.status] = AppointmentStatus.COMPLETED
-                it[AppointmentTable.completedBy] = AppointmentCompletedBy.SYSTEM
-                it[AppointmentTable.updatedAt] = now
             }
-        }
     }
+
+    private fun Instant.startOfLocalDay(timeZone: TimeZone): Instant = toLocalDateTime(timeZone).date.atStartOfDayIn(timeZone)
 
     override suspend fun markUnresolved(before: Instant) = dbQuery<Unit> {
         AppointmentTable.update(
@@ -227,6 +222,15 @@ internal class AppointmentDataSourceImpl : DataSource(), AppointmentDataSource {
             it.completedBy = AppointmentCompletedBy.USER
             it.updatedAt = Clock.System.now()
         }?.domain() ?: throw Error.NotFound()
+    }
+
+    override suspend fun reopen(id: Uuid) = dbQuery<Unit> {
+        val appointment = AppointmentEntity.findByIdAndUpdate(id) {
+            it.status = AppointmentStatus.SCHEDULED
+            it.completedBy = null
+            it.updatedAt = Clock.System.now()
+        } ?: throw Error.NotFound()
+        appointment.clearPriceAdjustment()
     }
 
     override suspend fun adjustPrice(id: Uuid, adjustment: PriceAdjustment): Appointment = dbQuery {

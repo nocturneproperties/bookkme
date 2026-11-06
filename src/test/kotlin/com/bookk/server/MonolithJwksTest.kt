@@ -1,9 +1,7 @@
 package com.bookk.server
 
 import com.bookk.auth.domain.impl.di.AuthScope
-import com.bookk.auth.microservice.route.authRoute
 import com.bookk.business.domain.impl.di.BusinessScope
-import com.bookk.business.microservice.route.businessRoute
 import com.bookk.core.service.test.routeTest
 import com.bookk.core.service.test.startScopedApplication
 import com.bookk.core.test.given
@@ -28,6 +26,7 @@ import kotlinx.serialization.json.jsonPrimitive
 import library.signing.GetVerificationKeys
 import library.signing.SigningKey
 import library.signing.SigningKeyStatus
+import library.signing.route.jwks
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
@@ -81,10 +80,10 @@ internal class MonolithJwksTest {
     }
 
     @Test
-    fun `should publish only auth keys from standalone auth routes`() = routeTest {
+    fun `should publish only auth keys from the standalone auth service's endpoint`() = routeTest {
         given()
         val fixture = SutFixture()
-        fixture.start(this) { authRoute() }
+        fixture.start(this) { jwks(AuthScope) }
 
         whenn()
         val response = client.get("/jwks.json")
@@ -99,10 +98,10 @@ internal class MonolithJwksTest {
     }
 
     @Test
-    fun `should publish only business keys from standalone business routes`() = routeTest {
+    fun `should publish only business keys from the standalone business service's endpoint`() = routeTest {
         given()
         val fixture = SutFixture()
-        fixture.start(this) { businessRoute() }
+        fixture.start(this) { jwks(BusinessScope) }
 
         whenn()
         val response = client.get("/jwks.json")

@@ -15,7 +15,7 @@ import kotlin.uuid.Uuid
 
 internal class DeviceDataSourceImpl : DataSource(), DeviceDataSource {
 
-    override suspend fun create(authId: Uuid, deviceUUID: Uuid, userId: Uuid, language: Language): Device = dbQuery {
+    override suspend fun getOrCreate(authId: Uuid, deviceUUID: Uuid, userId: Uuid, language: Language): Device = dbQuery {
         DeviceTable.upsert(onUpdate = { it[DeviceTable.id] = DeviceTable.id }) {
             it[DeviceTable.authId] = authId
             it[deviceUuid] = deviceUUID
@@ -29,24 +29,6 @@ internal class DeviceDataSourceImpl : DataSource(), DeviceDataSource {
             .domain()
         if (device.userId != userId) throw Error.OperationNotAllowed()
         device
-    }
-
-    override suspend fun getById(id: Uuid): Device? = dbQuery {
-        DeviceEntity.findById(id)?.domain()
-    }
-
-    override suspend fun getByAuthIdAndDeviceUuid(authId: Uuid, deviceUuid: Uuid): Device? = dbQuery {
-        DeviceEntity
-            .find { (DeviceTable.authId eq authId) and (DeviceTable.deviceUuid eq deviceUuid) }
-            .firstOrNull()
-            ?.domain()
-    }
-
-    override suspend fun getByAuthId(authId: Uuid): Device? = dbQuery {
-        DeviceEntity
-            .find { DeviceTable.authId eq authId }
-            .firstOrNull()
-            ?.domain()
     }
 
     override suspend fun getByUserId(userId: Uuid): List<Device> = dbQuery {
@@ -73,7 +55,7 @@ internal class DeviceDataSourceImpl : DataSource(), DeviceDataSource {
             ?: throw Error.NotFound()
     }
 
-    override suspend fun deleteByDeviceUuid(authId: Uuid, deviceUuid: Uuid) = dbQuery<Unit> {
+    override suspend fun delete(authId: Uuid, deviceUuid: Uuid) = dbQuery<Unit> {
         DeviceTable.deleteWhere { (DeviceTable.authId eq authId) and (DeviceTable.deviceUuid eq deviceUuid) }
     }
 }

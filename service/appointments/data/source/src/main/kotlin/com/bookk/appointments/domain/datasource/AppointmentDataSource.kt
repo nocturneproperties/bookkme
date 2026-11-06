@@ -28,6 +28,7 @@ interface AppointmentDataSource {
     suspend fun markCompleted(now: Instant)
     suspend fun markUnresolved(before: Instant)
     suspend fun markCompletedByUser(id: Uuid): Appointment
+    suspend fun reopen(id: Uuid)
     suspend fun adjustPrice(id: Uuid, adjustment: PriceAdjustment): Appointment
     suspend fun markNoShow(id: Uuid): Appointment
     suspend fun anonymizeEmployee(employeeUserId: Uuid)

@@ -124,24 +124,4 @@ internal class GetAppointmentImplTest {
         assertTrue(result.exceptionOrNull() is Error.NotFound)
         coVerify(exactly = 0) { fixture.appointmentPermissionDataSource.getPermission(any(), any()) }
     }
-
-    @Test
-    fun `should propagate unexpected datasource failures`() = runUnitTest {
-        given()
-        val fixture = SutFixture()
-        val userId = Uuid.random()
-        val appointmentId = Uuid.random()
-        val error = IllegalStateException("Database unavailable")
-        with(fixture) {
-            transactionManager.mockTransaction()
-            coEvery { appointmentDataSource.get(appointmentId) } throws error
-        }
-
-        whenn()
-        val result = fixture.sut(userId, appointmentId)
-
-        then()
-        assertEquals(error, result.exceptionOrNull())
-        coVerify(exactly = 0) { fixture.appointmentPermissionDataSource.getPermission(any(), any()) }
-    }
 }

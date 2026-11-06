@@ -30,7 +30,9 @@ import com.bookk.server.business.client.api.BusinessClient
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.coVerifyOrder
+import io.mockk.just
 import io.mockk.mockk
+import io.mockk.runs
 import library.permissions.EmployeeAccessSuspended
 import library.permissions.ResourcePermission
 import org.joda.money.Money
@@ -77,6 +79,7 @@ internal class UpdateAppointmentImplTest {
             coEvery { settings.isInWorktime(any(), any()) } returns true
             coEvery { appointmentPermissionDataSource.getPermission(userId, stored.businessId) } returns permission
             coEvery { appointmentDataSource.hasOverlapsWith(any<Appointment>()) } returns false
+            coEvery { appointmentDataSource.reopen(stored.id) } just runs
             coEvery { appointmentDataSource.update(any<Appointment>()) } answers { firstArg() }
             coEvery { eventProducer.send(any<AppointmentEvent>(), any()) } coAnswers {
                 sentEvents += firstArg<AppointmentEvent>()
@@ -628,7 +631,10 @@ internal class UpdateAppointmentImplTest {
         then()
         val expected = stored.copy(date = laterDate, note = "Updated note", status = AppointmentStatus.SCHEDULED, completedBy = null, priceAdjustment = null)
         assertEquals(expected, result.getOrNull())
-        coVerify(exactly = 1) { fixture.appointmentDataSource.update(expected) }
+        coVerifyOrder {
+            fixture.appointmentDataSource.reopen(stored.id)
+            fixture.appointmentDataSource.update(expected)
+        }
         coVerify(exactly = 1) { fixture.eventProducer.send(any(AppointmentEvent.ClientVisitBooked::class), any()) }
     }
 
@@ -657,6 +663,7 @@ internal class UpdateAppointmentImplTest {
         then()
         assertEquals(stored.copy(note = "Updated note"), result.getOrNull())
         coVerify(exactly = 0) { fixture.appointmentDataSource.hasOverlapsWith(any()) }
+        coVerify(exactly = 0) { fixture.appointmentDataSource.reopen(any()) }
     }
 
     @Test
@@ -678,5 +685,50 @@ internal class UpdateAppointmentImplTest {
         then()
         assertEquals(stored.copy(note = "Updated note"), result.getOrNull())
         coVerify(exactly = 0) { fixture.appointmentDataSource.hasOverlapsWith(any()) }
+        coVerify(exactly = 0) { fixture.appointmentDataSource.reopen(any()) }
+    }
+
+    @Test
+    fun `should not recheck availability when correcting the services of a completed appointment`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val stored = Appointment.stub(date = Clock.System.now() - 1.days).copy(
+            status = AppointmentStatus.COMPLETED,
+            completedBy = AppointmentCompletedBy.USER,
+        )
+        fixture.givenValidUpdate(userId, stored)
+        val update = keepingEverything(stored, date = stored.date).copy(
+            services = stored.services.map { RequestedService(serviceId = it.id, count = 2) },
+        )
+
+        whenn()
+        val result = fixture.sut(userId, update)
+
+        then()
+        assertEquals(AppointmentStatus.COMPLETED, result.getOrNull()?.status)
+        assertEquals(stored.services.size * 2, result.getOrNull()?.services?.size)
+        coVerify(exactly = 0) { fixture.settings.isInWorkday(any()) }
+        coVerify(exactly = 0) { fixture.settings.isInWorktime(any(), any()) }
+        coVerify(exactly = 0) { fixture.appointmentDataSource.hasOverlapsWith(any()) }
+    }
+
+    @Test
+    fun `should recheck availability when the services of a scheduled appointment change in place`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val stored = Appointment.stub(date = futureDate)
+        fixture.givenValidUpdate(userId, stored)
+        coEvery { fixture.appointmentDataSource.hasOverlapsWith(any<Appointment>()) } returns true
+        val update = keepingEverything(stored, date = stored.date).copy(
+            services = stored.services.map { RequestedService(serviceId = it.id, count = 2) },
+        )
+
+        whenn()
+        val result = fixture.sut(userId, update)
+
+        then()
+        assertTrue(result.exceptionOrNull() is UpdateAppointment.Error.AppointmentForThisTimeExists)
     }
 }

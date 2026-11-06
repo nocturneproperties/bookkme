@@ -9,7 +9,7 @@ flowchart TD
     Start([Consume AuthEvent.DeviceCreated]) --> Claim{IdempotentDelivery claim for notifications}
     Claim -- already processed --> Skip([Skip - SKIPPED_DUPLICATE])
     Claim -- claimed --> Tx[[Begin transaction]]
-    Tx --> Create["DeviceDataSource.create authId deviceUUID userId language - UPSERT with id unchanged on duplicate"]
+    Tx --> Create["DeviceDataSource.getOrCreate authId deviceUUID userId language - UPSERT with id unchanged on duplicate"]
     Create --> Read["Lock and read device WHERE auth_id and device_uuid"]
     Read --> Owner{Stored userId matches event?}
     Owner -- no --> Error[Error.OperationNotAllowed - rollback]

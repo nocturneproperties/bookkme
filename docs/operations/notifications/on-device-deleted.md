@@ -11,7 +11,7 @@ flowchart TD
     Claim -- claimed --> Scope{authId is not NIL?}
     Scope -- no --> Missing[IllegalArgumentException - account missing]
     Scope -- yes --> Tx[[Begin transaction]]
-    Tx --> Delete["DeviceDataSource.deleteByDeviceUuid authId deviceUUID - WHERE auth_id and device_uuid"]
+    Tx --> Delete["DeviceDataSource.delete authId deviceUUID - WHERE auth_id and device_uuid"]
     Delete -- row absent or deleted --> Commit[[Commit]]
     Commit --> Ack([Marked processed])
     Missing --> Retry["auth.device_deleted_notifications_group_dlt - retries then exhausted_event"]

@@ -53,10 +53,15 @@ plain read:
    committed in between), nothing is written and the route answers 409
    `TRANSACTION_CONFLICT`, so the app retries with fresh data. Otherwise the
    permission, status and date are checked again, now that the snapshot is
-   taken after both locks. A resulting `SCHEDULED` booking is checked for workday,
-   worktime and overlaps. Historical corrections that preserve `COMPLETED` or
-   `NO_SHOW` reserve no slot and skip those booking checks. The appointment is
-   then written.
+   taken after both locks. An edit reserves a slot when it changes the date or
+   employee (`AppointmentUpdate.reschedules`) or the stored appointment is
+   still `SCHEDULED`; such an edit is checked for workday, worktime and
+   overlaps. Historical corrections that keep the date and employee of a
+   `COMPLETED` or `NO_SHOW` appointment reserve no slot and skip those booking
+   checks, even when they change its services. A rescheduled appointment is
+   reopened first (`AppointmentDataSource.reopen`: `SCHEDULED`, no
+   `completedBy`, checkout adjustment deleted), since `update` never changes
+   status, attribution or checkout. The appointment is then written.
 
 The settings lock serializes every booking write of the business and is the
 double-booking guard — the `(user_id, business_id, date_start)` index is
@@ -108,15 +113,18 @@ flowchart TD
     Lock --> Same{locked appointment == the one checked in transaction 1?}
     Same -- No --> R409([409 TRANSACTION_CONFLICT 900001 - nothing written])
     Same -- Yes, check again --> Check
-    Past -- No, in transaction 2 --> Booking{resulting status is SCHEDULED?}
-    Booking -- No --> Write
+    Past -- No, in transaction 2 --> Booking{update.reschedules locked or locked status SCHEDULED?}
+    Booking -- No --> Reopen
     Booking -- Yes --> Workday{settings.isInWorkday date?}
     Workday -- No --> R422d([422 DATE_NOT_ALLOWED 300003])
     Workday -- Yes --> Worktime{settings.isInWorktime date, dateEnd?}
     Worktime -- No --> R422t([422 TIME_NOT_ALLOWED 300002])
     Worktime -- Yes --> Overlap{AppointmentDataSource.hasOverlapsWith rescheduled?}
     Overlap -- Yes --> R422o([422 APPOINTMENT_EXISTS 300004])
-    Overlap -- No --> Write[AppointmentDataSource.update rescheduled - replaces services]
+    Overlap -- No --> Reopen{update.reschedules locked?}
+    Reopen -- Yes --> Reopened[AppointmentDataSource.reopen id - SCHEDULED, completedBy null, checkout adjustment deleted]
+    Reopened --> Write
+    Reopen -- No --> Write[AppointmentDataSource.update rescheduled - replaces services, never status or checkout]
     Write --> Visit[eventProducer.send AppointmentEvent.ClientVisitBooked businessId client.id rescheduled dateEnd]
     Visit --> R200([200 Stored Appointment])
 ```
