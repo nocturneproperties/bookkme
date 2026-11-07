@@ -1,5 +1,6 @@
 package com.bookk.notifications.microservice
 
+import com.bookk.core.data.eventstreaming.ExhaustedEventReplayer
 import com.bookk.core.data.eventstreaming.StandardEventProducer
 import com.bookk.core.data.eventstreaming.data.test.serviceScopeWithMockedInfrastructure
 import com.bookk.core.test.given
@@ -7,6 +8,7 @@ import com.bookk.core.test.runUnitTest
 import com.bookk.core.test.then
 import com.bookk.core.test.whenn
 import com.bookk.notifications.domain.impl.di.NotificationsScope
+import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 import org.koin.core.module.Module
@@ -40,5 +42,29 @@ internal class NotificationsModuleTest {
 
         then()
         assertNull(producer)
+    }
+
+    @Test
+    fun `should replay parked events in the standalone microservice`() = runUnitTest {
+        given()
+        val fixture = SutFixture(notificationsModule())
+
+        whenn()
+        val replayer = fixture.scope.getOrNull<ExhaustedEventReplayer>()
+
+        then()
+        assertNotNull(replayer)
+    }
+
+    @Test
+    fun `should replay parked events in the monolith`() = runUnitTest {
+        given()
+        val fixture = SutFixture(notificationsEmbeddedModule())
+
+        whenn()
+        val replayer = fixture.scope.getOrNull<ExhaustedEventReplayer>()
+
+        then()
+        assertNotNull(replayer)
     }
 }

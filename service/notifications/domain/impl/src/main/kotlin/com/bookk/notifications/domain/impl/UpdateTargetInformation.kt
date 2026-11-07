@@ -9,17 +9,16 @@ import kotlin.uuid.Uuid
 internal class UpdateTargetInformation(
     private val getNotificationSettings: GetNotificationSettings,
     private val targetDataSource: NotificationTargetDataSource,
-    private val transactionManager: TransactionManager
+    private val transactionManager: TransactionManager,
 ) {
-    suspend operator fun invoke(userId: Uuid, target: Target, updatedAt: Instant): Result<Unit> =
-        transactionManager.transaction {
-            getNotificationSettings.invoke(userId).getOrThrow()
+    suspend operator fun invoke(userId: Uuid, target: Target, updatedAt: Instant): Result<Unit> = transactionManager.transaction {
+        getNotificationSettings.invoke(userId).getOrThrow()
 
-            when (target) {
-                is Target.Email -> saveEmail(userId, target.newEmail, updatedAt)
-                is Target.Telegram -> saveTelegram(userId, target.newTag)
-            }
+        when (target) {
+            is Target.Email -> saveEmail(userId, target.newEmail, updatedAt)
+            is Target.Telegram -> saveTelegram(userId, target.newTag)
         }
+    }
 
     private suspend fun saveEmail(userId: Uuid, email: String, updatedAt: Instant) {
         if (targetDataSource.updateEmail(userId, email, updatedAt)) return

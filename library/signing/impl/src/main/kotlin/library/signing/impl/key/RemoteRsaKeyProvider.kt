@@ -9,7 +9,7 @@ import java.util.concurrent.TimeUnit
 
 internal class RemoteRsaKeyProvider(hostname: String) : RSAKeyProvider {
 
-    private val provider = JwkProviderBuilder(URI("http://${hostname}/jwks.json").toURL())
+    private val provider = JwkProviderBuilder(URI("http://$hostname/jwks.json").toURL())
         .cached(10, 1, TimeUnit.HOURS)
         .rateLimited(10, 1, TimeUnit.MINUTES)
         .build()

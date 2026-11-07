@@ -4,11 +4,14 @@
 
 Records that the client missed the appointment. Only an appointment that has
 already started can be marked, and it may be either still `SCHEDULED` or
-already `COMPLETED` — the `MarkAppointmentsCompleted` job flips every past
-appointment of a business with `automaticCompletion` on to `COMPLETED`, and
-staff can [complete](complete-appointment.md) one by hand, so a no-show is
-often recorded after that. Marking a `COMPLETED` appointment as no-show clears
-its `completedBy`.
+already `COMPLETED` by staff through [Complete appointment](complete-appointment.md)
+or by the automatic end-of-day job.
+Marking a `COMPLETED` appointment as no-show clears its `completedBy`.
+Both statuses can be changed only within 7 days of the appointment's end.
+A no-show may be corrected back to completed through the completion route.
+Cancelled appointments remain terminal and must be replaced by a new booking.
+`UNRESOLVED` appointments are immutable and return
+`APPOINTMENT_EDIT_WINDOW_CLOSED` (300026).
 Marking an appointment that is already `NO_SHOW` succeeds unchanged. The
 operation reads the appointment with `getForUpdate` (`SELECT … FOR UPDATE`)
 as its first read, checks status and start time itself, and only then calls
@@ -33,10 +36,13 @@ flowchart TD
     Suspended -- No --> Perm{caller update permission, or view permission and appointment.employee.userId == userId?}
     Perm -- No --> R404b([404 Error.OperationNotAllowed])
     Perm -- Yes --> Status{appointment.status}
-    Status -- NO_SHOW --> R200u([200 Appointment unchanged])
+    Status -- SCHEDULED, COMPLETED or NO_SHOW --> Window{appointment dateEnd + 7 days before now?}
+    Status -- UNRESOLVED --> R422w
     Status -- CANCELLED --> R422a([422 ALREADY_CANCELLED 300005])
-    Status -- SCHEDULED or COMPLETED --> Started{date_start is not after now?}
+    Window -- Yes --> R422w([422 APPOINTMENT_EDIT_WINDOW_CLOSED 300026])
+    Window -- No --> Started{already NO_SHOW or date_start is not after now?}
     Started -- No --> R422b([422 NOT_STARTED 300018])
+    Started -- Yes, already NO_SHOW --> R200u([200 Appointment unchanged])
     Started -- Yes --> Mark[AppointmentDataSource.markNoShow id - sets NO_SHOW and clears completedBy]
     Mark --> R200([200 No-show Appointment])
 ```

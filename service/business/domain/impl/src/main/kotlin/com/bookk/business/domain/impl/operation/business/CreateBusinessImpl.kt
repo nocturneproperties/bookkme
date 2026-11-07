@@ -19,11 +19,11 @@ internal class CreateBusinessImpl(
     private val businessDataSource: BusinessDataSource,
     private val employeeDataSource: EmployeeDataSource,
     private val userClient: UserClient,
-    private val transactionManager: TransactionManager
+    private val transactionManager: TransactionManager,
 ) : CreateBusiness {
     override suspend fun invoke(
         userId: Uuid,
-        request: BusinessCreateRequest
+        request: BusinessCreateRequest,
     ): Result<Business> = transactionManager.transaction {
         if (!NameValidator.isValid(request.name)) {
             throw CreateBusiness.Error.BusinessValidationError()
@@ -45,8 +45,8 @@ internal class CreateBusinessImpl(
                 schedule = Schedule.empty(),
                 createdAt = Clock.System.now(),
                 permissions = BusinessPermissions.FULL,
-                suspendedAt = null
-            )
+                suspendedAt = null,
+            ),
         )
         business.copy(permissions = BusinessPermissions.FULL, employeeId = ownerEmployee.id)
     }

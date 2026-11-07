@@ -7,6 +7,17 @@ import kotlin.uuid.Uuid
 object AppointmentsRouting {
     @Resource("api")
     class Api {
+        @Resource("/internal")
+        class Internal(val parent: Api = Api()) {
+            @Resource("/export")
+            class Export(val parent: Internal = Internal()) {
+                @Resource("/appointments/{userId}")
+                class User(val parent: Export = Export(), val userId: Uuid)
+
+                @Resource("/appointments/business/{businessId}")
+                class Business(val parent: Export = Export(), val businessId: Uuid)
+            }
+        }
 
         @Resource("/appointments")
         class Appointment(val parent: Api = Api()) {
@@ -57,7 +68,7 @@ object AppointmentsRouting {
             val parent: Api = Api(),
             val businessId: Uuid,
             val date: LocalDate,
-            val employeeId: Uuid? = null
+            val employeeId: Uuid? = null,
         )
 
         @Resource("/appointments/history/{businessId}")
@@ -66,8 +77,7 @@ object AppointmentsRouting {
             val businessId: Uuid,
             val limit: Int,
             val offset: Long,
-            val query: String? = null
+            val query: String? = null,
         )
     }
-
 }

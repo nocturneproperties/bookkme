@@ -18,28 +18,27 @@ import kotlin.uuid.Uuid
 internal class UpdateEmployeeImpl(
     private val employeeDataSource: EmployeeDataSource,
     private val businessPermissionDataSource: BusinessPermissionDataSource,
-    private val transactionManager: TransactionManager
+    private val transactionManager: TransactionManager,
 ) : UpdateEmployee {
-    override suspend fun invoke(requestUserId: Uuid, employee: EmployeeUpdateModel): Result<Employee> =
-        transactionManager.transaction {
-            businessPermissionDataSource.getPermission(requestUserId, employee.businessId, BusinessResource.EMPLOYEES)
-                .assert(PermissionAction.UPDATE)
-            employeeDataSource.getEmployee(employee.businessId, employee.id) ?: throw Error.NotFound()
-            if (!NameValidator.isValid(employee.name) || !NameValidator.isValid(employee.lastName)) {
-                throw UpdateEmployee.Error.ValidationError()
-            }
-            if (employee.phone?.let { !PhoneValidator.isValid(it) } == true) {
-                throw UpdateEmployee.Error.ValidationError()
-            }
-            if (employee.email?.let { !EmailValidator.isValid(it) } == true) {
-                throw UpdateEmployee.Error.ValidationError()
-            }
-            if (employee.schedule.days.values.any { it.isActive && it.workingTime.isEmpty() }) {
-                throw UpdateEmployee.Error.ActiveDayWithoutWorkHours()
-            }
-            if (employee.schedule.dayOffs.any { it.start > it.end }) {
-                throw UpdateEmployee.Error.InvalidDayOffRange()
-            }
-            employeeDataSource.updateEmployee(employee)
+    override suspend fun invoke(requestUserId: Uuid, employee: EmployeeUpdateModel): Result<Employee> = transactionManager.transaction {
+        businessPermissionDataSource.getPermission(requestUserId, employee.businessId, BusinessResource.EMPLOYEES)
+            .assert(PermissionAction.UPDATE)
+        employeeDataSource.getEmployee(employee.businessId, employee.id) ?: throw Error.NotFound()
+        if (!NameValidator.isValid(employee.name) || !NameValidator.isValid(employee.lastName)) {
+            throw UpdateEmployee.Error.ValidationError()
         }
+        if (employee.phone?.let { !PhoneValidator.isValid(it) } == true) {
+            throw UpdateEmployee.Error.ValidationError()
+        }
+        if (employee.email?.let { !EmailValidator.isValid(it) } == true) {
+            throw UpdateEmployee.Error.ValidationError()
+        }
+        if (employee.schedule.days.values.any { it.isActive && it.workingTime.isEmpty() }) {
+            throw UpdateEmployee.Error.ActiveDayWithoutWorkHours()
+        }
+        if (employee.schedule.dayOffs.any { it.start > it.end }) {
+            throw UpdateEmployee.Error.InvalidDayOffRange()
+        }
+        employeeDataSource.updateEmployee(employee)
+    }
 }

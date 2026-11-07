@@ -20,7 +20,7 @@ data class Service(
     @Serializable(with = MoneySerializer::class)
     val price: Money,
     @ProtoNumber(7) val isAvailable: Boolean,
-    @ProtoNumber(8) val createdAt: Instant
+    @ProtoNumber(8) val createdAt: Instant,
 ) {
     companion object {
         fun stub(
@@ -31,7 +31,7 @@ data class Service(
             duration: Duration = 30.minutes,
             price: Money = Money.parse("USD 50"),
             isAvailable: Boolean = true,
-            createdAt: Instant = Instant.fromEpochMilliseconds(0)
+            createdAt: Instant = Instant.fromEpochMilliseconds(0),
         ) = Service(
             id = id,
             businessId = businessId,
@@ -40,7 +40,7 @@ data class Service(
             duration = duration,
             price = price,
             isAvailable = isAvailable,
-            createdAt = createdAt
+            createdAt = createdAt,
         )
     }
 }

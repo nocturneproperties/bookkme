@@ -10,10 +10,12 @@ interface GetBusinessDetails {
     suspend operator fun invoke(id: Uuid): Result<Business>
 
     sealed interface Error {
-        class NotFound : BusinessError(
-            statusCode = HttpStatusCode.NotFound.value,
-            code = BusinessErrorCodes.BUSINESS_NOT_FOUND,
-            message = "Business with this id is missing"
-        ), Error
+        class NotFound :
+            BusinessError(
+                statusCode = HttpStatusCode.NotFound.value,
+                code = BusinessErrorCodes.BUSINESS_NOT_FOUND,
+                message = "Business with this id is missing",
+            ),
+            Error
     }
 }

@@ -34,7 +34,7 @@ services:
           - vpn
     environment:
       LANG: en
-      WG_HOST: vpn.${DOMAIN_NAME}
+      WG_HOST: ${VPN_ENDPOINT}
       PASSWORD_HASH: ${VPN_PASSWORD_HASH}
       UI_TRAFFIC_STATS: "true"
       UI_CHART_TYPE: 1

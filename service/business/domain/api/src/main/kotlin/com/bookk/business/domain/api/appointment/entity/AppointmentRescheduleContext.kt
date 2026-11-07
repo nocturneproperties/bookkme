@@ -8,12 +8,12 @@ import kotlinx.serialization.protobuf.ProtoNumber
 @Serializable
 data class AppointmentRescheduleContext(
     @ProtoNumber(1) val employee: Employee?,
-    @ProtoNumber(2) val services: List<Service>
+    @ProtoNumber(2) val services: List<Service>,
 ) {
     companion object {
         fun stub(
             employee: Employee? = Employee.stub(),
-            services: List<Service> = listOf(Service.stub())
+            services: List<Service> = listOf(Service.stub()),
         ) = AppointmentRescheduleContext(employee = employee, services = services)
     }
 }

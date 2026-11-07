@@ -13,39 +13,20 @@ volumes:
   acmesh-data:
     driver: local
 configs:
-  acme_sh_hostinger_script:
-    name: acme_sh_hostinger_dns-v1
-    file: certificates/dns_hostinger.sh
-
-  nginx_config:
-    name: nginx-v47
-    file: nginx.conf.template
-
   nginx_cert_wait_script:
     name: nginx-cert-wait-v2
     file: certificates/wait_for_cert.sh
-
-  android_well_known:
-    name: android_well_known-v3
-    file: android_well_known.json
-
-  ios_well_known:
-    name: ios_well_known-v5
-    file: ios_well_known.json
 
 services:
   acme-sh:
     image: neilpang/acme.sh:3.1.2
     command: >
       sh -c "acme.sh --server letsencrypt --register-account -m "antufeevmichaeloperational@gmail.com" &&
-             acme.sh --server letsencrypt --issue --dns dns_hostinger -d \"${DOMAIN_NAME}\" -d \"*.${DOMAIN_NAME}\" --dnssleep 60 &&
+             { acme.sh --server letsencrypt --issue --dns dns_cf -d \"${DOMAIN_NAME}\" -d \"*.${DOMAIN_NAME}\" --dnssleep 60 || [ $$? -eq 2 ]; } &&
              acme.sh --deploy -d ${DOMAIN_NAME} --deploy-hook docker &&
              crond -n -s -m off"
-    configs:
-      - source: acme_sh_hostinger_script
-        target: '/acmebin/dnsapi/dns_hostinger.sh'
     volumes:
-      - acmesh-data:/acmesh/${DOMAIN_NAME}_ecc
+      - acmesh-data:/acme.sh
       - /var/run/docker.sock:/var/run/docker.sock
     networks:
       - operational
@@ -53,7 +34,7 @@ services:
       - nginx
     environment:
       DOMAIN_NAME: ${DOMAIN_NAME}
-      HOSTINGER_Key: ${HOSTINGER_API_KEY}
+      CF_Token: ${CLOUDFLARE_DNS_API_TOKEN}
       DEPLOY_DOCKER_CONTAINER_LABEL: sh.acme.autoload.domain=${DOMAIN_NAME}
       DEPLOY_DOCKER_CONTAINER_KEY_FILE: /etc/nginx/ssl/${DOMAIN_NAME}/key.pem
       DEPLOY_DOCKER_CONTAINER_CERT_FILE: "/etc/nginx/ssl/${DOMAIN_NAME}/cert.pem"
@@ -95,13 +76,10 @@ services:
         mode: host
     volumes:
       - nginx-cert:/etc/nginx/ssl/${DOMAIN_NAME}
+      - ./templates:/etc/nginx/templates:ro
+      - ./snippets:/etc/nginx/snippets:ro
+      - ./static:/srv/static:ro
     configs:
-      - source: nginx_config
-        target: '/etc/nginx/templates/services.conf.template'
-      - source: android_well_known
-        target: '/srv/static/android_well_known.json'
-      - source: ios_well_known
-        target: '/srv/static/ios_well_known.json'
       - source: nginx_cert_wait_script
         target: '/docker-entrypoint.d/wait_for_cert.sh'
         mode: 0744

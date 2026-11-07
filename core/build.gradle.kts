@@ -5,11 +5,13 @@ plugins {
     id(libs.plugins.kotlin.fixtures.get().pluginId)
 }
 
+tasks.withType<Test> {
+    useJUnitPlatform()
+}
+
 dependencies {
-    api(libs.kotlin.datetime)
     api(libs.ktor.logging)
-    implementation(libs.kotlin.coroutines)
+    api(libs.kotlin.coroutines)
     testImplementation(libs.kotlin.test)
-    testFixturesImplementation(libs.mockk)
     testFixturesApi(libs.kotlin.coroutines.test)
 }

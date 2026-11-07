@@ -19,6 +19,9 @@ object BusinessRouting {
                     @Resource("/appointment-booking-context")
                     class AppointmentBookingContext(val parent: Id)
 
+                    @Resource("/staff-booking-context")
+                    class StaffBookingContext(val parent: Id)
+
                     @Resource("/appointment-reschedule-context")
                     class AppointmentRescheduleContext(val parent: Id)
 
@@ -31,6 +34,18 @@ object BusinessRouting {
             class Client(val parent: Internal = Internal()) {
                 @Resource("/{userId}/businesses")
                 class Businesses(val parent: Client = Client(), val userId: Uuid)
+            }
+
+            @Resource("/export")
+            class Export(val parent: Internal = Internal()) {
+                @Resource("/business/{userId}")
+                class User(val parent: Export = Export(), val userId: Uuid)
+            }
+
+            @Resource("/owner")
+            class Owner(val parent: Internal = Internal()) {
+                @Resource("/{userId}/members")
+                class Members(val parent: Owner = Owner(), val userId: Uuid)
             }
         }
     }

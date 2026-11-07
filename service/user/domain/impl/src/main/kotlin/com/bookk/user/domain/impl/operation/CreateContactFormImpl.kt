@@ -7,13 +7,13 @@ import com.bookk.user.domain.datasource.CommunicationDataSource
 
 internal class CreateContactFormImpl(
     private val communicationDataSource: CommunicationDataSource,
-    private val transactionManager: TransactionManager
+    private val transactionManager: TransactionManager,
 ) : CreateContactForm {
     override suspend fun invoke(form: ContactForm): Result<Unit> = transactionManager.transaction {
         val adjustedForm = if (form.isBoundCapRequired) {
             form.copy(
                 text = form.text.take(ContactForm.TEXT_UPPER_BOUND.toInt()),
-                usageLogs = form.usageLogs?.take(ContactForm.LOGS_UPPER_BOUND.toInt())
+                usageLogs = form.usageLogs?.take(ContactForm.LOGS_UPPER_BOUND.toInt()),
             )
         } else {
             form

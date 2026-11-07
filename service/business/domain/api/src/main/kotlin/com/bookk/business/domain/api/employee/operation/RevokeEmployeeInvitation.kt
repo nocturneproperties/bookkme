@@ -9,10 +9,12 @@ interface RevokeEmployeeInvitation {
     suspend operator fun invoke(requestUserId: Uuid, businessId: Uuid, id: Uuid): Result<Unit>
 
     sealed interface Error {
-        class InvitationAlreadyProcessed : BusinessError(
-            statusCode = HttpStatusCode.UnprocessableEntity.value,
-            code = BusinessErrorCodes.BUSINESS_EMPLOYEE_INVITATION_ALREADY_PROCESSED,
-            message = "Invitation is already processed"
-        ), Error
+        class InvitationAlreadyProcessed :
+            BusinessError(
+                statusCode = HttpStatusCode.UnprocessableEntity.value,
+                code = BusinessErrorCodes.BUSINESS_EMPLOYEE_INVITATION_ALREADY_PROCESSED,
+                message = "Invitation is already processed",
+            ),
+            Error
     }
 }

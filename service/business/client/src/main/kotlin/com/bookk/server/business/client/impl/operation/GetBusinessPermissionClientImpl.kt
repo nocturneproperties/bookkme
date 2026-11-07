@@ -11,7 +11,7 @@ import library.permissions.ResourcePermission
 import kotlin.uuid.Uuid
 
 internal class GetBusinessPermissionClientImpl(
-    private val httpClient: HttpClient
+    private val httpClient: HttpClient,
 ) : GetBusinessPermission {
 
     override suspend fun invoke(userId: Uuid, businessId: Uuid, resource: BusinessResource): Result<ResourcePermission> = runSuspendCatching {
@@ -19,8 +19,8 @@ internal class GetBusinessPermissionClientImpl(
             BusinessRouting.Api.Internal.Business.Id.Permissions(
                 parent = BusinessRouting.Api.Internal.Business.Id(id = businessId),
                 userId = userId,
-                resource = resource
-            )
+                resource = resource,
+            ),
         ).bodyOrThrow()
     }
 }

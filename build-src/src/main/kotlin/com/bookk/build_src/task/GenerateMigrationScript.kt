@@ -7,6 +7,5 @@ open class GenerateMigrationScript : DefaultTask() {
 
     @TaskAction
     fun generateMigrationScript() {
-
     }
 }

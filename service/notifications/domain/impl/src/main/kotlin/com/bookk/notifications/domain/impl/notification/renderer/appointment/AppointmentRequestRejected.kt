@@ -18,18 +18,18 @@ internal val AppointmentEvent.RequestRejected.notification: NotificationParamete
             val whenText = from.formatLocalized(timeZone, language)
             PushNotification(
                 title = message(language, "$KEY_PREFIX.push.title"),
-                body = message(language, "$KEY_PREFIX.push.body", businessName, whenText, declineReason)
+                body = message(language, "$KEY_PREFIX.push.body", businessName, whenText, declineReason),
             )
         },
         email = { language ->
             val whenText = from.formatLocalized(timeZone, language)
             EmailNotification(
                 subject = message(language, "$KEY_PREFIX.email.subject", businessName),
-                body = message(language, "$KEY_PREFIX.email.body", businessName, whenText, declineReason, address)
+                body = message(language, "$KEY_PREFIX.email.body", businessName, whenText, declineReason, address),
             )
         },
         text = { language ->
             val whenText = from.formatLocalized(timeZone, language)
             TextNotification(message(language, "$KEY_PREFIX.text.body", businessName, whenText, declineReason))
-        }
+        },
     )

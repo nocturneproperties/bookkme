@@ -5,7 +5,9 @@ import com.bookk.core.service.enity.respondWith
 import com.bookk.notifications.domain.api.UpdatePushNotificationToken
 import com.bookk.notifications.domain.impl.di.NotificationsScope
 import com.bookk.notifications.microservice.route.NotificationsRouting.Api
+import com.bookk.server.auth.client.AppPrincipal
 import io.ktor.server.auth.authenticate
+import io.ktor.server.auth.principal
 import io.ktor.server.request.receive
 import io.ktor.server.resources.put
 import io.ktor.server.routing.Route
@@ -19,18 +21,22 @@ internal class UpdateTokenRequest(@ProtoNumber(1) val token: String)
 internal fun Route.notificationToken() {
     authenticate {
         /**
+         * Update push notification token
+         *
          * Summary: Update push notification token
          * Description: Update the push notification token for a device
          * Tag: notification
          * Security: jwt
          * Body: application/x-protobuf [com.bookk.notifications.microservice.route.api.UpdateTokenRequest]
          * Response: 200 application/x-protobuf [com.bookk.notifications.domain.api.entity.Device] Updated device
+         * Response: 404 text/plain [kotlin.String] Device does not belong to the caller or does not exist
          * See: docs/operations/notifications/update-push-token.md
          */
         put<Api.Notification.Token> {
+            val principal = requireNotNull(call.principal<AppPrincipal>())
             val body = call.receive<UpdateTokenRequest>()
             val updatePushNotificationToken by application.injectScoped<UpdatePushNotificationToken>(NotificationsScope)
-            call.respondWith(updatePushNotificationToken(it.deviceUuid, body.token))
+            call.respondWith(updatePushNotificationToken(principal.authId, it.deviceUuid, body.token))
         }
     }
 }

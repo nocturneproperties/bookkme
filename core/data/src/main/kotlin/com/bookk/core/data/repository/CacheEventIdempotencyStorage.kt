@@ -16,11 +16,11 @@ import kotlin.time.Duration.Companion.minutes
 @Serializable
 private class EventProcessingRecord(
     @ProtoNumber(1) val processed: Boolean,
-    @ProtoNumber(2) val deliveryId: String = ""
+    @ProtoNumber(2) val deliveryId: String = "",
 )
 
 class CacheEventIdempotencyStorage(
-    private val cacheClient: CacheClient<String>
+    private val cacheClient: CacheClient<String>,
 ) : EventIdempotencyStorage {
 
     override val claimTtl: Duration = CLAIM_TTL
@@ -45,8 +45,7 @@ class CacheEventIdempotencyStorage(
 
     private fun claimOf(deliveryId: String) = EventProcessingRecord(processed = false, deliveryId = deliveryId)
 
-    private fun key(consumerGroup: String, topic: String, idempotencyKey: String) =
-        "event:$consumerGroup:$topic:$idempotencyKey"
+    private fun key(consumerGroup: String, topic: String, idempotencyKey: String) = "event:$consumerGroup:$topic:$idempotencyKey"
 
     private companion object {
         const val CLAIM_ATTEMPTS = 3

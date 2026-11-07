@@ -13,7 +13,7 @@ interface GetDashboardBusiness {
         class NotFound : BusinessError(
             statusCode = HttpStatusCode.NotFound.value,
             code = BusinessErrorCodes.BUSINESS_NOT_FOUND,
-            message = "No businesses for this user"
+            message = "No businesses for this user",
         )
     }
 }

@@ -11,7 +11,7 @@ internal class ClientFields(
     val lastName: String,
     val phone: String?,
     val email: String?,
-    val description: String?
+    val description: String?,
 )
 
 internal const val MAX_CLIENT_NAME_LENGTH = 512
@@ -36,6 +36,6 @@ internal fun Client.validatedFields(): ClientFields {
         lastName = lastName.trim(),
         phone = validPhone?.trim(),
         email = validEmail?.trim(),
-        description = description?.trim()?.take(Client.MAX_DESCRIPTION_LENGTH)
+        description = description?.trim()?.take(Client.MAX_DESCRIPTION_LENGTH),
     )
 }

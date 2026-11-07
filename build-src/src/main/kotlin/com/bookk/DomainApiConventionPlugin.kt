@@ -1,6 +1,7 @@
 package com.bookk
 
 import com.bookk.build_src.convention.applyConvention
+import com.bookk.build_src.convention.applyTestFixturesConvention
 import com.bookk.build_src.tools.libs
 import org.gradle.api.Plugin
 import org.gradle.api.Project
@@ -19,15 +20,14 @@ class DomainApiConventionPlugin : Plugin<Project> {
             }
 
             extensions.getByType<JavaPluginExtension>().applyConvention()
+            applyTestFixturesConvention()
             extensions.getByType<KotlinJvmProjectExtension>().applyConvention(target)
             target.tasks.withType(Test::class.java) {
                 useJUnitPlatform()
             }
 
             target.dependencies {
-                add("implementation", libs.ktor.protobuf)
-                add("implementation", libs.kotlin.serialization.core)
-                add("implementation", libs.kotlin.coroutines)
+                add("api", libs.kotlin.serialization.protobuf)
                 add("testImplementation", libs.kotlin.test)
                 add("testImplementation", libs.mockk)
             }

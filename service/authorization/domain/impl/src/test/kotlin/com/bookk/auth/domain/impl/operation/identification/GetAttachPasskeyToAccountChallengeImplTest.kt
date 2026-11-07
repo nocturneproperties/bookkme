@@ -36,12 +36,11 @@ internal class GetAttachPasskeyToAccountChallengeImplTest {
             accountDataSource,
             deviceDataSource,
             userClient,
-            transactionManager
+            transactionManager,
         )
     }
 
-    private fun makeAuthentication(authId: Uuid = Uuid.random()): Authentication =
-        Authentication(id = authId, userId = Uuid.random(), uuid = Uuid.random())
+    private fun makeAuthentication(authId: Uuid = Uuid.random()): Authentication = Authentication(id = authId, userId = Uuid.random(), uuid = Uuid.random())
 
     private fun makeDevice(deviceId: Uuid = Uuid.random()): Device = Device(
         authRecord = makeAuthentication(),
@@ -51,15 +50,15 @@ internal class GetAttachPasskeyToAccountChallengeImplTest {
             refreshToken = null,
             previousRefreshToken = null,
             deviceName = "iPhone 15",
-            isSignedIn = true
-        )
+            isSignedIn = true,
+        ),
     )
 
     private fun makeUser(userId: Uuid = Uuid.random()): UserSnapshot = UserSnapshot.stub(
         id = userId,
         name = "John",
         lastName = "Doe",
-        email = "john@example.com"
+        email = "john@example.com",
     )
 
     private fun makeChallengeResponse(): RegistrationChallengeResponse = RegistrationChallengeResponse(
@@ -67,7 +66,7 @@ internal class GetAttachPasskeyToAccountChallengeImplTest {
         challenge = "challenge",
         challengeJson = "{}",
         userHandle = "handle",
-        displayName = "John Doe - iPhone 15"
+        displayName = "John Doe - iPhone 15",
     )
 
     @Test

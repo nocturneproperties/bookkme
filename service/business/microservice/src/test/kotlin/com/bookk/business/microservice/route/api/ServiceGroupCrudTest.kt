@@ -39,7 +39,7 @@ internal class ServiceGroupCrudTest {
         id = Uuid.random(),
         businessId = businessId,
         name = "Test Group",
-        createdAt = Instant.fromEpochMilliseconds(0)
+        createdAt = Instant.fromEpochMilliseconds(0),
     )
 
     @Test
@@ -61,7 +61,7 @@ internal class ServiceGroupCrudTest {
             diModule = module {
                 single { useCase }
             },
-            routeUnderTest = { serviceGroupCrud() }
+            routeUnderTest = { serviceGroupCrud() },
         )
 
         whenn()
@@ -93,7 +93,7 @@ internal class ServiceGroupCrudTest {
             diModule = module {
                 single { useCase }
             },
-            routeUnderTest = { serviceGroupCrud() }
+            routeUnderTest = { serviceGroupCrud() },
         )
 
         whenn()
@@ -127,7 +127,7 @@ internal class ServiceGroupCrudTest {
             diModule = module {
                 single { useCase }
             },
-            routeUnderTest = { serviceGroupCrud() }
+            routeUnderTest = { serviceGroupCrud() },
         )
 
         whenn()
@@ -161,7 +161,7 @@ internal class ServiceGroupCrudTest {
             diModule = module {
                 single { useCase }
             },
-            routeUnderTest = { serviceGroupCrud() }
+            routeUnderTest = { serviceGroupCrud() },
         )
 
         whenn()
@@ -191,7 +191,7 @@ internal class ServiceGroupCrudTest {
             diModule = module {
                 single { useCase }
             },
-            routeUnderTest = { serviceGroupCrud() }
+            routeUnderTest = { serviceGroupCrud() },
         )
 
         whenn()
@@ -210,7 +210,7 @@ internal class ServiceGroupCrudTest {
         setupApplication(
             extension = { install(Authentication) { bearer { authenticate { null } } } },
             diModule = module { single { useCase } },
-            routeUnderTest = { serviceGroupCrud() }
+            routeUnderTest = { serviceGroupCrud() },
         )
 
         whenn()
@@ -231,7 +231,7 @@ internal class ServiceGroupCrudTest {
         setupApplication(
             extension = { install(Authentication) { bearer { authenticate { null } } } },
             diModule = module { single { useCase } },
-            routeUnderTest = { serviceGroupCrud() }
+            routeUnderTest = { serviceGroupCrud() },
         )
 
         whenn()
@@ -250,7 +250,7 @@ internal class ServiceGroupCrudTest {
         setupApplication(
             extension = { install(Authentication) { bearer { authenticate { null } } } },
             diModule = module { single { useCase } },
-            routeUnderTest = { serviceGroupCrud() }
+            routeUnderTest = { serviceGroupCrud() },
         )
 
         whenn()

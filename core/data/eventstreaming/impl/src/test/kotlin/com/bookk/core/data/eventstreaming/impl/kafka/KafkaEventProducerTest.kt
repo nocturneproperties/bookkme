@@ -28,7 +28,7 @@ internal class KafkaEventProducerTest {
     private fun producer() = KafkaEventProducer(
         servers = KafkaTestBroker.servers,
         client = "producer-test",
-        protoBuf = KafkaTestBroker.protoBuf
+        protoBuf = KafkaTestBroker.protoBuf,
     )
 
     private fun topicNamed() = "producer.test.${Uuid.random()}"

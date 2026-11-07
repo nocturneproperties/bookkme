@@ -11,13 +11,13 @@ data class PriceAdjustment(
     @ProtoNumber(2)
     @Serializable(with = MoneySerializer::class)
     val price: Money,
-    @ProtoNumber(3) val reason: String?
+    @ProtoNumber(3) val reason: String?,
 ) {
     companion object {
         fun stub(
             additionalServices: List<ServiceSnapshot> = listOf(ServiceSnapshot.stub()),
             price: Money = Money.parse("USD 150"),
-            reason: String? = "Reason"
+            reason: String? = "Reason",
         ) = PriceAdjustment(additionalServices = additionalServices, price = price, reason = reason)
     }
 }

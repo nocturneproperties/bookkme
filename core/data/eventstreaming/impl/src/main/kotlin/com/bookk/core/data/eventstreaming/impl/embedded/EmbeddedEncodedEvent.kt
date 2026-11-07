@@ -7,7 +7,7 @@ class EmbeddedEncodedEvent(
     override val topic: String,
     override val partitionKey: String?,
     val payload: ByteArray,
-    override val idempotencyKey: String = Uuid.random().toString()
+    override val idempotencyKey: String = Uuid.random().toString(),
 ) : EventStreaming.Event<String> {
 
     override fun equals(other: Any?): Boolean {

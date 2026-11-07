@@ -34,6 +34,7 @@ erDiagram
         string currency
         string timezone
         byte working_days
+        int client_data_retention_months "default 36, 12 to 120; a client inactive longer than this is deleted"
         string instagram
         string telegram
         string viber
@@ -90,6 +91,7 @@ erDiagram
         string email "nullable; UK with business_id; at least one of phone/email required on create"
         uuid user_id "logical FK -> user.profile.id, nullable; UK with business_id"
         string description "nullable; business owner's notes about the client"
+        timestamp last_activity_at "latest booked visit end, or create/edit/takeover time; indexed with business_id; the business-deleteInactiveClients job deletes the row once it is older than the business retention period"
         timestamp source_updated_at
         timestamp created_at
         timestamp updated_at
@@ -174,8 +176,28 @@ erDiagram
         string idempotency_key UK
         int attempt
         blob payload
+        bool replay_requested
         timestamp createdAt
         timestamp updatedAt
+    }
+
+    ERASED_CLIENT {
+        uuid client_id PK "logical FK -> client.id of an erased client"
+        uuid business_id "logical FK -> business.id"
+        timestamp erased_at "rows older than 60 days are deleted by business-deleteExpiredErasureRecords"
+        bool reapply_requested "set only by a backup restore, cleared by business-reapplyErasures"
+    }
+
+    DATA_EXPORT {
+        uuid owner_id PK "the business; logical link to BUSINESS, no FK"
+        string state "PENDING | RUNNING | READY | FAILED, stored by name"
+        timestamp requested_at
+        int attempts "builds started, at most 3"
+        uuid claim_id "nullable; the build holding the row"
+        timestamp claimed_until "nullable; lease end"
+        timestamp finished_at "nullable"
+        timestamp expires_at "nullable; finished_at + 72 h, indexed"
+        longblob document "nullable; gzipped JSON, only while READY"
     }
 
     OUTBOX_EVENT {
@@ -187,6 +209,10 @@ erDiagram
     }
 ```
 
-`EXHAUSTED_EVENT` is not part of the business domain model — it's the shared DLT landing table (`core/data/eventstreaming/data`, one instance per service schema) that `KafkaEventConsumer`/`EmbeddedEventConsumer` write to when an event exhausts its retry budget, so a failed event survives a process restart or crash instead of being lost. See `AGENTS.md`'s event-streaming retry design notes.
+`DATA_EXPORT` holds the business's data export (one row per business) from the moment the owner requests it until 72 hours after its document was built. It is the shared `library/export` table, so it has no foreign key to `BUSINESS`; deleting the business deletes the row in the same transaction. It holds a copy of every client of the business, so it is not readable in NocoDB. See [Data export](../data-export.md).
+
+`EXHAUSTED_EVENT` is not part of the business domain model — it's the shared DLT landing table (`core/data/eventstreaming/data`, one instance per service schema) that `KafkaEventConsumer`/`EmbeddedEventConsumer` write to when an event exhausts its retry budget, so a failed event survives a process restart or crash instead of being lost. Every start, and every row an operator sets `replay_requested` on, is replayed through the consumer group's DLT topic by `ExhaustedEventReplayer`, which also exports the parked rows as the `events_exhausted` metric. See [Exhausted events](../exhausted-events.md).
 
 `OUTBOX_EVENT` is not part of the business domain model either — it's the shared transactional outbox (`core/data/eventstreaming/data`, one instance per service schema). `eventProducer.send` inserts the encoded event in the same transaction as the business write, so an event exists exactly when its write committed; `OutboxRelay` then locks the oldest rows (`SELECT … FOR UPDATE`), publishes them to Kafka (or the embedded transport in the monolith) and deletes them. Delivery is at-least-once, deduplicated by consumers through the event's idempotency key. See [Transactional outbox](../transactional-outbox.md).
+
+`ERASED_CLIENT` records every client a business deleted (`DeleteClient` and the `business-deleteInactiveClients` retention job), in the same transaction as the deletion. Clients deleted with their user's account aren't recorded here: `authorization.erased_account` covers them. Like `ERASED_ACCOUNT`, the restore tool re-inserts the records from the latest backup with `reapply_requested`, and `business-reapplyErasures` deletes those clients again and sends `BusinessEvent.ClientDeleted`. Keyed by the client id alone, inserted once (`INSERT IGNORE`), kept 60 days, hidden from NocoDB.

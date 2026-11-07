@@ -11,6 +11,7 @@ import com.bookk.notifications.domain.api.UpdateNotificationSettings
 import com.bookk.notifications.domain.api.entity.CommunicationChannel
 import com.bookk.notifications.domain.api.entity.NotificationChannelSettings
 import com.bookk.notifications.domain.api.entity.NotificationSettings
+import com.bookk.notifications.domain.api.entity.NotificationSettingsUpdate
 import com.bookk.notifications.microservice.route.NotificationsRouting.Api
 import com.bookk.server.auth.client.AppPrincipal
 import io.ktor.client.call.body
@@ -41,7 +42,7 @@ internal class NotificationSettingsTest {
                 NotificationChannelSettings.stub(channel = CommunicationChannel.EMAIL, enabled = true),
                 NotificationChannelSettings.stub(channel = CommunicationChannel.PUSH_NOTIFICATIONS, enabled = false),
                 NotificationChannelSettings.stub(channel = CommunicationChannel.TELEGRAM, enabled = false),
-            )
+            ),
         )
         coEvery { useCase.invoke(userId) } returns Result.success(settings)
         setupApplication(
@@ -55,7 +56,7 @@ internal class NotificationSettingsTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { notificationSettings() }
+            routeUnderTest = { notificationSettings() },
         )
 
         whenn()
@@ -84,7 +85,7 @@ internal class NotificationSettingsTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { notificationSettings() }
+            routeUnderTest = { notificationSettings() },
         )
 
         whenn()
@@ -106,7 +107,7 @@ internal class NotificationSettingsTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { notificationSettings() }
+            routeUnderTest = { notificationSettings() },
         )
 
         whenn()
@@ -140,13 +141,13 @@ internal class NotificationSettingsTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { notificationSettings() }
+            routeUnderTest = { notificationSettings() },
         )
 
         whenn()
         val client = createTestClient()
         val response = client.put(Api.Notification.Settings()) {
-            setBody(NotificationSettings.Update(id = Uuid.random(), appointmentEnabled = false, channels = channels))
+            setBody(NotificationSettingsUpdate(id = Uuid.random(), appointmentEnabled = false, channels = channels))
         }
 
         then()
@@ -171,13 +172,13 @@ internal class NotificationSettingsTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { notificationSettings() }
+            routeUnderTest = { notificationSettings() },
         )
 
         whenn()
         val client = createTestClient()
         val response = client.put(Api.Notification.Settings()) {
-            setBody(NotificationSettings.Update(id = Uuid.random(), appointmentEnabled = true, channels = emptyList()))
+            setBody(NotificationSettingsUpdate(id = Uuid.random(), appointmentEnabled = true, channels = emptyList()))
         }
 
         then()
@@ -195,13 +196,13 @@ internal class NotificationSettingsTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { notificationSettings() }
+            routeUnderTest = { notificationSettings() },
         )
 
         whenn()
         val client = createTestClient()
         val response = client.put(Api.Notification.Settings()) {
-            setBody(NotificationSettings.Update(id = Uuid.random(), appointmentEnabled = true, channels = emptyList()))
+            setBody(NotificationSettingsUpdate(id = Uuid.random(), appointmentEnabled = true, channels = emptyList()))
         }
 
         then()

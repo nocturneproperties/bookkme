@@ -6,15 +6,18 @@ import com.bookk.core.data.eventstreaming.StandardEventProducer
 import com.bookk.core.data.eventstreaming.send
 import com.bookk.core.domain.datasource.transaction.TransactionManager
 import com.bookk.server.business.client.api.event.BusinessEvent
+import library.export.DataExports
 import kotlin.uuid.Uuid
 
 internal class DeleteBusinessImpl(
     private val businessDataSource: BusinessDataSource,
     private val transactionManager: TransactionManager,
     private val eventProducer: StandardEventProducer,
+    private val dataExports: DataExports,
 ) : DeleteBusiness {
     override suspend fun invoke(userId: Uuid): Result<Unit> = transactionManager.transaction {
         businessDataSource.deleteUserBusinesses(userId).forEach {
+            dataExports.discard(it)
             eventProducer.send(BusinessEvent.Deleted(it))
         }
     }

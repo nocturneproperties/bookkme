@@ -69,7 +69,8 @@ internal class UpdateBusinessImplTest {
         timeZone: TimeZone? = null,
         socials: List<Business.Social>? = null,
         schedule: Schedule? = null,
-        dayOffs: List<DayOffRange> = emptyList()
+        dayOffs: List<DayOffRange> = emptyList(),
+        clientDataRetentionMonths: Int? = null,
     ) = BusinessUpdateModel(
         id = id,
         name = name,
@@ -79,12 +80,13 @@ internal class UpdateBusinessImplTest {
         currencyCode = currencyCode,
         timeZone = timeZone,
         socials = socials,
-        schedule = schedule?.copy(dayOffs = dayOffs)
+        schedule = schedule?.copy(dayOffs = dayOffs),
+        clientDataRetentionMonths = clientDataRetentionMonths,
     )
 
     private fun scheduleOf(vararg days: DayOfWeek) = Schedule(
         workingDays = days.toList(),
-        workingHours = days.associateWith { listOf(WorkHour(LocalTime(9, 0), LocalTime(17, 0))) }
+        workingHours = days.associateWith { listOf(WorkHour(LocalTime(9, 0), LocalTime(17, 0))) },
     )
 
     @Test
@@ -99,7 +101,7 @@ internal class UpdateBusinessImplTest {
             description = "D".repeat(2000),
             address = "Addr".repeat(200),
             timeZone = TimeZone.UTC,
-            socials = listOf(Business.Social(Business.SocialKind.INSTAGRAM, "V".repeat(500)))
+            socials = listOf(Business.Social(Business.SocialKind.INSTAGRAM, "V".repeat(500))),
         )
 
         whenn()
@@ -108,12 +110,15 @@ internal class UpdateBusinessImplTest {
         then()
         assertTrue(result.isSuccess)
         coVerify(exactly = 1) {
-            fixture.businessDataSource.updateBusiness(match {
-                it.name?.length == Business.MAX_NAME_LENGTH &&
-                it.description?.length == Business.MAX_DESCRIPTION_LENGTH &&
-                it.address?.length == Business.MAX_ADDRESS_LENGTH &&
-                it.socials?.firstOrNull()?.value?.length == Business.MAX_SOCIAL_LENGTH
-            }, any())
+            fixture.businessDataSource.updateBusiness(
+                match {
+                    it.name?.length == Business.MAX_NAME_LENGTH &&
+                        it.description?.length == Business.MAX_DESCRIPTION_LENGTH &&
+                        it.address?.length == Business.MAX_ADDRESS_LENGTH &&
+                        it.socials?.firstOrNull()?.value?.length == Business.MAX_SOCIAL_LENGTH
+                },
+                any(),
+            )
         }
     }
 
@@ -130,9 +135,12 @@ internal class UpdateBusinessImplTest {
         then()
         assertTrue(result.isSuccess)
         coVerify(exactly = 1) {
-            fixture.businessDataSource.updateBusiness(match {
-                it.name == null && it.description == null && it.address == null && it.socials?.isEmpty() == true
-            }, any())
+            fixture.businessDataSource.updateBusiness(
+                match {
+                    it.name == null && it.description == null && it.address == null && it.socials?.isEmpty() == true
+                },
+                any(),
+            )
         }
     }
 
@@ -147,7 +155,7 @@ internal class UpdateBusinessImplTest {
             id = businessId,
             name = "New Name",
             address = "New Address",
-            schedule = schedule
+            schedule = schedule,
         )
         coEvery { fixture.businessDataSource.updateBusiness(any(), any()) } returns updatedBusiness
         val updateModel = updateModel(
@@ -155,7 +163,7 @@ internal class UpdateBusinessImplTest {
             name = "New Name",
             address = "New Address",
             timeZone = TimeZone.UTC,
-            socials = emptyList()
+            socials = emptyList(),
         )
 
         whenn()
@@ -164,12 +172,15 @@ internal class UpdateBusinessImplTest {
         then()
         assertTrue(result.isSuccess)
         coVerify(exactly = 1) {
-            fixture.eventProducer.send(match<BusinessEvent.Updated> {
-                it.business.id == updatedBusiness.id &&
-                it.business.name == updatedBusiness.name &&
-                it.business.address == updatedBusiness.address &&
-                it.business.timeZone == updatedBusiness.timeZone
-            }, any())
+            fixture.eventProducer.send(
+                match<BusinessEvent.Updated> {
+                    it.business.id == updatedBusiness.id &&
+                        it.business.name == updatedBusiness.name &&
+                        it.business.address == updatedBusiness.address &&
+                        it.business.timeZone == updatedBusiness.timeZone
+                },
+                any(),
+            )
         }
     }
 
@@ -180,7 +191,7 @@ internal class UpdateBusinessImplTest {
         fixture.transactionManager.mockTransaction()
         val schedule = Schedule(
             workingDays = listOf(DayOfWeek.MONDAY),
-            workingHours = emptyMap()
+            workingHours = emptyMap(),
         )
 
         whenn()
@@ -218,9 +229,12 @@ internal class UpdateBusinessImplTest {
         then()
         assertTrue(result.isSuccess)
         coVerify(exactly = 1) {
-            fixture.businessDataSource.updateBusiness(match {
-                it.schedule?.dayOffs == dayOffs
-            }, any())
+            fixture.businessDataSource.updateBusiness(
+                match {
+                    it.schedule?.dayOffs == dayOffs
+                },
+                any(),
+            )
         }
     }
 
@@ -241,15 +255,18 @@ internal class UpdateBusinessImplTest {
         then()
         assertTrue(result.isSuccess)
         coVerify(exactly = 1) {
-            fixture.eventProducer.send(match<BusinessEvent.Updated> {
-                it.business.id == businessId &&
-                it.business.schedule[DayOfWeek.SATURDAY] == DayOfWeekSchedule(
-                    workingTime = listOf(WorkHour(LocalTime(9, 0), LocalTime(17, 0))),
-                    isActive = true
-                ) &&
-                !it.business.schedule[DayOfWeek.MONDAY].isActive &&
-                it.business.schedule.dayOffs == listOf(DayOffRange(LocalDate(2099, 12, 30), LocalDate(2099, 12, 31)))
-            }, any())
+            fixture.eventProducer.send(
+                match<BusinessEvent.Updated> {
+                    it.business.id == businessId &&
+                        it.business.schedule[DayOfWeek.SATURDAY] == DayOfWeekSchedule(
+                            workingTime = listOf(WorkHour(LocalTime(9, 0), LocalTime(17, 0))),
+                            isActive = true,
+                        ) &&
+                        !it.business.schedule[DayOfWeek.MONDAY].isActive &&
+                        it.business.schedule.dayOffs == listOf(DayOffRange(LocalDate(2099, 12, 30), LocalDate(2099, 12, 31)))
+                },
+                any(),
+            )
         }
     }
 
@@ -269,9 +286,12 @@ internal class UpdateBusinessImplTest {
         then()
         assertTrue(result.isSuccess)
         coVerify(exactly = 1) {
-            fixture.eventProducer.send(match<BusinessEvent.Updated> {
-                it.business.schedule[DayOfWeek.MONDAY].isActive
-            }, any())
+            fixture.eventProducer.send(
+                match<BusinessEvent.Updated> {
+                    it.business.schedule[DayOfWeek.MONDAY].isActive
+                },
+                any(),
+            )
         }
     }
 
@@ -294,7 +314,7 @@ internal class UpdateBusinessImplTest {
         coVerify(exactly = 1) {
             fixture.eventProducer.send(
                 match<BusinessEvent.Updated> { it.updatedAt == persistedAt.captured },
-                any()
+                any(),
             )
         }
     }
@@ -580,5 +600,77 @@ internal class UpdateBusinessImplTest {
         then()
         assertTrue(result.exceptionOrNull() is UpdateBusiness.Error.InvalidCurrency)
         coVerify(exactly = 0) { fixture.businessDataSource.updateBusiness(any(), any()) }
+    }
+
+    @Test
+    fun `should reject client data retention shorter than the minimum`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.transactionManager.mockTransaction()
+
+        whenn()
+        val result = fixture.sut(requestUserId, updateModel(clientDataRetentionMonths = 11))
+
+        then()
+        assertTrue(result.exceptionOrNull() is UpdateBusiness.Error.ClientDataRetentionOutOfRange)
+        coVerify(exactly = 0) { fixture.businessDataSource.updateBusiness(any(), any()) }
+    }
+
+    @Test
+    fun `should reject client data retention longer than the maximum`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.transactionManager.mockTransaction()
+
+        whenn()
+        val result = fixture.sut(requestUserId, updateModel(clientDataRetentionMonths = 121))
+
+        then()
+        assertTrue(result.exceptionOrNull() is UpdateBusiness.Error.ClientDataRetentionOutOfRange)
+        coVerify(exactly = 0) { fixture.businessDataSource.updateBusiness(any(), any()) }
+    }
+
+    @Test
+    fun `should store client data retention equal to the minimum`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.transactionManager.mockTransaction()
+        val model = updateModel(clientDataRetentionMonths = 12)
+
+        whenn()
+        val result = fixture.sut(requestUserId, model)
+
+        then()
+        assertTrue(result.isSuccess)
+        coVerify(exactly = 1) { fixture.businessDataSource.updateBusiness(match { it.clientDataRetentionMonths == 12 }, any()) }
+    }
+
+    @Test
+    fun `should store client data retention equal to the maximum`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.transactionManager.mockTransaction()
+        val model = updateModel(clientDataRetentionMonths = 120)
+
+        whenn()
+        val result = fixture.sut(requestUserId, model)
+
+        then()
+        assertTrue(result.isSuccess)
+        coVerify(exactly = 1) { fixture.businessDataSource.updateBusiness(match { it.clientDataRetentionMonths == 120 }, any()) }
+    }
+
+    @Test
+    fun `should check the permission before validating client data retention`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.transactionManager.mockTransaction()
+        fixture.grantPermission(ResourcePermission.NONE)
+
+        whenn()
+        val result = fixture.sut(requestUserId, updateModel(clientDataRetentionMonths = 1))
+
+        then()
+        assertTrue(result.exceptionOrNull() is Error.OperationNotAllowed)
     }
 }

@@ -1,15 +1,16 @@
 package com.bookk.notifications.domain.impl
 
+import com.bookk.core.domain.datasource.transaction.TransactionManager
 import com.bookk.core.domain.entity.Language
-import com.bookk.core.domain.entity.runSuspendCatching
 import com.bookk.notifications.domain.datasource.DeviceDataSource
 import kotlin.uuid.Uuid
 
 internal class UpdateDeviceLanguage(
-    private val deviceDataSource: DeviceDataSource
+    private val deviceDataSource: DeviceDataSource,
+    private val transactionManager: TransactionManager,
 ) {
-    suspend operator fun invoke(deviceUuid: Uuid, language: Language): Result<Unit> = runSuspendCatching {
-        deviceDataSource.updateLanguage(deviceUuid, language)
+    suspend operator fun invoke(authId: Uuid, deviceUuid: Uuid, language: Language): Result<Unit> = transactionManager.transaction {
+        deviceDataSource.updateLanguage(authId, deviceUuid, language)
         Unit
     }
 }

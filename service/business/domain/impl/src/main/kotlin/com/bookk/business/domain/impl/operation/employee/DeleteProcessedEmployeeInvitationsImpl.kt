@@ -8,7 +8,7 @@ import kotlin.time.Duration.Companion.days
 
 internal class DeleteProcessedEmployeeInvitationsImpl(
     private val invitationDataSource: EmployeeInvitationDataSource,
-    private val transactionManager: TransactionManager
+    private val transactionManager: TransactionManager,
 ) : DeleteProcessedEmployeeInvitations {
     override suspend fun invoke(): Result<Unit> = transactionManager.transaction {
         invitationDataSource.deleteProcessedInvitations(Clock.System.now() - RETENTION_WINDOW)

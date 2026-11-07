@@ -42,7 +42,7 @@ internal class DeclineAppointmentRequestImplTest {
             appointmentPermissionDataSource,
             subscriptionDataSource,
             eventProducer,
-            transactionManager
+            transactionManager,
         )
     }
 
@@ -50,7 +50,7 @@ internal class DeclineAppointmentRequestImplTest {
     private val testBusinessId = Uuid.random()
     private val testCancellation = AppointmentCancellation(
         id = Uuid.random(),
-        reason = "User declined"
+        reason = "User declined",
     )
 
     @Test
@@ -191,6 +191,29 @@ internal class DeclineAppointmentRequestImplTest {
 
         then()
         assertEquals(TimeZone.of("Europe/Kyiv"), eventSlot.captured.timeZone)
+    }
+
+    @Test
+    fun `should address the rejection to the client's own account`() = runUnitTest {
+        val fixture = SutFixture()
+        given()
+        fixture.transactionManager.mockTransaction()
+        val clientUserId = Uuid.random()
+        val request = AppointmentRequest.stub(id = testCancellation.id, businessId = testBusinessId)
+            .let { it.copy(client = it.client.copy(userId = clientUserId), status = AppointmentRequestStatus.PENDING) }
+        val eventSlot = slot<AppointmentEvent.RequestRejected>()
+
+        coEvery { fixture.appointmentPermissionDataSource.getPermission(testUserId, testBusinessId) } returns ResourcePermission(view = false, update = true, delete = false)
+        coEvery { fixture.requestDataSource.getForUpdate(testCancellation.id) } returns request
+        coEvery { fixture.requestDataSource.decline(testCancellation.id, testCancellation.reason) } returns request.copy(status = AppointmentRequestStatus.DECLINED)
+        coEvery { fixture.subscriptionDataSource.getBusinessSnapshot(testBusinessId) } returns BusinessSnapshot.stub()
+        coEvery { fixture.eventProducer.send(capture(eventSlot), any()) } returns Unit
+
+        whenn()
+        fixture.sut.invoke(testUserId, testCancellation)
+
+        then()
+        assertEquals(clientUserId, eventSlot.captured.clientUserId)
     }
 
     @Test

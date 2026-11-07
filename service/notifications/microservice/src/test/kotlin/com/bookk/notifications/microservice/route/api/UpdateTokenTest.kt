@@ -32,21 +32,22 @@ internal class UpdateTokenTest {
         given()
         val useCase: UpdatePushNotificationToken = mockk()
         val deviceUuid = Uuid.random()
+        val authId = Uuid.random()
         val token = "fcm-token-123"
-        val device = Device.stub(deviceId = deviceUuid, notificationToken = token)
-        coEvery { useCase.invoke(deviceUuid, token) } returns Result.success(device)
+        val device = Device.stub(authId = authId, deviceId = deviceUuid, notificationToken = token)
+        coEvery { useCase.invoke(authId, deviceUuid, token) } returns Result.success(device)
         setupApplication(
             extension = {
                 install(Authentication) {
                     provider {
                         authenticate { context ->
-                            context.principal(AppPrincipal(Uuid.random(), Uuid.random(), Uuid.random()))
+                            context.principal(AppPrincipal(authId, Uuid.random(), Uuid.random()))
                         }
                     }
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { notificationToken() }
+            routeUnderTest = { notificationToken() },
         )
 
         whenn()
@@ -65,19 +66,20 @@ internal class UpdateTokenTest {
         given()
         val useCase: UpdatePushNotificationToken = mockk()
         val deviceUuid = Uuid.random()
-        coEvery { useCase.invoke(deviceUuid, any()) } returns Result.failure(Error.NotFound())
+        val authId = Uuid.random()
+        coEvery { useCase.invoke(authId, deviceUuid, any()) } returns Result.failure(Error.NotFound())
         setupApplication(
             extension = {
                 install(Authentication) {
                     provider {
                         authenticate { context ->
-                            context.principal(AppPrincipal(Uuid.random(), Uuid.random(), Uuid.random()))
+                            context.principal(AppPrincipal(authId, Uuid.random(), Uuid.random()))
                         }
                     }
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { notificationToken() }
+            routeUnderTest = { notificationToken() },
         )
 
         whenn()
@@ -101,7 +103,7 @@ internal class UpdateTokenTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { notificationToken() }
+            routeUnderTest = { notificationToken() },
         )
 
         whenn()

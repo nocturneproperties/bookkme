@@ -272,14 +272,14 @@ internal class CreateClientImplTest {
             lastName = "  Doe  ",
             phone = "  654321  ",
             email = "jane@doe.com",
-            description = "  VIP client  "
+            description = "  VIP client  ",
         )
         val trimmedClient = client.copy(
             name = "Jane",
             lastName = "Doe",
             phone = "654321",
             email = "jane@doe.com",
-            description = "VIP client"
+            description = "VIP client",
         )
         with(fixture) {
             transactionManager.mockTransaction()

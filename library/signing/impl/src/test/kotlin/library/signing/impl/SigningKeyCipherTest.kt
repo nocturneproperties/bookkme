@@ -11,8 +11,7 @@ import kotlin.test.assertNotEquals
 
 internal class SigningKeyCipherTest {
 
-    private fun randomKey(): String =
-        Base64.encode(KeyGenerator.getInstance("AES").apply { init(256) }.generateKey().encoded)
+    private fun randomKey(): String = Base64.encode(KeyGenerator.getInstance("AES").apply { init(256) }.generateKey().encoded)
 
     @Test
     fun `should decrypt back to the original plaintext`() {

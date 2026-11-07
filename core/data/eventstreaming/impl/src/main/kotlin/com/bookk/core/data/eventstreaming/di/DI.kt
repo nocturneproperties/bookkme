@@ -2,7 +2,9 @@ package com.bookk.core.data.eventstreaming.di
 
 import com.bookk.core.AppLevelConstants
 import com.bookk.core.data.eventstreaming.EventStreaming
+import com.bookk.core.data.eventstreaming.ExhaustedEventReplayer
 import com.bookk.core.data.eventstreaming.StandardEventConsumer
+import com.bookk.core.data.eventstreaming.impl.ExhaustedEventReplayerImpl
 import com.bookk.core.data.eventstreaming.impl.embedded.EmbeddedEventConsumer
 import com.bookk.core.data.eventstreaming.impl.embedded.EmbeddedEventProducer
 import com.bookk.core.data.eventstreaming.impl.embedded.TopicQueueHolder
@@ -17,8 +19,9 @@ fun eventStreamingTransportModule(qualifier: Qualifier, serviceName: String) = m
     scope(qualifier) {
         scoped<StandardEventConsumer> {
             val servers = AppLevelConstants.eventStreamingHost.split(',')
-            KafkaEventConsumer(servers, consumerGroup(serviceName), get(), ProtoBuf { encodeDefaults = true }, get<KafkaEventProducer>(), get())
+            KafkaEventConsumer(servers, consumerGroup(serviceName), get(), ProtoBuf { encodeDefaults = true }, get<KafkaEventProducer>(), get(), get())
         }
+        scoped<ExhaustedEventReplayer> { ExhaustedEventReplayerImpl(get(), get(), get(), get(), consumerGroup(serviceName)) }
         scoped {
             val servers = AppLevelConstants.eventStreamingHost.split(',')
             val clientName = "${serviceName}_producer"
@@ -34,8 +37,9 @@ fun topicQueueHolderModule() = module {
 fun embeddedEventStreamingTransportModule(qualifier: Qualifier, serviceName: String) = module {
     scope(qualifier) {
         scoped<StandardEventConsumer> {
-            EmbeddedEventConsumer(get(), ProtoBuf { encodeDefaults = true }, get(), get(), consumerGroup(serviceName))
+            EmbeddedEventConsumer(get(), ProtoBuf { encodeDefaults = true }, get(), get(), get(), consumerGroup(serviceName))
         }
+        scoped<ExhaustedEventReplayer> { ExhaustedEventReplayerImpl(get(), get(), get(), get(), consumerGroup(serviceName)) }
         scoped { EmbeddedEventProducer(get()) } bind EventStreaming.RawProducer::class
     }
 }

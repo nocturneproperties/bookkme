@@ -23,17 +23,16 @@ class UserEntity(id: EntityID<Uuid>) : UuidEntity(id) {
         name = name,
         lastName = lastName,
         email = email,
-        phone = phone
+        phone = phone,
     )
 
     companion object : DecoratorUuidEntityClass<UserEntity>(UserTable) {
-        fun applyEdit(id: Uuid, model: UserEditModel, updatedAt: Instant): UserEntity? =
-            findByIdAndUpdate(id) {
-                model.firstName?.let { firstName -> it.name = firstName }
-                model.lastName?.let { lastName -> it.lastName = lastName }
-                model.email?.let { email -> it.email = email }
-                model.phone?.let { phone -> it.phone = phone.trim().ifBlank { null } }
-                it.updatedAt = updatedAt
-            }
+        fun applyEdit(id: Uuid, model: UserEditModel, updatedAt: Instant): UserEntity? = findByIdAndUpdate(id) {
+            model.firstName?.let { firstName -> it.name = firstName }
+            model.lastName?.let { lastName -> it.lastName = lastName }
+            model.email?.let { email -> it.email = email }
+            model.phone?.let { phone -> it.phone = phone.trim().ifBlank { null } }
+            it.updatedAt = updatedAt
+        }
     }
 }

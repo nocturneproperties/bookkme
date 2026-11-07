@@ -13,7 +13,7 @@ interface GetBusinessById {
         class NotFound : BusinessError(
             statusCode = HttpStatusCode.NotFound.value,
             code = BusinessErrorCodes.BUSINESS_NOT_FOUND,
-            message = "Business with this id is missing"
+            message = "Business with this id is missing",
         )
     }
 }

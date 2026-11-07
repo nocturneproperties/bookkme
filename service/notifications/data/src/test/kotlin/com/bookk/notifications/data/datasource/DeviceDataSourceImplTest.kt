@@ -1,7 +1,9 @@
 package com.bookk.notifications.data.datasource
 
 import com.bookk.core.data.test.createTestDatabase
+import com.bookk.core.domain.entity.Error
 import com.bookk.core.domain.entity.Language
+import com.bookk.core.domain.entity.runSuspendCatching
 import com.bookk.core.test.given
 import com.bookk.core.test.runUnitTest
 import com.bookk.core.test.then
@@ -9,7 +11,6 @@ import com.bookk.core.test.whenn
 import com.bookk.notifications.data.orm.table.DeviceTable
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -23,7 +24,7 @@ internal class DeviceDataSourceImplTest {
     }
 
     @Test
-    fun `should create device and retrieve by id`() = runUnitTest {
+    fun `should create a device without a push token`() = runUnitTest {
         given()
         val fixture = SutFixture()
         val authId = Uuid.random()
@@ -31,82 +32,13 @@ internal class DeviceDataSourceImplTest {
         val userId = Uuid.random()
 
         whenn()
-        val created = suspendTransaction { fixture.sut.create(authId, deviceUuid, userId, Language.EN) }
-        val found = suspendTransaction { fixture.sut.getById(created.id) }
+        val created = suspendTransaction { fixture.sut.getOrCreate(authId, deviceUuid, userId, Language.EN) }
 
         then()
-        assertNotNull(found)
-        assertEquals(authId, found!!.authId)
-        assertEquals(deviceUuid, found.deviceUuid)
-        assertEquals(userId, found.userId)
-        assertNull(found.notificationToken)
-        assertEquals(Language.EN, found.language)
-    }
-
-    @Test
-    fun `should return null when device not found by id`() = runUnitTest {
-        given()
-        val fixture = SutFixture()
-
-        whenn()
-        val found = suspendTransaction { fixture.sut.getById(Uuid.random()) }
-
-        then()
-        assertNull(found)
-    }
-
-    @Test
-    fun `should retrieve device by device uuid`() = runUnitTest {
-        given()
-        val fixture = SutFixture()
-        val deviceUuid = Uuid.random()
-        val created = suspendTransaction { fixture.sut.create(Uuid.random(), deviceUuid, Uuid.random(), Language.EN) }
-
-        whenn()
-        val found = suspendTransaction { fixture.sut.getByDeviceUuid(deviceUuid) }
-
-        then()
-        assertNotNull(found)
-        assertEquals(created.id, found!!.id)
-    }
-
-    @Test
-    fun `should return null when device uuid not found`() = runUnitTest {
-        given()
-        val fixture = SutFixture()
-
-        whenn()
-        val found = suspendTransaction { fixture.sut.getByDeviceUuid(Uuid.random()) }
-
-        then()
-        assertNull(found)
-    }
-
-    @Test
-    fun `should retrieve device by auth id`() = runUnitTest {
-        given()
-        val fixture = SutFixture()
-        val authId = Uuid.random()
-        val created = suspendTransaction { fixture.sut.create(authId, Uuid.random(), Uuid.random(), Language.EN) }
-
-        whenn()
-        val found = suspendTransaction { fixture.sut.getByAuthId(authId) }
-
-        then()
-        assertNotNull(found)
-        assertEquals(created.id, found!!.id)
-    }
-
-    @Test
-    fun `should return null when auth id not found`() = runUnitTest {
-        given()
-        val fixture = SutFixture()
-
-        whenn()
-        val found = suspendTransaction { fixture.sut.getByAuthId(Uuid.random()) }
-
-        then()
-        assertNull(found)
+        assertEquals(listOf(authId, deviceUuid, userId), listOf(created.authId, created.deviceUuid, created.userId))
+        assertNull(created.notificationToken)
+        assertEquals(Language.EN, created.language)
+        assertEquals(listOf(created), suspendTransaction { fixture.sut.getByUserId(userId) })
     }
 
     @Test
@@ -114,8 +46,8 @@ internal class DeviceDataSourceImplTest {
         given()
         val fixture = SutFixture()
         val userId = Uuid.random()
-        suspendTransaction { fixture.sut.create(Uuid.random(), Uuid.random(), userId, Language.EN) }
-        suspendTransaction { fixture.sut.create(Uuid.random(), Uuid.random(), userId, Language.UK) }
+        suspendTransaction { fixture.sut.getOrCreate(Uuid.random(), Uuid.random(), userId, Language.EN) }
+        suspendTransaction { fixture.sut.getOrCreate(Uuid.random(), Uuid.random(), userId, Language.UK) }
 
         whenn()
         val devices = suspendTransaction { fixture.sut.getByUserId(userId) }
@@ -142,10 +74,11 @@ internal class DeviceDataSourceImplTest {
         given()
         val fixture = SutFixture()
         val deviceUuid = Uuid.random()
-        suspendTransaction { fixture.sut.create(Uuid.random(), deviceUuid, Uuid.random(), Language.EN) }
+        val authId = Uuid.random()
+        suspendTransaction { fixture.sut.getOrCreate(authId, deviceUuid, Uuid.random(), Language.EN) }
 
         whenn()
-        val updated = suspendTransaction { fixture.sut.updateToken(deviceUuid, "fcm-token-123") }
+        val updated = suspendTransaction { fixture.sut.updateToken(authId, deviceUuid, "fcm-token-123") }
 
         then()
         assertEquals("fcm-token-123", updated.notificationToken)
@@ -156,11 +89,12 @@ internal class DeviceDataSourceImplTest {
         given()
         val fixture = SutFixture()
         val deviceUuid = Uuid.random()
-        suspendTransaction { fixture.sut.create(Uuid.random(), deviceUuid, Uuid.random(), Language.EN) }
-        suspendTransaction { fixture.sut.updateToken(deviceUuid, "fcm-token-123") }
+        val authId = Uuid.random()
+        suspendTransaction { fixture.sut.getOrCreate(authId, deviceUuid, Uuid.random(), Language.EN) }
+        suspendTransaction { fixture.sut.updateToken(authId, deviceUuid, "fcm-token-123") }
 
         whenn()
-        val updated = suspendTransaction { fixture.sut.updateToken(deviceUuid, null) }
+        val updated = suspendTransaction { fixture.sut.updateToken(authId, deviceUuid, null) }
 
         then()
         assertNull(updated.notificationToken)
@@ -171,27 +105,125 @@ internal class DeviceDataSourceImplTest {
         given()
         val fixture = SutFixture()
         val deviceUuid = Uuid.random()
-        suspendTransaction { fixture.sut.create(Uuid.random(), deviceUuid, Uuid.random(), Language.EN) }
+        val authId = Uuid.random()
+        suspendTransaction { fixture.sut.getOrCreate(authId, deviceUuid, Uuid.random(), Language.EN) }
 
         whenn()
-        val updated = suspendTransaction { fixture.sut.updateLanguage(deviceUuid, Language.UK) }
+        val updated = suspendTransaction { fixture.sut.updateLanguage(authId, deviceUuid, Language.UK) }
 
         then()
         assertEquals(Language.UK, updated.language)
     }
 
     @Test
-    fun `should delete device by device uuid`() = runUnitTest {
+    fun `should delete an account's device`() = runUnitTest {
         given()
         val fixture = SutFixture()
         val deviceUuid = Uuid.random()
-        suspendTransaction { fixture.sut.create(Uuid.random(), deviceUuid, Uuid.random(), Language.EN) }
+        val authId = Uuid.random()
+        val userId = Uuid.random()
+        suspendTransaction { fixture.sut.getOrCreate(authId, deviceUuid, userId, Language.EN) }
 
         whenn()
-        suspendTransaction { fixture.sut.deleteByDeviceUuid(deviceUuid) }
+        suspendTransaction { fixture.sut.delete(authId, deviceUuid) }
 
         then()
-        val found = suspendTransaction { fixture.sut.getByDeviceUuid(deviceUuid) }
-        assertNull(found)
+        assertTrue(suspendTransaction { fixture.sut.getByUserId(userId) }.isEmpty())
+    }
+
+    @Test
+    fun `should preserve the device token language and id when creation is replayed`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val authId = Uuid.random()
+        val deviceUuid = Uuid.random()
+        val userId = Uuid.random()
+        val created = suspendTransaction { fixture.sut.getOrCreate(authId, deviceUuid, userId, Language.EN) }
+        suspendTransaction {
+            fixture.sut.updateToken(authId, deviceUuid, "current-token")
+            fixture.sut.updateLanguage(authId, deviceUuid, Language.UK)
+        }
+
+        whenn()
+        val replayed = suspendTransaction { fixture.sut.getOrCreate(authId, deviceUuid, userId, Language.EN) }
+
+        then()
+        assertEquals(created.id, replayed.id)
+        assertEquals("current-token", replayed.notificationToken)
+        assertEquals(Language.UK, replayed.language)
+        assertEquals(listOf(replayed), suspendTransaction { fixture.sut.getByUserId(userId) })
+    }
+
+    @Test
+    fun `should keep separate account associations for the same device uuid`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val deviceUuid = Uuid.random()
+        val first = suspendTransaction { fixture.sut.getOrCreate(Uuid.random(), deviceUuid, Uuid.random(), Language.EN) }
+
+        whenn()
+        val second = suspendTransaction { fixture.sut.getOrCreate(Uuid.random(), deviceUuid, Uuid.random(), Language.UK) }
+
+        then()
+        assertTrue(first.id != second.id)
+        assertEquals(listOf(first), suspendTransaction { fixture.sut.getByUserId(first.userId) })
+        assertEquals(listOf(second), suspendTransaction { fixture.sut.getByUserId(second.userId) })
+    }
+
+    @Test
+    fun `should update and delete only the requested account on a shared device`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val deviceUuid = Uuid.random()
+        val first = suspendTransaction { fixture.sut.getOrCreate(Uuid.random(), deviceUuid, Uuid.random(), Language.EN) }
+        val second = suspendTransaction { fixture.sut.getOrCreate(Uuid.random(), deviceUuid, Uuid.random(), Language.EN) }
+
+        whenn()
+        suspendTransaction {
+            fixture.sut.updateToken(first.authId, deviceUuid, "first-token")
+            fixture.sut.updateToken(second.authId, deviceUuid, "second-token")
+            fixture.sut.updateLanguage(first.authId, deviceUuid, Language.UK)
+        }
+        val updatedFirst = suspendTransaction { fixture.sut.getByUserId(first.userId) }.single()
+        suspendTransaction { fixture.sut.delete(first.authId, deviceUuid) }
+        suspendTransaction { fixture.sut.delete(first.authId, deviceUuid) }
+
+        then()
+        assertEquals("first-token", updatedFirst.notificationToken)
+        assertEquals(Language.UK, updatedFirst.language)
+        assertTrue(suspendTransaction { fixture.sut.getByUserId(first.userId) }.isEmpty())
+        assertEquals(listOf(second.copy(notificationToken = "second-token")), suspendTransaction { fixture.sut.getByUserId(second.userId) })
+    }
+
+    @Test
+    fun `should refuse token updates for another account's device`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val owner = suspendTransaction { fixture.sut.getOrCreate(Uuid.random(), Uuid.random(), Uuid.random(), Language.EN) }
+
+        whenn()
+        val result = runSuspendCatching {
+            suspendTransaction { fixture.sut.updateToken(Uuid.random(), owner.deviceUuid, "intruder-token") }
+        }
+
+        then()
+        assertTrue(result.exceptionOrNull() is Error.NotFound)
+        assertEquals(listOf(owner), suspendTransaction { fixture.sut.getByUserId(owner.userId) })
+    }
+
+    @Test
+    fun `should refuse a replay that changes the user of an existing account device`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val owner = suspendTransaction { fixture.sut.getOrCreate(Uuid.random(), Uuid.random(), Uuid.random(), Language.EN) }
+
+        whenn()
+        val result = runSuspendCatching {
+            suspendTransaction { fixture.sut.getOrCreate(owner.authId, owner.deviceUuid, Uuid.random(), Language.UK) }
+        }
+
+        then()
+        assertTrue(result.exceptionOrNull() is Error.OperationNotAllowed)
+        assertEquals(listOf(owner), suspendTransaction { fixture.sut.getByUserId(owner.userId) })
     }
 }

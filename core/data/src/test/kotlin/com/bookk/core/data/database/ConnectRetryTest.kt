@@ -40,7 +40,7 @@ internal class ConnectRetryTest {
 
     private fun unreachable(cause: Throwable) = RuntimeException(
         "Unable to obtain connection",
-        SQLNonTransientConnectionException("Socket fail to connect", "08000", cause)
+        SQLNonTransientConnectionException("Socket fail to connect", "08000", cause),
     )
 
     @Test
@@ -77,8 +77,8 @@ internal class ConnectRetryTest {
             failures = listOf(
                 unreachable(ConnectException("Connection refused")),
                 unreachable(SocketException("Connection reset")),
-                unreachable(SocketTimeoutException("Connect timed out"))
-            )
+                unreachable(SocketTimeoutException("Connect timed out")),
+            ),
         )
 
         whenn()

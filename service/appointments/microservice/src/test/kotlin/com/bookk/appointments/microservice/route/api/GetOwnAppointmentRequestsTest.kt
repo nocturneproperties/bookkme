@@ -31,7 +31,7 @@ internal class GetOwnAppointmentRequestsTest {
         val useCase: GetAppointmentRequests = mockk()
         val userId = Uuid.random()
         val businessId = Uuid.random()
-        val requests = listOf(AppointmentRequest.stub(userId = userId, businessId = businessId))
+        val requests = listOf(AppointmentRequest.stub(initiatorUserId = userId, businessId = businessId))
         coEvery { useCase.invoke(userId, businessId) } returns Result.success(requests)
 
         setupApplication(
@@ -45,7 +45,7 @@ internal class GetOwnAppointmentRequestsTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { requests() }
+            routeUnderTest = { requests() },
         )
 
         whenn()
@@ -69,7 +69,7 @@ internal class GetOwnAppointmentRequestsTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { requests() }
+            routeUnderTest = { requests() },
         )
 
         whenn()

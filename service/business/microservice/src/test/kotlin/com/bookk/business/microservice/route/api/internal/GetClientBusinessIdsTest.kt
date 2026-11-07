@@ -24,7 +24,7 @@ internal class GetClientBusinessIdsTest {
 
     private fun businessesResource() = BusinessRouting.Api.Internal.Client.Businesses(
         parent = BusinessRouting.Api.Internal.Client(),
-        userId = userId
+        userId = userId,
     )
 
     @Test
@@ -36,7 +36,7 @@ internal class GetClientBusinessIdsTest {
 
         setupApplication(
             diModule = module { single { useCase } },
-            routeUnderTest = { getClientBusinessIds() }
+            routeUnderTest = { getClientBusinessIds() },
         )
 
         whenn()
@@ -56,7 +56,7 @@ internal class GetClientBusinessIdsTest {
 
         setupApplication(
             diModule = module { single { useCase } },
-            routeUnderTest = { getClientBusinessIds() }
+            routeUnderTest = { getClientBusinessIds() },
         )
 
         whenn()

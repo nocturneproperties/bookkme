@@ -12,16 +12,20 @@ interface FinishPasskeyRegistration {
     suspend fun attachOwner(ownerId: Uuid, passkey: PasskeyCredential)
 
     sealed interface Error {
-        class ChallengeWindowExpired : BusinessError(
-            statusCode = HttpStatusCode.UnprocessableEntity.value,
-            code = AuthErrorCodes.CHALLENGE_WINDOW_EXPIRED,
-            message = "Challenge window expired"
-        ), Error
+        class ChallengeWindowExpired :
+            BusinessError(
+                statusCode = HttpStatusCode.UnprocessableEntity.value,
+                code = AuthErrorCodes.CHALLENGE_WINDOW_EXPIRED,
+                message = "Challenge window expired",
+            ),
+            Error
 
-        class VerificationFailed : BusinessError(
-            statusCode = HttpStatusCode.UnprocessableEntity.value,
-            code = AuthErrorCodes.VERIFICATION_FAILED,
-            message = "Passkey verification failed"
-        ), Error
+        class VerificationFailed :
+            BusinessError(
+                statusCode = HttpStatusCode.UnprocessableEntity.value,
+                code = AuthErrorCodes.VERIFICATION_FAILED,
+                message = "Passkey verification failed",
+            ),
+            Error
     }
 }

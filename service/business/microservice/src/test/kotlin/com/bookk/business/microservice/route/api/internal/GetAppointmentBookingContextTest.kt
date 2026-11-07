@@ -28,7 +28,7 @@ internal class GetAppointmentBookingContextTest {
     private val businessId = Uuid.random()
 
     private fun resource() = BusinessRouting.Api.Internal.Business.Id.AppointmentBookingContext(
-        parent = BusinessRouting.Api.Internal.Business.Id(id = businessId)
+        parent = BusinessRouting.Api.Internal.Business.Id(id = businessId),
     )
 
     @Test
@@ -43,7 +43,7 @@ internal class GetAppointmentBookingContextTest {
 
         setupApplication(
             diModule = module { single { useCase } },
-            routeUnderTest = { getAppointmentBookingContext() }
+            routeUnderTest = { getAppointmentBookingContext() },
         )
 
         whenn()
@@ -73,7 +73,7 @@ internal class GetAppointmentBookingContextTest {
 
         setupApplication(
             diModule = module { single { useCase } },
-            routeUnderTest = { getAppointmentBookingContext() }
+            routeUnderTest = { getAppointmentBookingContext() },
         )
 
         whenn()
@@ -96,7 +96,7 @@ internal class GetAppointmentBookingContextTest {
 
         setupApplication(
             diModule = module { single { useCase } },
-            routeUnderTest = { getAppointmentBookingContext() }
+            routeUnderTest = { getAppointmentBookingContext() },
         )
 
         whenn()
@@ -118,7 +118,7 @@ internal class GetAppointmentBookingContextTest {
 
         setupApplication(
             diModule = module { single { useCase } },
-            routeUnderTest = { getAppointmentBookingContext() }
+            routeUnderTest = { getAppointmentBookingContext() },
         )
 
         whenn()
@@ -140,7 +140,7 @@ internal class GetAppointmentBookingContextTest {
 
         setupApplication(
             diModule = module { single { useCase } },
-            routeUnderTest = { getAppointmentBookingContext() }
+            routeUnderTest = { getAppointmentBookingContext() },
         )
 
         whenn()

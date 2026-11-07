@@ -4,12 +4,28 @@
 
 Service-to-service route (no `authenticate {}`/`Security: jwt` — reachable
 only from inside the deployment, e.g. from the authorization service
-during [Sign-up](../authorization/sign-up.md)). Ignores any `id` on the
-incoming `User` and lets the datasource assign one.
+during [Sign-up](../authorization/sign-up.md)). The body is a `NewUser`:
+the profile fields plus the legal document versions the user accepted in
+the app (`acceptedDocuments`, required). A body without it, such as the
+`User` an older auth service sends, is rejected with 400 before the
+operation runs. Every sent version must be published and in effect, and
+every document with a version in effect must be accepted in exactly that
+version (see [Legal documents](../../legal-documents.md)); a document with
+no published version needs nothing. Both checks run before the profile is
+inserted, and the profile and its acceptances are written in one
+transaction.
 
 ```mermaid
 flowchart TD
-    Start([POST /api/internal/user]) --> Tx[[Begin transaction]]
-    Tx --> Insert[UserDataSource.insertNewUser user - id ignored, generated]
-    Insert --> R201([201 UserId])
+    Start([POST /api/internal/user]) --> Decode{Body has acceptedDocuments?}
+    Decode -- No --> R400([400])
+    Decode -- Yes --> Tx[[Begin transaction]]
+    Tx --> Each[For each sent document - LegalDocumentDataSource.getVersion document version]
+    Each -- not found or effective_at in the future --> R422a([422 LEGAL_DOCUMENT_VERSION_UNKNOWN 100003])
+    Each -- all in effect --> InEffect[LegalDocumentDataSource.getVersionsInEffect now]
+    InEffect -- a version in effect not sent --> R422b([422 LEGAL_DOCUMENTS_NOT_ACCEPTED 100004])
+    InEffect -- all accepted --> Insert[UserDataSource.insertNewUser - id generated]
+    Insert --> Record[LegalDocumentDataSource.recordAcceptance userId document version now - INSERT IGNORE, per sent document]
+    Record --> Commit[[Commit transaction]]
+    Commit --> R200([200 UserId])
 ```

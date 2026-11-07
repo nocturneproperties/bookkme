@@ -5,6 +5,7 @@ import com.bookk.auth.data.orm.entity.AuthDeviceEntity
 import com.bookk.auth.data.orm.table.AuthDeviceTable
 import com.bookk.auth.data.orm.table.AuthenticationTable
 import com.bookk.auth.domain.api.identification.entity.Device
+import com.bookk.auth.domain.api.identification.entity.DeviceIdentity
 import com.bookk.auth.domain.datasource.DeviceDataSource
 import com.bookk.core.data.DataSource
 import com.bookk.core.domain.entity.Error
@@ -85,7 +86,7 @@ internal class DeviceDataSourceImpl : DataSource(), DeviceDataSource {
                 otherTable = AuthenticationTable,
                 onColumn = { userAuthId },
                 otherColumn = { id },
-                additionalConstraint = { AuthenticationTable.id eq authId }
+                additionalConstraint = { AuthenticationTable.id eq authId },
             )
             .selectAll()
             .where { AuthDeviceTable.deviceUUID eq deviceUUID }
@@ -99,7 +100,7 @@ internal class DeviceDataSourceImpl : DataSource(), DeviceDataSource {
                 otherTable = AuthenticationTable,
                 onColumn = { userAuthId },
                 otherColumn = { id },
-                additionalConstraint = { AuthDeviceTable.userAuthId eq authId }
+                additionalConstraint = { AuthDeviceTable.userAuthId eq authId },
             )
             .selectAll()
             .map { AuthDeviceEntity.wrapRow(it).toDomain() }
@@ -108,7 +109,7 @@ internal class DeviceDataSourceImpl : DataSource(), DeviceDataSource {
 
     override suspend fun deleteTokenFromDevice(deviceId: Uuid) = dbQuery<Unit> {
         AuthDeviceTable.update(
-            where = { AuthDeviceTable.id eq deviceId }
+            where = { AuthDeviceTable.id eq deviceId },
         ) {
             it[isSignedIn] = false
             it[refreshTokenId] = null
@@ -132,17 +133,17 @@ internal class DeviceDataSourceImpl : DataSource(), DeviceDataSource {
 
     override suspend fun updateLanguage(authId: Uuid, deviceUuid: Uuid, language: Language) = dbQuery<Unit> {
         AuthDeviceTable.update(
-            where = { AuthDeviceTable.userAuthId.eq(authId).and(AuthDeviceTable.deviceUUID.eq(deviceUuid)) }
+            where = { AuthDeviceTable.userAuthId.eq(authId).and(AuthDeviceTable.deviceUUID.eq(deviceUuid)) },
         ) {
             it[AuthDeviceTable.language] = language
             it[updatedAt] = Clock.System.now()
         }
     }
 
-    override suspend fun deleteInactiveDevices(olderThan: Instant): List<Uuid> = dbQuery {
+    override suspend fun deleteInactiveDevices(olderThan: Instant): List<DeviceIdentity> = dbQuery {
         AuthDeviceTable
-            .deleteReturning(listOf(AuthDeviceTable.deviceUUID)) { AuthDeviceTable.lastLogInAt less olderThan }
-            .map { it[AuthDeviceTable.deviceUUID] }
+            .deleteReturning(listOf(AuthDeviceTable.userAuthId, AuthDeviceTable.deviceUUID)) { AuthDeviceTable.lastLogInAt less olderThan }
+            .map { DeviceIdentity(it[AuthDeviceTable.userAuthId].value, it[AuthDeviceTable.deviceUUID]) }
     }
 
     companion object {

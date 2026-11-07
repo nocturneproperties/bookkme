@@ -19,16 +19,24 @@ interface AppointmentDataSource {
         businessId: Uuid,
         limit: Int,
         offset: Long,
-        query: String? = null
+        query: String? = null,
     ): AppointmentPagination
     suspend fun update(appointment: Appointment): Appointment
     suspend fun delete(id: Uuid)
     suspend fun hasOverlapsWith(appointment: AppointmentRepresentation): Boolean
     suspend fun cancel(id: Uuid, reason: String): Appointment
-    suspend fun markCompleted(before: Instant)
+    suspend fun markCompleted(now: Instant)
+    suspend fun markUnresolved(before: Instant)
     suspend fun markCompletedByUser(id: Uuid): Appointment
+    suspend fun reopen(id: Uuid)
     suspend fun adjustPrice(id: Uuid, adjustment: PriceAdjustment): Appointment
     suspend fun markNoShow(id: Uuid): Appointment
-    suspend fun anonymizeForUser(userId: Uuid)
+    suspend fun anonymizeEmployee(employeeUserId: Uuid)
+    suspend fun anonymizeClientUser(clientUserId: Uuid)
+    suspend fun unlinkInitiator(initiatorUserId: Uuid)
+    suspend fun cancelUpcomingForUser(userId: Uuid, startingAfter: Instant, asClientReason: String, asEmployeeReason: String): List<Appointment>
+    suspend fun cancelUpcomingForClient(businessId: Uuid, clientId: Uuid, startingAfter: Instant, reason: String): List<Appointment>
+    suspend fun anonymizeClient(businessId: Uuid, clientId: Uuid)
     suspend fun reassignClient(businessId: Uuid, fromClientId: Uuid, toClientId: Uuid)
+    suspend fun linkClientUser(businessId: Uuid, clientId: Uuid, userId: Uuid)
 }

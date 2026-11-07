@@ -19,12 +19,12 @@ import kotlin.uuid.Uuid
 internal class ImportClientsImpl(
     private val transactionManager: TransactionManager,
     private val clientDataSource: ClientDataSource,
-    private val businessPermissionDataSource: BusinessPermissionDataSource
+    private val businessPermissionDataSource: BusinessPermissionDataSource,
 ) : ImportClients {
     override suspend fun invoke(
         requestUserId: Uuid,
         businessId: Uuid,
-        clients: List<Client.Detached>
+        clients: List<Client.Detached>,
     ): Result<ClientImportResult> = transactionManager.transaction {
         businessPermissionDataSource.getPermission(requestUserId, businessId, BusinessResource.CLIENTS)
             .assert(PermissionAction.UPDATE)
@@ -43,7 +43,7 @@ internal class ImportClientsImpl(
         val existing = clientDataSource.getClientsByContacts(
             businessId,
             phones = validated.mapNotNull { it.value.phone }.distinct(),
-            emails = validated.mapNotNull { it.value.email }.distinct()
+            emails = validated.mapNotNull { it.value.email }.distinct(),
         )
         val takenPhones = existing.mapNotNull { it.phone }.toMutableSet()
         val takenEmails = existing.mapNotNull { it.email?.lowercase() }.toMutableSet()
@@ -63,7 +63,7 @@ internal class ImportClientsImpl(
         val created = if (accepted.isEmpty()) emptyList() else clientDataSource.createDetachedClients(businessId, accepted)
         ClientImportResult(
             created = created.map(Client::toRemote),
-            rejected = rejected.sortedBy(RejectedClient::index)
+            rejected = rejected.sortedBy(RejectedClient::index),
         )
     }.onConstraintFailure { throw ImportClients.Error.ClientExist() }
 
@@ -73,6 +73,6 @@ internal class ImportClientsImpl(
         lastName = lastName,
         phone = phone,
         email = email,
-        description = description
+        description = description,
     )
 }

@@ -1,16 +1,21 @@
 # React to device language change
 
-Kafka topic `AuthEvent.DeviceLanguageUpdated` → `NotificationEventHandler` → `UpdateDeviceLanguage`
+`auth.device_language_updated` → `NotificationEventHandler` → `UpdateDeviceLanguage`
 
-Produced by [Verify sign-in](../authorization/sign-in.md) when a
-previously-known device signs in again with a different `Accept-Language`.
-Keeps the locale used to render push/email notifications current.
+Produced by [Verify sign-in](../authorization/sign-in.md) when an existing account/device pair signs in again. Updates only that account's language for the installation. A legacy event with no `authId` is retried and parked for manual reconciliation.
 
 ```mermaid
 flowchart TD
-    Start([Consume AuthEvent.DeviceLanguageUpdated]) --> Dedup{idempotencyKey already processed?}
-    Dedup -- Yes --> Skip([Skip - already handled])
-    Dedup -- No --> Update[DeviceDataSource.updateLanguage deviceUuid language]
-    Update -- throws --> Dlt([Sent to AuthEvent.DeviceLanguageUpdated_dlt topic, logged - no auto-retry])
-    Update -- ok --> Ack([Marked processed])
+    Start([Consume AuthEvent.DeviceLanguageUpdated]) --> Claim{IdempotentDelivery claim for notifications}
+    Claim -- already processed --> Skip([Skip - SKIPPED_DUPLICATE])
+    Claim -- claimed --> Scope{authId is not NIL?}
+    Scope -- no --> Missing[IllegalArgumentException - account missing]
+    Scope -- yes --> Tx[[Begin transaction]]
+    Tx --> Update["DeviceDataSource.updateLanguage authId deviceUuid language - WHERE auth_id and device_uuid"]
+    Update -- no matching pair --> NotFound[Error.NotFound - rollback]
+    Update -- success --> Commit[[Commit]]
+    Commit --> Ack([Marked processed])
+    Missing --> Retry["auth.device_language_updated_notifications_group_dlt - retries then exhausted_event"]
+    NotFound --> Retry
+    Update -- failure --> Retry
 ```

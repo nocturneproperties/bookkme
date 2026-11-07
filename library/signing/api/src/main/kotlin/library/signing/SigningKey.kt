@@ -9,7 +9,7 @@ class SigningKey(
     val privateKeyPem: String,
     val status: SigningKeyStatus,
     val createdAt: Instant,
-    val retiredAt: Instant?
+    val retiredAt: Instant?,
 ) {
     companion object {
         fun stub(
@@ -18,7 +18,7 @@ class SigningKey(
             privateKeyPem: String = "private",
             status: SigningKeyStatus = SigningKeyStatus.ACTIVE,
             createdAt: Instant = Instant.fromEpochMilliseconds(0),
-            retiredAt: Instant? = null
+            retiredAt: Instant? = null,
         ) = SigningKey(id, publicKeyPem, privateKeyPem, status, createdAt, retiredAt)
     }
 }

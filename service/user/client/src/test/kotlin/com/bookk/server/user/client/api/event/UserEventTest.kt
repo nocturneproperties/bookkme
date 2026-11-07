@@ -20,7 +20,7 @@ internal class UserEventTest {
         lastName = "Last name",
         email = "user@example.com",
         phone = null,
-        updatedAt = Instant.fromEpochMilliseconds(1000)
+        updatedAt = Instant.fromEpochMilliseconds(1000),
     )
 
     @Test
@@ -71,5 +71,18 @@ internal class UserEventTest {
 
         then()
         assertFalse(serializedFields.contains("partitionKey"))
+    }
+
+    @Test
+    fun `should key the data export ready event by user id`() = runUnitTest {
+        given()
+        val event = UserEvent.DataExportReady(userId = userId, expiresAt = Instant.fromEpochMilliseconds(1000))
+
+        whenn()
+        val partitionKey = event.partitionKey
+
+        then()
+        assertEquals(userId.toString(), partitionKey)
+        assertEquals(UserEvent.DataExportReady.TOPIC, event.topic)
     }
 }

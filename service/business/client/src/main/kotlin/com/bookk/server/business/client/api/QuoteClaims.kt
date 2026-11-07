@@ -10,11 +10,9 @@ object QuoteClaims {
 
     private const val SERVICE_COUNT_SEPARATOR = ":"
 
-    fun encodeServiceCounts(serviceIds: List<Uuid>): List<String> =
-        serviceIds.groupingBy { it }.eachCount().map { (id, count) -> "$id$SERVICE_COUNT_SEPARATOR$count" }
+    fun encodeServiceCounts(serviceIds: List<Uuid>): List<String> = serviceIds.groupingBy { it }.eachCount().map { (id, count) -> "$id$SERVICE_COUNT_SEPARATOR$count" }
 
-    fun decodeServiceCounts(claim: List<String>): Map<Uuid, Int> =
-        claim.mapNotNull { entry -> decodeServiceCount(entry) }.toMap()
+    fun decodeServiceCounts(claim: List<String>): Map<Uuid, Int> = claim.mapNotNull { entry -> decodeServiceCount(entry) }.toMap()
 
     private fun decodeServiceCount(entry: String): Pair<Uuid, Int>? {
         val separatorIndex = entry.lastIndexOf(SERVICE_COUNT_SEPARATOR)

@@ -1,8 +1,26 @@
+{% set nocodb_readable_tables = {
+  'user': ['profile', 'contact_form', 'legal_document_version', 'legal_document_acceptance'],
+  'business': ['business', 'business_dashboard', 'business_day_offs', 'business_working_hours', 'business_permission_grants', 'client', 'employee', 'employee_can_provide_service', 'employee_day_offs', 'employee_working_hours', 'service', 'service_group'],
+  'appointments': ['appointment', 'appointment_services', 'appointment_price_adjustment', 'appointment_price_adjustment_services', 'appointment_request', 'appointment_request_services', 'appointment_settings', 'appointment_permission_grants', 'appointment_day_offs', 'business_has_appointments', 'working_hours'],
+  'notifications': ['device', 'notification_channels', 'notification_settings', 'notification_email_targets', 'notification_telegram_targets'],
+} %}
+{% set nocodb_insertable_tables = {
+  'user': ['legal_document_version'],
+} %}
 CREATE USER IF NOT EXISTS 'exporter'@'%' IDENTIFIED BY '{{ vault_monolith_db_exporter_password }}' WITH MAX_USER_CONNECTIONS 3;
 ALTER USER 'exporter'@'%' IDENTIFIED BY '{{ vault_monolith_db_exporter_password }}' WITH MAX_USER_CONNECTIONS 3;
 GRANT PROCESS ON *.* TO 'exporter'@'%';
 CREATE USER IF NOT EXISTS 'nocodb_reader'@'%' IDENTIFIED BY '{{ vault_monolith_db_nocodb_password }}' WITH MAX_USER_CONNECTIONS 20;
 ALTER USER 'nocodb_reader'@'%' IDENTIFIED BY '{{ vault_monolith_db_nocodb_password }}' WITH MAX_USER_CONNECTIONS 20;
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'nocodb_reader'@'%';
+BEGIN NOT ATOMIC DECLARE CONTINUE HANDLER FOR 1049, 1146 BEGIN END;{% for schema, tables in nocodb_readable_tables.items() %}{% for table in tables %} GRANT SELECT ON `{{ schema }}`.`{{ table }}` TO 'nocodb_reader'@'%';{% endfor %}{% endfor %} END;
+CREATE USER IF NOT EXISTS 'nocodb_writer'@'%' IDENTIFIED BY '{{ vault_monolith_db_nocodb_writer_password }}' WITH MAX_USER_CONNECTIONS 5;
+ALTER USER 'nocodb_writer'@'%' IDENTIFIED BY '{{ vault_monolith_db_nocodb_writer_password }}' WITH MAX_USER_CONNECTIONS 5;
+REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'nocodb_writer'@'%';
+BEGIN NOT ATOMIC DECLARE CONTINUE HANDLER FOR 1049, 1146 BEGIN END;{% for schema, tables in nocodb_insertable_tables.items() %}{% for table in tables %} GRANT SELECT, INSERT ON `{{ schema }}`.`{{ table }}` TO 'nocodb_writer'@'%';{% endfor %}{% endfor %} END;
+CREATE USER IF NOT EXISTS 'backup'@'%' IDENTIFIED BY '{{ vault_monolith_db_backup_password }}' WITH MAX_USER_CONNECTIONS 4;
+ALTER USER 'backup'@'%' IDENTIFIED BY '{{ vault_monolith_db_backup_password }}' WITH MAX_USER_CONNECTIONS 4;
+GRANT REPLICATION SLAVE, BINLOG MONITOR, RELOAD ON *.* TO 'backup'@'%';
 {% for schema in ['user', 'authorization', 'business', 'appointments', 'notifications'] %}
-GRANT SELECT ON `{{ schema }}`.* TO 'nocodb_reader'@'%';
+GRANT SELECT, SHOW VIEW, TRIGGER ON `{{ schema }}`.* TO 'backup'@'%';
 {% endfor %}

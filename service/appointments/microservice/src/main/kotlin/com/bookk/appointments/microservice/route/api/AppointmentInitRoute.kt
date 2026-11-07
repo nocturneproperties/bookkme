@@ -1,6 +1,5 @@
 package com.bookk.appointments.microservice.route.api
 
-import com.bookk.appointments.domain.api.entity.BusinessAppointmentsEnabled
 import com.bookk.appointments.domain.api.operation.EnableAppointmentsForBusiness
 import com.bookk.appointments.domain.api.operation.GetClientBusinessesAppointmentsStatus
 import com.bookk.appointments.domain.api.operation.IsAppointmentsEnabled
@@ -9,20 +8,18 @@ import com.bookk.appointments.microservice.route.AppointmentsRouting.Api
 import com.bookk.core.service.di.injectScoped
 import com.bookk.core.service.enity.respondWith
 import com.bookk.server.auth.client.AppPrincipal
-import io.ktor.http.ContentType
-import io.ktor.http.HttpStatusCode
-import io.ktor.openapi.jsonSchema
 import io.ktor.server.auth.authenticate
 import io.ktor.server.auth.principal
 import io.ktor.server.resources.get
 import io.ktor.server.resources.post
 import io.ktor.server.routing.Routing
 import io.ktor.server.routing.application
-import io.ktor.server.routing.openapi.describe
 
 fun Routing.appointmentInit() {
     authenticate {
         /**
+         * Enable appointments
+         *
          * Summary: Enable appointments
          * Description: Enable appointments for business. The business information and its working schedule are read from the business service
          * Tag: appointment
@@ -40,12 +37,14 @@ fun Routing.appointmentInit() {
             call.respondWith(
                 enableAppointments(
                     userId = principal.userId,
-                    businessId = it.businessId
-                )
+                    businessId = it.businessId,
+                ),
             )
         }
 
         /**
+         * Check if enabled
+         *
          * Summary: Check if enabled
          * Description: Check whether appointments plugin is enabled or not
          * Tag: appointment
@@ -60,30 +59,25 @@ fun Routing.appointmentInit() {
             call.respondWith(
                 isEnabled(
                     userId = principal.userId,
-                    businessId = it.businessId
-                )
+                    businessId = it.businessId,
+                ),
             )
         }
 
         /**
+         * Check appointments enabled for client businesses
+         *
          * Summary: Check appointments enabled for client businesses
          * Description: Appointment-enabled status for every business the calling user has a client relationship with
          * Tag: appointment
          * Security: jwt
+         * Response: 200 application/protobuf [com.bookk.appointments.domain.api.entity.BusinessAppointmentsEnabled]+ Appointment-enabled status for each business the user has a client relation to
          */
         get<Api.Appointment.EnabledForClientBusinesses> {
             val principal = requireNotNull(call.principal<AppPrincipal>())
             val getClientBusinessesAppointmentsStatus by application.injectScoped<GetClientBusinessesAppointmentsStatus>(AppointmentsScope)
 
             call.respondWith(getClientBusinessesAppointmentsStatus(userId = principal.userId))
-        }.describe {
-            responses {
-                response(HttpStatusCode.OK.value) {
-                    schema = jsonSchema<List<BusinessAppointmentsEnabled>>()
-                    description = "Appointment-enabled status for each business the user has a client relation to"
-                    ContentType.Application.ProtoBuf()
-                }
-            }
         }
     }
 }

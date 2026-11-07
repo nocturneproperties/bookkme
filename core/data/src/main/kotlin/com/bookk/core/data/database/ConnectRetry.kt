@@ -9,7 +9,7 @@ import kotlin.time.Duration.Companion.seconds
 
 internal fun <T> retryWhileDatabaseUnreachable(
     sleep: (Duration) -> Unit = { Thread.sleep(it.inWholeMilliseconds) },
-    connect: () -> T
+    connect: () -> T,
 ): T {
     val delays = connectRetryDelays().iterator()
     while (true) {
@@ -24,9 +24,8 @@ internal fun <T> retryWhileDatabaseUnreachable(
     }
 }
 
-private fun connectRetryDelays(): Sequence<Duration> =
-    generateSequence(FIRST_CONNECT_RETRY_DELAY) { minOf(it * 2, LONGEST_CONNECT_RETRY_DELAY) }
-        .take(CONNECT_RETRIES)
+private fun connectRetryDelays(): Sequence<Duration> = generateSequence(FIRST_CONNECT_RETRY_DELAY) { minOf(it * 2, LONGEST_CONNECT_RETRY_DELAY) }
+    .take(CONNECT_RETRIES)
 
 private fun Throwable.isDatabaseUnreachable(): Boolean = causes().any { cause ->
     cause is UnknownHostException || cause is SocketException || cause is SocketTimeoutException
@@ -34,8 +33,7 @@ private fun Throwable.isDatabaseUnreachable(): Boolean = causes().any { cause ->
 
 private fun Throwable.rootCause(): Throwable = causes().last()
 
-private fun Throwable.causes(): Sequence<Throwable> =
-    generateSequence(this) { current -> current.cause?.takeIf { it !== current } }
+private fun Throwable.causes(): Sequence<Throwable> = generateSequence(this) { current -> current.cause?.takeIf { it !== current } }
 
 private val logger = LoggerFactory.getLogger("com.bookk.core.data.database.Migration")
 

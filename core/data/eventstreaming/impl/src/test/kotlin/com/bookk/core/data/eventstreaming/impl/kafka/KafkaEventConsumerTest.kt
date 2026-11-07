@@ -4,6 +4,7 @@ import com.bookk.core.data.eventstreaming.impl.InMemoryExhaustedEventDataSource
 import com.bookk.core.data.eventstreaming.impl.inMemoryEventIdempotencyStorage
 import com.bookk.core.data.eventstreaming.registerReceiver
 import com.bookk.core.data.eventstreaming.send
+import com.bookk.core.domain.datasource.transaction.mockedTransactionManager
 import com.bookk.core.test.given
 import com.bookk.core.test.runIntegrationTest
 import com.bookk.core.test.then
@@ -46,13 +47,15 @@ internal class KafkaEventConsumerTest {
     }
 
     private fun consumerFor(topic: String, observations: Observations, latch: CountDownLatch): Job {
+        val transactionManager = mockedTransactionManager()
         val consumer = KafkaEventConsumer(
             servers = KafkaTestBroker.servers,
             consumerGroup = "consumer-test-${Uuid.random()}",
             eventIdempotencyStorage = inMemoryEventIdempotencyStorage(),
             protoBuf = KafkaTestBroker.protoBuf,
             dltProducer = NoopProducer(),
-            exhaustedEventDataSource = InMemoryExhaustedEventDataSource()
+            exhaustedEventDataSource = InMemoryExhaustedEventDataSource(transactionManager),
+            transactionManager = transactionManager,
         )
         consumer.registerReceiver<KeyedTestEvent, String>(topic) { event ->
             observations.enter()

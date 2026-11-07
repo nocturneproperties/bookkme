@@ -10,9 +10,7 @@ import com.bookk.business.microservice.route.BusinessRouting.Api
 import com.bookk.core.service.di.injectScoped
 import com.bookk.core.service.enity.respondWith
 import com.bookk.server.auth.client.AppPrincipal
-import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
-import io.ktor.openapi.jsonSchema
 import io.ktor.server.auth.authenticate
 import io.ktor.server.auth.principal
 import io.ktor.server.request.receive
@@ -23,11 +21,12 @@ import io.ktor.server.resources.put
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.application
-import io.ktor.server.routing.openapi.describe
 
 fun Route.serviceCrud() {
     authenticate {
         /**
+         * Create a new service
+         *
          * Summary: Create a new service
          * Description: Creates a new service offering that can be presented to the clients. The price is always stored in the business currency, the currency sent in the body is ignored. The group must belong to the business, the response carries the stored group
          * Tag: service
@@ -46,12 +45,14 @@ fun Route.serviceCrud() {
                 call.respond(HttpStatusCode.BadRequest, "Bad request")
             } else {
                 call.respondWith(
-                    createService(requestUserId = principal.userId, service = body)
+                    createService(requestUserId = principal.userId, service = body),
                 )
             }
         }
 
         /**
+         * Update service
+         *
          * Summary: Update service
          * Description: Updates a new service offering that can be presented to the clients. The price is always stored in the business currency, the currency sent in the body is ignored. The group must belong to the business, the response carries the stored group
          * Tag: service
@@ -73,32 +74,29 @@ fun Route.serviceCrud() {
                 call.respond(HttpStatusCode.BadRequest, "Bad request")
             } else {
                 call.respondWith(
-                    updateService(requestUserId = principal.userId, service = body)
+                    updateService(requestUserId = principal.userId, service = body),
                 )
             }
         }
 
         /**
+         * Get all services
+         *
          * Summary: Get all services
          * Description: Get all service offerings of a business with specific id
          * Tag: service
          * Security: jwt
+         * Response: 200 application/protobuf [com.bookk.business.domain.api.service.entity.Service]+ List of services
          */
         get<Api.Service> {
             val getServices by application.injectScoped<GetServices>(BusinessScope)
 
             call.respondWith(getServices(it.businessId))
-        }.describe {
-            responses {
-                response(HttpStatusCode.OK.value) {
-                    schema = jsonSchema<List<Service>>()
-                    description = "List of services"
-                    ContentType.Application.ProtoBuf()
-                }
-            }
         }
 
         /**
+         * Delete service offering
+         *
          * Summary: Delete service offering
          * Description: Delete service offering. A service id of another business is left untouched
          * Tag: service
@@ -115,8 +113,8 @@ fun Route.serviceCrud() {
                 deleteService(
                     requestUserId = principal.userId,
                     businessId = it.parent.businessId,
-                    id = it.id
-                )
+                    id = it.id,
+                ),
             )
         }
     }

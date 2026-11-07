@@ -20,49 +20,48 @@ import kotlin.uuid.Uuid
 internal class UpdateClientImpl(
     private val transactionManager: TransactionManager,
     private val clientDataSource: ClientDataSource,
-    private val businessPermissionDataSource: BusinessPermissionDataSource
+    private val businessPermissionDataSource: BusinessPermissionDataSource,
 ) : UpdateClient {
-    override suspend fun invoke(requestUserId: Uuid, businessId: Uuid, model: ClientUpdateModel): Result<ClientRemote> =
-        transactionManager.transaction {
-            businessPermissionDataSource.getPermission(requestUserId, businessId, BusinessResource.CLIENTS)
-                .assert(PermissionAction.UPDATE)
-            val existing = clientDataSource.getClientById(businessId, model.id) ?: throw UpdateClient.Error.NotFound()
+    override suspend fun invoke(requestUserId: Uuid, businessId: Uuid, model: ClientUpdateModel): Result<ClientRemote> = transactionManager.transaction {
+        businessPermissionDataSource.getPermission(requestUserId, businessId, BusinessResource.CLIENTS)
+            .assert(PermissionAction.UPDATE)
+        val existing = clientDataSource.getClientById(businessId, model.id) ?: throw UpdateClient.Error.NotFound()
 
-            val isNameChange = model.name != null && model.name != existing.name
-            val isLastNameChange = model.lastName != null && model.lastName != existing.lastName
-            val isPhoneChange = model.phone != null && model.phone != existing.phone
-            val isEmailChange = model.email != null && model.email != existing.email
+        val isNameChange = model.name != null && model.name != existing.name
+        val isLastNameChange = model.lastName != null && model.lastName != existing.lastName
+        val isPhoneChange = model.phone != null && model.phone != existing.phone
+        val isEmailChange = model.email != null && model.email != existing.email
 
-            val personalInfoRequested = isNameChange || isLastNameChange || isPhoneChange || isEmailChange
-            if (existing is Client.Integrated && personalInfoRequested) {
-                throw UpdateClient.Error.PersonalInfoNotEditable()
-            }
+        val personalInfoRequested = isNameChange || isLastNameChange || isPhoneChange || isEmailChange
+        if (existing is Client.Integrated && personalInfoRequested) {
+            throw UpdateClient.Error.PersonalInfoNotEditable()
+        }
 
-            val name = model.name?.also { name ->
-                if (!NameValidator.isValid(name, minLength = 0, maxLength = MAX_CLIENT_NAME_LENGTH)) {
-                    throw UpdateClient.Error.ClientValidationError()
-                }
+        val name = model.name?.also { name ->
+            if (!NameValidator.isValid(name, minLength = 0, maxLength = MAX_CLIENT_NAME_LENGTH)) {
+                throw UpdateClient.Error.ClientValidationError()
             }
-            val lastName = model.lastName?.also { lastName ->
-                if (!NameValidator.isValid(lastName, minLength = 0, maxLength = MAX_CLIENT_NAME_LENGTH)) {
-                    throw UpdateClient.Error.ClientValidationError()
-                }
+        }
+        val lastName = model.lastName?.also { lastName ->
+            if (!NameValidator.isValid(lastName, minLength = 0, maxLength = MAX_CLIENT_NAME_LENGTH)) {
+                throw UpdateClient.Error.ClientValidationError()
             }
-            val phone = model.phone?.takeIf { it.isNotBlank() }?.also { phone ->
-                if (!PhoneValidator.isValid(phone)) throw UpdateClient.Error.ClientValidationError()
-            }
-            val email = model.email?.takeIf { it.isNotBlank() }?.also { email ->
-                if (!EmailValidator.isValid(email)) throw UpdateClient.Error.ClientValidationError()
-            }
+        }
+        val phone = model.phone?.takeIf { it.isNotBlank() }?.also { phone ->
+            if (!PhoneValidator.isValid(phone)) throw UpdateClient.Error.ClientValidationError()
+        }
+        val email = model.email?.takeIf { it.isNotBlank() }?.also { email ->
+            if (!EmailValidator.isValid(email)) throw UpdateClient.Error.ClientValidationError()
+        }
 
-            val trimmedModel = model.copy(
-                name = name?.trim(),
-                lastName = lastName?.trim(),
-                phone = phone?.trim(),
-                email = email?.trim(),
-                description = model.description?.trim()?.take(Client.MAX_DESCRIPTION_LENGTH)
-            )
+        val trimmedModel = model.copy(
+            name = name?.trim(),
+            lastName = lastName?.trim(),
+            phone = phone?.trim(),
+            email = email?.trim(),
+            description = model.description?.trim()?.take(Client.MAX_DESCRIPTION_LENGTH),
+        )
 
-            (clientDataSource.updateClient(businessId, trimmedModel) ?: throw UpdateClient.Error.NotFound()).toRemote()
-        }.onConstraintFailure { throw UpdateClient.Error.ClientExist() }
+        (clientDataSource.updateClient(businessId, trimmedModel) ?: throw UpdateClient.Error.NotFound()).toRemote()
+    }.onConstraintFailure { throw UpdateClient.Error.ClientExist() }
 }

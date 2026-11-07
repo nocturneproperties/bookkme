@@ -66,7 +66,7 @@ internal class CreateBusinessImplTest {
                         it.email == user.email &&
                         it.phone == user.phone &&
                         it.permissions == BusinessPermissions.FULL
-                }
+                },
             )
         }
     }

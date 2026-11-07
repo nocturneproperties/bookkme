@@ -35,7 +35,7 @@ internal class CreateDeviceEntryImplTest {
         val device = Device.stub(authId = authId, deviceId = deviceId, userId = userId, language = Language.UK)
         with(fixture) {
             transactionManager.mockTransaction()
-            coEvery { deviceDataSource.create(authId, deviceId, userId, Language.UK) } returns device
+            coEvery { deviceDataSource.getOrCreate(authId, deviceId, userId, Language.UK) } returns device
         }
 
         whenn()
@@ -44,7 +44,7 @@ internal class CreateDeviceEntryImplTest {
         then()
         assertTrue(result.isSuccess)
         assertEquals(device, result.getOrNull())
-        coVerify(exactly = 1) { fixture.deviceDataSource.create(authId, deviceId, userId, Language.UK) }
+        coVerify(exactly = 1) { fixture.deviceDataSource.getOrCreate(authId, deviceId, userId, Language.UK) }
     }
 
     @Test
@@ -56,7 +56,7 @@ internal class CreateDeviceEntryImplTest {
         val userId = Uuid.random()
         with(fixture) {
             transactionManager.mockTransaction()
-            coEvery { deviceDataSource.create(authId, deviceId, userId, Language.EN) } throws RuntimeException("db error")
+            coEvery { deviceDataSource.getOrCreate(authId, deviceId, userId, Language.EN) } throws RuntimeException("db error")
         }
 
         whenn()

@@ -43,7 +43,7 @@ internal class AttachNewPasskeyToAccountImplTest {
             attestationObject = ByteArray(0),
             clientData = "{}",
             createdAt = now,
-            lastUsedAt = now
+            lastUsedAt = now,
         )
     }
 
@@ -78,7 +78,7 @@ internal class AttachNewPasskeyToAccountImplTest {
         with(fixture) {
             transactionManager.mockTransaction()
             coEvery { finishPasskeyRegistration.verifyRequest(request) } returns Result.failure(
-                FinishPasskeyRegistration.Error.ChallengeWindowExpired()
+                FinishPasskeyRegistration.Error.ChallengeWindowExpired(),
             )
         }
 
@@ -99,7 +99,7 @@ internal class AttachNewPasskeyToAccountImplTest {
         with(fixture) {
             transactionManager.mockTransaction()
             coEvery { finishPasskeyRegistration.verifyRequest(request) } returns Result.failure(
-                FinishPasskeyRegistration.Error.VerificationFailed()
+                FinishPasskeyRegistration.Error.VerificationFailed(),
             )
         }
 

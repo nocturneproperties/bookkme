@@ -13,6 +13,8 @@ import io.ktor.server.routing.application
 
 internal fun Route.getAppointmentBookingContext() {
     /**
+     * Get appointment booking context
+     *
      * Summary: Get appointment booking context
      * Description: Resolve the employee, services and the calling user's client record for a booking, attaching the user as an integrated client on their first booking with this business, by taking over a detached client holding their email or phone (other detached duplicates are merged into it) or creating one from their profile. Used by other services to build a verified appointment snapshot
      * Tag: internal
@@ -31,8 +33,8 @@ internal fun Route.getAppointmentBookingContext() {
                 businessId = resource.parent.id,
                 employeeId = body.employeeId,
                 userId = body.userId,
-                serviceIds = body.serviceIds
-            )
+                serviceIds = body.serviceIds,
+            ),
         )
     }
 }

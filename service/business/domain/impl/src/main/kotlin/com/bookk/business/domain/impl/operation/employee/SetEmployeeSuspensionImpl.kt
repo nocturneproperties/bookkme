@@ -16,13 +16,13 @@ internal class SetEmployeeSuspensionImpl(
     private val employeeDataSource: EmployeeDataSource,
     private val businessDataSource: BusinessDataSource,
     private val transactionManager: TransactionManager,
-    private val eventProducer: StandardEventProducer
+    private val eventProducer: StandardEventProducer,
 ) : SetEmployeeSuspension {
     override suspend fun invoke(
         requestUserId: Uuid,
         businessId: Uuid,
         employeeId: Uuid,
-        suspended: Boolean
+        suspended: Boolean,
     ): Result<Employee> = transactionManager.transaction {
         if (!businessDataSource.isOwner(requestUserId, businessId)) throw Error.OperationNotAllowed()
         val employee = employeeDataSource.getEmployee(businessId, employeeId) ?: throw Error.NotFound()
@@ -36,8 +36,8 @@ internal class SetEmployeeSuspensionImpl(
                 employeeUserId = updated.userId,
                 businessId = businessId,
                 permissions = updated.permissions,
-                suspended = updated.isSuspended
-            )
+                suspended = updated.isSuspended,
+            ),
         )
         updated
     }

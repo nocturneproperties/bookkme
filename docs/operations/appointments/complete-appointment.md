@@ -7,11 +7,18 @@ how a business that switched `automaticCompletion` off in its appointment
 settings closes its appointments — the `MarkAppointmentsCompleted` job skips
 those businesses (see [Scheduled (recurring) jobs](../scheduled-jobs.md)).
 It works for businesses with automatic completion on as well, e.g. to close an
-appointment before the job reaches it.
+appointment during the 7-day edit window. The job completes appointments once their local end day has passed.
 
-Only a `SCHEDULED` appointment that has already started can be completed.
-Completing an appointment that is already `COMPLETED` succeeds unchanged —
-its existing `completedBy` (possibly `SYSTEM`) is kept. The operation reads
+A `SCHEDULED` or `NO_SHOW` appointment that has already started can be
+completed. This lets staff correct an accidental no-show. `CANCELLED` is
+terminal and returns `ALREADY_CANCELLED` (300005); create a new appointment
+instead of restoring it.
+Completing an appointment that is already `COMPLETED` succeeds unchanged
+within the edit window, keeping its existing `completedBy`. Once more than
+7 days have passed since the appointment's end, completion and price adjustments
+are refused with `APPOINTMENT_EDIT_WINDOW_CLOSED` (300026), including for
+appointments the job completed. `UNRESOLVED` appointments always receive
+that same error. The operation reads
 the appointment with `getForUpdate` (`SELECT … FOR UPDATE`) as its first
 read, checks status and start time itself, and only then calls the
 unconditional `markCompletedByUser` write, so a concurrent cancel, no-show or
@@ -40,10 +47,9 @@ as no adjustment). Its `priceAdjustment` (`PriceAdjustmentDraft`) carries:
 - `reason` — optional, at most 2048 characters; blank is stored as absent.
 
 The adjustment is stored only when the appointment ends up `COMPLETED`. It is
-also stored on an appointment that was already `COMPLETED`, including one the
-job completed, replacing any previous adjustment. Without that, an adjustment
-sent just after the automatic job closed the appointment would be dropped
-silently. The write runs under the row lock taken by `getForUpdate`.
+also stored on an appointment that staff or the system already completed, replacing any
+previous adjustment while still within the edit window. The write runs under
+the row lock taken by `getForUpdate`.
 
 ```mermaid
 flowchart TD
@@ -64,11 +70,12 @@ flowchart TD
     Perm -- No --> R404b([404 Error.OperationNotAllowed])
     Perm -- Yes --> Status{appointment.status}
     Status -- CANCELLED --> R422a([422 ALREADY_CANCELLED 300005])
-    Status -- NO_SHOW --> R422c([422 MARKED_NO_SHOW 300019])
-    Status -- SCHEDULED --> Started{date_start is not after now?}
+    Status -- UNRESOLVED --> R422w
+    Status -- SCHEDULED, COMPLETED or NO_SHOW --> Window{appointment dateEnd + 7 days before now?}
+    Window -- Yes --> R422w([422 APPOINTMENT_EDIT_WINDOW_CLOSED 300026])
+    Window -- No --> Started{already COMPLETED or date_start is not after now?}
     Started -- No --> R422b([422 NOT_STARTED 300018])
-    Started -- Yes --> Draft
-    Status -- COMPLETED --> Draft{priceAdjustment present?}
+    Started -- Yes --> Draft{priceAdjustment present?}
     Draft -- No --> Write
     Draft -- Yes --> Currency{price currency == appointment totalAmount currency?}
     Currency -- No --> R422m([422 PRICE_ADJUSTMENT_CURRENCY_MISMATCH 300022])
@@ -77,7 +84,7 @@ flowchart TD
     Extra -- No --> Resolve[BusinessClient.getServicesByIds appointment.businessId ids - snapshot as ServiceSnapshot]
     Resolve -- missing or foreign service --> R422s([422 BUSINESS_QUOTE_SERVICE_NOT_FOUND 200013])
     Resolve -- resolved --> Write
-    Write{status was SCHEDULED?}
+    Write{status was SCHEDULED or NO_SHOW?}
     Write -- Yes --> Mark[AppointmentDataSource.markCompletedByUser id - sets COMPLETED and completedBy = USER]
     Write -- No, already COMPLETED --> Adjust
     Mark --> Adjust{adjustment resolved?}

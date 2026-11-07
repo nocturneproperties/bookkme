@@ -1,12 +1,14 @@
 plugins {
-    alias(libs.plugins.bookk.domain.api)
+    alias(libs.plugins.bookk.client)
 }
 
 dependencies {
-    implementation(projects.core)
-    implementation(projects.core.domain)
-    implementation(projects.core.data.eventstreaming.api)
-    implementation(libs.ktor.jwt)
+    implementation(projects.core.client)
+    api(projects.core.domain)
+    api(projects.core.data.eventstreaming.api)
+    api(libs.ktor.jwt)
 
     testImplementation(testFixtures(projects.core))
+    testImplementation(libs.ktor.client.mock)
+    testImplementation(libs.mockk)
 }

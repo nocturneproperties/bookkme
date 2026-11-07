@@ -39,8 +39,8 @@ internal class ImportClientsTest {
     private val request = ClientImportRequest(
         clients = listOf(
             ClientImportEntry(name = "Ann", lastName = "Lee", phone = "+1111", email = null, description = "Regular"),
-            ClientImportEntry(name = "Ben", lastName = "Roe", phone = null, email = "ben@client.com", description = null)
-        )
+            ClientImportEntry(name = "Ben", lastName = "Roe", phone = null, email = "ben@client.com", description = null),
+        ),
     )
 
     private fun authenticated(): Application.() -> Unit = {
@@ -55,7 +55,7 @@ internal class ImportClientsTest {
         setupApplication(
             extension = extension,
             diModule = module { single { useCase } },
-            routeUnderTest = { clientCrud() }
+            routeUnderTest = { clientCrud() },
         )
     }
 
@@ -72,7 +72,7 @@ internal class ImportClientsTest {
                     clients.map { it.name } == listOf("Ann", "Ben") &&
                         clients[0].description == "Regular" &&
                         clients[1].email == "ben@client.com"
-                }
+                },
             )
         } returns Result.success(imported)
         setup(useCase)

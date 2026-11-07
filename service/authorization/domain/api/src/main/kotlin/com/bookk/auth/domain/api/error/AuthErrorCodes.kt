@@ -13,4 +13,6 @@ object AuthErrorCodes {
     const val INVALID_CREDENTIALS = BASE + 8
     const val LAST_PASSKEY = BASE + 9
     const val UNABLE_TO_GENERATE_REGISTRATION_CHALLENGE = BASE + 10
+    const val PASSKEY_NOT_OWNED = BASE + 11
+    const val ACTION_CONFIRMATION_INVALID = BASE + 12
 }

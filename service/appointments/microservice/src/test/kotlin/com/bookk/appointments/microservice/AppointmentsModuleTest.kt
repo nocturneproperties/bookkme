@@ -1,7 +1,9 @@
 package com.bookk.appointments.microservice
 
+import com.bookk.appointments.domain.api.operation.GetAppointment
 import com.bookk.appointments.domain.impl.di.AppointmentsScope
 import com.bookk.core.data.eventstreaming.EventHandler
+import com.bookk.core.data.eventstreaming.ExhaustedEventReplayer
 import com.bookk.core.data.eventstreaming.StandardEventProducer
 import com.bookk.core.data.eventstreaming.data.outbox.OutboxEventProducer
 import com.bookk.core.data.eventstreaming.data.outbox.OutboxRelay
@@ -10,6 +12,7 @@ import com.bookk.core.test.given
 import com.bookk.core.test.runUnitTest
 import com.bookk.core.test.then
 import com.bookk.core.test.whenn
+import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.koin.core.module.Module
@@ -67,5 +70,53 @@ internal class AppointmentsModuleTest {
 
         then()
         assertTrue(handlers.any { it is OutboxRelay })
+    }
+
+    @Test
+    fun `should replay parked events in the standalone microservice`() = runUnitTest {
+        given()
+        val fixture = SutFixture(appointmentsModule())
+
+        whenn()
+        val replayer = fixture.scope.getOrNull<ExhaustedEventReplayer>()
+
+        then()
+        assertNotNull(replayer)
+    }
+
+    @Test
+    fun `should replay parked events in the monolith`() = runUnitTest {
+        given()
+        val fixture = SutFixture(appointmentsEmbeddedModule())
+
+        whenn()
+        val replayer = fixture.scope.getOrNull<ExhaustedEventReplayer>()
+
+        then()
+        assertNotNull(replayer)
+    }
+
+    @Test
+    fun `should resolve get appointment in the standalone microservice`() = runUnitTest {
+        given()
+        val fixture = SutFixture(appointmentsModule())
+
+        whenn()
+        val operation = fixture.scope.get<GetAppointment>()
+
+        then()
+        assertNotNull(operation)
+    }
+
+    @Test
+    fun `should resolve get appointment in the monolith`() = runUnitTest {
+        given()
+        val fixture = SutFixture(appointmentsEmbeddedModule())
+
+        whenn()
+        val operation = fixture.scope.get<GetAppointment>()
+
+        then()
+        assertNotNull(operation)
     }
 }

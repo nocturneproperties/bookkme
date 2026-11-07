@@ -9,10 +9,9 @@ import kotlin.uuid.Uuid
 
 internal class GetBusinessPermissionImpl(
     private val businessPermissionDataSource: BusinessPermissionDataSource,
-    private val transactionManager: TransactionManager
+    private val transactionManager: TransactionManager,
 ) : GetBusinessPermission {
-    override suspend fun invoke(userId: Uuid, businessId: Uuid, resource: BusinessResource): Result<ResourcePermission> =
-        transactionManager.transaction {
-            businessPermissionDataSource.getPermission(userId, businessId, resource)
-        }
+    override suspend fun invoke(userId: Uuid, businessId: Uuid, resource: BusinessResource): Result<ResourcePermission> = transactionManager.transaction {
+        businessPermissionDataSource.getPermission(userId, businessId, resource)
+    }
 }

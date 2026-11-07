@@ -9,6 +9,6 @@ interface GetAppointmentHistory {
         businessId: Uuid,
         limit: Int,
         offset: Long,
-        query: String? = null
+        query: String? = null,
     ): Result<AppointmentPagination>
 }

@@ -1,3 +1,4 @@
 *.retry
 .vault-pass
 vpn-clients/
+backups/

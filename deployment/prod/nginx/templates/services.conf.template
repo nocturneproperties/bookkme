@@ -1,0 +1,240 @@
+
+ssl_session_cache   shared:SSL:10m;
+ssl_session_timeout 10m;
+
+resolver 127.0.0.11 valid=30s;
+
+server {
+    listen 80;
+    server_name         ${DOMAIN_NAME} www.${DOMAIN_NAME};
+
+    return 301 https://$host$request_uri;
+}
+
+server {
+  listen 443 ssl;
+  http2 on;
+  server_name         dozzle.${DOMAIN_NAME};
+  access_log  off;
+
+  ssl_certificate     /etc/nginx/ssl/${DOMAIN_NAME}/fullchain.pem;
+  ssl_certificate_key /etc/nginx/ssl/${DOMAIN_NAME}/key.pem;
+
+  ssl_protocols       TLSv1.2 TLSv1.3;
+  ssl_ciphers         ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384;
+  ssl_prefer_server_ciphers off;
+
+  ssl_session_cache   shared:SSL:10m;
+  ssl_session_timeout 1d;
+  ssl_session_tickets off;
+
+  allow ${VPN_SUBNET};
+  deny all;
+
+  location / {
+      set $upstream dozzle;
+      proxy_pass http://$upstream:8080;
+  }
+}
+
+server {
+  listen 443 ssl;
+  http2 on;
+  server_name         admin.${DOMAIN_NAME};
+  access_log  off;
+
+  ssl_certificate     /etc/nginx/ssl/${DOMAIN_NAME}/fullchain.pem;
+  ssl_certificate_key /etc/nginx/ssl/${DOMAIN_NAME}/key.pem;
+
+  ssl_protocols       TLSv1.2 TLSv1.3;
+  ssl_ciphers         ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384;
+  ssl_prefer_server_ciphers off;
+
+  ssl_session_cache   shared:SSL:10m;
+  ssl_session_timeout 1d;
+  ssl_session_tickets off;
+
+  allow ${VPN_SUBNET};
+  deny all;
+
+  location / {
+      set $upstream admin;
+      proxy_pass http://$upstream:8080;
+  }
+}
+
+server {
+  listen 443 ssl;
+  http2 on;
+  server_name         kafka.${DOMAIN_NAME};
+
+  ssl_certificate     /etc/nginx/ssl/${DOMAIN_NAME}/fullchain.pem;
+  ssl_certificate_key /etc/nginx/ssl/${DOMAIN_NAME}/key.pem;
+
+  ssl_protocols       TLSv1.2 TLSv1.3;
+  ssl_ciphers         ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384;
+  ssl_prefer_server_ciphers off;
+
+  ssl_session_cache   shared:SSL:10m;
+  ssl_session_timeout 1d;
+  ssl_session_tickets off;
+
+  allow ${VPN_SUBNET};
+  deny all;
+
+  location / {
+      set $upstream ui.kafka;
+      proxy_pass http://$upstream:8080;
+  }
+}
+
+server {
+  listen 443 ssl;
+  http2 on;
+  server_name         vpn.${DOMAIN_NAME};
+  access_log  off;
+
+  ssl_certificate     /etc/nginx/ssl/${DOMAIN_NAME}/fullchain.pem;
+  ssl_certificate_key /etc/nginx/ssl/${DOMAIN_NAME}/key.pem;
+
+  ssl_protocols       TLSv1.2 TLSv1.3;
+  ssl_ciphers         ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384;
+  ssl_prefer_server_ciphers off;
+
+  ssl_session_cache   shared:SSL:10m;
+  ssl_session_timeout 1d;
+  ssl_session_tickets off;
+
+  allow ${VPN_SUBNET};
+  deny all;
+
+  location / {
+      set $upstream vpn;
+      proxy_pass http://$upstream:51821;
+  }
+}
+
+server {
+  listen 443 ssl;
+  http2 on;
+  server_name         local.${DOMAIN_NAME};
+  access_log  off;
+
+  ssl_certificate     /etc/nginx/ssl/${DOMAIN_NAME}/fullchain.pem;
+  ssl_certificate_key /etc/nginx/ssl/${DOMAIN_NAME}/key.pem;
+
+  ssl_protocols       TLSv1.2 TLSv1.3;
+  ssl_ciphers         ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384;
+  ssl_prefer_server_ciphers off;
+
+  ssl_session_cache   shared:SSL:10m;
+  ssl_session_timeout 1d;
+  ssl_session_tickets off;
+
+  allow ${VPN_SUBNET};
+  deny all;
+
+  location / {
+      proxy_pass http://$remote_addr$request_uri;
+  }
+}
+
+server {
+  listen 443 ssl;
+  http2 on;
+  server_name         grafana.${DOMAIN_NAME};
+  access_log  off;
+
+  ssl_certificate     /etc/nginx/ssl/${DOMAIN_NAME}/fullchain.pem;
+  ssl_certificate_key /etc/nginx/ssl/${DOMAIN_NAME}/key.pem;
+
+  ssl_protocols       TLSv1.2 TLSv1.3;
+  ssl_ciphers         ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384;
+  ssl_prefer_server_ciphers off;
+
+  ssl_session_cache   shared:SSL:10m;
+  ssl_session_timeout 1d;
+  ssl_session_tickets off;
+
+  allow ${VPN_SUBNET};
+  deny all;
+
+  location / {
+      set $upstream grafana;
+      proxy_pass http://$upstream:3000;
+      proxy_set_header Host $http_host;
+  }
+}
+
+server {
+  listen 443 ssl;
+  http2 on;
+  server_name         prometheus.${DOMAIN_NAME};
+  access_log  off;
+
+  ssl_certificate     /etc/nginx/ssl/${DOMAIN_NAME}/fullchain.pem;
+  ssl_certificate_key /etc/nginx/ssl/${DOMAIN_NAME}/key.pem;
+
+  ssl_protocols       TLSv1.2 TLSv1.3;
+  ssl_ciphers         ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384;
+  ssl_prefer_server_ciphers off;
+
+  ssl_session_cache   shared:SSL:10m;
+  ssl_session_timeout 1d;
+  ssl_session_tickets off;
+
+  allow ${VPN_SUBNET};
+  deny all;
+
+  location / {
+      set $upstream prometheus;
+      proxy_pass http://$upstream:9090;
+  }
+}
+
+server {
+  listen 443 ssl;
+  http2 on;
+  server_name         ${DOMAIN_NAME} www.${DOMAIN_NAME};
+  include             /etc/nginx/snippets/cloudflare-real-ip.conf;
+
+  ssl_certificate     /etc/nginx/ssl/${DOMAIN_NAME}/fullchain.pem;
+  ssl_certificate_key /etc/nginx/ssl/${DOMAIN_NAME}/key.pem;
+
+  ssl_protocols       TLSv1.2 TLSv1.3;
+  ssl_ciphers         ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384;
+  ssl_prefer_server_ciphers off;
+
+  ssl_session_cache   shared:SSL:10m;
+  ssl_session_timeout 1d;
+  ssl_session_tickets off;
+
+  location = /.well-known/apple-app-site-association {
+     default_type application/json;
+     alias /srv/static/ios_well_known.json;
+  }
+  location = /.well-known/assetlinks.json {
+     default_type application/json;
+     alias /srv/static/android_well_known.json;
+  }
+  location /api/auth {
+      set $upstream authorization.service;
+      proxy_pass http://$upstream;
+  }
+  location /api/user {
+      set $upstream user.service;
+      proxy_pass http://$upstream;
+  }
+  location /api/business {
+      set $upstream business.service;
+      proxy_pass http://$upstream;
+  }
+  location /api/appointments {
+      set $upstream appointments.service;
+      proxy_pass http://$upstream;
+  }
+  location /api/notifications {
+      set $upstream notifications.service;
+      proxy_pass http://$upstream;
+  }
+}

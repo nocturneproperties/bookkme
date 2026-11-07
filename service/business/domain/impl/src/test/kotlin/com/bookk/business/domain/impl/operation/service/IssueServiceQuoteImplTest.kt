@@ -1,5 +1,8 @@
 package com.bookk.business.domain.impl.operation.service
 
+import com.auth0.jwt.JWT
+import com.auth0.jwt.JWTCreator
+import com.auth0.jwt.algorithms.Algorithm
 import com.bookk.business.domain.api.service.entity.Service
 import com.bookk.business.domain.api.service.operation.IssueServiceQuote
 import com.bookk.business.domain.datasource.ServiceDataSource
@@ -11,7 +14,10 @@ import com.bookk.core.test.then
 import com.bookk.core.test.whenn
 import io.mockk.coEvery
 import io.mockk.mockk
+import io.mockk.slot
+import library.signing.TokenAudience
 import library.signing.TokenIssuer
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -33,7 +39,7 @@ internal class IssueServiceQuoteImplTest {
         val businessId = Uuid.random()
         val services = listOf(
             Service.stub(businessId = businessId),
-            Service.stub(businessId = businessId)
+            Service.stub(businessId = businessId),
         )
         val serviceIds = services.map { it.id }
         with(fixture) {
@@ -51,6 +57,28 @@ internal class IssueServiceQuoteImplTest {
         assertTrue(quote.services == services)
         assertNotNull(quote.token)
         assertTrue(quote.token.isNotBlank())
+    }
+
+    @Test
+    fun `should issue the quote for the service quote audience only`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val businessId = Uuid.random()
+        val services = listOf(Service.stub(businessId = businessId))
+        val serviceIds = services.map { it.id }
+        val claims = slot<JWTCreator.Builder.() -> JWTCreator.Builder>()
+        with(fixture) {
+            transactionManager.mockTransaction()
+            coEvery { serviceDataSource.getServicesByIds(serviceIds) } returns services
+            coEvery { tokenIssuer.issue(any(), capture(claims)) } returns "signed-token"
+        }
+
+        whenn()
+        fixture.sut(businessId, serviceIds)
+
+        then()
+        val token = claims.captured.invoke(JWT.create()).sign(Algorithm.none())
+        assertEquals(listOf(TokenAudience.serviceQuote), JWT.decode(token).audience)
     }
 
     @Test

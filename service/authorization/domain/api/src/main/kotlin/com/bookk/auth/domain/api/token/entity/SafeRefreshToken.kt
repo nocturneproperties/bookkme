@@ -6,7 +6,7 @@ import kotlin.uuid.Uuid
 
 class SafeRefreshToken(
     val id: Uuid,
-    val secretHash: String
+    val secretHash: String,
 ) {
     companion object {
         fun from(id: Uuid?, hash: String?): SafeRefreshToken? {
@@ -18,7 +18,7 @@ class SafeRefreshToken(
 
 class UnsafeRefreshToken(
     val id: Uuid,
-    val secret: ByteArray
+    val secret: ByteArray,
 ) {
     val secretHash: String = MessageDigest
         .getInstance("SHA-256")

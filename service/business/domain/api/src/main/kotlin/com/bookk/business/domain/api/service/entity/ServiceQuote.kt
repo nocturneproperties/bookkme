@@ -8,13 +8,13 @@ import kotlin.uuid.Uuid
 data class ServiceQuote(
     @ProtoNumber(1) val id: Uuid,
     @ProtoNumber(2) val services: List<Service>,
-    @ProtoNumber(3) val token: String
+    @ProtoNumber(3) val token: String,
 ) {
     companion object {
         fun stub(
             id: Uuid = Uuid.random(),
             services: List<Service> = emptyList(),
-            token: String = "stub-quote-token"
+            token: String = "stub-quote-token",
         ) = ServiceQuote(id = id, services = services, token = token)
     }
 }

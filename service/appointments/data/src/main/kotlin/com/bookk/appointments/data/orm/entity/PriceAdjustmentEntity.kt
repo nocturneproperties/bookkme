@@ -21,16 +21,14 @@ internal class PriceAdjustmentEntity(id: EntityID<Uuid>) : UuidEntity(id) {
     var priceScale by PriceAdjustmentTable.priceScale
     var reason by PriceAdjustmentTable.reason
 
-    fun domain(): PriceAdjustment {
-        return PriceAdjustment(
-            additionalServices = additionalServices.map { it.domain() },
-            price = Money.of(
-                CurrencyUnit.of(priceCurrency),
-                BigDecimal(BigInteger.valueOf(priceUnscaled), priceScale)
-            ),
-            reason = reason
-        )
-    }
+    fun domain(): PriceAdjustment = PriceAdjustment(
+        additionalServices = additionalServices.map { it.domain() },
+        price = Money.of(
+            CurrencyUnit.of(priceCurrency),
+            BigDecimal(BigInteger.valueOf(priceUnscaled), priceScale),
+        ),
+        reason = reason,
+    )
 
     companion object : DecoratorUuidEntityClass<PriceAdjustmentEntity>(PriceAdjustmentTable) {
         fun new(ownerId: EntityID<Uuid>, adjustment: PriceAdjustment): PriceAdjustmentEntity = new {

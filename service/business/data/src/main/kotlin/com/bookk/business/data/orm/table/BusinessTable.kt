@@ -1,5 +1,6 @@
 package com.bookk.business.data.orm.table
 
+import com.bookk.business.domain.api.business.entity.Business
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.isoDayNumber
 import org.jetbrains.exposed.v1.core.dao.id.UuidTable
@@ -11,7 +12,7 @@ private val MONDAY_TO_FRIDAY: Byte = DayOfWeek.entries
     .filter { it < DayOfWeek.SATURDAY }
     .fold(0) { acc, day -> acc or (1 shl day.isoDayNumber).toByte() }
 
-object BusinessTable: UuidTable("business") {
+object BusinessTable : UuidTable("business") {
     val userId = uuid("user_id").uniqueIndex()
     val name = varchar("name", 512)
     val description = varchar("description", 1024)
@@ -26,6 +27,7 @@ object BusinessTable: UuidTable("business") {
     val viber = varchar("viber", 255).nullable()
     val whatsapp = varchar("whatsapp", 255).nullable()
     val phone = varchar("phone", 255).nullable()
+    val clientDataRetentionMonths = integer("client_data_retention_months").default(Business.DEFAULT_CLIENT_DATA_RETENTION_MONTHS)
     val createdAt = timestamp("created_at").clientDefault { Clock.System.now() }
     val updatedAt = timestamp("updated_at").clientDefault { Clock.System.now() }
 }

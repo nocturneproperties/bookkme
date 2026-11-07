@@ -2,12 +2,11 @@ package com.bookk.user.domain.api.entity
 
 import kotlin.uuid.Uuid
 
-
 data class ContactForm(
     val userId: Uuid,
     val text: String,
     val usageLogs: String?,
-    val status: ContactFormStatus
+    val status: ContactFormStatus,
 ) {
 
     val isBoundCapRequired: Boolean
@@ -23,7 +22,7 @@ data class ContactForm(
         NEW(0),
         PROCESSING(1),
         BLOCKED(2),
-        DONE(30)
+        DONE(30),
     }
 
     companion object {

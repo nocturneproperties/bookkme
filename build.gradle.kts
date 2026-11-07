@@ -12,10 +12,11 @@ plugins {
     alias(libs.plugins.bookk.domain.impl).apply(false)
     alias(libs.plugins.bookk.client).apply(false)
     alias(libs.plugins.bookk.microservice)
+    alias(libs.plugins.spotless)
 }
 
 group = "com.bookk.server"
-version = "0.16.1"
+version = "0.17.0"
 
 application {
     mainClass.set("com.bookk.server.MonolithServerKt")
@@ -39,6 +40,7 @@ dependencies {
     implementation(projects.core.data.eventstreaming.api)
     implementation(projects.core.data.eventstreaming.impl)
     implementation(projects.library.scheduler)
+    implementation(projects.library.signing.route)
     implementation(projects.service.authorization.microservice)
     implementation(projects.service.authorization.domain.impl)
     implementation(projects.service.user.microservice)
@@ -58,6 +60,19 @@ dependencies {
     testImplementation(testFixtures(projects.library.scheduler))
 }
 
+spotless {
+    kotlin {
+        target("**/*.kt")
+        targetExclude("**/build/**", ".gradle/**", ".kotlin/**")
+        ktlint(libs.versions.ktlint.get())
+    }
+    kotlinGradle {
+        target("**/*.gradle.kts")
+        targetExclude("**/build/**", ".gradle/**", ".kotlin/**")
+        ktlint(libs.versions.ktlint.get())
+    }
+}
+
 includeLocalProperties(providers.gradleProperty("local.propertiesFile").get())
 
 tasks.withType<JibTask> {
@@ -73,8 +88,8 @@ subprojects {
         environment(
             mapOf(
                 "APPLICATION_SERVICE_NAME" to "test",
-                "APPLICATION_SERVICE_VERSION" to "test"
-            )
+                "APPLICATION_SERVICE_VERSION" to "test",
+            ),
         )
     }
 }

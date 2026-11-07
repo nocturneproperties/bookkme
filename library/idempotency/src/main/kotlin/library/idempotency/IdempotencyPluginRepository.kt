@@ -32,9 +32,7 @@ data class IdempotencyResponse(
 
 @JvmInline
 value class IdempotencyKey(val value: String) {
-    override fun toString(): String {
-        return value
-    }
+    override fun toString(): String = value
 }
 
 @Suppress("ArrayInDataClass")
@@ -64,9 +62,8 @@ data class IdempotentContentTypes(
     val contentSubType: String,
 ) {
     companion object {
-        fun fromContentType(contentType: ContentType?): IdempotentContentTypes? =
-            contentType?.let {
-                IdempotentContentTypes(contentType.toString(), contentType.contentSubtype)
-            }
+        fun fromContentType(contentType: ContentType?): IdempotentContentTypes? = contentType?.let {
+            IdempotentContentTypes(contentType.toString(), contentType.contentSubtype)
+        }
     }
 }

@@ -17,23 +17,24 @@ ktor {
 }
 
 dependencies {
-    implementation(projects.core)
+    implementation(projects.library.actionconfirmation.impl)
     implementation(projects.core.service)
-    implementation(projects.core.domain)
     implementation(projects.core.data.eventstreaming.api)
     implementation(projects.core.data.eventstreaming.impl)
     implementation(projects.core.data.eventstreaming.data)
-    implementation(projects.core.data.cache.api)
     implementation(projects.core.data.cache.impl)
     implementation(projects.library.signing.api)
     implementation(projects.library.signing.impl)
     implementation(projects.library.signing.route)
     implementation(projects.library.scheduler)
+    implementation(projects.library.export.api)
+    implementation(projects.library.export.route)
     implementation(projects.service.business.data)
     implementation(projects.service.business.domain.api)
     implementation(projects.service.business.domain.impl)
     testImplementation(libs.joda.money)
     testImplementation(testFixtures(projects.core))
     testImplementation(testFixtures(projects.core.service))
+    testImplementation(testFixtures(projects.core.data.eventstreaming.data))
     testImplementation(testFixtures(projects.library.scheduler))
 }

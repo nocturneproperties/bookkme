@@ -34,7 +34,7 @@ internal class CreateServiceGroupImplTest {
         id = Uuid.random(),
         businessId = Uuid.random(),
         name = name,
-        createdAt = Instant.fromEpochMilliseconds(0)
+        createdAt = Instant.fromEpochMilliseconds(0),
     )
 
     @Test

@@ -1,6 +1,7 @@
 package com.bookk
 
 import com.bookk.build_src.convention.applyConvention
+import com.bookk.build_src.convention.applyTestFixturesConvention
 import com.bookk.build_src.tools.libs
 import io.ktor.plugin.features.KtorExtension
 import org.gradle.api.Plugin
@@ -24,6 +25,7 @@ class MicroserviceConventionPlugin : Plugin<Project> {
             }
 
             extensions.getByType<JavaPluginExtension>().applyConvention()
+            applyTestFixturesConvention()
             extensions.getByType<KotlinJvmProjectExtension>().applyConvention(target)
             extensions.getByType<KtorExtension>().applyConvention(target)
             target.tasks.withType(Test::class.java) {
@@ -31,10 +33,9 @@ class MicroserviceConventionPlugin : Plugin<Project> {
             }
 
             target.dependencies {
-                add("implementation", libs.ktor.core)
+                add("api", libs.ktor.core)
                 add("implementation", libs.ktor.cio)
                 add("implementation", libs.ktor.logging)
-                add("implementation", libs.ktor.certificates)
                 add("implementation", libs.ktor.server.negotiation)
                 add("implementation", libs.ktor.protobuf)
                 add("implementation", libs.ktor.server.resources)
@@ -43,18 +44,14 @@ class MicroserviceConventionPlugin : Plugin<Project> {
                 add("implementation", libs.ktor.jwt)
                 add("implementation", libs.kotlin.coroutines)
                 add("implementation", libs.kotlin.datetime)
-                add("implementation", libs.koin.core)
+                add("api", libs.koin.core)
                 add("implementation", libs.koin.ktor)
-                add("implementation", libs.koin.ktor)
-                add("implementation", platform(libs.koin.bom))
+                add("api", platform(libs.koin.bom))
                 add("testImplementation", libs.kotlin.test)
-                add("testImplementation", libs.ktor.test)
-                add("testImplementation", libs.ktor.client.resources)
-                add("testImplementation", libs.ktor.client.negotiation)
                 add("testImplementation", libs.mockk)
-                add("testFixturesImplementation", libs.ktor.client.resources)
-                add("testFixturesImplementation", libs.ktor.client.negotiation)
-                add("testFixturesImplementation", libs.ktor.test)
+                add("testFixturesApi", libs.ktor.client.resources)
+                add("testFixturesApi", libs.ktor.client.negotiation)
+                add("testFixturesApi", libs.ktor.test)
             }
         }
     }

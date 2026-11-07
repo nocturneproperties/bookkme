@@ -1,7 +1,6 @@
 package com.bookk.business.microservice.route.api
 
 import com.bookk.business.domain.api.business.entity.BusinessResource
-import com.bookk.business.domain.api.employee.entity.Employee
 import com.bookk.business.domain.api.employee.entity.EmployeeUpdateModel
 import com.bookk.business.domain.api.employee.operation.GetEmployees
 import com.bookk.business.domain.api.employee.operation.SetEmployeePermissions
@@ -9,13 +8,10 @@ import com.bookk.business.domain.api.employee.operation.SetEmployeeSuspension
 import com.bookk.business.domain.api.employee.operation.UpdateEmployee
 import com.bookk.business.domain.impl.di.BusinessScope
 import com.bookk.business.microservice.route.BusinessRouting.Api
-import com.bookk.core.domain.entity.SimpleServerError
 import com.bookk.core.service.di.injectScoped
 import com.bookk.core.service.enity.respondWith
 import com.bookk.server.auth.client.AppPrincipal
-import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
-import io.ktor.openapi.jsonSchema
 import io.ktor.server.auth.authenticate
 import io.ktor.server.auth.principal
 import io.ktor.server.request.receive
@@ -24,7 +20,6 @@ import io.ktor.server.resources.put
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.application
-import io.ktor.server.routing.openapi.describe
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.protobuf.ProtoNumber
 import library.permissions.ResourcePermission
@@ -35,7 +30,7 @@ internal class EmployeePermissionsRequest(
     @ProtoNumber(2) val employees: ResourcePermission?,
     @ProtoNumber(3) val clients: ResourcePermission?,
     @ProtoNumber(4) val services: ResourcePermission?,
-    @ProtoNumber(5) val appointments: ResourcePermission?
+    @ProtoNumber(5) val appointments: ResourcePermission?,
 ) {
     fun grants(): Map<BusinessResource, ResourcePermission> = buildMap {
         business?.let { put(BusinessResource.BUSINESS, it) }
@@ -48,38 +43,31 @@ internal class EmployeePermissionsRequest(
 
 @Serializable
 internal class EmployeeSuspensionRequest(
-    @ProtoNumber(1) val suspended: Boolean
+    @ProtoNumber(1) val suspended: Boolean,
 )
 
 fun Route.employeeCrud() {
     authenticate {
         /**
+         * Get employees
+         *
          * Summary: Get employees
          * Description: Returns all employees of the business, each with their own current view/update/delete grants for every business resource; only users who can view the employees resource may list them
          * Tag: employee
          * Security: jwt
+         * Response: 200 application/protobuf [com.bookk.business.domain.api.employee.entity.Employee]+ List of employees
+         * Response: 403 application/protobuf [com.bookk.core.domain.entity.SimpleServerError] Caller is a suspended employee of this business - BUSINESS_EMPLOYEE_ACCESS_SUSPENDED (200034)
          */
         get<Api.Employee> {
             val principal = requireNotNull(call.principal<AppPrincipal>())
             val getEmployees by application.injectScoped<GetEmployees>(BusinessScope)
 
             call.respondWith(getEmployees(userId = principal.userId, businessId = it.businessId))
-        }.describe {
-            responses {
-                response(HttpStatusCode.OK.value) {
-                    schema = jsonSchema<List<Employee>>()
-                    description = "List of employees"
-                    ContentType.Application.ProtoBuf()
-                }
-                response(HttpStatusCode.Forbidden.value) {
-                    schema = jsonSchema<SimpleServerError>()
-                    description = "Caller is a suspended employee of this business - BUSINESS_EMPLOYEE_ACCESS_SUSPENDED (200034)"
-                    ContentType.Application.ProtoBuf()
-                }
-            }
         }
 
         /**
+         * Update employee
+         *
          * Summary: Update employee
          * Description: Updates the employee profile, schedule and provided services. Permissions are not part of the body and are changed only through the set employee permission endpoint
          * Tag: employee
@@ -100,12 +88,14 @@ fun Route.employeeCrud() {
                 call.respond(HttpStatusCode.BadRequest, "Bad request")
             } else {
                 call.respondWith(
-                    updateEmployee(requestUserId = principal.userId, employee = body)
+                    updateEmployee(requestUserId = principal.userId, employee = body),
                 )
             }
         }
 
         /**
+         * Set employee permissions
+         *
          * Summary: Set employee permissions
          * Description: Grants or revokes view/update/delete access to one or more business resources for an employee in a single request. The body has one optional field per business resource (business, employees, clients, services, appointments); an omitted field keeps that resource's current grant. Only the business owner can change employee permissions. The business owner always holds full access, so their permissions cannot be changed. A body with every field omitted changes nothing and returns the employee as is
          * Tag: employee
@@ -126,12 +116,14 @@ fun Route.employeeCrud() {
                     requestUserId = principal.userId,
                     businessId = it.parent.parent.businessId,
                     employeeId = it.parent.id,
-                    grants = body.grants()
-                )
+                    grants = body.grants(),
+                ),
             )
         }
 
         /**
+         * Suspend or reinstate employee
+         *
          * Summary: Suspend or reinstate employee
          * Description: Suspends an employee, or reinstates a suspended one. A suspended employee keeps their stored permissions but is treated as having none, and cannot be booked by clients, until reinstated. Only the business owner can suspend employees, and the business owner cannot be suspended. Requesting the state the employee is already in changes nothing and returns the employee as is
          * Tag: employee
@@ -152,8 +144,8 @@ fun Route.employeeCrud() {
                     requestUserId = principal.userId,
                     businessId = it.parent.parent.businessId,
                     employeeId = it.parent.id,
-                    suspended = body.suspended
-                )
+                    suspended = body.suspended,
+                ),
             )
         }
     }

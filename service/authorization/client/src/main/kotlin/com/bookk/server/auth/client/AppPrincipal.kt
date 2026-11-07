@@ -5,5 +5,5 @@ import kotlin.uuid.Uuid
 class AppPrincipal(
     val authId: Uuid,
     val userId: Uuid,
-    val deviceId: Uuid
+    val deviceId: Uuid,
 )

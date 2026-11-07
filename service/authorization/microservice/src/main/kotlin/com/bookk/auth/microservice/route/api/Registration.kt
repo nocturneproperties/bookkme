@@ -18,12 +18,14 @@ import io.ktor.server.routing.application
 
 internal fun Route.registration() {
     /**
+     * Get sign up challenge
+     *
      * Summary: Get sign up challenge
      * Description: Get sign up challenge for passkey creation.
      * Tag: auth
      * Body: application/x-protobuf [com.bookk.auth.domain.api.registration.entity.CreateAccountRequest] User parameters
      * Response: 200 application/x-protobuf [com.bookk.auth.domain.api.registration.entity.RegistrationChallengeResponse] Validation challenge returned
-     * Response: 422 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Registration errors<br>EMAIL_EXIST (200001) This email already exists<br>INVALID_EMAIL_FORMAT (200002) Invalid email format
+     * Response: 422 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Registration errors<br>EMAIL_EXIST (1) This email already exists<br>INVALID_EMAIL_FORMAT (2) Invalid email format
      * See: docs/operations/authorization/sign-up-challenge.md
      */
     post<Api.Auth.PassKey.SignUpChallenge> {
@@ -33,12 +35,15 @@ internal fun Route.registration() {
         call.respondWith(startRegistration(info))
     }
     /**
+     * Validate passkey data
+     *
      * Summary: Validate passkey data
-     * Description: Validate passkey data from native credentials API
+     * Description: Validate passkey data from native credentials API. acceptedDocuments must name the version in effect of every published legal document (GET /api/user/legal), and is recorded with the new account.
      * Tag: auth
      * Body: application/x-protobuf [com.bookk.auth.domain.api.registration.entity.VerifyAccountCreationRequest] User parameters
      * Response: 200 application/x-protobuf [com.bookk.auth.domain.api.token.entity.AuthTokens] User has been created
-     * Response: 422 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Registration errors<br>USER_ALREADY_EXIST (200003) User with this email already exist<br>INVALID_EMAIL_FORMAT (200002) Invalid email format<br>ACCOUNT_CREATION_FAILED (200004) Error during account creation try again later<br>CHALLENGE_WINDOW_EXPIRED (300001) Challenge window expired<br>VERIFICATION_FAILED (300002) Passkey verification failed
+     * Response: 400 application/x-protobuf The body is missing a required field, acceptedDocuments included
+     * Response: 422 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Registration errors<br>USER_ALREADY_EXIST (3) User with this email already exist<br>INVALID_EMAIL_FORMAT (2) Invalid email format<br>ACCOUNT_CREATION_FAILED (5) Error during account creation try again later<br>CHALLENGE_WINDOW_EXPIRED (6) Challenge window expired<br>VERIFICATION_FAILED (4) Passkey verification failed<br>LEGAL_DOCUMENT_VERSION_UNKNOWN (100003) Legal document version is not published<br>LEGAL_DOCUMENTS_NOT_ACCEPTED (100004) Every legal document in effect must be accepted
      * See: docs/operations/authorization/sign-up.md
      */
     post<Api.Auth.SignUp> {

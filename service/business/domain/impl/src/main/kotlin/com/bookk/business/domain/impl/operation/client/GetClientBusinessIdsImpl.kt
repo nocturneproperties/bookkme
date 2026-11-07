@@ -7,7 +7,7 @@ import kotlin.uuid.Uuid
 
 internal class GetClientBusinessIdsImpl(
     private val clientDataSource: ClientDataSource,
-    private val transactionManager: TransactionManager
+    private val transactionManager: TransactionManager,
 ) : GetClientBusinessIds {
     override suspend fun invoke(userId: Uuid): Result<List<Uuid>> = transactionManager.transaction {
         clientDataSource.getBusinessIdsByUserId(userId)

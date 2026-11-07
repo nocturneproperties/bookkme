@@ -51,8 +51,7 @@ internal class IdempotentDeliveryTest {
             coEvery { storage.claim("business_group", event.topic, event.idempotencyKey, any()) } returnsMany claims.toList()
         }
 
-        suspend fun deliver(onEvent: suspend (KeyedTestEvent) -> Unit = { handled.incrementAndGet() }) =
-            sut.deliver(event, onEvent)
+        suspend fun deliver(onEvent: suspend (KeyedTestEvent) -> Unit = { handled.incrementAndGet() }) = sut.deliver(event, onEvent)
     }
 
     @Test
@@ -162,7 +161,12 @@ internal class IdempotentDeliveryTest {
         val fixture = SutFixture()
         fixture.claimReturns(EventClaim.CLAIMED)
         val handlerStarted = CompletableDeferred<Unit>()
-        val delivery = launch { fixture.deliver { handlerStarted.complete(Unit); CompletableDeferred<Unit>().await() } }
+        val delivery = launch {
+            fixture.deliver {
+                handlerStarted.complete(Unit)
+                CompletableDeferred<Unit>().await()
+            }
+        }
         handlerStarted.await()
 
         whenn()
@@ -243,11 +247,18 @@ internal class IdempotentDeliveryTest {
         val sut = IdempotentDelivery("business_group", storage, KtorSimpleLogger("IdempotentDeliveryTest"))
         val handled = AtomicInteger(0)
         launch {
-            sut.deliver(fixture.event) { handled.incrementAndGet(); delay(storage.claimTtl + 30.seconds); throw IllegalStateException("slow failure") }
+            sut.deliver(fixture.event) {
+                handled.incrementAndGet()
+                delay(storage.claimTtl + 30.seconds)
+                throw IllegalStateException("slow failure")
+            }
         }
         runCurrent()
         launch {
-            sut.deliver(fixture.event) { handled.incrementAndGet(); delay(storage.claimTtl) }
+            sut.deliver(fixture.event) {
+                handled.incrementAndGet()
+                delay(storage.claimTtl)
+            }
         }
         advanceTimeBy(storage.claimTtl + 40.seconds)
 

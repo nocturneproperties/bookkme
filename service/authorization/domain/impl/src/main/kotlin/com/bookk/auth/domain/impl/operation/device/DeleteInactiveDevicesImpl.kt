@@ -12,15 +12,15 @@ import kotlin.time.Duration.Companion.days
 internal class DeleteInactiveDevicesImpl(
     private val deviceDataSource: DeviceDataSource,
     private val eventProducer: StandardEventProducer,
-    private val transactionManager: TransactionManager
+    private val transactionManager: TransactionManager,
 ) : DeleteInactiveDevices {
 
     override suspend fun invoke(): Result<Unit> = transactionManager.transaction {
-        val deletedDeviceUuids = deviceDataSource.deleteInactiveDevices(
-            olderThan = Clock.System.now().minus(INACTIVE_THRESHOLD)
+        val deletedDevices = deviceDataSource.deleteInactiveDevices(
+            olderThan = Clock.System.now().minus(INACTIVE_THRESHOLD),
         )
-        deletedDeviceUuids.forEach { deviceUuid ->
-            eventProducer.send(AuthEvent.DeviceDeleted(deviceUuid))
+        deletedDevices.forEach { device ->
+            eventProducer.send(AuthEvent.DeviceDeleted(device.deviceUuid, authId = device.authId))
         }
     }
 

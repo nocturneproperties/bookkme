@@ -2,6 +2,7 @@ package com.bookk.appointments.microservice.route.api
 
 import com.bookk.appointments.domain.api.entity.Appointment
 import com.bookk.appointments.domain.api.entity.AppointmentPagination
+import com.bookk.appointments.domain.api.entity.AppointmentStatus
 import com.bookk.appointments.domain.api.operation.GetAppointmentHistory
 import com.bookk.appointments.microservice.route.AppointmentsRouting
 import com.bookk.core.domain.entity.PaginationMetadata
@@ -12,6 +13,7 @@ import com.bookk.core.test.given
 import com.bookk.core.test.then
 import com.bookk.core.test.whenn
 import com.bookk.server.auth.client.AppPrincipal
+import io.ktor.client.call.body
 import io.ktor.client.plugins.resources.get
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.install
@@ -32,10 +34,10 @@ internal class GetAppointmentHistoryTest {
         val useCase: GetAppointmentHistory = mockk()
         val businessId = Uuid.random()
         val userId = Uuid.random()
-        val appointments = listOf(Appointment.stub(userId = userId, businessId = businessId))
+        val appointments = listOf(Appointment.stub(initiatorUserId = userId, businessId = businessId))
         val pagination = AppointmentPagination(
             data = appointments,
-            metadata = PaginationMetadata(total = 1L, page = 0L, pageSize = 50)
+            metadata = PaginationMetadata(total = 1L, page = 0L, pageSize = 50),
         )
 
         coEvery { useCase.invoke(userId, businessId, 50, 0, null) } returns Result.success(pagination)
@@ -55,7 +57,7 @@ internal class GetAppointmentHistoryTest {
             },
             routeUnderTest = {
                 appointment()
-            }
+            },
         )
 
         whenn()
@@ -72,10 +74,10 @@ internal class GetAppointmentHistoryTest {
         val useCase: GetAppointmentHistory = mockk()
         val businessId = Uuid.random()
         val userId = Uuid.random()
-        val appointments = listOf(Appointment.stub(userId = userId, businessId = businessId))
+        val appointments = listOf(Appointment.stub(initiatorUserId = userId, businessId = businessId))
         val pagination = AppointmentPagination(
             data = appointments,
-            metadata = PaginationMetadata(total = 1L, page = 0L, pageSize = 50)
+            metadata = PaginationMetadata(total = 1L, page = 0L, pageSize = 50),
         )
 
         coEvery {
@@ -97,7 +99,7 @@ internal class GetAppointmentHistoryTest {
             },
             routeUnderTest = {
                 appointment()
-            }
+            },
         )
 
         whenn()
@@ -107,8 +109,8 @@ internal class GetAppointmentHistoryTest {
                 businessId = businessId,
                 limit = 50,
                 offset = 0,
-                query = "John"
-            )
+                query = "John",
+            ),
         )
 
         then()
@@ -132,7 +134,7 @@ internal class GetAppointmentHistoryTest {
             },
             routeUnderTest = {
                 appointment()
-            }
+            },
         )
 
         whenn()
@@ -169,7 +171,7 @@ internal class GetAppointmentHistoryTest {
             },
             routeUnderTest = {
                 appointment()
-            }
+            },
         )
 
         whenn()
@@ -178,5 +180,46 @@ internal class GetAppointmentHistoryTest {
 
         then()
         assertEquals(HttpStatusCode.InternalServerError, response.status)
+    }
+
+    @Test
+    fun `should return unresolved appointments in history`() = routeTest {
+        given()
+        val useCase: GetAppointmentHistory = mockk()
+        val businessId = Uuid.random()
+        val userId = Uuid.random()
+        val appointments = listOf(Appointment.stub(initiatorUserId = userId, businessId = businessId).copy(status = AppointmentStatus.UNRESOLVED))
+        val pagination = AppointmentPagination(
+            data = appointments,
+            metadata = PaginationMetadata(total = 1L, page = 0L, pageSize = 50),
+        )
+
+        coEvery { useCase.invoke(userId, businessId, 50, 0, null) } returns Result.success(pagination)
+
+        setupApplication(
+            extension = {
+                install(Authentication) {
+                    provider {
+                        authenticate { context ->
+                            context.principal(AppPrincipal(Uuid.random(), userId, Uuid.random()))
+                        }
+                    }
+                }
+            },
+            diModule = module {
+                single { useCase }
+            },
+            routeUnderTest = {
+                appointment()
+            },
+        )
+
+        whenn()
+        val client = createTestClient()
+        val response = client.get(AppointmentsRouting.Api.AppointmentHistory(businessId = businessId, limit = 50, offset = 0))
+
+        then()
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertEquals(appointments, response.body<AppointmentPagination>().data)
     }
 }

@@ -6,5 +6,5 @@ import kotlin.uuid.Uuid
 
 @Serializable
 class UserId(
-    @ProtoNumber(1) val id: Uuid
+    @ProtoNumber(1) val id: Uuid,
 )

@@ -9,6 +9,7 @@ import com.bookk.business.data.orm.table.EmployeeCanProvideServiceTable
 import com.bookk.business.data.orm.table.EmployeeDayOffTable
 import com.bookk.business.data.orm.table.EmployeeTable
 import com.bookk.business.data.orm.table.EmployeeWorkingHoursTable
+import com.bookk.business.domain.api.business.entity.Business
 import com.bookk.business.domain.api.business.entity.BusinessUpdateModel
 import com.bookk.business.domain.api.employee.entity.Employee
 import com.bookk.business.domain.datasource.LockedBusiness
@@ -51,7 +52,7 @@ internal class BusinessDataSourceImplTest {
             EmployeeTable,
             EmployeeCanProvideServiceTable,
             EmployeeWorkingHoursTable,
-            EmployeeDayOffTable
+            EmployeeDayOffTable,
         )
         val sut = BusinessDataSourceImpl()
         val employeeSut = EmployeeDataSourceImpl()
@@ -61,7 +62,8 @@ internal class BusinessDataSourceImplTest {
         id: Uuid,
         name: String? = null,
         schedule: Schedule? = null,
-        dayOffs: List<DayOffRange> = emptyList()
+        dayOffs: List<DayOffRange> = emptyList(),
+        clientDataRetentionMonths: Int? = null,
     ) = BusinessUpdateModel(
         id = id,
         name = name,
@@ -71,7 +73,8 @@ internal class BusinessDataSourceImplTest {
         currencyCode = null,
         timeZone = null,
         socials = null,
-        schedule = schedule?.copy(dayOffs = dayOffs)
+        schedule = schedule?.copy(dayOffs = dayOffs),
+        clientDataRetentionMonths = clientDataRetentionMonths,
     )
 
     @Test
@@ -229,11 +232,11 @@ internal class BusinessDataSourceImplTest {
         then()
         assertEquals(
             DayOfWeek.entries.filter { it < DayOfWeek.SATURDAY },
-            created.schedule.activeDays().sorted()
+            created.schedule.activeDays().sorted(),
         )
         assertEquals(
             listOf(WorkHour(LocalTime(9, 0), LocalTime(17, 0))),
-            created.schedule[DayOfWeek.MONDAY].workingTime
+            created.schedule[DayOfWeek.MONDAY].workingTime,
         )
         assertTrue(created.schedule.dayOffs.isEmpty())
     }
@@ -246,8 +249,8 @@ internal class BusinessDataSourceImplTest {
         val schedule = Schedule(
             workingDays = listOf(DayOfWeek.SATURDAY),
             workingHours = mapOf(
-                DayOfWeek.SATURDAY to listOf(WorkHour(LocalTime(10, 0), LocalTime(14, 0)))
-            )
+                DayOfWeek.SATURDAY to listOf(WorkHour(LocalTime(10, 0), LocalTime(14, 0))),
+            ),
         )
         val dayOffs = listOf(DayOffRange(LocalDate(2099, 12, 30), LocalDate(2099, 12, 31)))
 
@@ -271,7 +274,7 @@ internal class BusinessDataSourceImplTest {
         val created = suspendTransaction { fixture.sut.createBusiness(Uuid.random(), "Salon", "USD", TimeZone.UTC) }
         val schedule = Schedule(
             workingDays = listOf(DayOfWeek.MONDAY),
-            workingHours = mapOf(DayOfWeek.MONDAY to listOf(WorkHour(LocalTime(10, 0), LocalTime(14, 0))))
+            workingHours = mapOf(DayOfWeek.MONDAY to listOf(WorkHour(LocalTime(10, 0), LocalTime(14, 0)))),
         )
 
         whenn()
@@ -318,7 +321,7 @@ internal class BusinessDataSourceImplTest {
         assertEquals(created.schedule.activeDays().sorted(), found.schedule.activeDays().sorted())
         assertEquals(
             created.schedule[DayOfWeek.MONDAY].workingTime,
-            found.schedule[DayOfWeek.MONDAY].workingTime
+            found.schedule[DayOfWeek.MONDAY].workingTime,
         )
     }
 
@@ -333,9 +336,9 @@ internal class BusinessDataSourceImplTest {
                 updateModel(
                     created.id,
                     schedule = created.schedule,
-                    dayOffs = listOf(DayOffRange(LocalDate(2020, 1, 1), LocalDate(2020, 1, 2)), future)
+                    dayOffs = listOf(DayOffRange(LocalDate(2020, 1, 1), LocalDate(2020, 1, 2)), future),
                 ),
-                Clock.System.now()
+                Clock.System.now(),
             )
         }
 
@@ -538,4 +541,62 @@ internal class BusinessDataSourceImplTest {
     }
 
     // deleteUserBusinesses uses deleteReturning which is not supported by Exposed's H2 dialect
+
+    @Test
+    fun `should give a new business the default client data retention`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+
+        whenn()
+        val created = suspendTransaction { fixture.sut.createBusiness(Uuid.random(), "Salon", "USD", TimeZone.UTC) }
+
+        then()
+        assertEquals(Business.DEFAULT_CLIENT_DATA_RETENTION_MONTHS, suspendTransaction { fixture.sut.getBusinessById(created.id) }?.clientDataRetentionMonths)
+    }
+
+    @Test
+    fun `should update client data retention`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val created = suspendTransaction { fixture.sut.createBusiness(Uuid.random(), "Salon", "USD", TimeZone.UTC) }
+
+        whenn()
+        val updated = suspendTransaction { fixture.sut.updateBusiness(updateModel(created.id, clientDataRetentionMonths = 18), Clock.System.now()) }
+
+        then()
+        assertEquals(18, updated.clientDataRetentionMonths)
+        assertEquals(18, suspendTransaction { fixture.sut.getBusinessById(created.id) }?.clientDataRetentionMonths)
+    }
+
+    @Test
+    fun `should keep client data retention when update omits it`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val created = suspendTransaction { fixture.sut.createBusiness(Uuid.random(), "Salon", "USD", TimeZone.UTC) }
+        suspendTransaction { fixture.sut.updateBusiness(updateModel(created.id, clientDataRetentionMonths = 60), Clock.System.now()) }
+
+        whenn()
+        val updated = suspendTransaction { fixture.sut.updateBusiness(updateModel(created.id, name = "Renamed"), Clock.System.now()) }
+
+        then()
+        assertEquals(60, updated.clientDataRetentionMonths)
+    }
+
+    @Test
+    fun `should list the client data retention of every business`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val shortRetention = suspendTransaction { fixture.sut.createBusiness(Uuid.random(), "Short", "USD", TimeZone.UTC) }
+        val longRetention = suspendTransaction { fixture.sut.createBusiness(Uuid.random(), "Long", "USD", TimeZone.UTC) }
+        suspendTransaction {
+            fixture.sut.updateBusiness(updateModel(shortRetention.id, clientDataRetentionMonths = 12), Clock.System.now())
+            fixture.sut.updateBusiness(updateModel(longRetention.id, clientDataRetentionMonths = 120), Clock.System.now())
+        }
+
+        whenn()
+        val retention = suspendTransaction { fixture.sut.getClientDataRetentionMonths() }
+
+        then()
+        assertEquals(mapOf(shortRetention.id to 12, longRetention.id to 120), retention)
+    }
 }

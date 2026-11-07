@@ -12,14 +12,14 @@ import kotlin.uuid.Uuid
 internal class GetAppointmentHistoryImpl(
     private val dataSource: AppointmentDataSource,
     private val appointmentPermissionDataSource: AppointmentPermissionDataSource,
-    private val transactionManager: TransactionManager
+    private val transactionManager: TransactionManager,
 ) : GetAppointmentHistory {
     override suspend fun invoke(
         userId: Uuid,
         businessId: Uuid,
         limit: Int,
         offset: Long,
-        query: String?
+        query: String?,
     ): Result<AppointmentPagination> = transactionManager.transaction {
         appointmentPermissionDataSource.getPermission(userId, businessId).assert(PermissionAction.VIEW)
         dataSource.getAllPaginated(businessId, limit, offset, query)

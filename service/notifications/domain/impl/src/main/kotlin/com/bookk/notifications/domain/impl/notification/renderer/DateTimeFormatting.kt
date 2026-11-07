@@ -11,6 +11,7 @@ import kotlin.time.Instant
 private val FORMATTERS: Map<Language, DateTimeFormatter> = mapOf(
     Language.EN to DateTimeFormatter.ofPattern("MMM d, yyyy h:mm a", Language.EN.toLocale()),
     Language.UK to DateTimeFormatter.ofPattern("d MMMM yyyy 'р.', HH:mm", Language.UK.toLocale()),
+    Language.PL to DateTimeFormatter.ofPattern("d MMMM yyyy, HH:mm", Language.PL.toLocale()),
 )
 
 internal fun Instant.formatLocalized(timeZone: TimeZone, language: Language): String {

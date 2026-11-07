@@ -32,7 +32,7 @@ internal class FirebaseNotificationSender(
                     Notification.builder()
                         .setTitle(content.title)
                         .setBody(content.body)
-                        .build()
+                        .build(),
                 )
                 .build()
 
@@ -41,8 +41,9 @@ internal class FirebaseNotificationSender(
             }.onFailure { error ->
                 when {
                     error is FirebaseMessagingException && error.messagingErrorCode == UNREGISTERED -> {
-                        deviceDataSource.updateToken(device.deviceUuid, null)
+                        deviceDataSource.updateToken(device.authId, device.deviceUuid, null)
                     }
+
                     else -> logger.error("Failed to send message to device: ${device.deviceUuid}", error)
                 }
             }

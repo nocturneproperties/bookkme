@@ -10,15 +10,12 @@ import io.ktor.serialization.kotlinx.protobuf.protobuf
 import io.ktor.server.testing.ApplicationTestBuilder
 import kotlinx.serialization.protobuf.ProtoBuf
 
-
-fun ApplicationTestBuilder.createTestClient(): HttpClient {
-    return createClient {
-        install(ContentNegotiation) {
-            protobuf(ProtoBuf { encodeDefaults = true })
-        }
-        install(Resources)
-        defaultRequest {
-            contentType(ContentType.Application.ProtoBuf)
-        }
+fun ApplicationTestBuilder.createTestClient(): HttpClient = createClient {
+    install(ContentNegotiation) {
+        protobuf(ProtoBuf { encodeDefaults = true })
+    }
+    install(Resources)
+    defaultRequest {
+        contentType(ContentType.Application.ProtoBuf)
     }
 }

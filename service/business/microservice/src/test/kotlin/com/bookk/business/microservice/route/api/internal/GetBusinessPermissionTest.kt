@@ -32,7 +32,7 @@ internal class GetBusinessPermissionTest {
     private fun permissionsResource(resource: BusinessResource = BusinessResource.BUSINESS) = BusinessRouting.Api.Internal.Business.Id.Permissions(
         parent = BusinessRouting.Api.Internal.Business.Id(id = businessId),
         userId = userId,
-        resource = resource
+        resource = resource,
     )
 
     @Test
@@ -43,7 +43,7 @@ internal class GetBusinessPermissionTest {
 
         setupApplication(
             diModule = module { single { useCase } },
-            routeUnderTest = { getBusinessPermission() }
+            routeUnderTest = { getBusinessPermission() },
         )
 
         whenn()
@@ -63,7 +63,7 @@ internal class GetBusinessPermissionTest {
 
         setupApplication(
             diModule = module { single { useCase } },
-            routeUnderTest = { getBusinessPermission() }
+            routeUnderTest = { getBusinessPermission() },
         )
 
         whenn()
@@ -83,7 +83,7 @@ internal class GetBusinessPermissionTest {
 
         setupApplication(
             diModule = module { single { useCase } },
-            routeUnderTest = { getBusinessPermission() }
+            routeUnderTest = { getBusinessPermission() },
         )
 
         whenn()
@@ -103,7 +103,7 @@ internal class GetBusinessPermissionTest {
 
         setupApplication(
             diModule = module { single { useCase } },
-            routeUnderTest = { getBusinessPermission() }
+            routeUnderTest = { getBusinessPermission() },
         )
 
         whenn()

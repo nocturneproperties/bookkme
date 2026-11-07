@@ -1,6 +1,7 @@
 package com.bookk.notifications.domain.impl.di
 
 import com.bookk.core.data.eventstreaming.EventHandler
+import com.bookk.notifications.client.api.export.ExportUserNotificationData
 import com.bookk.notifications.domain.api.CreateDeviceEntry
 import com.bookk.notifications.domain.api.DeleteDeviceByUUID
 import com.bookk.notifications.domain.api.DeleteUserNotificationData
@@ -12,6 +13,7 @@ import com.bookk.notifications.domain.api.entity.CommunicationChannel
 import com.bookk.notifications.domain.impl.CreateDeviceEntryImpl
 import com.bookk.notifications.domain.impl.DeleteDeviceByUUIDImpl
 import com.bookk.notifications.domain.impl.DeleteUserNotificationDataImpl
+import com.bookk.notifications.domain.impl.ExportUserNotificationDataImpl
 import com.bookk.notifications.domain.impl.GetNotificationSettingsImpl
 import com.bookk.notifications.domain.impl.UpdateDeviceLanguage
 import com.bookk.notifications.domain.impl.UpdateNotificationSettingsImpl
@@ -41,6 +43,7 @@ fun notificationsDomainModule() = module {
         scopedOf(::UpdatePushNotificationTokenImpl) bind UpdatePushNotificationToken::class
         scopedOf(::UpdateNotificationSettingsImpl) bind UpdateNotificationSettings::class
         scopedOf(::GetNotificationSettingsImpl) bind GetNotificationSettings::class
+        scopedOf(::ExportUserNotificationDataImpl) bind ExportUserNotificationData::class
         scopedOf(::FirebaseNotificationSender) bind NotificationSender::class
         scopedOf(::EmailNotificationSender) bind NotificationSender::class
         scopedOf(::TelegramNotificationSender) bind NotificationSender::class
@@ -51,7 +54,7 @@ fun notificationsDomainModule() = module {
             mapOf(
                 CommunicationChannel.EMAIL to get<EmailNotificationSender>(),
                 CommunicationChannel.TELEGRAM to get<TelegramNotificationSender>(),
-                CommunicationChannel.PUSH_NOTIFICATIONS to get<FirebaseNotificationSender>()
+                CommunicationChannel.PUSH_NOTIFICATIONS to get<FirebaseNotificationSender>(),
             )
         }
         scoped { FirebaseMessaging.getInstance() }

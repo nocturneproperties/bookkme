@@ -1,11 +1,15 @@
 package com.bookk.core.domain.entity
 
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.withContext
 import kotlin.coroutines.cancellation.CancellationException
 
 inline fun <R, reified T> Result<R>.handle(
     onSuccess: (result: R) -> Unit,
     onBusinessError: (error: T) -> Unit,
-    onUnexpectedError: (error: Error) -> Unit
+    onUnexpectedError: (error: Error) -> Unit,
 ) {
     onSuccess {
         onSuccess(it)
@@ -30,8 +34,25 @@ inline fun <R> runSuspendCatching(block: () -> R): Result<R> = try {
     Result.failure(failure)
 }
 
-inline fun <R, T : R> Result<T>.recoverSuspendCatching(transform: (Throwable) -> R): Result<R> =
-    when (val failure = exceptionOrNull()) {
-        null -> this
-        else -> runSuspendCatching { transform(failure) }
+suspend inline fun <R> runCatchingUnlessCancelled(block: () -> R): Result<R> = try {
+    Result.success(block())
+} catch (failure: Throwable) {
+    currentCoroutineContext().ensureActive()
+    Result.failure(failure)
+}
+
+inline fun <R, T : R> Result<T>.recoverSuspendCatching(transform: (Throwable) -> R): Result<R> = when (val failure = exceptionOrNull()) {
+    null -> this
+    else -> runSuspendCatching { transform(failure) }
+}
+
+suspend inline fun <R> runCleaningUpOnFailure(crossinline cleanUp: suspend () -> Unit, block: () -> R): R = try {
+    block()
+} catch (failure: Throwable) {
+    try {
+        withContext(NonCancellable) { cleanUp() }
+    } catch (cleanUpFailure: Throwable) {
+        failure.addSuppressed(cleanUpFailure)
     }
+    throw failure
+}

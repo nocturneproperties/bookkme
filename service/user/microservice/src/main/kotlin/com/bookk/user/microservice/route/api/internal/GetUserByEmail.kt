@@ -13,6 +13,8 @@ import io.ktor.server.routing.application
 
 internal fun Route.getUserByEmail() {
     /**
+     * Get user by email
+     *
      * Summary: Get user by email
      * Description: Get user profile by email.
      * Tag: internal

@@ -27,7 +27,7 @@ configs:
     name: prometheus_cfg-v2
     file: prometheus/prometheus.yml
   prometheus_alerts_cfg:
-    name: prometheus_alerts_cfg-v6
+    name: prometheus_alerts_cfg-v8
     file: prometheus/node_alerts.yml
   alertmanager_cfg:
     name: alertmanager_cfg-v2
@@ -42,7 +42,7 @@ configs:
     name: grafana_dashboard_application-v1
     file: grafana/dashboards/application.json
   grafana_dashboard_infrastructure:
-    name: grafana_dashboard_infrastructure-v1
+    name: grafana_dashboard_infrastructure-v2
     file: grafana/dashboards/infrastructure.json
   grafana_dashboard_logs:
     name: grafana_dashboard_logs-v1
@@ -150,6 +150,7 @@ services:
       - '--path.procfs=/host/proc'
       - '--path.sysfs=/host/sys'
       - '--path.rootfs=/rootfs'
+      - '--collector.textfile.directory=/rootfs${NODE_EXPORTER_TEXTFILE_DIR}'
     networks:
       - monitoring
     logging:

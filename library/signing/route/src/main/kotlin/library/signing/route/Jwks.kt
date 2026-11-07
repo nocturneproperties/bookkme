@@ -17,14 +17,18 @@ import java.security.spec.X509EncodedKeySpec
 import java.util.Base64
 import kotlin.uuid.Uuid
 
-fun Route.jwks(qualifier: Qualifier) {
+fun Route.jwks(vararg qualifiers: Qualifier) {
     /**
+     * JSON Web Key Set
+     *
      * Summary: JSON Web Key Set
      * Description: Publishes the public keys used to verify tokens issued by this service.
      */
     get("/jwks.json") {
-        val getVerificationKeys by application.injectScoped<GetVerificationKeys>(qualifier)
-        val keys = getVerificationKeys().getOrThrow().map { createJwk(it.id, it.publicKeyPem) }
+        val keys = qualifiers.flatMap { qualifier ->
+            val getVerificationKeys by application.injectScoped<GetVerificationKeys>(qualifier)
+            getVerificationKeys().getOrThrow()
+        }.map { createJwk(it.id, it.publicKeyPem) }
         call.respondText(jwksJson.encodeToString(JwkSet(keys)), ContentType.Application.Json)
     }
 }
@@ -38,7 +42,7 @@ private data class Jwk(
     val alg: String = "RS256",
     val kid: String,
     val n: String,
-    val e: String
+    val e: String,
 )
 
 @Serializable
@@ -49,7 +53,7 @@ private fun createJwk(id: Uuid, publicKeyPem: String): Jwk {
     return Jwk(
         kid = id.toString(),
         n = publicKey.modulus.toBase64Url(),
-        e = publicKey.publicExponent.toBase64Url()
+        e = publicKey.publicExponent.toBase64Url(),
     )
 }
 

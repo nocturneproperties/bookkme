@@ -10,10 +10,12 @@ interface GetUserByEmail {
     suspend operator fun invoke(body: EmailBody): Result<User>
 
     sealed interface Error {
-        class UserNotFound : BusinessError(
-            statusCode = HttpStatusCode.NotFound.value,
-            code = UserErrorCodes.USER_NOT_EXIST,
-            message = "User not found"
-        ), Error
+        class UserNotFound :
+            BusinessError(
+                statusCode = HttpStatusCode.NotFound.value,
+                code = UserErrorCodes.USER_NOT_EXIST,
+                message = "User not found",
+            ),
+            Error
     }
 }

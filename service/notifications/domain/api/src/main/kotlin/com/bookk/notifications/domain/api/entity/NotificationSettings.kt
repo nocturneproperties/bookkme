@@ -12,13 +12,6 @@ data class NotificationSettings(
     @ProtoNumber(4) val channels: List<NotificationChannelSettings>,
 ) {
 
-    @Serializable
-    data class Update(
-        @ProtoNumber(1) val id: Uuid,
-        @ProtoNumber(2) val appointmentEnabled: Boolean,
-        @ProtoNumber(3) val channels: List<NotificationChannelSettings>,
-    )
-
     constructor(userId: Uuid) : this(
         id = Uuid.random(),
         userId = userId,
@@ -28,21 +21,21 @@ data class NotificationSettings(
                 id = Uuid.random(),
                 channel = CommunicationChannel.PUSH_NOTIFICATIONS,
                 enabled = false,
-                availableToClients = true
+                availableToClients = true,
             ),
             NotificationChannelSettings(
                 id = Uuid.random(),
                 channel = CommunicationChannel.EMAIL,
                 enabled = false,
-                availableToClients = false
+                availableToClients = false,
             ),
             NotificationChannelSettings(
                 id = Uuid.random(),
                 channel = CommunicationChannel.TELEGRAM,
                 enabled = false,
-                availableToClients = false
-            )
-        )
+                availableToClients = false,
+            ),
+        ),
     )
 
     companion object {

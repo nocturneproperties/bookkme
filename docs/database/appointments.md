@@ -43,19 +43,20 @@ erDiagram
 
     APPOINTMENT {
         uuid id PK
-        uuid user_id "logical FK -> user.profile.id; non-unique index with business_id, date_start (overlap checks)"
+        uuid initiator_user_id "logical FK -> user.profile.id of whoever booked; non-unique index with business_id, date_start (overlap checks)"
         uuid business_id FK
         uuid employee_id "logical FK -> business.employee.id"
-        uuid employee_user_id "logical FK -> user.profile.id (employee's own userId)"
+        uuid employee_user_id "indexed; logical FK -> user.profile.id (employee's own userId); what account deletion cancels and renames by"
         string employee_name
         uuid client_id "logical FK -> business.client.id"
+        uuid client_user_id "nullable, indexed; logical FK -> user.profile.id of the client's own account, empty for a client without one or once erased; who client notifications go to, and what account deletion erases by"
         string client_name
         string client_phone
         string client_email
         timestamp date_start
         timestamp date_end
         string note
-        enum status
+        enum status "SCHEDULED 0, COMPLETED 1, CANCELLED 2, NO_SHOW 3, UNRESOLVED 4; stored as an integer"
         string cancellation_reason
         enum completed_by "nullable; SYSTEM (MarkAppointmentsCompleted job) or USER (CompleteAppointment); set only while status = COMPLETED"
         timestamp createdAt
@@ -103,17 +104,18 @@ erDiagram
 
     APPOINTMENT_REQUEST {
         uuid id PK
-        uuid user_id "logical FK -> user.profile.id; non-unique index with business_id, date_start (overlap checks)"
+        uuid initiator_user_id "logical FK -> user.profile.id of whoever booked; non-unique index with business_id, date_start (overlap checks)"
         uuid business_id FK
         uuid employee_id "logical FK -> business.employee.id"
-        uuid employee_user_id "logical FK -> user.profile.id (employee's own userId)"
+        uuid employee_user_id "indexed; logical FK -> user.profile.id (employee's own userId); what account deletion cancels and renames by"
         string employee_name
         uuid client_id "logical FK -> business.client.id"
+        uuid client_user_id "nullable, indexed; logical FK -> user.profile.id of the client's own account, empty for a client without one or once erased; who client notifications go to, and what account deletion erases by"
         string client_name
         string client_phone
         string client_email
         timestamp date_start
-        timestamp date_end
+        timestamp date_end "indexed; requests ended more than 60 days ago are deleted by appointments-deleteExpiredRequests"
         string note
         enum status
         string decline_reason
@@ -150,7 +152,7 @@ erDiagram
         int in_between_break_in_minutes
         string appointment_note
         bool automatic_approval
-        bool automatic_completion "default true; gates the MarkAppointmentsCompleted job for this business"
+        bool automatic_completion "default true; completes appointments after their business-local end day; unresolved expiry always runs"
         timestamp createdAt
         timestamp updatedAt
     }
@@ -183,6 +185,7 @@ erDiagram
         string idempotency_key UK
         int attempt
         blob payload
+        bool replay_requested
         timestamp createdAt
         timestamp updatedAt
     }
@@ -194,8 +197,23 @@ erDiagram
         blob payload "ProtoBuf-encoded event, idempotency key included"
         timestamp createdAt
     }
+
+    DELETED_USER {
+        uuid user_id PK "logical FK -> user.profile.id of a deleted account"
+        timestamp deleted_at "rows older than 60 days are deleted by appointments-deleteExpiredTombstones"
+    }
+
+    DELETED_CLIENT {
+        uuid client_id PK "logical FK -> business.client.id of a deleted client"
+        uuid business_id "logical FK -> business.business.id"
+        timestamp deleted_at "rows older than 60 days are deleted by appointments-deleteExpiredTombstones"
+    }
 ```
 
-`EXHAUSTED_EVENT` is not part of the appointments domain model — it's the shared DLT landing table (`core/data/eventstreaming/data`, one instance per service schema) that `KafkaEventConsumer`/`EmbeddedEventConsumer` write to when an event exhausts its retry budget, so a failed event survives a process restart or crash instead of being lost. See `AGENTS.md`'s event-streaming retry design notes.
+`DELETED_USER` records every account whose deletion appointments has handled, the user id and the time only. `AuthEvent.UserDeleted` erases by `client_user_id`, but `BusinessEvent.ClientLinked`, which fills `client_user_id` in after the fact, can arrive after the deletion on its own topic. It reads this table first with a shared lock and erases the rows it links when the account is already gone (see [React to a client getting an account](../operations/appointments/on-client-linked.md)). Both booking paths read it the same way and reject a deleted account. A row is inserted once (`INSERT IGNORE`) and keeps the first deletion time.
+
+`DELETED_CLIENT` does the same for clients a business deleted (`BusinessEvent.ClientDeleted`, which erases by `business_id` and `client_id`): `BusinessEvent.ClientLinked` reads it first and erases the rows it links when the client is already gone, and both booking paths reject a deleted client (see [React to client deletion](../operations/appointments/on-client-deleted.md)). Inserted once (`INSERT IGNORE`), keyed by the client id alone, since client ids are random across businesses.
+
+`EXHAUSTED_EVENT` is not part of the appointments domain model — it's the shared DLT landing table (`core/data/eventstreaming/data`, one instance per service schema) that `KafkaEventConsumer`/`EmbeddedEventConsumer` write to when an event exhausts its retry budget, so a failed event survives a process restart or crash instead of being lost. Every start, and every row an operator sets `replay_requested` on, is replayed through the consumer group's DLT topic by `ExhaustedEventReplayer`, which also exports the parked rows as the `events_exhausted` metric. See [Exhausted events](../exhausted-events.md).
 
 `OUTBOX_EVENT` is not part of the appointments domain model either — it's the shared transactional outbox (`core/data/eventstreaming/data`, one instance per service schema). `eventProducer.send` inserts the encoded event in the same transaction as the appointments write, so an event exists exactly when its write committed; `OutboxRelay` then locks the oldest rows (`SELECT … FOR UPDATE`), publishes them to Kafka (or the embedded transport in the monolith) and deletes them. Delivery is at-least-once, deduplicated by consumers through the event's idempotency key. See [Transactional outbox](../transactional-outbox.md).

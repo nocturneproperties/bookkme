@@ -1,6 +1,7 @@
 package com.bookk.core.domain.datasource.transaction
 
 import io.mockk.coEvery
+import io.mockk.mockk
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.coroutines.cancellation.CancellationException
 
@@ -23,3 +24,5 @@ private suspend fun runMocked(openTransactions: AtomicInteger, transaction: susp
         openTransactions.decrementAndGet()
     }
 }
+
+fun mockedTransactionManager(): TransactionManager = mockk<TransactionManager>().apply { mockTransaction() }

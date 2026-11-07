@@ -14,17 +14,17 @@ import kotlin.time.Duration.Companion.minutes
 @Serializable
 private class SerializableIdempotencyResponse(
     val isInProgress: Boolean,
-    val response: ByteArray
+    val response: ByteArray,
 )
 
 class CacheIdempotentResponseRepository(
-    private val cacheClient: CacheClient<String>
+    private val cacheClient: CacheClient<String>,
 ) : IdempotentResponseRepository {
 
     override suspend fun storeResponse(
         resource: String,
         idempotencyKey: IdempotencyKey,
-        response: ByteArray
+        response: ByteArray,
     ) {
         val key = "$resource:$idempotencyKey"
         val value = SerializableIdempotencyResponse(isInProgress = false, response = response)
@@ -33,7 +33,7 @@ class CacheIdempotentResponseRepository(
 
     override suspend fun getResponseOrLock(
         resource: String,
-        idempotencyKey: IdempotencyKey
+        idempotencyKey: IdempotencyKey,
     ): IdempotencyResponse? {
         val key = "$resource:$idempotencyKey"
         repeat(LOCK_ATTEMPTS) {
@@ -41,7 +41,7 @@ class CacheIdempotentResponseRepository(
             val response: SerializableIdempotencyResponse = cacheClient.get(key) ?: return@repeat
             return IdempotencyResponse(
                 isInProgress = response.isInProgress,
-                response = response.response
+                response = response.response,
             )
         }
         return IdempotencyResponse(isInProgress = true, response = ByteArray(0))
@@ -55,7 +55,7 @@ class CacheIdempotentResponseRepository(
     }
 
     override suspend fun deleteExpiredResponses(lastValidDate: OffsetDateTime) {
-        //Responses are deleted automatically
+        // Responses are deleted automatically
     }
 
     private companion object {

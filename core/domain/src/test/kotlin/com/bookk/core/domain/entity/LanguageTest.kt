@@ -11,6 +11,11 @@ internal class LanguageTest {
     }
 
     @Test
+    fun `should resolve PL from a header naming Polish first`() {
+        assertEquals(Language.PL, Language.fromAcceptLanguage("pl-PL,pl;q=0.9,en;q=0.8"))
+    }
+
+    @Test
     fun `should resolve EN from a header naming English first`() {
         assertEquals(Language.EN, Language.fromAcceptLanguage("en-US,en;q=0.9"))
     }

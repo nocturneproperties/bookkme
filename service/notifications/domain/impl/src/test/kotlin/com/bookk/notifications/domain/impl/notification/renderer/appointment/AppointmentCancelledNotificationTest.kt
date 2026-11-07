@@ -27,7 +27,7 @@ internal class AppointmentCancelledNotificationTest {
         address = "1 Main St",
         businessName = "Barbershop",
         price = "USD 20.00",
-        reason = "Staff unavailable"
+        reason = "Staff unavailable",
     )
 
     @Test

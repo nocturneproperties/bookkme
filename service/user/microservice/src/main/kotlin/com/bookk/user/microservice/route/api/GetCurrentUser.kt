@@ -15,6 +15,8 @@ import io.ktor.server.routing.application
 internal fun Route.getCurrentUser() {
     authenticate {
         /**
+         * Get current user
+         *
          * Summary: Get current user
          * Description: Get user profile from current authentication token.
          * Tag: user

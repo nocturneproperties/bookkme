@@ -11,5 +11,5 @@ data class ClientUpdateModel(
     @ProtoNumber(3) val lastName: String?,
     @ProtoNumber(4) val phone: String?,
     @ProtoNumber(5) val email: String?,
-    @ProtoNumber(6) val description: String?
+    @ProtoNumber(6) val description: String?,
 )

@@ -11,6 +11,8 @@ import io.ktor.server.routing.application
 
 internal fun Route.getBusinessDetails() {
     /**
+     * Get business details
+     *
      * Summary: Get business details
      * Description: Get business with its working schedule, without any caller-specific info (permissions, employee id, client id are always empty). Used by other services to replicate business information
      * Tag: internal

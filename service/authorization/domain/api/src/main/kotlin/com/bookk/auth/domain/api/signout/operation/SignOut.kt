@@ -5,5 +5,4 @@ import kotlin.uuid.Uuid
 interface SignOut {
 
     suspend operator fun invoke(deviceId: Uuid): Result<Unit>
-
 }

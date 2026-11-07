@@ -41,29 +41,27 @@ internal class SignInImplTest {
         publicKeyCredentialJson = "{}",
         deviceInfo = VerifySignInRequest.DeviceInfo(
             deviceUUID = deviceId,
-            deviceName = "Test Device"
-        )
+            deviceName = "Test Device",
+        ),
     )
 
-    private fun makePasskeyCredential(authId: Uuid = Uuid.random()): PasskeyCredential {
-        return PasskeyCredential(
-            id = Uuid.random(),
-            authId = authId,
-            authInfo = Authentication(id = authId, userId = Uuid.random(), uuid = Uuid.random()),
-            handle = Uuid.random(),
-            name = "test-passkey",
-            credDescriptor = PasskeyCredential.CredentialDescriptor(ByteArray(0), "public-key", emptySet()),
-            publicKey = "key",
-            signatureCount = 0,
-            isDiscoverable = true,
-            isBackupEligible = false,
-            isBackedUp = false,
-            attestationObject = ByteArray(0),
-            clientData = "{}",
-            createdAt = Clock.System.now(),
-            lastUsedAt = Clock.System.now()
-        )
-    }
+    private fun makePasskeyCredential(authId: Uuid = Uuid.random()): PasskeyCredential = PasskeyCredential(
+        id = Uuid.random(),
+        authId = authId,
+        authInfo = Authentication(id = authId, userId = Uuid.random(), uuid = Uuid.random()),
+        handle = Uuid.random(),
+        name = "test-passkey",
+        credDescriptor = PasskeyCredential.CredentialDescriptor(ByteArray(0), "public-key", emptySet()),
+        publicKey = "key",
+        signatureCount = 0,
+        isDiscoverable = true,
+        isBackupEligible = false,
+        isBackedUp = false,
+        attestationObject = ByteArray(0),
+        clientData = "{}",
+        createdAt = Clock.System.now(),
+        lastUsedAt = Clock.System.now(),
+    )
 
     @Test
     fun `should sign in successfully and return auth tokens`() = runUnitTest {
@@ -139,7 +137,7 @@ internal class SignInImplTest {
         then()
         assertTrue(result.isSuccess)
         coVerify(exactly = 1) { fixture.deviceDataSource.updateLanguage(authId, deviceId, Language.UK) }
-        coVerify(exactly = 1) { fixture.producer.send(any<AuthEvent.DeviceLanguageUpdated>(), any()) }
+        coVerify(exactly = 1) { fixture.producer.send(match<AuthEvent.DeviceLanguageUpdated> { it.authId == authId && it.deviceUuid == deviceId && it.language == Language.UK }, any()) }
         coVerify(exactly = 0) { fixture.producer.send(any<AuthEvent.DeviceCreated>(), any()) }
     }
 
@@ -210,7 +208,7 @@ internal class SignInImplTest {
             coEvery { finishAssertion(request) } returns Result.success(credential)
             coEvery { deviceDataSource.insertDevice(authId, deviceId, any(), Language.EN) } returns null
             coEvery { generateAuthToken(any<GenerateAuthToken.Source.InitialAuthentication>()) } returns Result.failure(
-                GenerateAuthToken.Error.InvalidCredentials()
+                GenerateAuthToken.Error.InvalidCredentials(),
             )
         }
 

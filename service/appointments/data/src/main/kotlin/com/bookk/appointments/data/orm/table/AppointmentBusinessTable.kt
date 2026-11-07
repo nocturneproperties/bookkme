@@ -6,7 +6,7 @@ import kotlinx.datetime.isoDayNumber
 import org.jetbrains.exposed.v1.datetime.timestamp
 import kotlin.experimental.or
 
-object AppointmentBusinessTable: BaseUUIDTable("business_has_appointments") {
+object AppointmentBusinessTable : BaseUUIDTable("business_has_appointments") {
     val enabled = bool("enabled")
     val name = varchar("name", 512)
     val address = varchar("address", 512)

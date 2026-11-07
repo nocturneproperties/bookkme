@@ -41,8 +41,8 @@ internal class GetServicesImplTest {
                 30.minutes,
                 Money.parse("USD 100"),
                 true,
-                Instant.fromEpochMilliseconds(0)
-            )
+                Instant.fromEpochMilliseconds(0),
+            ),
         )
         with(fixture) {
             transactionManager.mockTransaction()

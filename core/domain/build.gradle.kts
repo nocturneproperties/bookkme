@@ -9,7 +9,7 @@ tasks.withType<Test> {
 
 dependencies {
     implementation(libs.kotlin.coroutines)
-    implementation(libs.ktor.protobuf)
+    api(libs.kotlin.serialization.protobuf)
     testImplementation(libs.kotlin.test)
     testImplementation(testFixtures(projects.core))
 }

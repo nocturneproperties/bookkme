@@ -1,18 +1,20 @@
 # React to device creation
 
-Kafka topic `AuthEvent.DeviceCreated` → `NotificationEventHandler` → `CreateDeviceEntry`
+`auth.device_created` → `NotificationEventHandler` → `CreateDeviceEntry`
 
-Produced whenever a device signs in for the first time: [Verify sign-up
-(create account)](../authorization/sign-up.md) or [Verify
-sign-in](../authorization/sign-in.md). Mirrors the device row locally so
-push tokens and language preference can be tracked without a live call to
-the authorization service.
+Produced by [Verify sign-up](../authorization/sign-up.md) and [Verify sign-in](../authorization/sign-in.md). Notifications mirrors each `(authId, deviceUuid)` association independently, matching authorization. A replay preserves the row id, current token and language. A conflicting `userId` is rejected instead of changing ownership. Account deletion and later creation have no ordering guarantee; reconcile stale parked creation events against authorization before requesting replay.
 
 ```mermaid
 flowchart TD
-    Start([Consume AuthEvent.DeviceCreated]) --> Dedup{idempotencyKey already processed?}
-    Dedup -- Yes --> Skip([Skip - already handled])
-    Dedup -- No --> Create[DeviceDataSource.create authId deviceUUID userId language]
-    Create -- throws --> Dlt([Sent to AuthEvent.DeviceCreated_dlt topic, logged - no auto-retry])
-    Create -- ok --> Ack([Marked processed])
+    Start([Consume AuthEvent.DeviceCreated]) --> Claim{IdempotentDelivery claim for notifications}
+    Claim -- already processed --> Skip([Skip - SKIPPED_DUPLICATE])
+    Claim -- claimed --> Tx[[Begin transaction]]
+    Tx --> Create["DeviceDataSource.getOrCreate authId deviceUUID userId language - UPSERT with id unchanged on duplicate"]
+    Create --> Read["Lock and read device WHERE auth_id and device_uuid"]
+    Read --> Owner{Stored userId matches event?}
+    Owner -- no --> Error[Error.OperationNotAllowed - rollback]
+    Owner -- yes --> Commit[[Commit - existing token and language preserved]]
+    Commit --> Ack([Marked processed])
+    Create -- failure --> Retry["auth.device_created_notifications_group_dlt - retries then exhausted_event"]
+    Error --> Retry
 ```

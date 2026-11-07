@@ -16,22 +16,21 @@ import kotlin.uuid.Uuid
 internal class CreateClientImpl(
     private val transactionManager: TransactionManager,
     private val clientDataSource: ClientDataSource,
-    private val businessPermissionDataSource: BusinessPermissionDataSource
+    private val businessPermissionDataSource: BusinessPermissionDataSource,
 ) : CreateClient {
-    override suspend fun invoke(requestUserId: Uuid, businessId: Uuid, client: Client.Detached): Result<ClientRemote> =
-        transactionManager.transaction {
-            businessPermissionDataSource.getPermission(requestUserId, businessId, BusinessResource.CLIENTS)
-                .assert(PermissionAction.UPDATE)
-            val fields = client.validatedFields()
-            clientDataSource.createDetachedClient(
-                businessId,
-                client.copy(
-                    name = fields.name,
-                    lastName = fields.lastName,
-                    phone = fields.phone,
-                    email = fields.email,
-                    description = fields.description
-                )
-            ).toRemote()
-        }.onConstraintFailure { throw CreateClient.Error.ClientExist() }
+    override suspend fun invoke(requestUserId: Uuid, businessId: Uuid, client: Client.Detached): Result<ClientRemote> = transactionManager.transaction {
+        businessPermissionDataSource.getPermission(requestUserId, businessId, BusinessResource.CLIENTS)
+            .assert(PermissionAction.UPDATE)
+        val fields = client.validatedFields()
+        clientDataSource.createDetachedClient(
+            businessId,
+            client.copy(
+                name = fields.name,
+                lastName = fields.lastName,
+                phone = fields.phone,
+                email = fields.email,
+                description = fields.description,
+            ),
+        ).toRemote()
+    }.onConstraintFailure { throw CreateClient.Error.ClientExist() }
 }

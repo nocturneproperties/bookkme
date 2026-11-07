@@ -27,7 +27,7 @@ internal class AppointmentRequestRejectedNotificationTest {
         address = "1 Main St",
         businessName = "Barbershop",
         price = "USD 20.00",
-        declineReason = "Fully booked"
+        declineReason = "Fully booked",
     )
 
     @Test

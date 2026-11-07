@@ -4,6 +4,7 @@ import com.bookk.business.domain.api.BUSINESS_SCHEMA
 import com.bookk.business.domain.api.BUSINESS_SERVICE_NAME
 import com.bookk.business.domain.api.appointment.operation.GetAppointmentBookingContext
 import com.bookk.business.domain.api.appointment.operation.GetAppointmentRescheduleContext
+import com.bookk.business.domain.api.appointment.operation.GetStaffBookingContext
 import com.bookk.business.domain.api.business.operation.CreateBusiness
 import com.bookk.business.domain.api.business.operation.DeleteBusiness
 import com.bookk.business.domain.api.business.operation.DeleteDayOffsInThePast
@@ -16,20 +17,29 @@ import com.bookk.business.domain.api.business.operation.SetDashboardBusiness
 import com.bookk.business.domain.api.business.operation.UpdateBusiness
 import com.bookk.business.domain.api.client.operation.CreateClient
 import com.bookk.business.domain.api.client.operation.DeleteClient
+import com.bookk.business.domain.api.client.operation.DeleteInactiveClients
 import com.bookk.business.domain.api.client.operation.GetClientBusinessIds
 import com.bookk.business.domain.api.client.operation.GetClients
 import com.bookk.business.domain.api.client.operation.ImportClients
+import com.bookk.business.domain.api.client.operation.RecordClientVisit
 import com.bookk.business.domain.api.client.operation.UpdateClient
 import com.bookk.business.domain.api.employee.operation.CreateEmployeeInvitation
 import com.bookk.business.domain.api.employee.operation.DeleteProcessedEmployeeInvitations
 import com.bookk.business.domain.api.employee.operation.ExpireEmployeeInvitations
 import com.bookk.business.domain.api.employee.operation.GetEmployeeInvitations
 import com.bookk.business.domain.api.employee.operation.GetEmployees
+import com.bookk.business.domain.api.employee.operation.GetOwnedBusinessMemberIds
 import com.bookk.business.domain.api.employee.operation.JoinBusiness
 import com.bookk.business.domain.api.employee.operation.RevokeEmployeeInvitation
 import com.bookk.business.domain.api.employee.operation.SetEmployeePermissions
 import com.bookk.business.domain.api.employee.operation.SetEmployeeSuspension
 import com.bookk.business.domain.api.employee.operation.UpdateEmployee
+import com.bookk.business.domain.api.erasure.operation.DeleteExpiredErasureRecords
+import com.bookk.business.domain.api.erasure.operation.ReapplyClientErasures
+import com.bookk.business.domain.api.export.DownloadBusinessDataExport
+import com.bookk.business.domain.api.export.ExportUserBusinessData
+import com.bookk.business.domain.api.export.GetBusinessDataExport
+import com.bookk.business.domain.api.export.StartBusinessDataExport
 import com.bookk.business.domain.api.service.operation.CreateService
 import com.bookk.business.domain.api.service.operation.CreateServiceGroup
 import com.bookk.business.domain.api.service.operation.DeleteService
@@ -39,11 +49,13 @@ import com.bookk.business.domain.api.service.operation.GetServices
 import com.bookk.business.domain.api.service.operation.GetServicesByIds
 import com.bookk.business.domain.api.service.operation.IssueServiceQuote
 import com.bookk.business.domain.api.service.operation.UpdateService
-import com.bookk.business.domain.api.user.operation.AnonymizeUserProfile
+import com.bookk.business.domain.api.user.operation.DeleteUserBusinessData
 import com.bookk.business.domain.api.user.operation.SyncUserProfile
 import com.bookk.business.domain.impl.event.BusinessEventHandlerImpl
+import com.bookk.business.domain.impl.export.BusinessDataExportAssembler
 import com.bookk.business.domain.impl.operation.appointment.GetAppointmentBookingContextImpl
 import com.bookk.business.domain.impl.operation.appointment.GetAppointmentRescheduleContextImpl
+import com.bookk.business.domain.impl.operation.appointment.GetStaffBookingContextImpl
 import com.bookk.business.domain.impl.operation.business.CreateBusinessImpl
 import com.bookk.business.domain.impl.operation.business.DeleteBusinessImpl
 import com.bookk.business.domain.impl.operation.business.DeleteDayOffsInThePastImpl
@@ -56,20 +68,29 @@ import com.bookk.business.domain.impl.operation.business.SetDashboardBusinessImp
 import com.bookk.business.domain.impl.operation.business.UpdateBusinessImpl
 import com.bookk.business.domain.impl.operation.client.CreateClientImpl
 import com.bookk.business.domain.impl.operation.client.DeleteClientImpl
+import com.bookk.business.domain.impl.operation.client.DeleteInactiveClientsImpl
 import com.bookk.business.domain.impl.operation.client.GetClientBusinessIdsImpl
 import com.bookk.business.domain.impl.operation.client.GetClientsImpl
 import com.bookk.business.domain.impl.operation.client.ImportClientsImpl
+import com.bookk.business.domain.impl.operation.client.RecordClientVisitImpl
 import com.bookk.business.domain.impl.operation.client.UpdateClientImpl
 import com.bookk.business.domain.impl.operation.employee.CreateEmployeeInvitationImpl
 import com.bookk.business.domain.impl.operation.employee.DeleteProcessedEmployeeInvitationsImpl
 import com.bookk.business.domain.impl.operation.employee.ExpireEmployeeInvitationsImpl
 import com.bookk.business.domain.impl.operation.employee.GetEmployeeInvitationsImpl
 import com.bookk.business.domain.impl.operation.employee.GetEmployeesImpl
+import com.bookk.business.domain.impl.operation.employee.GetOwnedBusinessMemberIdsImpl
 import com.bookk.business.domain.impl.operation.employee.JoinBusinessImpl
 import com.bookk.business.domain.impl.operation.employee.RevokeEmployeeInvitationImpl
 import com.bookk.business.domain.impl.operation.employee.SetEmployeePermissionsImpl
 import com.bookk.business.domain.impl.operation.employee.SetEmployeeSuspensionImpl
 import com.bookk.business.domain.impl.operation.employee.UpdateEmployeeImpl
+import com.bookk.business.domain.impl.operation.erasure.DeleteExpiredErasureRecordsImpl
+import com.bookk.business.domain.impl.operation.erasure.ReapplyClientErasuresImpl
+import com.bookk.business.domain.impl.operation.export.DownloadBusinessDataExportImpl
+import com.bookk.business.domain.impl.operation.export.ExportUserBusinessDataImpl
+import com.bookk.business.domain.impl.operation.export.GetBusinessDataExportImpl
+import com.bookk.business.domain.impl.operation.export.StartBusinessDataExportImpl
 import com.bookk.business.domain.impl.operation.service.CreateServiceGroupImpl
 import com.bookk.business.domain.impl.operation.service.CreateServiceImpl
 import com.bookk.business.domain.impl.operation.service.DeleteServiceGroupImpl
@@ -79,20 +100,26 @@ import com.bookk.business.domain.impl.operation.service.GetServicesByIdsImpl
 import com.bookk.business.domain.impl.operation.service.GetServicesImpl
 import com.bookk.business.domain.impl.operation.service.IssueQuoteImpl
 import com.bookk.business.domain.impl.operation.service.UpdateServiceImpl
-import com.bookk.business.domain.impl.operation.user.AnonymizeUserProfileImpl
+import com.bookk.business.domain.impl.operation.user.DeleteUserBusinessDataImpl
 import com.bookk.business.domain.impl.operation.user.SyncUserProfileImpl
 import com.bookk.core.data.eventstreaming.EventHandler
+import com.bookk.server.appointments.client.di.appointmentsClientModule
 import com.bookk.server.user.client.di.userClientModule
+import library.export.DataExportAssembler
 import org.koin.core.module.dsl.scopedOf
 import org.koin.core.qualifier.Qualifier
 import org.koin.core.qualifier.named
 import org.koin.dsl.bind
 import org.koin.dsl.module
+import kotlin.time.Clock
 
 val BusinessScope: Qualifier = named(BUSINESS_SCHEMA)
 
 fun businessDomainModule() = module {
-    includes(userClientModule(BusinessScope, BUSINESS_SERVICE_NAME))
+    includes(
+        userClientModule(BusinessScope, BUSINESS_SERVICE_NAME),
+        appointmentsClientModule(BusinessScope, BUSINESS_SERVICE_NAME),
+    )
     scope(BusinessScope) {
         scopedOf(::GetBusinessByIdImpl) bind GetBusinessById::class
         scopedOf(::GetBusinessDetailsImpl) bind GetBusinessDetails::class
@@ -109,10 +136,22 @@ fun businessDomainModule() = module {
         scopedOf(::ImportClientsImpl) bind ImportClients::class
         scopedOf(::GetClientsImpl) bind GetClients::class
         scopedOf(::GetClientBusinessIdsImpl) bind GetClientBusinessIds::class
+        scopedOf(::GetOwnedBusinessMemberIdsImpl) bind GetOwnedBusinessMemberIds::class
         scopedOf(::DeleteClientImpl) bind DeleteClient::class
+        scopedOf(::ExportUserBusinessDataImpl) bind ExportUserBusinessData::class
+        scopedOf(::StartBusinessDataExportImpl) bind StartBusinessDataExport::class
+        scopedOf(::GetBusinessDataExportImpl) bind GetBusinessDataExport::class
+        scopedOf(::DownloadBusinessDataExportImpl) bind DownloadBusinessDataExport::class
+        scoped<DataExportAssembler> {
+            BusinessDataExportAssembler(get(), get(), get(), get(), get(), get(), get(), Clock.System)
+        }
+        scopedOf(::DeleteInactiveClientsImpl) bind DeleteInactiveClients::class
+        scopedOf(::ReapplyClientErasuresImpl) bind ReapplyClientErasures::class
+        scopedOf(::DeleteExpiredErasureRecordsImpl) bind DeleteExpiredErasureRecords::class
+        scopedOf(::RecordClientVisitImpl) bind RecordClientVisit::class
         scopedOf(::UpdateClientImpl) bind UpdateClient::class
         scopedOf(::SyncUserProfileImpl) bind SyncUserProfile::class
-        scopedOf(::AnonymizeUserProfileImpl) bind AnonymizeUserProfile::class
+        scopedOf(::DeleteUserBusinessDataImpl) bind DeleteUserBusinessData::class
         scopedOf(::CreateServiceImpl) bind CreateService::class
         scopedOf(::DeleteServiceGroupImpl) bind DeleteServiceGroup::class
         scopedOf(::CreateServiceGroupImpl) bind CreateServiceGroup::class
@@ -133,6 +172,7 @@ fun businessDomainModule() = module {
         scopedOf(::ExpireEmployeeInvitationsImpl) bind ExpireEmployeeInvitations::class
         scopedOf(::DeleteProcessedEmployeeInvitationsImpl) bind DeleteProcessedEmployeeInvitations::class
         scopedOf(::GetAppointmentBookingContextImpl) bind GetAppointmentBookingContext::class
+        scopedOf(::GetStaffBookingContextImpl) bind GetStaffBookingContext::class
         scopedOf(::GetAppointmentRescheduleContextImpl) bind GetAppointmentRescheduleContext::class
     }
 }

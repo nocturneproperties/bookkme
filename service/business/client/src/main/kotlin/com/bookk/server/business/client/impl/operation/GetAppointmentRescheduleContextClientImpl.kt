@@ -12,18 +12,18 @@ import io.ktor.client.request.setBody
 import kotlin.uuid.Uuid
 
 internal class GetAppointmentRescheduleContextClientImpl(
-    private val httpClient: HttpClient
+    private val httpClient: HttpClient,
 ) : GetAppointmentRescheduleContext {
 
     override suspend fun invoke(
         businessId: Uuid,
         employeeId: Uuid?,
-        serviceIds: List<Uuid>
+        serviceIds: List<Uuid>,
     ): Result<AppointmentRescheduleContext> = runSuspendCatching {
         httpClient.post(
             BusinessRouting.Api.Internal.Business.Id.AppointmentRescheduleContext(
-                parent = BusinessRouting.Api.Internal.Business.Id(id = businessId)
-            )
+                parent = BusinessRouting.Api.Internal.Business.Id(id = businessId),
+            ),
         ) {
             setBody(AppointmentRescheduleContextRequest(employeeId = employeeId, serviceIds = serviceIds))
         }.bodyOrThrow()

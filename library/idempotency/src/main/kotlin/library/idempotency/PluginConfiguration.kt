@@ -51,7 +51,7 @@ class PluginConfiguration {
      */
     var ignoreHttpStatusCodes =
         setOf(
-            HttpStatusCode.Unauthorized
+            HttpStatusCode.Unauthorized,
         )
 
     /**

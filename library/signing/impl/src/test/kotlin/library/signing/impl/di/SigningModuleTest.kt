@@ -31,7 +31,7 @@ internal class SigningModuleTest {
 
         fun serviceScopes(): List<Scope> = listOf(
             koin.createScope("auth-test-scope", authQualifier),
-            koin.createScope("business-test-scope", businessQualifier)
+            koin.createScope("business-test-scope", businessQualifier),
         )
     }
 

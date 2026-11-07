@@ -9,7 +9,7 @@ internal class DeleteDeviceByUUIDImpl(
     private val deviceDataSource: DeviceDataSource,
     private val transactionManager: TransactionManager,
 ) : DeleteDeviceByUUID {
-    override suspend fun invoke(deviceUUID: Uuid) = transactionManager.transaction {
-        deviceDataSource.deleteByDeviceUuid(deviceUUID)
+    override suspend fun invoke(authId: Uuid, deviceUUID: Uuid) = transactionManager.transaction {
+        deviceDataSource.delete(authId, deviceUUID)
     }
 }

@@ -50,33 +50,32 @@ internal class EmployeeInvitationDataSourceImpl : DataSource(), EmployeeInvitati
     override suspend fun countPendingInvitations(businessId: Uuid): Long = dbQuery {
         EmployeeInvitationEntity.count(
             (EmployeeInvitationTable.businessId eq businessId) and
-                (EmployeeInvitationTable.status eq EmployeeInvitationStatus.PENDING)
+                (EmployeeInvitationTable.status eq EmployeeInvitationStatus.PENDING),
         )
     }
 
     override suspend fun countInvitationsCreatedSince(businessId: Uuid, since: Instant): Long = dbQuery {
         EmployeeInvitationEntity.count(
             (EmployeeInvitationTable.businessId eq businessId) and
-                (EmployeeInvitationTable.createdAt greaterEq since)
+                (EmployeeInvitationTable.createdAt greaterEq since),
         )
     }
 
-    override suspend fun getInvitationsByInviter(businessId: Uuid, invitedBy: Uuid): List<EmployeeInvitation> =
-        dbQuery {
-            EmployeeInvitationEntity.find {
-                (EmployeeInvitationTable.businessId eq businessId) and
-                    (EmployeeInvitationTable.invitedBy eq invitedBy)
-            }
-                .toList()
-                .map(EmployeeInvitationEntity::toDomain)
+    override suspend fun getInvitationsByInviter(businessId: Uuid, invitedBy: Uuid): List<EmployeeInvitation> = dbQuery {
+        EmployeeInvitationEntity.find {
+            (EmployeeInvitationTable.businessId eq businessId) and
+                (EmployeeInvitationTable.invitedBy eq invitedBy)
         }
+            .toList()
+            .map(EmployeeInvitationEntity::toDomain)
+    }
 
     override suspend fun redeemInvitation(id: Uuid): Boolean = dbQuery {
         EmployeeInvitationTable.update(
             where = {
                 (EmployeeInvitationTable.id eq id) and
                     (EmployeeInvitationTable.status eq EmployeeInvitationStatus.PENDING)
-            }
+            },
         ) {
             it[status] = EmployeeInvitationStatus.REDEEMED
             it[codeHash] = null
@@ -89,7 +88,7 @@ internal class EmployeeInvitationDataSourceImpl : DataSource(), EmployeeInvitati
             where = {
                 (EmployeeInvitationTable.id eq id) and
                     (EmployeeInvitationTable.status eq EmployeeInvitationStatus.PENDING)
-            }
+            },
         ) {
             it[status] = EmployeeInvitationStatus.REVOKED
             it[codeHash] = null
@@ -103,7 +102,7 @@ internal class EmployeeInvitationDataSourceImpl : DataSource(), EmployeeInvitati
                 where = {
                     (EmployeeInvitationTable.status eq EmployeeInvitationStatus.PENDING) and
                         (EmployeeInvitationTable.createdAt less before)
-                }
+                },
             ) {
                 it[status] = EmployeeInvitationStatus.EXPIRED
                 it[codeHash] = null

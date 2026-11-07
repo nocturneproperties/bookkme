@@ -10,7 +10,7 @@ data class AppointmentSettingsUpdate(
     @ProtoNumber(2) val automaticApproval: Boolean,
     @ProtoNumber(3) val inBetweenBreakInMinutes: Int,
     @ProtoNumber(4) val appointmentNote: String,
-    @ProtoNumber(5) val automaticCompletion: Boolean?
+    @ProtoNumber(5) val automaticCompletion: Boolean?,
 ) {
     companion object {
         fun stub(
@@ -18,13 +18,13 @@ data class AppointmentSettingsUpdate(
             automaticApproval: Boolean = false,
             inBetweenBreakInMinutes: Int = 10,
             appointmentNote: String = "",
-            automaticCompletion: Boolean? = null
+            automaticCompletion: Boolean? = null,
         ) = AppointmentSettingsUpdate(
             businessId = businessId,
             automaticApproval = automaticApproval,
             inBetweenBreakInMinutes = inBetweenBreakInMinutes,
             appointmentNote = appointmentNote,
-            automaticCompletion = automaticCompletion
+            automaticCompletion = automaticCompletion,
         )
     }
 }

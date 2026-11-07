@@ -42,7 +42,7 @@ internal class GetAvailablePasskeysImplTest {
             attestationObject = ByteArray(0),
             clientData = "{}",
             createdAt = now,
-            lastUsedAt = now
+            lastUsedAt = now,
         )
     }
 

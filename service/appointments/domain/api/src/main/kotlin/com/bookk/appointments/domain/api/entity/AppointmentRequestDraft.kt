@@ -12,7 +12,7 @@ data class AppointmentRequestDraft(
     @ProtoNumber(3) val services: List<RequestedService>,
     @ProtoNumber(4) val date: Instant,
     @ProtoNumber(5) val note: String,
-    @ProtoNumber(6) val offerToken: String
+    @ProtoNumber(6) val offerToken: String,
 ) {
     companion object {
         fun stub(
@@ -20,14 +20,14 @@ data class AppointmentRequestDraft(
             employeeId: Uuid = Uuid.random(),
             services: List<RequestedService> = listOf(RequestedService.stub()),
             date: Instant = Instant.fromEpochMilliseconds(0),
-            offerToken: String = "token"
+            offerToken: String = "token",
         ) = AppointmentRequestDraft(
             businessId = businessId,
             employeeId = employeeId,
             services = services,
             date = date,
             note = "Note",
-            offerToken = offerToken
+            offerToken = offerToken,
         )
     }
 }

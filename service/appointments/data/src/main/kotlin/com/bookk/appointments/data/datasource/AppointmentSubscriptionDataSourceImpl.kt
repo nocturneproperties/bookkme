@@ -38,7 +38,7 @@ internal class AppointmentSubscriptionDataSourceImpl : DataSource(), Appointment
     override suspend fun enableBusiness(businessId: Uuid) {
         dbQuery {
             AppointmentBusinessTable.update(
-                where = { AppointmentBusinessTable.id eq businessId }
+                where = { AppointmentBusinessTable.id eq businessId },
             ) {
                 it[enabled] = true
                 it[updatedAt] = Clock.System.now()
@@ -56,7 +56,7 @@ internal class AppointmentSubscriptionDataSourceImpl : DataSource(), Appointment
     override suspend fun disableBusiness(businessId: Uuid) {
         dbQuery {
             AppointmentBusinessTable.update(
-                where = { AppointmentBusinessTable.id eq businessId }
+                where = { AppointmentBusinessTable.id eq businessId },
             ) {
                 it[enabled] = false
                 it[updatedAt] = Clock.System.now()

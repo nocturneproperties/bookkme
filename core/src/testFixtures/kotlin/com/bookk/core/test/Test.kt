@@ -10,9 +10,8 @@ import kotlin.time.Duration.Companion.seconds
 internal class TestContext(
     var givenCalled: Boolean = false,
     var whenCalled: Boolean = false,
-    var thenCalled: Boolean = false
+    var thenCalled: Boolean = false,
 )
-
 
 class TestHolder : AbstractCoroutineContextElement(Key) {
     private val context = TestContext()
@@ -38,11 +37,10 @@ class TestHolder : AbstractCoroutineContextElement(Key) {
     companion object Key : CoroutineContext.Key<TestHolder>
 }
 
-fun runUnitTest(context: CoroutineContext = TestHolder(), body: suspend TestScope.() -> Unit) =
-    runTest(context, timeout = 30.seconds) {
-        body()
-        requireNotNull(currentCoroutineContext()[TestHolder.Key]).assertFormat()
-    }
+fun runUnitTest(context: CoroutineContext = TestHolder(), body: suspend TestScope.() -> Unit) = runTest(context, timeout = 30.seconds) {
+    body()
+    requireNotNull(currentCoroutineContext()[TestHolder.Key]).assertFormat()
+}
 
 suspend fun given() {
     requireNotNull(currentCoroutineContext()[TestHolder.Key]).givenCalled()

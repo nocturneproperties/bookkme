@@ -24,7 +24,7 @@ internal class JoinBusinessImpl(
     private val businessDataSource: BusinessDataSource,
     private val userClient: UserClient,
     private val transactionManager: TransactionManager,
-    private val eventProducer: StandardEventProducer
+    private val eventProducer: StandardEventProducer,
 ) : JoinBusiness {
     override suspend fun invoke(requestUserId: Uuid, code: String): Result<Employee> {
         if (code.isBlank()) return Result.failure(JoinBusiness.Error.EmptyInvitationCode())
@@ -56,8 +56,8 @@ internal class JoinBusinessImpl(
                     schedule = Schedule.empty(),
                     createdAt = Clock.System.now(),
                     permissions = BusinessPermissions.VIEW_ONLY,
-                    suspendedAt = null
-                )
+                    suspendedAt = null,
+                ),
             )
             eventProducer.send(
                 BusinessEvent.EmployeeInvitationRedeemed(
@@ -65,15 +65,15 @@ internal class JoinBusinessImpl(
                     employeeUserId = employee.userId,
                     employeeName = employee.name,
                     businessId = business.id,
-                    businessName = business.name
-                )
+                    businessName = business.name,
+                ),
             )
             eventProducer.send(
                 BusinessEvent.EmployeePermissionsChanged(
                     employeeUserId = employee.userId,
                     businessId = business.id,
-                    permissions = employee.permissions
-                )
+                    permissions = employee.permissions,
+                ),
             )
             employee
         }.onConstraintFailure {

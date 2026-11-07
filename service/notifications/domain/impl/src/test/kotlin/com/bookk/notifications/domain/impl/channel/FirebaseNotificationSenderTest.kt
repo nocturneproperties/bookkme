@@ -124,7 +124,7 @@ internal class FirebaseNotificationSenderTest {
         with(fixture) {
             transactionManager.mockTransaction()
             coEvery { deviceDataSource.getByUserId(userId) } returns listOf(device)
-            coEvery { deviceDataSource.updateToken(deviceId, null) } returns device.copy(notificationToken = null)
+            coEvery { deviceDataSource.updateToken(device.authId, deviceId, null) } returns device.copy(notificationToken = null)
             every { firebaseMessaging.send(any()) } throws exception
             every { exception.messagingErrorCode } returns MessagingErrorCode.UNREGISTERED
         }
@@ -134,7 +134,7 @@ internal class FirebaseNotificationSenderTest {
 
         then()
         assertTrue(result.isSuccess)
-        coVerify(exactly = 1) { fixture.deviceDataSource.updateToken(deviceId, null) }
+        coVerify(exactly = 1) { fixture.deviceDataSource.updateToken(device.authId, deviceId, null) }
     }
 
     @Test
@@ -160,6 +160,6 @@ internal class FirebaseNotificationSenderTest {
 
         then()
         assertTrue(result.isSuccess)
-        coVerify(exactly = 0) { fixture.deviceDataSource.updateToken(any(), any()) }
+        coVerify(exactly = 0) { fixture.deviceDataSource.updateToken(any(), any(), any()) }
     }
 }

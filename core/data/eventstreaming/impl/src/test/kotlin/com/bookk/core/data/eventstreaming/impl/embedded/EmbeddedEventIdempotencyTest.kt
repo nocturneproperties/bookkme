@@ -7,6 +7,7 @@ import com.bookk.core.data.eventstreaming.impl.InMemoryExhaustedEventDataSource
 import com.bookk.core.data.eventstreaming.impl.inMemoryEventIdempotencyStorage
 import com.bookk.core.data.eventstreaming.impl.kafka.KeyedTestEvent
 import com.bookk.core.data.eventstreaming.registerReceiver
+import com.bookk.core.domain.datasource.transaction.mockedTransactionManager
 import com.bookk.core.test.given
 import com.bookk.core.test.runUnitTest
 import com.bookk.core.test.then
@@ -38,13 +39,15 @@ internal class EmbeddedEventIdempotencyTest {
     ) {
         val topicQueueHolder = TopicQueueHolder<String>()
         val protoBuf = ProtoBuf { encodeDefaults = true }
-        val exhaustedEventDataSource = InMemoryExhaustedEventDataSource()
+        val transactionManager = mockedTransactionManager()
+        val exhaustedEventDataSource = InMemoryExhaustedEventDataSource(transactionManager)
         val producer = EmbeddedEventProducer(topicQueueHolder)
 
         fun newConsumer(consumerGroup: String = "business_group") = EmbeddedEventConsumer(
             topicQueueHolder = topicQueueHolder,
             protoBuf = protoBuf,
             exhaustedEventDataSource = exhaustedEventDataSource,
+            transactionManager = transactionManager,
             eventIdempotencyStorage = eventIdempotencyStorage,
             consumerGroup = consumerGroup,
         )
@@ -130,8 +133,14 @@ internal class EmbeddedEventIdempotencyTest {
         val businessConsumer = fixture.newConsumer(consumerGroup = "business_group")
         val userAttempts = AtomicInteger(0)
         val businessAttempts = AtomicInteger(0)
-        userConsumer.registerReceiver<KeyedTestEvent, String>(topic) { userAttempts.incrementAndGet(); throw RuntimeException("boom") }
-        businessConsumer.registerReceiver<KeyedTestEvent, String>(topic) { businessAttempts.incrementAndGet(); throw RuntimeException("boom") }
+        userConsumer.registerReceiver<KeyedTestEvent, String>(topic) {
+            userAttempts.incrementAndGet()
+            throw RuntimeException("boom")
+        }
+        businessConsumer.registerReceiver<KeyedTestEvent, String>(topic) {
+            businessAttempts.incrementAndGet()
+            throw RuntimeException("boom")
+        }
         userConsumer.start(backgroundScope)
         businessConsumer.start(backgroundScope)
 

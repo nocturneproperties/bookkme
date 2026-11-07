@@ -11,7 +11,7 @@ interface AppointmentEvent : EventStreaming.Event<String> {
 
     @Serializable
     data class RequestCreated(
-        @ProtoNumber(1) val clientUserId: Uuid,
+        @ProtoNumber(1) val clientUserId: Uuid?,
         @ProtoNumber(2) val clientName: String,
         @ProtoNumber(3) val employeeUserId: Uuid,
         @ProtoNumber(4) val employeeName: String,
@@ -21,7 +21,7 @@ interface AppointmentEvent : EventStreaming.Event<String> {
         @ProtoNumber(8) val businessName: String,
         @ProtoNumber(9) val address: String,
         @ProtoNumber(10) val price: String,
-        @ProtoNumber(11) override val idempotencyKey: String = Uuid.random().toString()
+        @ProtoNumber(11) override val idempotencyKey: String = Uuid.random().toString(),
     ) : AppointmentEvent {
         @ProtoNumber(12)
         override val topic: String = TOPIC
@@ -33,7 +33,7 @@ interface AppointmentEvent : EventStreaming.Event<String> {
 
     @Serializable
     data class RequestApproved(
-        @ProtoNumber(1) val clientUserId: Uuid,
+        @ProtoNumber(1) val clientUserId: Uuid?,
         @ProtoNumber(2) val clientName: String,
         @ProtoNumber(3) val employeeUserId: Uuid,
         @ProtoNumber(4) val employeeName: String,
@@ -43,7 +43,7 @@ interface AppointmentEvent : EventStreaming.Event<String> {
         @ProtoNumber(8) val businessName: String,
         @ProtoNumber(9) val address: String,
         @ProtoNumber(10) val price: String,
-        @ProtoNumber(11) override val idempotencyKey: String = Uuid.random().toString()
+        @ProtoNumber(11) override val idempotencyKey: String = Uuid.random().toString(),
     ) : AppointmentEvent {
         @ProtoNumber(12)
         override val topic: String = TOPIC
@@ -55,7 +55,7 @@ interface AppointmentEvent : EventStreaming.Event<String> {
 
     @Serializable
     data class RequestRejected(
-        @ProtoNumber(1) val clientUserId: Uuid,
+        @ProtoNumber(1) val clientUserId: Uuid?,
         @ProtoNumber(2) val clientName: String,
         @ProtoNumber(3) val employeeUserId: Uuid,
         @ProtoNumber(4) val employeeName: String,
@@ -66,7 +66,7 @@ interface AppointmentEvent : EventStreaming.Event<String> {
         @ProtoNumber(9) val businessName: String,
         @ProtoNumber(10) val price: String,
         @ProtoNumber(11) val declineReason: String,
-        @ProtoNumber(12) override val idempotencyKey: String = Uuid.random().toString()
+        @ProtoNumber(12) override val idempotencyKey: String = Uuid.random().toString(),
     ) : AppointmentEvent {
         @ProtoNumber(13)
         override val topic: String = TOPIC
@@ -78,7 +78,7 @@ interface AppointmentEvent : EventStreaming.Event<String> {
 
     @Serializable
     data class Cancelled(
-        @ProtoNumber(1) val clientUserId: Uuid,
+        @ProtoNumber(1) val clientUserId: Uuid?,
         @ProtoNumber(2) val clientName: String,
         @ProtoNumber(3) val employeeUserId: Uuid,
         @ProtoNumber(4) val employeeName: String,
@@ -89,7 +89,7 @@ interface AppointmentEvent : EventStreaming.Event<String> {
         @ProtoNumber(9) val businessName: String,
         @ProtoNumber(10) val price: String,
         @ProtoNumber(11) val reason: String,
-        @ProtoNumber(12) override val idempotencyKey: String = Uuid.random().toString()
+        @ProtoNumber(12) override val idempotencyKey: String = Uuid.random().toString(),
     ) : AppointmentEvent {
         @ProtoNumber(13)
         override val topic: String = TOPIC
@@ -98,4 +98,47 @@ interface AppointmentEvent : EventStreaming.Event<String> {
             const val TOPIC = "appointment.cancelled"
         }
     }
+
+    @Serializable
+    data class CancelledForDeletedClient(
+        @ProtoNumber(1) val employeeUserId: Uuid,
+        @ProtoNumber(2) val from: Instant,
+        @ProtoNumber(3) val to: Instant,
+        @ProtoNumber(4) val timeZone: TimeZone,
+        @ProtoNumber(5) val businessName: String,
+        @ProtoNumber(6) override val idempotencyKey: String = Uuid.random().toString(),
+        @ProtoNumber(8) val cause: ClientDeletionCause = ClientDeletionCause.ACCOUNT_DELETED,
+    ) : AppointmentEvent {
+        @ProtoNumber(7)
+        override val topic: String = TOPIC
+
+        companion object {
+            const val TOPIC = "appointment.cancelled_for_deleted_client"
+        }
+    }
+
+    @Serializable
+    data class ClientVisitBooked(
+        @ProtoNumber(1) val businessId: Uuid,
+        @ProtoNumber(2) val clientId: Uuid,
+        @ProtoNumber(3) val visitEnd: Instant,
+        @ProtoNumber(4) override val idempotencyKey: String = Uuid.random().toString(),
+    ) : AppointmentEvent {
+        @ProtoNumber(5)
+        override val topic: String = TOPIC
+        override val partitionKey: String get() = clientId.toString()
+
+        companion object {
+            const val TOPIC = "appointment.client_visit_booked"
+        }
+    }
+}
+
+@Serializable
+enum class ClientDeletionCause {
+    @ProtoNumber(1)
+    ACCOUNT_DELETED,
+
+    @ProtoNumber(2)
+    REMOVED_BY_BUSINESS,
 }

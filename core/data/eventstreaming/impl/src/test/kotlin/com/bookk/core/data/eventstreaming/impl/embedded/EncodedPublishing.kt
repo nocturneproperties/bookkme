@@ -10,6 +10,6 @@ internal suspend inline fun <reified T : EventStreaming.Event<String>> EventStre
     publish(
         topic = event.topic,
         partitionKey = event.partitionKey,
-        payload = encodedEventProtoBuf.encodeToByteArray(event)
+        payload = encodedEventProtoBuf.encodeToByteArray(event),
     )
 }

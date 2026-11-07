@@ -5,26 +5,24 @@ import kotlinx.serialization.protobuf.ProtoNumber
 @Serializable
 data class SimpleServerError(
     @ProtoNumber(1) val errorCode: Int,
-    @ProtoNumber(2) val message: String
+    @ProtoNumber(2) val message: String,
 ) {
-    override fun toString(): String {
-        return "errorCode: $errorCode, message: $message"
-    }
+    override fun toString(): String = "errorCode: $errorCode, message: $message"
 }
 
 @Serializable
 data class MessageServerError(
-    @ProtoNumber(1) val message: String
+    @ProtoNumber(1) val message: String,
 )
 
 @Serializable
 data class BodyServerError<T : Any>(
     @ProtoNumber(1) val message: String,
     @ProtoNumber(2) val errorCode: Int,
-    @ProtoNumber(3) val errorBody: T
+    @ProtoNumber(3) val errorBody: T,
 )
 
 fun BusinessError.asServerError(): SimpleServerError = SimpleServerError(
     message = message,
-    errorCode = code
+    errorCode = code,
 )

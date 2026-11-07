@@ -2,7 +2,6 @@ package com.bookk.appointments.domain.impl.operation
 
 import com.bookk.appointments.domain.api.entity.Appointment
 import com.bookk.appointments.domain.api.entity.AppointmentCancellation
-import com.bookk.appointments.domain.api.entity.AppointmentStatus
 import com.bookk.appointments.domain.api.operation.CancelAppointment
 import com.bookk.appointments.domain.datasource.AppointmentDataSource
 import com.bookk.appointments.domain.datasource.AppointmentPermissionDataSource
@@ -25,20 +24,17 @@ internal class CancelAppointmentImpl(
     private val appointmentPermissionDataSource: AppointmentPermissionDataSource,
     private val subscriptionDataSource: AppointmentSubscriptionDataSource,
     private val eventProducer: StandardEventProducer,
-    private val transactionManager: TransactionManager
+    private val transactionManager: TransactionManager,
 ) : CancelAppointment {
 
     override suspend fun invoke(userId: Uuid, cancellation: AppointmentCancellation): Result<Appointment> = transactionManager.transaction {
         val appointment = appointmentDataSource.getForUpdate(cancellation.id)
         appointmentPermissionDataSource.getPermission(userId, appointment.businessId)
             .assertOrSelf(PermissionAction.UPDATE, actorId = userId, assigneeId = appointment.employee.userId)
-        appointment.requireScheduled()
+        appointment.requireEditable()
         val cancelled = appointmentDataSource.cancel(cancellation.id, cancellation.reason)
         sendAppointmentCancelledEvent(cancelled)
-        appointment.copy(
-            status = AppointmentStatus.CANCELLED,
-            cancellationReason = cancellation.reason
-        )
+        cancelled
     }
 
     private suspend fun sendAppointmentCancelledEvent(appointment: Appointment) {
@@ -48,7 +44,7 @@ internal class CancelAppointmentImpl(
         }
         eventProducer.send(
             AppointmentEvent.Cancelled(
-                clientUserId = appointment.client.id,
+                clientUserId = appointment.client.userId,
                 clientName = appointment.client.fullName,
                 from = appointment.date,
                 to = appointment.dateEnd,
@@ -58,8 +54,8 @@ internal class CancelAppointmentImpl(
                 employeeName = appointment.employee.fullName,
                 address = business.address,
                 price = moneyFormatter.print(appointment.totalAmount),
-                reason = appointment.cancellationReason
-            )
+                reason = appointment.cancellationReason,
+            ),
         )
     }
 }

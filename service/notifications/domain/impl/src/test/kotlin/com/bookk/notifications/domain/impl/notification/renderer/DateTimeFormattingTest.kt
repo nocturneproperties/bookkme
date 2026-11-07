@@ -37,6 +37,18 @@ internal class DateTimeFormattingTest {
     }
 
     @Test
+    fun `should format instant in Polish using UTC`() = runUnitTest {
+        given()
+        val instant = Instant.parse("2026-03-05T14:30:00Z")
+
+        whenn()
+        val formatted = instant.formatLocalized(TimeZone.UTC, Language.PL)
+
+        then()
+        assertEquals("5 marca 2026, 14:30", formatted)
+    }
+
+    @Test
     fun `should convert to the given time zone before formatting`() = runUnitTest {
         given()
         val instant = Instant.parse("2026-03-05T22:30:00Z")

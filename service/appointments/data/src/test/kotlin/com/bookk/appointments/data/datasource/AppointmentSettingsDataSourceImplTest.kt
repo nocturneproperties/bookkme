@@ -31,7 +31,10 @@ internal class AppointmentSettingsDataSourceImplTest {
 
     private class SutFixture {
         val db = createTestDatabase(
-            AppointmentBusinessTable, SettingsTable, WorkingHoursTable, DayOffsTable
+            AppointmentBusinessTable,
+            SettingsTable,
+            WorkingHoursTable,
+            DayOffsTable,
         )
         val sut = AppointmentSettingsDataSourceImpl()
         val subscriptionSut = AppointmentSubscriptionDataSourceImpl()
@@ -87,8 +90,8 @@ internal class AppointmentSettingsDataSourceImplTest {
                 AppointmentSettingsUpdate.stub(
                     businessId = fixture.businessId,
                     inBetweenBreakInMinutes = 20,
-                    appointmentNote = "Updated note"
-                )
+                    appointmentNote = "Updated note",
+                ),
             )
         }
 
@@ -171,9 +174,9 @@ internal class AppointmentSettingsDataSourceImplTest {
         val schedule = Schedule(
             workingDays = listOf(DayOfWeek.SATURDAY),
             workingHours = mapOf(
-                DayOfWeek.SATURDAY to listOf(WorkHour(LocalTime(10, 0), LocalTime(14, 0)))
+                DayOfWeek.SATURDAY to listOf(WorkHour(LocalTime(10, 0), LocalTime(14, 0))),
             ),
-            dayOffs = listOf(DayOffRange(LocalDate(2099, 12, 30), LocalDate(2099, 12, 31)))
+            dayOffs = listOf(DayOffRange(LocalDate(2099, 12, 30), LocalDate(2099, 12, 31))),
         )
         val dayOffs = schedule.dayOffs
         fixture.setup(schedule = schedule)
@@ -186,7 +189,7 @@ internal class AppointmentSettingsDataSourceImplTest {
         assertEquals(listOf(DayOfWeek.SATURDAY), found!!.schedule.activeDays())
         assertEquals(
             listOf(WorkHour(LocalTime(10, 0), LocalTime(14, 0))),
-            found.schedule[DayOfWeek.SATURDAY].workingTime
+            found.schedule[DayOfWeek.SATURDAY].workingTime,
         )
         assertEquals(dayOffs, found.schedule.dayOffs)
     }
@@ -201,7 +204,7 @@ internal class AppointmentSettingsDataSourceImplTest {
         whenn()
         val updated = suspendTransaction {
             fixture.sut.update(
-                AppointmentSettingsUpdate.stub(businessId = fixture.businessId, appointmentNote = "Updated note")
+                AppointmentSettingsUpdate.stub(businessId = fixture.businessId, appointmentNote = "Updated note"),
             )
         }
 
@@ -209,7 +212,7 @@ internal class AppointmentSettingsDataSourceImplTest {
         assertEquals(created.schedule.activeDays().sorted(), updated.schedule.activeDays().sorted())
         assertEquals(
             created.schedule[DayOfWeek.MONDAY].workingTime,
-            updated.schedule[DayOfWeek.MONDAY].workingTime
+            updated.schedule[DayOfWeek.MONDAY].workingTime,
         )
     }
 

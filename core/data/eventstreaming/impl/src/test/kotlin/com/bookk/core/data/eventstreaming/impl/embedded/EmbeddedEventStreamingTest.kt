@@ -4,6 +4,7 @@ import com.bookk.core.data.eventstreaming.impl.InMemoryExhaustedEventDataSource
 import com.bookk.core.data.eventstreaming.impl.inMemoryEventIdempotencyStorage
 import com.bookk.core.data.eventstreaming.impl.kafka.KeyedTestEvent
 import com.bookk.core.data.eventstreaming.registerReceiver
+import com.bookk.core.domain.datasource.transaction.mockedTransactionManager
 import com.bookk.core.test.given
 import com.bookk.core.test.runUnitTest
 import com.bookk.core.test.then
@@ -22,6 +23,7 @@ internal class EmbeddedEventStreamingTest {
         val protoBuf = ProtoBuf { encodeDefaults = true }
         val producer = EmbeddedEventProducer(topicQueueHolder)
         val eventIdempotencyStorage = inMemoryEventIdempotencyStorage()
+        val transactionManager = mockedTransactionManager()
 
         fun encode(event: KeyedTestEvent) = protoBuf.encodeToByteArray(KeyedTestEvent.serializer(), event)
     }
@@ -29,7 +31,8 @@ internal class EmbeddedEventStreamingTest {
     private fun SutFixture.newConsumer(consumerGroup: String = "business_group") = EmbeddedEventConsumer(
         topicQueueHolder = topicQueueHolder,
         protoBuf = protoBuf,
-        exhaustedEventDataSource = InMemoryExhaustedEventDataSource(),
+        exhaustedEventDataSource = InMemoryExhaustedEventDataSource(transactionManager),
+        transactionManager = transactionManager,
         eventIdempotencyStorage = eventIdempotencyStorage,
         consumerGroup = consumerGroup,
     )

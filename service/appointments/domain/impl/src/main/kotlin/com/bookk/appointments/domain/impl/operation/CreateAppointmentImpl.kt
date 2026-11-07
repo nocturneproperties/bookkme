@@ -3,6 +3,7 @@ package com.bookk.appointments.domain.impl.operation
 import com.bookk.appointments.domain.api.entity.Appointment
 import com.bookk.appointments.domain.api.entity.AppointmentRepresentation
 import com.bookk.appointments.domain.api.entity.AppointmentRequest
+import com.bookk.appointments.domain.api.entity.AppointmentSettings
 import com.bookk.appointments.domain.api.operation.CreateAppointment
 import com.bookk.appointments.domain.datasource.AppointmentDataSource
 import com.bookk.appointments.domain.datasource.AppointmentPermissionDataSource
@@ -30,48 +31,37 @@ internal class CreateAppointmentImpl(
     private val appointmentPermissionDataSource: AppointmentPermissionDataSource,
     private val subscriptionDataSource: AppointmentSubscriptionDataSource,
     private val transactionManager: TransactionManager,
-    private val eventProducer: StandardEventProducer
+    private val eventProducer: StandardEventProducer,
 ) : CreateAppointment {
 
     override suspend fun invoke(
         userId: Uuid,
-        appointmentRequestId: Uuid
+        appointmentRequestId: Uuid,
     ): Result<Appointment> = transactionManager.transaction {
         val request = requestDataSource.getForUpdate(appointmentRequestId) ?: throw Error.NotFound()
+        val settings = lockSettings(request.businessId)
         appointmentPermissionDataSource.getPermission(userId, request.businessId)
             .assertOrSelf(PermissionAction.UPDATE, actorId = userId, assigneeId = request.employee.userId)
         request.requirePending()
-        createAppointment(request)
+        createAppointment(request, settings)
     }
 
-    override suspend fun invoke(userId: Uuid, request: AppointmentRequest): Result<Appointment> {
-        return transactionManager.transaction {
-            createAppointment(request)
-        }
+    override suspend fun createBypassingPermissions(request: AppointmentRequest): Result<Appointment> = transactionManager.transaction {
+        createAppointment(request, lockSettings(request.businessId))
     }
 
-    override suspend fun invoke(userId: Uuid, appointment: Appointment, isInstant: Boolean): Result<Appointment> {
-        if (isInstant && userId != appointment.userId) return Result.failure(CreateAppointment.Error.InstantAppointmentOnlySelfAllowed())
-        return transactionManager.transaction {
-            createAppointment(appointment)
-        }
-    }
+    private suspend fun lockSettings(businessId: Uuid): AppointmentSettings = settingsDataSource.getForUpdate(businessId) ?: throw Error.NotFound()
 
-    private suspend fun createAppointment(appointment: Appointment): Appointment {
-        verifyAppointment(appointment)
-        return appointmentDataSource.create(appointment)
-    }
-
-    private suspend fun createAppointment(request: AppointmentRequest): Appointment {
-        verifyAppointment(request)
+    private suspend fun createAppointment(request: AppointmentRequest, settings: AppointmentSettings): Appointment {
+        verifyAppointment(request, settings)
         return appointmentDataSource.create(request).also {
             requestDataSource.approve(request)
+            eventProducer.send(AppointmentEvent.ClientVisitBooked(request.businessId, request.client.id, request.dateEnd))
             sendRequestApprovedNotification(request)
         }
     }
 
-    private suspend fun verifyAppointment(appointment: AppointmentRepresentation) {
-        val settings = settingsDataSource.getForUpdate(appointment.businessId) ?: throw Error.NotFound()
+    private suspend fun verifyAppointment(appointment: AppointmentRepresentation, settings: AppointmentSettings) {
         if (appointment.date < Clock.System.now()) throw CreateAppointment.Error.DateInThePastNotAllowed()
         if (!settings.isInWorkday(appointment.date)) throw CreateAppointment.Error.RequestForThisDateNotAllowed()
         if (!settings.isInWorktime(appointment.date, appointment.dateEnd)) throw CreateAppointment.Error.RequestForThisTimeNotAllowed()
@@ -85,7 +75,7 @@ internal class CreateAppointmentImpl(
         }
         eventProducer.send(
             AppointmentEvent.RequestApproved(
-                clientUserId = request.client.id,
+                clientUserId = request.client.userId,
                 clientName = request.client.fullName,
                 employeeUserId = request.employee.userId,
                 employeeName = request.employee.fullName,
@@ -94,8 +84,8 @@ internal class CreateAppointmentImpl(
                 timeZone = business.timeZone,
                 businessName = business.name,
                 address = business.address,
-                price = moneyFormatter.print(request.totalAmount)
-            )
+                price = moneyFormatter.print(request.totalAmount),
+            ),
         )
     }
 }

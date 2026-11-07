@@ -5,7 +5,6 @@ import com.bookk.core.AppLevelConstants.SupportedSerializers
 import com.bookk.core.service.di.commonModule
 import com.bookk.server.auth.client.authTokenValidator
 import io.ktor.http.HttpStatusCode
-import io.ktor.openapi.OpenApiInfo
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.serialization.kotlinx.protobuf.protobuf
 import io.ktor.server.application.Application
@@ -18,17 +17,14 @@ import io.ktor.server.engine.embeddedServer
 import io.ktor.server.metrics.micrometer.MicrometerMetrics
 import io.ktor.server.plugins.calllogging.CallLogging
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
-import io.ktor.server.plugins.openapi.openAPI
-import io.ktor.server.plugins.swagger.swaggerUI
 import io.ktor.server.request.httpMethod
 import io.ktor.server.request.path
 import io.ktor.server.resources.Resources
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Routing
 import io.ktor.server.routing.get
-import io.ktor.server.routing.openapi.OpenApiDocSource
 import io.ktor.server.routing.routing
-import io.ktor.server.routing.routingRoot
+import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.distribution.DistributionStatisticConfig
 import io.micrometer.prometheusmetrics.PrometheusConfig
 import io.micrometer.prometheusmetrics.PrometheusMeterRegistry
@@ -39,16 +35,16 @@ import library.signing.TokenValidatorFactory
 import library.signing.ValidationType
 import library.signing.impl.di.tokenValidatorModule
 import org.koin.core.module.Module
+import org.koin.dsl.module
 import org.koin.ktor.ext.get
 import org.koin.ktor.plugin.Koin
 import org.slf4j.event.Level
 import kotlin.time.Duration.Companion.milliseconds
 
-
 fun startServer(
     diModules: List<Module> = emptyList(),
     config: ServiceConfig = ServiceConfig(),
-    modules: (Routing) -> Unit
+    modules: (Routing) -> Unit,
 ) {
     embeddedServer(
         factory = CIO,
@@ -64,44 +60,25 @@ fun startServer(
                 modules(
                     *diModules.toTypedArray(),
                     commonModule(),
-                    tokenValidatorModule()
+                    tokenValidatorModule(),
+                    meterRegistryModule(prometheusRegistry),
                 )
             }
             installRequestLogging()
             install(Resources)
             install(IdempotencyPlugin) {
                 idempotentResponseRepository = get()
-                cleanUpWorkerEnabled = false //We use Redis expiration time for cache management
+                cleanUpWorkerEnabled = false // We use Redis expiration time for cache management
             }
             installAuthPlugin()
             routing {
                 get("/metrics") {
                     call.respond(prometheusRegistry.scrape())
                 }
-                val contact = OpenApiInfo.Contact(
-                    name = "Michael Antiufieiev",
-                    email = "antufeevmichael@gmail.com"
-                )
-                val apiInfo = OpenApiInfo(
-                    config.title,
-                    config.version,
-                    contact = contact
-                )
-                swaggerUI("/${config.root}/internal/swagger") {
-                    info = apiInfo
-                    source = OpenApiDocSource.Routing {
-                        routingRoot.descendants()
-                    }
-                }
-                openAPI(path = "/${config.root}/internal/openapi") {
-                    info = apiInfo
-                    source = OpenApiDocSource.Routing {
-                        routingRoot.descendants()
-                    }
-                }
+                installSwagger(config)
                 modules(this)
             }
-        }
+        },
     ).start(wait = true)
 }
 
@@ -116,6 +93,10 @@ internal fun Application.installRequestMetrics(registry: PrometheusMeterRegistry
             .serviceLevelObjectives(*requestDurationBuckets)
             .build()
     }
+}
+
+internal fun meterRegistryModule(registry: PrometheusMeterRegistry) = module {
+    single<MeterRegistry> { registry }
 }
 
 internal fun Application.installRequestLogging() {
@@ -148,11 +129,13 @@ fun Routing.installNegotiation() {
     install(ContentNegotiation) {
         when (AppLevelConstants.SERIALIZER) {
             SupportedSerializers.JSON.STR -> {
-                json(Json {
-                    prettyPrint = true
-                    encodeDefaults = true
-                    explicitNulls = false
-                })
+                json(
+                    Json {
+                        prettyPrint = true
+                        encodeDefaults = true
+                        explicitNulls = false
+                    },
+                )
             }
 
             SupportedSerializers.PROTOBUF.STR -> {

@@ -11,5 +11,4 @@ interface BusinessPermissionDataSource {
     suspend fun getViewers(userId: Uuid, businessIds: List<Uuid>): Map<Uuid, BusinessViewer>
     suspend fun getPermission(userId: Uuid, businessId: Uuid, resource: BusinessResource): ResourcePermission
     suspend fun setPermissions(employee: Employee, grants: Map<BusinessResource, ResourcePermission>)
-    suspend fun deleteUserPermissions(userId: Uuid)
 }

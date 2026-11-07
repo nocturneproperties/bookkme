@@ -2,6 +2,7 @@ package com.bookk.appointments.microservice.route.api
 
 import com.bookk.appointments.domain.api.entity.AppointmentErrorCodes
 import com.bookk.appointments.domain.api.entity.AppointmentRequestDraft
+import com.bookk.appointments.domain.api.entity.BookingQuoteError
 import com.bookk.appointments.domain.api.operation.CreateAppointmentRequest
 import com.bookk.appointments.microservice.route.AppointmentsRouting.Api
 import com.bookk.business.domain.api.appointment.operation.GetAppointmentBookingContext
@@ -49,7 +50,7 @@ internal class CreateAppointmentRequestTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { requests() }
+            routeUnderTest = { requests() },
         )
 
         whenn()
@@ -81,7 +82,7 @@ internal class CreateAppointmentRequestTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { requests() }
+            routeUnderTest = { requests() },
         )
 
         whenn()
@@ -114,7 +115,7 @@ internal class CreateAppointmentRequestTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { requests() }
+            routeUnderTest = { requests() },
         )
 
         whenn()
@@ -147,7 +148,7 @@ internal class CreateAppointmentRequestTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { requests() }
+            routeUnderTest = { requests() },
         )
 
         whenn()
@@ -180,7 +181,7 @@ internal class CreateAppointmentRequestTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { requests() }
+            routeUnderTest = { requests() },
         )
 
         whenn()
@@ -200,7 +201,7 @@ internal class CreateAppointmentRequestTest {
         val useCase: CreateAppointmentRequest = mockk()
         val userId = Uuid.random()
         val draft = AppointmentRequestDraft.stub()
-        coEvery { useCase.invoke(userId, any()) } returns Result.failure(CreateAppointmentRequest.Error.PriceChanged())
+        coEvery { useCase.invoke(userId, any()) } returns Result.failure(BookingQuoteError.PriceChanged())
 
         setupApplication(
             extension = {
@@ -213,7 +214,7 @@ internal class CreateAppointmentRequestTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { requests() }
+            routeUnderTest = { requests() },
         )
 
         whenn()
@@ -233,7 +234,7 @@ internal class CreateAppointmentRequestTest {
         val useCase: CreateAppointmentRequest = mockk()
         val userId = Uuid.random()
         val draft = AppointmentRequestDraft.stub()
-        coEvery { useCase.invoke(userId, any()) } returns Result.failure(CreateAppointmentRequest.Error.DurationChanged())
+        coEvery { useCase.invoke(userId, any()) } returns Result.failure(BookingQuoteError.DurationChanged())
 
         setupApplication(
             extension = {
@@ -246,7 +247,7 @@ internal class CreateAppointmentRequestTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { requests() }
+            routeUnderTest = { requests() },
         )
 
         whenn()
@@ -266,7 +267,7 @@ internal class CreateAppointmentRequestTest {
         val useCase: CreateAppointmentRequest = mockk()
         val userId = Uuid.random()
         val draft = AppointmentRequestDraft.stub()
-        coEvery { useCase.invoke(userId, any()) } returns Result.failure(CreateAppointmentRequest.Error.ServicesSignatureMiss())
+        coEvery { useCase.invoke(userId, any()) } returns Result.failure(BookingQuoteError.ServicesSignatureMiss())
 
         setupApplication(
             extension = {
@@ -279,7 +280,7 @@ internal class CreateAppointmentRequestTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { requests() }
+            routeUnderTest = { requests() },
         )
 
         whenn()
@@ -299,7 +300,7 @@ internal class CreateAppointmentRequestTest {
         val useCase: CreateAppointmentRequest = mockk()
         val userId = Uuid.random()
         val draft = AppointmentRequestDraft.stub()
-        coEvery { useCase.invoke(userId, any()) } returns Result.failure(CreateAppointmentRequest.Error.TokenAlreadyUsed())
+        coEvery { useCase.invoke(userId, any()) } returns Result.failure(BookingQuoteError.TokenAlreadyUsed())
 
         setupApplication(
             extension = {
@@ -312,7 +313,7 @@ internal class CreateAppointmentRequestTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { requests() }
+            routeUnderTest = { requests() },
         )
 
         whenn()
@@ -345,7 +346,39 @@ internal class CreateAppointmentRequestTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { requests() }
+            routeUnderTest = { requests() },
+        )
+
+        whenn()
+        val client = createTestClient()
+        val response = client.post(Api.Appointment.Request()) {
+            setBody(draft)
+        }
+
+        then()
+        assertEquals(HttpStatusCode.NotFound, response.status)
+    }
+
+    @Test
+    fun `should return not found when the account booking was deleted`() = routeTest {
+        given()
+        val useCase: CreateAppointmentRequest = mockk()
+        val userId = Uuid.random()
+        val draft = AppointmentRequestDraft.stub()
+        coEvery { useCase.invoke(userId, any()) } returns Result.failure(com.bookk.core.domain.entity.Error.OperationNotAllowed())
+
+        setupApplication(
+            extension = {
+                install(Authentication) {
+                    provider {
+                        authenticate { context ->
+                            context.principal(AppPrincipal(Uuid.random(), userId, Uuid.random()))
+                        }
+                    }
+                }
+            },
+            diModule = module { single { useCase } },
+            routeUnderTest = { requests() },
         )
 
         whenn()
@@ -377,7 +410,7 @@ internal class CreateAppointmentRequestTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { requests() }
+            routeUnderTest = { requests() },
         )
 
         whenn()
@@ -410,7 +443,7 @@ internal class CreateAppointmentRequestTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { requests() }
+            routeUnderTest = { requests() },
         )
 
         whenn()
@@ -432,7 +465,7 @@ internal class CreateAppointmentRequestTest {
         setupApplication(
             extension = { install(Authentication) { bearer { authenticate { null } } } },
             diModule = module { single { useCase } },
-            routeUnderTest = { requests() }
+            routeUnderTest = { requests() },
         )
 
         whenn()

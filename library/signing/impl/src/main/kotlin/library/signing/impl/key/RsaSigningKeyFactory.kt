@@ -33,11 +33,9 @@ object RsaSigningKeyFactory {
         return "-----BEGIN $label-----\n$base64\n-----END $label-----"
     }
 
-    private fun String.pemToBytes(label: String): ByteArray {
-        return replace("-----BEGIN $label-----", "")
-            .replace("-----END $label-----", "")
-            .lines()
-            .joinToString("") { it.trim() }
-            .let { Base64.decode(it) }
-    }
+    private fun String.pemToBytes(label: String): ByteArray = replace("-----BEGIN $label-----", "")
+        .replace("-----END $label-----", "")
+        .lines()
+        .joinToString("") { it.trim() }
+        .let { Base64.decode(it) }
 }

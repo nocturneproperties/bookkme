@@ -37,6 +37,8 @@ import org.junit.jupiter.api.Test
 import org.koin.dsl.module
 import kotlin.uuid.Uuid
 
+private const val ACTION_CONFIRMATION_TOKEN = "action-confirmation-token"
+
 internal class ClientCrudTest {
 
     private val businessId = Uuid.random()
@@ -48,9 +50,9 @@ internal class ClientCrudTest {
         val useCase: CreateClient = mockk()
         val clientRemote = ClientRemote.stub()
         val client = clientRemote.toDetachedClient()
-        
+
         coEvery { useCase.invoke(userId, businessId, client) } returns Result.success(clientRemote)
-        
+
         setupApplication(
             extension = {
                 install(Authentication) {
@@ -62,15 +64,15 @@ internal class ClientCrudTest {
             diModule = module {
                 single { useCase }
             },
-            routeUnderTest = { clientCrud() }
+            routeUnderTest = { clientCrud() },
         )
-        
+
         whenn()
         val httpClient = createTestClient()
         val response = httpClient.post(BusinessRouting.Api.Clients(businessId = businessId)) {
             setBody(clientRemote)
         }
-        
+
         then()
         assertEquals(HttpStatusCode.OK, response.status)
     }
@@ -93,7 +95,7 @@ internal class ClientCrudTest {
             diModule = module {
                 single { useCase }
             },
-            routeUnderTest = { clientCrud() }
+            routeUnderTest = { clientCrud() },
         )
 
         whenn()
@@ -114,8 +116,8 @@ internal class ClientCrudTest {
                     lastName = clientRemote.lastName,
                     phone = clientRemote.phone,
                     email = clientRemote.email,
-                    description = clientRemote.description
-                )
+                    description = clientRemote.description,
+                ),
             )
         }
     }
@@ -125,9 +127,9 @@ internal class ClientCrudTest {
         given()
         val useCase: GetClients = mockk()
         val clients = listOf(ClientRemote.stub())
-        
+
         coEvery { useCase.invoke(userId, businessId) } returns Result.success(clients)
-        
+
         setupApplication(
             extension = {
                 install(Authentication) {
@@ -139,13 +141,13 @@ internal class ClientCrudTest {
             diModule = module {
                 single { useCase }
             },
-            routeUnderTest = { clientCrud() }
+            routeUnderTest = { clientCrud() },
         )
-        
+
         whenn()
         val httpClient = createTestClient()
         val response = httpClient.get(BusinessRouting.Api.Clients(businessId = businessId))
-        
+
         then()
         assertEquals(HttpStatusCode.OK, response.status)
     }
@@ -156,7 +158,7 @@ internal class ClientCrudTest {
         val useCase: DeleteClient = mockk()
         val id = Uuid.random()
 
-        coEvery { useCase.invoke(userId, businessId, id) } returns Result.success(Unit)
+        coEvery { useCase.invoke(userId, businessId, id, ACTION_CONFIRMATION_TOKEN) } returns Result.success(Unit)
 
         setupApplication(
             extension = {
@@ -169,12 +171,12 @@ internal class ClientCrudTest {
             diModule = module {
                 single { useCase }
             },
-            routeUnderTest = { clientCrud() }
+            routeUnderTest = { clientCrud() },
         )
 
         whenn()
         val httpClient = createTestClient()
-        val response = httpClient.delete(BusinessRouting.Api.Clients.Id(BusinessRouting.Api.Clients(businessId = businessId), id))
+        val response = httpClient.delete(BusinessRouting.Api.Clients.Id(BusinessRouting.Api.Clients(businessId = businessId), id)) { setBody(DeleteClientRequest(ACTION_CONFIRMATION_TOKEN)) }
 
         then()
         assertEquals(HttpStatusCode.NoContent, response.status)
@@ -186,7 +188,7 @@ internal class ClientCrudTest {
         lastName: String? = null,
         phone: String? = null,
         email: String? = null,
-        description: String? = null
+        description: String? = null,
     ) = ClientUpdateModel(id = id, name = name, lastName = lastName, phone = phone, email = email, description = description)
 
     @Test
@@ -208,7 +210,7 @@ internal class ClientCrudTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { clientCrud() }
+            routeUnderTest = { clientCrud() },
         )
 
         whenn()
@@ -238,7 +240,7 @@ internal class ClientCrudTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { clientCrud() }
+            routeUnderTest = { clientCrud() },
         )
 
         whenn()
@@ -268,7 +270,7 @@ internal class ClientCrudTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { clientCrud() }
+            routeUnderTest = { clientCrud() },
         )
 
         whenn()
@@ -299,7 +301,7 @@ internal class ClientCrudTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { clientCrud() }
+            routeUnderTest = { clientCrud() },
         )
 
         whenn()
@@ -330,7 +332,7 @@ internal class ClientCrudTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { clientCrud() }
+            routeUnderTest = { clientCrud() },
         )
 
         whenn()
@@ -361,7 +363,7 @@ internal class ClientCrudTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { clientCrud() }
+            routeUnderTest = { clientCrud() },
         )
 
         whenn()
@@ -392,7 +394,7 @@ internal class ClientCrudTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { clientCrud() }
+            routeUnderTest = { clientCrud() },
         )
 
         whenn()
@@ -414,7 +416,7 @@ internal class ClientCrudTest {
         setupApplication(
             extension = { install(Authentication) { bearer { authenticate { null } } } },
             diModule = module { single { useCase } },
-            routeUnderTest = { clientCrud() }
+            routeUnderTest = { clientCrud() },
         )
 
         whenn()
@@ -443,7 +445,7 @@ internal class ClientCrudTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { clientCrud() }
+            routeUnderTest = { clientCrud() },
         )
 
         whenn()
@@ -473,7 +475,7 @@ internal class ClientCrudTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { clientCrud() }
+            routeUnderTest = { clientCrud() },
         )
 
         whenn()
@@ -503,7 +505,7 @@ internal class ClientCrudTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { clientCrud() }
+            routeUnderTest = { clientCrud() },
         )
 
         whenn()
@@ -522,7 +524,7 @@ internal class ClientCrudTest {
         given()
         val useCase: DeleteClient = mockk()
         val id = Uuid.random()
-        coEvery { useCase.invoke(userId, businessId, id) } returns Result.failure(DeleteClient.Error.NotFound())
+        coEvery { useCase.invoke(userId, businessId, id, ACTION_CONFIRMATION_TOKEN) } returns Result.failure(DeleteClient.Error.NotFound())
 
         setupApplication(
             extension = {
@@ -533,12 +535,12 @@ internal class ClientCrudTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { clientCrud() }
+            routeUnderTest = { clientCrud() },
         )
 
         whenn()
         val httpClient = createTestClient()
-        val response = httpClient.delete(BusinessRouting.Api.Clients.Id(BusinessRouting.Api.Clients(businessId = businessId), id))
+        val response = httpClient.delete(BusinessRouting.Api.Clients.Id(BusinessRouting.Api.Clients(businessId = businessId), id)) { setBody(DeleteClientRequest(ACTION_CONFIRMATION_TOKEN)) }
 
         then()
         assertEquals(HttpStatusCode.NotFound, response.status)
@@ -560,7 +562,7 @@ internal class ClientCrudTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { clientCrud() }
+            routeUnderTest = { clientCrud() },
         )
 
         whenn()
@@ -589,7 +591,7 @@ internal class ClientCrudTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { clientCrud() }
+            routeUnderTest = { clientCrud() },
         )
 
         whenn()
@@ -607,7 +609,7 @@ internal class ClientCrudTest {
         given()
         val useCase: DeleteClient = mockk()
         val id = Uuid.random()
-        coEvery { useCase.invoke(userId, businessId, id) } returns Result.failure(Error.OperationNotAllowed())
+        coEvery { useCase.invoke(userId, businessId, id, ACTION_CONFIRMATION_TOKEN) } returns Result.failure(Error.OperationNotAllowed())
 
         setupApplication(
             extension = {
@@ -618,14 +620,14 @@ internal class ClientCrudTest {
                 }
             },
             diModule = module { single { useCase } },
-            routeUnderTest = { clientCrud() }
+            routeUnderTest = { clientCrud() },
         )
 
         whenn()
         val client = createTestClient()
         val response = client.delete(
-            BusinessRouting.Api.Clients.Id(parent = BusinessRouting.Api.Clients(businessId = businessId), id = id)
-        )
+            BusinessRouting.Api.Clients.Id(parent = BusinessRouting.Api.Clients(businessId = businessId), id = id),
+        ) { setBody(DeleteClientRequest(ACTION_CONFIRMATION_TOKEN)) }
 
         then()
         assertEquals(HttpStatusCode.NotFound, response.status)
@@ -639,7 +641,7 @@ internal class ClientCrudTest {
         setupApplication(
             extension = { install(Authentication) { bearer { authenticate { null } } } },
             diModule = module { single { useCase } },
-            routeUnderTest = { clientCrud() }
+            routeUnderTest = { clientCrud() },
         )
 
         whenn()
@@ -660,7 +662,7 @@ internal class ClientCrudTest {
         setupApplication(
             extension = { install(Authentication) { bearer { authenticate { null } } } },
             diModule = module { single { useCase } },
-            routeUnderTest = { clientCrud() }
+            routeUnderTest = { clientCrud() },
         )
 
         whenn()
@@ -679,14 +681,70 @@ internal class ClientCrudTest {
         setupApplication(
             extension = { install(Authentication) { bearer { authenticate { null } } } },
             diModule = module { single { useCase } },
-            routeUnderTest = { clientCrud() }
+            routeUnderTest = { clientCrud() },
         )
 
         whenn()
         val httpClient = createTestClient()
-        val response = httpClient.delete(BusinessRouting.Api.Clients.Id(BusinessRouting.Api.Clients(businessId = businessId), Uuid.random()))
+        val response = httpClient.delete(BusinessRouting.Api.Clients.Id(BusinessRouting.Api.Clients(businessId = businessId), Uuid.random())) { setBody(DeleteClientRequest(ACTION_CONFIRMATION_TOKEN)) }
 
         then()
         assertEquals(HttpStatusCode.Unauthorized, response.status)
+    }
+
+    @Test
+    fun `should return forbidden when the deletion is not confirmed with a passkey`() = routeTest {
+        given()
+        val useCase: DeleteClient = mockk()
+        val id = Uuid.random()
+        coEvery { useCase.invoke(userId, businessId, id, ACTION_CONFIRMATION_TOKEN) } returns Result.failure(DeleteClient.Error.ActionConfirmationInvalid())
+
+        setupApplication(
+            extension = {
+                install(Authentication) {
+                    provider {
+                        authenticate { it.principal(AppPrincipal(Uuid.random(), userId, Uuid.random())) }
+                    }
+                }
+            },
+            diModule = module { single { useCase } },
+            routeUnderTest = { clientCrud() },
+        )
+
+        whenn()
+        val response = createTestClient().delete(BusinessRouting.Api.Clients.Id(BusinessRouting.Api.Clients(businessId = businessId), id)) {
+            setBody(DeleteClientRequest(ACTION_CONFIRMATION_TOKEN))
+        }
+
+        then()
+        assertEquals(HttpStatusCode.Forbidden, response.status)
+        assertEquals(BusinessErrorCodes.BUSINESS_ACTION_CONFIRMATION_INVALID, response.body<SimpleServerError>().errorCode)
+    }
+
+    @Test
+    fun `should ask an app that sends no action confirmation token to confirm with a passkey`() = routeTest {
+        given()
+        val useCase: DeleteClient = mockk()
+        val id = Uuid.random()
+        coEvery { useCase.invoke(userId, businessId, id, "") } returns Result.failure(DeleteClient.Error.ActionConfirmationInvalid())
+
+        setupApplication(
+            extension = {
+                install(Authentication) {
+                    provider {
+                        authenticate { it.principal(AppPrincipal(Uuid.random(), userId, Uuid.random())) }
+                    }
+                }
+            },
+            diModule = module { single { useCase } },
+            routeUnderTest = { clientCrud() },
+        )
+
+        whenn()
+        val response = createTestClient().delete(BusinessRouting.Api.Clients.Id(BusinessRouting.Api.Clients(businessId = businessId), id))
+
+        then()
+        assertEquals(HttpStatusCode.Forbidden, response.status)
+        assertEquals(BusinessErrorCodes.BUSINESS_ACTION_CONFIRMATION_INVALID, response.body<SimpleServerError>().errorCode)
     }
 }

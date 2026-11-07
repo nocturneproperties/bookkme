@@ -44,6 +44,7 @@
     dest: "{{ remote_stacks_dir }}/{{ stack.name }}/"
     mode: preserve
   diff: false
+  register: stack_files_copy
 
 - name: "Deploy stack {{ stack.name }} with its secret files"
   vars:

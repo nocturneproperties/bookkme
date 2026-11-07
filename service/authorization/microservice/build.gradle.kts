@@ -9,13 +9,13 @@ application {
 }
 
 dependencies {
-    implementation(projects.core)
+    implementation(projects.library.signing.impl)
+    implementation(projects.library.actionconfirmation.impl)
     implementation(projects.core.service)
     implementation(projects.core.domain)
     implementation(projects.core.data.eventstreaming.api)
     implementation(projects.core.data.eventstreaming.impl)
     implementation(projects.core.data.eventstreaming.data)
-    implementation(projects.core.data.cache.api)
     implementation(projects.core.data.cache.impl)
     implementation(projects.library.scheduler)
     implementation(projects.library.signing.api)
@@ -23,6 +23,7 @@ dependencies {
     implementation(projects.service.authorization.data)
     implementation(projects.service.authorization.domain.api)
     implementation(projects.service.authorization.domain.impl)
+    implementation(projects.service.business.client)
     testImplementation(testFixtures(projects.core.data.eventstreaming.data))
     testImplementation(testFixtures(projects.core))
     testImplementation(testFixtures(projects.core.service))

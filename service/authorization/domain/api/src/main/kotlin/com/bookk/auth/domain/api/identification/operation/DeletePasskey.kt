@@ -9,10 +9,12 @@ interface DeletePasskey {
     suspend operator fun invoke(id: Uuid, authId: Uuid): Result<Unit>
 
     sealed interface Error {
-        class LastPasskey : BusinessError(
-            statusCode = HttpStatusCode.UnprocessableEntity.value,
-            code = AuthErrorCodes.LAST_PASSKEY,
-            message = "Can't delete passkey if it's the only one registered."
-        ), Error
+        class LastPasskey :
+            BusinessError(
+                statusCode = HttpStatusCode.UnprocessableEntity.value,
+                code = AuthErrorCodes.LAST_PASSKEY,
+                message = "Can't delete passkey if it's the only one registered.",
+            ),
+            Error
     }
 }

@@ -41,6 +41,6 @@ class OutboxEventDataSourceImpl : DataSource(), OutboxEventDataSource {
         id = this[OutboxEventTable.id].value,
         topic = this[OutboxEventTable.topic],
         partitionKey = this[OutboxEventTable.partitionKey],
-        payload = this[OutboxEventTable.payload].bytes
+        payload = this[OutboxEventTable.payload].bytes,
     )
 }

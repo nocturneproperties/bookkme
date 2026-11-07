@@ -25,15 +25,15 @@ internal class AppointmentSettingsTest {
         schedule = Schedule(
             workingDays = listOf(DayOfWeek.MONDAY, DayOfWeek.TUESDAY, DayOfWeek.WEDNESDAY, DayOfWeek.THURSDAY, DayOfWeek.FRIDAY),
             workingHours = mapOf(),
-            dayOffs = dayOffs
-        )
+            dayOffs = dayOffs,
+        ),
     )
 
     private fun settingsWithWorkingHours(workingHours: List<WorkHour>) = AppointmentSettings.stub(businessId = Uuid.random()).copy(
         schedule = Schedule(
             workingDays = listOf(DayOfWeek.MONDAY),
-            workingHours = mapOf(DayOfWeek.MONDAY to workingHours)
-        )
+            workingHours = mapOf(DayOfWeek.MONDAY to workingHours),
+        ),
     )
 
     @Test
@@ -185,8 +185,8 @@ internal class AppointmentSettingsTest {
         val settings = settingsWithWorkingHours(
             listOf(
                 WorkHour(LocalTime(9, 0), LocalTime(12, 0)),
-                WorkHour(LocalTime(13, 0), LocalTime(17, 0))
-            )
+                WorkHour(LocalTime(13, 0), LocalTime(17, 0)),
+            ),
         )
         val monday = LocalDate(2026, 6, 22)
         val start = monday.atTime(14, 0).toInstant(settings.timeZone)
@@ -205,8 +205,8 @@ internal class AppointmentSettingsTest {
         val settings = settingsWithWorkingHours(
             listOf(
                 WorkHour(LocalTime(9, 0), LocalTime(12, 0)),
-                WorkHour(LocalTime(13, 0), LocalTime(17, 0))
-            )
+                WorkHour(LocalTime(13, 0), LocalTime(17, 0)),
+            ),
         )
         val monday = LocalDate(2026, 6, 22)
         val start = monday.atTime(11, 0).toInstant(settings.timeZone)

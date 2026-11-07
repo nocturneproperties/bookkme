@@ -1,6 +1,5 @@
 package com.bookk.business.microservice.route.api
 
-import com.bookk.business.domain.api.employee.entity.EmployeeInvitation
 import com.bookk.business.domain.api.employee.operation.CreateEmployeeInvitation
 import com.bookk.business.domain.api.employee.operation.GetEmployeeInvitations
 import com.bookk.business.domain.api.employee.operation.JoinBusiness
@@ -10,9 +9,6 @@ import com.bookk.business.microservice.route.BusinessRouting.Api
 import com.bookk.core.service.di.injectScoped
 import com.bookk.core.service.enity.respondWith
 import com.bookk.server.auth.client.AppPrincipal
-import io.ktor.http.ContentType
-import io.ktor.http.HttpStatusCode
-import io.ktor.openapi.jsonSchema
 import io.ktor.server.auth.authenticate
 import io.ktor.server.auth.principal
 import io.ktor.server.request.receive
@@ -20,18 +16,19 @@ import io.ktor.server.resources.get
 import io.ktor.server.resources.post
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.application
-import io.ktor.server.routing.openapi.describe
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.protobuf.ProtoNumber
 
 @Serializable
 internal class EmployeeInvitationRedeemRequest(
-    @ProtoNumber(1) val code: String
+    @ProtoNumber(1) val code: String,
 )
 
 fun Route.employeeInvitationCrud() {
     authenticate {
         /**
+         * Create employee invitation
+         *
          * Summary: Create employee invitation
          * Description: Generates a new invite code the business owner can share with a future employee
          * Tag: employee
@@ -50,27 +47,24 @@ fun Route.employeeInvitationCrud() {
         }
 
         /**
+         * Get employee invitations
+         *
          * Summary: Get employee invitations
          * Description: Returns all invitations in this business sent by the calling user, regardless of status
          * Tag: employee
          * Security: jwt
+         * Response: 200 application/protobuf [com.bookk.business.domain.api.employee.entity.EmployeeInvitation]+ Invitations sent by the calling user
          */
         get<Api.EmployeeInvitation> {
             val principal = requireNotNull(call.principal<AppPrincipal>())
             val getEmployeeInvitations by application.injectScoped<GetEmployeeInvitations>(BusinessScope)
 
             call.respondWith(getEmployeeInvitations(userId = principal.userId, businessId = it.businessId))
-        }.describe {
-            responses {
-                response(HttpStatusCode.OK.value) {
-                    schema = jsonSchema<List<EmployeeInvitation>>()
-                    description = "Invitations sent by the calling user"
-                    ContentType.Application.ProtoBuf()
-                }
-            }
         }
 
         /**
+         * Join business
+         *
          * Summary: Join business
          * Description: Joins the business as an employee using an invite code shared by the owner
          * Tag: employee
@@ -90,6 +84,8 @@ fun Route.employeeInvitationCrud() {
         }
 
         /**
+         * Revoke employee invitation
+         *
          * Summary: Revoke employee invitation
          * Description: Lets the business owner manually revoke a pending invitation before it is redeemed or expires
          * Tag: employee
@@ -108,8 +104,8 @@ fun Route.employeeInvitationCrud() {
                 revokeEmployeeInvitation(
                     requestUserId = principal.userId,
                     businessId = it.parent.businessId,
-                    id = it.id
-                )
+                    id = it.id,
+                ),
             )
         }
     }

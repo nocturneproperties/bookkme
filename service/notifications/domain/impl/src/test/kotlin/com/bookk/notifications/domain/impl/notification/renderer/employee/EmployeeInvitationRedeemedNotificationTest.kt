@@ -19,7 +19,7 @@ internal class EmployeeInvitationRedeemedNotificationTest {
         employeeUserId = Uuid.random(),
         employeeName = "Alice",
         businessId = Uuid.random(),
-        businessName = "Barbershop"
+        businessName = "Barbershop",
     )
 
     @Test

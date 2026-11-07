@@ -22,7 +22,7 @@ internal class PoolConfigTest {
             dbPort = "3306",
             dbUsername = "user",
             dbPassword = "password",
-            maxPoolSize = 10
+            maxPoolSize = 10,
         )
     }
 

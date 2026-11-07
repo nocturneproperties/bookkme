@@ -12,7 +12,7 @@ import kotlin.uuid.Uuid
 internal class SetDashboardBusinessImpl(
     private val businessDataSource: BusinessDataSource,
     private val businessPermissionDataSource: BusinessPermissionDataSource,
-    private val transactionManager: TransactionManager
+    private val transactionManager: TransactionManager,
 ) : SetDashboardBusiness {
     override suspend fun invoke(userId: Uuid, businessId: Uuid): Result<Unit> = transactionManager.transaction {
         businessPermissionDataSource.getPermission(userId, businessId, BusinessResource.BUSINESS).assert(PermissionAction.VIEW)

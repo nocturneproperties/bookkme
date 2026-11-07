@@ -13,7 +13,37 @@
   roles:
     - swarm
 
-- name: Deploy the infrastructure stacks
+- name: Prepare the backup node
+  hosts: managers:workers
+  gather_facts: false
+  tags: [backup]
+  tasks:
+    - name: Require the backup public key, never a private key
+      ansible.builtin.assert:
+        that:
+          - backup_public_key_text is search('BEGIN PGP PUBLIC KEY BLOCK')
+          - backup_public_key_text is not search('PRIVATE KEY')
+        fail_msg: >-
+          {{ backup_public_key }} must hold the backups' GnuPG public key and nothing else.
+          Generate the key pair as described under Backups in deployment/ansible/README.md.
+        quiet: true
+      vars:
+        backup_public_key_text: "{{ lookup('ansible.builtin.file', backup_public_key, errors='ignore') | default('', true) }}"
+      run_once: true
+
+    - name: Create the backup and metrics directories on the backup node
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: directory
+        owner: "999"
+        group: "999"
+        mode: "{{ item.mode }}"
+      loop:
+        - { path: "{{ backup_host_dir }}", mode: "0700" }
+        - { path: "{{ node_exporter_textfile_dir }}", mode: "0755" }
+      when: (swarm_labels | default({})).get('backup') == 'true'
+
+- name: Deploy the VPN
   hosts: "{{ groups['managers'] | first }}"
   gather_facts: false
   tasks:
@@ -41,6 +71,30 @@
       when: not ansible_check_mode
       tags: [vpn]
 
+- name: Connect the workers to the VPN
+  hosts: workers
+  gather_facts: false
+  tasks:
+    - name: Connect the worker to the VPN
+      ansible.builtin.include_role:
+        name: vpn_host
+        apply:
+          tags: [vpn]
+      when: not ansible_check_mode
+      tags: [vpn]
+
+- name: Deploy the infrastructure stacks
+  hosts: "{{ groups['managers'] | first }}"
+  gather_facts: false
+  tasks:
+    - name: Check nginx's Cloudflare ranges and read its service
+      ansible.builtin.include_role:
+        name: nginx
+        tasks_from: prepare
+        apply:
+          tags: [nginx]
+      tags: [nginx]
+
     - name: Deploy the nginx stack
       ansible.builtin.include_role:
         name: stack
@@ -48,6 +102,14 @@
           tags: [nginx]
       vars:
         stack: "{{ infra_stacks.nginx }}"
+      tags: [nginx]
+
+    - name: Reload nginx with its new files
+      ansible.builtin.include_role:
+        name: nginx
+        tasks_from: reload
+        apply:
+          tags: [nginx]
       tags: [nginx]
 
     - name: Deploy the orchestrator stack
@@ -66,6 +128,8 @@
           tags: [monitoring]
       vars:
         stack: "{{ infra_stacks.monitoring }}"
+        stack_extra_env:
+          NODE_EXPORTER_TEXTFILE_DIR: "{{ node_exporter_textfile_dir }}"
       tags: [monitoring]
 
     - name: Deploy the admin stack
@@ -76,3 +140,13 @@
       vars:
         stack: "{{ infra_stacks.admin }}"
       tags: [admin]
+
+    - name: Deploy the backup stack
+      ansible.builtin.include_role:
+        name: stack
+        apply:
+          tags: [backup]
+      vars:
+        stack: "{{ infra_stacks.backup }}"
+        stack_extra_env: "{{ backup_stack_env }}"
+      tags: [backup]

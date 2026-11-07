@@ -19,13 +19,13 @@ internal class SetEmployeePermissionsImpl(
     private val businessDataSource: BusinessDataSource,
     private val businessPermissionDataSource: BusinessPermissionDataSource,
     private val transactionManager: TransactionManager,
-    private val eventProducer: StandardEventProducer
+    private val eventProducer: StandardEventProducer,
 ) : SetEmployeePermissions {
     override suspend fun invoke(
         requestUserId: Uuid,
         businessId: Uuid,
         employeeId: Uuid,
-        grants: Map<BusinessResource, ResourcePermission>
+        grants: Map<BusinessResource, ResourcePermission>,
     ): Result<Employee> = transactionManager.transaction {
         if (!businessDataSource.isOwner(requestUserId, businessId)) throw Error.OperationNotAllowed()
         val employee = employeeDataSource.getEmployee(businessId, employeeId) ?: throw Error.NotFound()
@@ -40,8 +40,8 @@ internal class SetEmployeePermissionsImpl(
                 employeeUserId = employee.userId,
                 businessId = businessId,
                 permissions = updated.permissions,
-                suspended = updated.isSuspended
-            )
+                suspended = updated.isSuspended,
+            ),
         )
         updated
     }

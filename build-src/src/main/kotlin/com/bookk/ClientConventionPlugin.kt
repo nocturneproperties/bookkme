@@ -1,6 +1,7 @@
 package com.bookk
 
 import com.bookk.build_src.convention.applyConvention
+import com.bookk.build_src.convention.applyTestFixturesConvention
 import com.bookk.build_src.tools.libs
 import org.gradle.api.Plugin
 import org.gradle.api.Project
@@ -19,22 +20,18 @@ class ClientConventionPlugin : Plugin<Project> {
             }
 
             extensions.getByType<JavaPluginExtension>().applyConvention()
+            applyTestFixturesConvention()
             extensions.getByType<KotlinJvmProjectExtension>().applyConvention(target)
             target.tasks.withType(Test::class.java) {
                 useJUnitPlatform()
             }
 
             target.dependencies {
-                add("implementation", libs.ktor.protobuf)
-                add("implementation", libs.ktor.json)
-                add("implementation", libs.ktor.logging)
-                add("implementation", libs.ktor.client.log)
+                add("api", libs.kotlin.serialization.protobuf)
                 add("implementation", libs.ktor.client.resources)
-                add("implementation", libs.ktor.client.negotiation)
-                add("implementation", platform(libs.koin.bom))
-                add("implementation", libs.koin.core)
-                add("implementation", libs.ktor.client.core)
-                add("implementation", libs.ktor.client.cio)
+                add("api", platform(libs.koin.bom))
+                add("api", libs.koin.core)
+                add("api", libs.ktor.client.core)
                 add("implementation", libs.kotlin.coroutines)
                 add("testImplementation", libs.kotlin.test)
             }

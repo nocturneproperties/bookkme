@@ -57,7 +57,7 @@ internal class BusinessRowLockMariaDbTest {
                 dbUrl = "mariadb://${container.host}",
                 dbPort = container.getMappedPort(PORT).toString(),
                 dbUsername = "root",
-                dbPassword = PASSWORD
+                dbPassword = PASSWORD,
             )
         }
     }
@@ -79,14 +79,14 @@ internal class BusinessRowLockMariaDbTest {
         fun recentInvitation(businessId: Uuid) = EmployeeInvitation.stub(
             businessId = businessId,
             code = Uuid.random().toString(),
-            createdAt = Clock.System.now()
+            createdAt = Clock.System.now(),
         )
 
         suspend fun <T> readAfterWaitingForLockHolder(
             businessId: Uuid,
             holderLock: RowLock,
             holderWrite: suspend SutFixture.() -> Unit,
-            read: suspend SutFixture.() -> T
+            read: suspend SutFixture.() -> T,
         ): T {
             val holderWrote = CompletableDeferred<Unit>()
             val waiterBlocked = CompletableDeferred<Unit>()
@@ -141,7 +141,7 @@ internal class BusinessRowLockMariaDbTest {
             businessId = group.businessId,
             holderLock = RowLock.SHARED,
             holderWrite = { serviceDataSource.createService(Service.stub(businessId = group.businessId, group = group)) },
-            read = { serviceDataSource.hasServices(group.businessId) }
+            read = { serviceDataSource.hasServices(group.businessId) },
         )
 
         then()
@@ -160,7 +160,7 @@ internal class BusinessRowLockMariaDbTest {
             businessId = group.businessId,
             holderLock = RowLock.SHARED,
             holderWrite = { serviceDataSource.editService(service.copy(name = "Renamed")) },
-            read = { serviceDataSource.getServices(group.businessId) }
+            read = { serviceDataSource.getServices(group.businessId) },
         )
 
         then()
@@ -178,7 +178,7 @@ internal class BusinessRowLockMariaDbTest {
             businessId = businessId,
             holderLock = RowLock.EXCLUSIVE,
             holderWrite = { invitationDataSource.createInvitation(recentInvitation(businessId)) },
-            read = { invitationDataSource.countPendingInvitations(businessId) }
+            read = { invitationDataSource.countPendingInvitations(businessId) },
         )
 
         then()
@@ -196,7 +196,7 @@ internal class BusinessRowLockMariaDbTest {
             businessId = businessId,
             holderLock = RowLock.EXCLUSIVE,
             holderWrite = { invitationDataSource.createInvitation(recentInvitation(businessId)) },
-            read = { invitationDataSource.countInvitationsCreatedSince(businessId, Instant.fromEpochMilliseconds(0)) }
+            read = { invitationDataSource.countInvitationsCreatedSince(businessId, Instant.fromEpochMilliseconds(0)) },
         )
 
         then()

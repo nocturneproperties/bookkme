@@ -24,7 +24,7 @@ fun notificationsModule() = module {
         notificationsDomainModule(),
         notificationsDataModule(),
         eventStreamingTransportModule(NotificationsScope, NOTIFICATIONS_SERVICE_NAME),
-        cacheModule()
+        cacheModule(),
     )
 }
 
@@ -33,7 +33,7 @@ fun notificationsEmbeddedModule() = module {
         notificationsDomainModule(),
         notificationsDataModule(),
         embeddedEventStreamingTransportModule(NotificationsScope, NOTIFICATIONS_SERVICE_NAME),
-        cacheModule()
+        cacheModule(),
     )
 }
 

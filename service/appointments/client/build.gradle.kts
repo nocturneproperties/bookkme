@@ -3,8 +3,11 @@ plugins {
 }
 
 dependencies {
-    implementation(projects.core)
-    implementation(projects.core.domain)
-    implementation(projects.core.data.eventstreaming.api)
-    implementation(projects.service.appointments.domain.api)
+    api(libs.kotlin.datetime)
+    implementation(projects.core.client)
+    api(projects.core.domain)
+    api(projects.core.data.eventstreaming.api)
+
+    testImplementation(testFixtures(projects.core))
+    testImplementation(libs.ktor.client.mock)
 }

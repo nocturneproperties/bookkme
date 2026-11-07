@@ -17,28 +17,26 @@ import com.yubico.webauthn.data.ByteArray as YubicoByteArray
 internal class StartPasskeyRegistrationImpl(
     private val passKeyDataSource: PassKeyDataSource,
     private val credentialRepository: CacheableCredentialRepository,
-    private val transactionManager: TransactionManager
+    private val transactionManager: TransactionManager,
 ) : StartPasskeyRegistration {
 
-    override suspend fun invoke(userHandle: Uuid, passkeyDisplayName: String): Result<RegistrationChallengeResponse> {
-        return transactionManager.transaction {
-            val requestId = Uuid.random().toString()
-            val challenge = createChallenge(requestId, passkeyDisplayName, YubicoByteArray(userHandle.toByteArray()))
-            passKeyDataSource.saveChallengeToCache(requestId, challenge.toJson())
-            RegistrationChallengeResponse(
-                requestId = requestId,
-                challenge = challenge.challenge.base64Url,
-                challengeJson = challenge.toCredentialsCreateJson(),
-                userHandle = challenge.user.id.base64Url,
-                displayName = passkeyDisplayName
-            )
-        }
+    override suspend fun invoke(userHandle: Uuid, passkeyDisplayName: String): Result<RegistrationChallengeResponse> = transactionManager.transaction {
+        val requestId = Uuid.random().toString()
+        val challenge = createChallenge(requestId, passkeyDisplayName, YubicoByteArray(userHandle.toByteArray()))
+        passKeyDataSource.saveChallengeToCache(requestId, challenge.toJson())
+        RegistrationChallengeResponse(
+            requestId = requestId,
+            challenge = challenge.challenge.base64Url,
+            challengeJson = challenge.toCredentialsCreateJson(),
+            userHandle = challenge.user.id.base64Url,
+            displayName = passkeyDisplayName,
+        )
     }
 
     private suspend fun createChallenge(
         userName: String,
         displayName: String,
-        handle: YubicoByteArray
+        handle: YubicoByteArray,
     ): PublicKeyCredentialCreationOptions {
         credentialRepository.cacheCredentialIdsForUsername(userName)
         return createRelyingParty(credentialRepository).startRegistration(
@@ -48,14 +46,14 @@ internal class StartPasskeyRegistrationImpl(
                         .name(userName)
                         .displayName(displayName)
                         .id(handle)
-                        .build()
+                        .build(),
                 )
                 .authenticatorSelection(
                     AuthenticatorSelectionCriteria.builder()
                         .residentKey(ResidentKeyRequirement.REQUIRED)
-                        .build()
+                        .build(),
                 )
-                .build()
+                .build(),
         )
     }
 }

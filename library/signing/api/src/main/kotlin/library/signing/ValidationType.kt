@@ -2,5 +2,6 @@ package library.signing
 
 enum class ValidationType {
     AUTH_TOKEN,
-    SERVICE_QUOTE
+    SERVICE_QUOTE,
+    ACTION_CONFIRMATION,
 }

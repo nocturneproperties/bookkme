@@ -17,7 +17,7 @@ import kotlin.reflect.KType
 
 class KafkaEventProducer internal constructor(
     private val producer: Producer<String, ByteArray>,
-    private val protoBuf: ProtoBuf
+    private val protoBuf: ProtoBuf,
 ) : EventStreaming.Producer<String>, EventStreaming.RawProducer<String> {
 
     constructor(servers: List<String>, client: String, protoBuf: ProtoBuf) : this(
@@ -27,12 +27,12 @@ class KafkaEventProducer internal constructor(
                 ProducerConfig.BOOTSTRAP_SERVERS_CONFIG to servers.joinToString { it },
                 ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG to "true",
                 ProducerConfig.RETRIES_CONFIG to 10,
-                ProducerConfig.ACKS_CONFIG to "all"
+                ProducerConfig.ACKS_CONFIG to "all",
             ),
             StringSerializer(),
-            ByteArraySerializer()
+            ByteArraySerializer(),
         ),
-        protoBuf
+        protoBuf,
     )
 
     override suspend fun <T : EventStreaming.Event<String>> send(data: T, kType: KType) {

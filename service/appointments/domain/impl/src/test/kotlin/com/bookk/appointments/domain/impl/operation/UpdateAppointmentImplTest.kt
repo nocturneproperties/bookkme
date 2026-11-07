@@ -1,11 +1,13 @@
 package com.bookk.appointments.domain.impl.operation
 
 import com.bookk.appointments.domain.api.entity.Appointment
+import com.bookk.appointments.domain.api.entity.AppointmentCompletedBy
 import com.bookk.appointments.domain.api.entity.AppointmentSettings
 import com.bookk.appointments.domain.api.entity.AppointmentStatus
 import com.bookk.appointments.domain.api.entity.AppointmentStatusError
 import com.bookk.appointments.domain.api.entity.AppointmentUpdate
 import com.bookk.appointments.domain.api.entity.EmployeeSnapshot
+import com.bookk.appointments.domain.api.entity.PriceAdjustment
 import com.bookk.appointments.domain.api.entity.RequestedService
 import com.bookk.appointments.domain.api.entity.ServiceSnapshot
 import com.bookk.appointments.domain.api.operation.UpdateAppointment
@@ -15,6 +17,7 @@ import com.bookk.appointments.domain.datasource.AppointmentSettingsDataSource
 import com.bookk.business.domain.api.appointment.entity.AppointmentRescheduleContext
 import com.bookk.business.domain.api.employee.entity.Employee
 import com.bookk.business.domain.api.service.entity.Service
+import com.bookk.core.data.eventstreaming.StandardEventProducer
 import com.bookk.core.domain.datasource.transaction.TransactionManager
 import com.bookk.core.domain.datasource.transaction.mockTransaction
 import com.bookk.core.domain.entity.Error
@@ -22,16 +25,22 @@ import com.bookk.core.test.given
 import com.bookk.core.test.runUnitTest
 import com.bookk.core.test.then
 import com.bookk.core.test.whenn
+import com.bookk.server.appointments.client.api.event.AppointmentEvent
 import com.bookk.server.business.client.api.BusinessClient
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.coVerifyOrder
+import io.mockk.just
 import io.mockk.mockk
+import io.mockk.runs
 import library.permissions.EmployeeAccessSuspended
 import library.permissions.ResourcePermission
 import org.joda.money.Money
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import kotlin.time.Clock
+import kotlin.time.Duration.Companion.days
 import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
@@ -44,28 +53,38 @@ internal class UpdateAppointmentImplTest {
         val businessClient = mockk<BusinessClient>()
         val transactionManager = mockk<TransactionManager>()
         val settings = mockk<AppointmentSettings>()
+        val eventProducer = mockk<StandardEventProducer>()
+        val sentEvents = mutableListOf<AppointmentEvent>()
+        val sentInTransaction = mutableListOf<Boolean>()
 
         val sut = UpdateAppointmentImpl(
             appointmentDataSource,
             settingsDataSource,
             appointmentPermissionDataSource,
             businessClient,
-            transactionManager
+            transactionManager,
+            eventProducer,
         )
 
         fun givenValidUpdate(
             userId: Uuid,
             stored: Appointment,
-            permission: ResourcePermission = ResourcePermission(view = false, update = true, delete = false)
+            permission: ResourcePermission = ResourcePermission(view = false, update = true, delete = false),
         ) {
             transactionManager.mockTransaction()
+            coEvery { appointmentDataSource.get(stored.id) } returns stored
             coEvery { appointmentDataSource.getForUpdate(stored.id) } returns stored
             coEvery { settingsDataSource.getForUpdate(stored.businessId) } returns settings
             coEvery { settings.isInWorkday(any()) } returns true
             coEvery { settings.isInWorktime(any(), any()) } returns true
             coEvery { appointmentPermissionDataSource.getPermission(userId, stored.businessId) } returns permission
             coEvery { appointmentDataSource.hasOverlapsWith(any<Appointment>()) } returns false
+            coEvery { appointmentDataSource.reopen(stored.id) } just runs
             coEvery { appointmentDataSource.update(any<Appointment>()) } answers { firstArg() }
+            coEvery { eventProducer.send(any<AppointmentEvent>(), any()) } coAnswers {
+                sentEvents += firstArg<AppointmentEvent>()
+                sentInTransaction += transactionManager.isInTransaction()
+            }
         }
     }
 
@@ -77,7 +96,7 @@ internal class UpdateAppointmentImplTest {
         date = date,
         note = "Updated note",
         employeeId = stored.employee.id,
-        services = stored.services.map { RequestedService(serviceId = it.id, count = 1) }
+        services = stored.services.map { RequestedService(serviceId = it.id, count = 1) },
     )
 
     @Test
@@ -143,7 +162,7 @@ internal class UpdateAppointmentImplTest {
         val storedService = stored.services.single()
         val added = Service.stub(businessId = stored.businessId, price = Money.parse("USD 25"))
         val update = keepingEverything(stored).copy(
-            services = listOf(RequestedService(serviceId = storedService.id, count = 1), RequestedService(serviceId = added.id, count = 1))
+            services = listOf(RequestedService(serviceId = storedService.id, count = 1), RequestedService(serviceId = added.id, count = 1)),
         )
         with(fixture) {
             givenValidUpdate(userId, stored)
@@ -220,6 +239,7 @@ internal class UpdateAppointmentImplTest {
 
         then()
         coVerify(exactly = 0) { fixture.settingsDataSource.getForUpdate(any()) }
+        coVerify(exactly = 0) { fixture.appointmentDataSource.getForUpdate(any()) }
     }
 
     @Test
@@ -256,7 +276,7 @@ internal class UpdateAppointmentImplTest {
         whenn()
         val result = fixture.sut(
             Uuid.random(),
-            AppointmentUpdate.stub(services = listOf(RequestedService.stub(serviceId = serviceId), RequestedService.stub(serviceId = serviceId)))
+            AppointmentUpdate.stub(services = listOf(RequestedService.stub(serviceId = serviceId), RequestedService.stub(serviceId = serviceId))),
         )
 
         then()
@@ -270,7 +290,7 @@ internal class UpdateAppointmentImplTest {
         val update = AppointmentUpdate.stub(date = futureDate)
         with(fixture) {
             transactionManager.mockTransaction()
-            coEvery { appointmentDataSource.getForUpdate(update.id) } throws Error.NotFound()
+            coEvery { appointmentDataSource.get(update.id) } throws Error.NotFound()
         }
 
         whenn()
@@ -299,7 +319,7 @@ internal class UpdateAppointmentImplTest {
     }
 
     @Test
-    fun `should read the stored appointment with a row lock`() = runUnitTest {
+    fun `should lock the settings and then the appointment before reading the permission in the booking transaction`() = runUnitTest {
         given()
         val fixture = SutFixture()
         val userId = Uuid.random()
@@ -310,8 +330,56 @@ internal class UpdateAppointmentImplTest {
         fixture.sut(userId, keepingEverything(stored))
 
         then()
-        coVerify(exactly = 1) { fixture.appointmentDataSource.getForUpdate(stored.id) }
-        coVerify(exactly = 0) { fixture.appointmentDataSource.get(any()) }
+        coVerifyOrder {
+            fixture.appointmentDataSource.get(stored.id)
+            fixture.appointmentPermissionDataSource.getPermission(userId, stored.businessId)
+            fixture.settingsDataSource.getForUpdate(stored.businessId)
+            fixture.appointmentDataSource.getForUpdate(stored.id)
+            fixture.appointmentPermissionDataSource.getPermission(userId, stored.businessId)
+            fixture.appointmentDataSource.hasOverlapsWith(any<Appointment>())
+            fixture.appointmentDataSource.update(any<Appointment>())
+        }
+    }
+
+    @Test
+    fun `should return a conflict when the appointment changed while the change was resolved`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val stored = Appointment.stub(date = futureDate)
+        with(fixture) {
+            givenValidUpdate(userId, stored)
+            coEvery { appointmentDataSource.getForUpdate(stored.id) } returns stored.copy(note = "Changed meanwhile")
+        }
+
+        whenn()
+        val result = fixture.sut(userId, keepingEverything(stored))
+
+        then()
+        assertTrue(result.exceptionOrNull() is Error.TransactionConflict)
+        coVerify(exactly = 0) { fixture.appointmentDataSource.update(any()) }
+    }
+
+    @Test
+    fun `should check the permission again after taking the locks`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val stored = Appointment.stub(date = futureDate)
+        with(fixture) {
+            givenValidUpdate(userId, stored)
+            coEvery { appointmentPermissionDataSource.getPermission(userId, stored.businessId) } returnsMany listOf(
+                ResourcePermission(view = false, update = true, delete = false),
+                ResourcePermission.NONE,
+            )
+        }
+
+        whenn()
+        val result = fixture.sut(userId, keepingEverything(stored))
+
+        then()
+        assertTrue(result.exceptionOrNull() is Error.OperationNotAllowed)
+        coVerify(exactly = 0) { fixture.appointmentDataSource.update(any()) }
     }
 
     @Test
@@ -386,15 +454,39 @@ internal class UpdateAppointmentImplTest {
     }
 
     @Test
-    fun `should return failure when appointment is completed`() = runUnitTest {
+    fun `should reschedule a completed appointment within its edit window`() = runUnitTest {
         given()
-        assertRejectsStoredStatus(AppointmentStatus.COMPLETED) { it is AppointmentStatusError.AlreadyCompleted }
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val stored = Appointment.stub(date = Clock.System.now() - 1.days).copy(status = AppointmentStatus.COMPLETED)
+        fixture.givenValidUpdate(userId, stored)
+        val update = keepingEverything(stored)
+
+        whenn()
+        val result = fixture.sut(userId, update)
+
+        then()
+        assertEquals(stored.copy(date = laterDate, note = "Updated note", status = AppointmentStatus.SCHEDULED, completedBy = null, priceAdjustment = null), result.getOrNull())
+        coVerify(exactly = 1) { fixture.appointmentDataSource.hasOverlapsWith(any()) }
+        coVerify(exactly = 1) { fixture.eventProducer.send(any(AppointmentEvent.ClientVisitBooked::class), any()) }
     }
 
     @Test
-    fun `should return failure when appointment is marked as no-show`() = runUnitTest {
+    fun `should reschedule a no-show appointment within its edit window`() = runUnitTest {
         given()
-        assertRejectsStoredStatus(AppointmentStatus.NO_SHOW) { it is AppointmentStatusError.MarkedNoShow }
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val stored = Appointment.stub(date = Clock.System.now() - 1.days).copy(status = AppointmentStatus.NO_SHOW)
+        fixture.givenValidUpdate(userId, stored)
+        val update = keepingEverything(stored)
+
+        whenn()
+        val result = fixture.sut(userId, update)
+
+        then()
+        assertEquals(stored.copy(date = laterDate, note = "Updated note", status = AppointmentStatus.SCHEDULED, completedBy = null, priceAdjustment = null), result.getOrNull())
+        coVerify(exactly = 1) { fixture.appointmentDataSource.hasOverlapsWith(any()) }
+        coVerify(exactly = 1) { fixture.eventProducer.send(any(AppointmentEvent.ClientVisitBooked::class), any()) }
     }
 
     @Test
@@ -483,5 +575,160 @@ internal class UpdateAppointmentImplTest {
         assertTrue(isExpected(result.exceptionOrNull()))
         coVerify(exactly = 0) { fixture.businessClient.getAppointmentRescheduleContext(any(), any(), any()) }
         coVerify(exactly = 0) { fixture.appointmentDataSource.update(any()) }
+    }
+
+    @Test
+    fun `should return failure when the appointment ended more than a week ago`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val stored = Appointment.stub(date = Clock.System.now() - 30.days)
+        fixture.givenValidUpdate(userId, stored)
+
+        whenn()
+        val result = fixture.sut(userId, keepingEverything(stored))
+
+        then()
+        assertTrue(result.exceptionOrNull() is AppointmentStatusError.EditWindowClosed)
+        coVerify(exactly = 0) { fixture.appointmentDataSource.update(any()) }
+    }
+
+    @Test
+    fun `should tell the business the client has a visit until the rescheduled appointment ends`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val stored = Appointment.stub(date = futureDate)
+        fixture.givenValidUpdate(userId, stored)
+
+        whenn()
+        val rescheduled = fixture.sut(userId, keepingEverything(stored)).getOrThrow()
+
+        then()
+        val visit = fixture.sentEvents.filterIsInstance<AppointmentEvent.ClientVisitBooked>().single()
+        assertEquals(stored.businessId, visit.businessId)
+        assertEquals(stored.client.id, visit.clientId)
+        assertEquals(rescheduled.dateEnd, visit.visitEnd)
+        assertEquals(listOf(true), fixture.sentInTransaction)
+    }
+
+    @Test
+    fun `should reopen a system completed appointment when rescheduling within its edit window`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val stored = Appointment.stub(date = Clock.System.now() - 1.days).copy(
+            status = AppointmentStatus.COMPLETED,
+            completedBy = AppointmentCompletedBy.SYSTEM,
+            priceAdjustment = PriceAdjustment.stub(),
+        )
+        fixture.givenValidUpdate(userId, stored)
+        val update = keepingEverything(stored)
+
+        whenn()
+        val result = fixture.sut(userId, update)
+
+        then()
+        val expected = stored.copy(date = laterDate, note = "Updated note", status = AppointmentStatus.SCHEDULED, completedBy = null, priceAdjustment = null)
+        assertEquals(expected, result.getOrNull())
+        coVerifyOrder {
+            fixture.appointmentDataSource.reopen(stored.id)
+            fixture.appointmentDataSource.update(expected)
+        }
+        coVerify(exactly = 1) { fixture.eventProducer.send(any(AppointmentEvent.ClientVisitBooked::class), any()) }
+    }
+
+    @Test
+    fun `should reject rescheduling an unresolved appointment`() = runUnitTest {
+        given()
+        assertRejectsStoredStatus(AppointmentStatus.UNRESOLVED) { it is AppointmentStatusError.EditWindowClosed }
+    }
+
+    @Test
+    fun `should preserve a completed outcome when editing its note`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val stored = Appointment.stub(date = Clock.System.now() - 1.days).copy(
+            status = AppointmentStatus.COMPLETED,
+            completedBy = AppointmentCompletedBy.USER,
+            priceAdjustment = PriceAdjustment.stub(),
+        )
+        fixture.givenValidUpdate(userId, stored)
+        val update = keepingEverything(stored, date = stored.date)
+
+        whenn()
+        val result = fixture.sut(userId, update)
+
+        then()
+        assertEquals(stored.copy(note = "Updated note"), result.getOrNull())
+        coVerify(exactly = 0) { fixture.appointmentDataSource.hasOverlapsWith(any()) }
+        coVerify(exactly = 0) { fixture.appointmentDataSource.reopen(any()) }
+    }
+
+    @Test
+    fun `should preserve a no-show outcome when editing its note`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val stored = Appointment.stub(date = Clock.System.now() - 1.days).copy(
+            status = AppointmentStatus.NO_SHOW,
+            completedBy = null,
+            priceAdjustment = PriceAdjustment.stub(),
+        )
+        fixture.givenValidUpdate(userId, stored)
+        val update = keepingEverything(stored, date = stored.date)
+
+        whenn()
+        val result = fixture.sut(userId, update)
+
+        then()
+        assertEquals(stored.copy(note = "Updated note"), result.getOrNull())
+        coVerify(exactly = 0) { fixture.appointmentDataSource.hasOverlapsWith(any()) }
+        coVerify(exactly = 0) { fixture.appointmentDataSource.reopen(any()) }
+    }
+
+    @Test
+    fun `should not recheck availability when correcting the services of a completed appointment`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val stored = Appointment.stub(date = Clock.System.now() - 1.days).copy(
+            status = AppointmentStatus.COMPLETED,
+            completedBy = AppointmentCompletedBy.USER,
+        )
+        fixture.givenValidUpdate(userId, stored)
+        val update = keepingEverything(stored, date = stored.date).copy(
+            services = stored.services.map { RequestedService(serviceId = it.id, count = 2) },
+        )
+
+        whenn()
+        val result = fixture.sut(userId, update)
+
+        then()
+        assertEquals(AppointmentStatus.COMPLETED, result.getOrNull()?.status)
+        assertEquals(stored.services.size * 2, result.getOrNull()?.services?.size)
+        coVerify(exactly = 0) { fixture.settings.isInWorkday(any()) }
+        coVerify(exactly = 0) { fixture.settings.isInWorktime(any(), any()) }
+        coVerify(exactly = 0) { fixture.appointmentDataSource.hasOverlapsWith(any()) }
+    }
+
+    @Test
+    fun `should recheck availability when the services of a scheduled appointment change in place`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val stored = Appointment.stub(date = futureDate)
+        fixture.givenValidUpdate(userId, stored)
+        coEvery { fixture.appointmentDataSource.hasOverlapsWith(any<Appointment>()) } returns true
+        val update = keepingEverything(stored, date = stored.date).copy(
+            services = stored.services.map { RequestedService(serviceId = it.id, count = 2) },
+        )
+
+        whenn()
+        val result = fixture.sut(userId, update)
+
+        then()
+        assertTrue(result.exceptionOrNull() is UpdateAppointment.Error.AppointmentForThisTimeExists)
     }
 }

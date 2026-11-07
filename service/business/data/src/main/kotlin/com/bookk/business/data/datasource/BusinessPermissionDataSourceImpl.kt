@@ -14,15 +14,13 @@ import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.core.isNull
-import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import kotlin.uuid.Uuid
 
 internal class BusinessPermissionDataSourceImpl : DataSource(), BusinessPermissionDataSource {
 
-    override suspend fun getViewer(userId: Uuid, businessId: Uuid): BusinessViewer =
-        getViewers(userId, listOf(businessId)).getValue(businessId)
+    override suspend fun getViewer(userId: Uuid, businessId: Uuid): BusinessViewer = getViewers(userId, listOf(businessId)).getValue(businessId)
 
     override suspend fun getViewers(userId: Uuid, businessIds: List<Uuid>): Map<Uuid, BusinessViewer> {
         if (businessIds.isEmpty()) return emptyMap()
@@ -47,7 +45,7 @@ internal class BusinessPermissionDataSourceImpl : DataSource(), BusinessPermissi
                 BusinessViewer(
                     permissions = BusinessPermissionGrantsTable.permissionsOf(grantsByBusinessId[businessId].orEmpty()),
                     employeeId = activeEmployeeIds[businessId],
-                    clientId = clientIds[businessId]
+                    clientId = clientIds[businessId],
                 )
             }
         }
@@ -61,7 +59,7 @@ internal class BusinessPermissionDataSourceImpl : DataSource(), BusinessPermissi
                     BusinessPermissionGrantsTable.canView,
                     BusinessPermissionGrantsTable.canUpdate,
                     BusinessPermissionGrantsTable.canDelete,
-                    EmployeeTable.suspendedAt
+                    EmployeeTable.suspendedAt,
                 )
                 .where {
                     (BusinessPermissionGrantsTable.userId eq userId) and
@@ -74,15 +72,11 @@ internal class BusinessPermissionDataSourceImpl : DataSource(), BusinessPermissi
         return ResourcePermission(
             view = grant[BusinessPermissionGrantsTable.canView],
             update = grant[BusinessPermissionGrantsTable.canUpdate],
-            delete = grant[BusinessPermissionGrantsTable.canDelete]
+            delete = grant[BusinessPermissionGrantsTable.canDelete],
         )
     }
 
     override suspend fun setPermissions(employee: Employee, grants: Map<BusinessResource, ResourcePermission>) = dbQuery {
         BusinessPermissionGrantsTable.upsertGrants(employee.id, employee.userId, employee.businessId, grants)
-    }
-
-    override suspend fun deleteUserPermissions(userId: Uuid) = dbQuery<Unit> {
-        BusinessPermissionGrantsTable.deleteWhere { BusinessPermissionGrantsTable.userId eq userId }
     }
 }

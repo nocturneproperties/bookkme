@@ -51,11 +51,11 @@ internal class SetEmployeePermissionsImplTest {
         val fixture = SutFixture(requestUserId, businessId)
         val employee = Employee.stub(
             businessId = businessId,
-            permissions = BusinessPermissions.stub(appointments = ResourcePermission(view = true, update = false, delete = false))
+            permissions = BusinessPermissions.stub(appointments = ResourcePermission(view = true, update = false, delete = false)),
         )
         val grants = mapOf(
             BusinessResource.CLIENTS to ResourcePermission.FULL,
-            BusinessResource.SERVICES to ResourcePermission(view = true, update = false, delete = false)
+            BusinessResource.SERVICES to ResourcePermission(view = true, update = false, delete = false),
         )
         with(fixture) {
             transactionManager.mockTransaction()
@@ -72,10 +72,10 @@ internal class SetEmployeePermissionsImplTest {
                 permissions = BusinessPermissions.stub(
                     appointments = ResourcePermission(view = true, update = false, delete = false),
                     clients = ResourcePermission.FULL,
-                    services = ResourcePermission(view = true, update = false, delete = false)
-                )
+                    services = ResourcePermission(view = true, update = false, delete = false),
+                ),
             ),
-            result.getOrNull()
+            result.getOrNull(),
         )
         coVerify(exactly = 1) { fixture.businessPermissionDataSource.setPermissions(employee, grants) }
     }
@@ -87,7 +87,7 @@ internal class SetEmployeePermissionsImplTest {
         val employee = Employee.stub(businessId = businessId)
         val grants = mapOf(
             BusinessResource.CLIENTS to ResourcePermission(view = true, update = false, delete = false),
-            BusinessResource.APPOINTMENTS to ResourcePermission(view = true, update = true, delete = false)
+            BusinessResource.APPOINTMENTS to ResourcePermission(view = true, update = true, delete = false),
         )
         with(fixture) {
             transactionManager.mockTransaction()
@@ -96,7 +96,7 @@ internal class SetEmployeePermissionsImplTest {
         }
         val expected = BusinessPermissions.stub(
             clients = ResourcePermission(view = true, update = false, delete = false),
-            appointments = ResourcePermission(view = true, update = true, delete = false)
+            appointments = ResourcePermission(view = true, update = true, delete = false),
         )
 
         whenn()
@@ -109,7 +109,7 @@ internal class SetEmployeePermissionsImplTest {
                 match<BusinessEvent.EmployeePermissionsChanged> {
                     it.employeeUserId == employee.userId && it.businessId == businessId && it.permissions == expected && !it.suspended
                 },
-                any()
+                any(),
             )
         }
     }
@@ -137,7 +137,7 @@ internal class SetEmployeePermissionsImplTest {
                 match<BusinessEvent.EmployeePermissionsChanged> {
                     it.permissions == BusinessPermissions.stub(appointments = ResourcePermission.FULL) && it.suspended
                 },
-                any()
+                any(),
             )
         }
     }
