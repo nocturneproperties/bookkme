@@ -65,4 +65,48 @@ internal class InMemoryCacheClientTest {
         then()
         assertNull(fixture.sut.get<String, String>(fixture.key))
     }
+
+    @Test
+    fun `should count each increment of a key from one`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+
+        whenn()
+        val counts = (1..3).map { fixture.sut.increment(fixture.key, 1.minutes) }
+
+        then()
+        assertEquals(listOf(1L, 2L, 3L), counts)
+    }
+
+    @Test
+    fun `should keep the expiration of the first increment when the key is incremented again`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.sut.increment(fixture.key, 1.minutes)
+        fixture.timeSource += 30.seconds
+        fixture.sut.increment(fixture.key, 1.hours)
+
+        whenn()
+        fixture.timeSource += 31.seconds
+        val count = fixture.sut.increment(fixture.key, 1.minutes)
+
+        then()
+        assertEquals(1L, count)
+    }
+
+    @Test
+    fun `should start a new counter with its own expiration once the previous one expired`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.sut.increment(fixture.key, 1.minutes)
+        fixture.timeSource += 2.minutes
+        fixture.sut.increment(fixture.key, 10.minutes)
+
+        whenn()
+        fixture.timeSource += 5.minutes
+        val count = fixture.sut.increment(fixture.key, 1.minutes)
+
+        then()
+        assertEquals(2L, count)
+    }
 }

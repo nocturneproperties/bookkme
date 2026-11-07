@@ -12,6 +12,7 @@ interface CacheClient<K> : Closeable {
     suspend fun withTransaction(action: suspend CacheClient<K>.() -> Unit)
     suspend fun delete(key: K)
     suspend fun <V : Any> deleteIfEquals(key: K, expected: V, kType: KType)
+    suspend fun increment(key: K, expiration: Duration): Long
 }
 
 suspend inline fun <K, reified V : Any> CacheClient<K>.set(key: K, value: V, ttl: Duration? = null) {
