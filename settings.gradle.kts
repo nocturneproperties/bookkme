@@ -54,6 +54,8 @@ include(":library:actionconfirmation:impl")
 include(":library:export:api")
 include(":library:export:impl")
 include(":library:export:route")
+include(":library:email:api")
+include(":library:email:impl")
 
 // Authorization
 include(":service:authorization:microservice")

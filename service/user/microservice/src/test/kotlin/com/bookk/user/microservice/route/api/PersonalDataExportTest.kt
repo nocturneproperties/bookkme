@@ -1,6 +1,5 @@
 package com.bookk.user.microservice.route.api
 
-import com.bookk.core.domain.entity.CoreErrorCodes
 import com.bookk.core.domain.entity.Error
 import com.bookk.core.domain.entity.SimpleServerError
 import com.bookk.core.service.test.createTestClient
@@ -33,6 +32,7 @@ import library.export.DataExport
 import library.export.DataExportDocument
 import library.export.DataExportStatus
 import library.export.DataExports
+import library.export.ExportErrorCodes
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.koin.dsl.module
@@ -98,7 +98,7 @@ internal class PersonalDataExportTest {
 
         then()
         assertEquals(HttpStatusCode.TooManyRequests, response.status)
-        assertEquals(CoreErrorCodes.DATA_EXPORT_TOO_FREQUENT, response.body<SimpleServerError>().errorCode)
+        assertEquals(ExportErrorCodes.DATA_EXPORT_TOO_FREQUENT, response.body<SimpleServerError>().errorCode)
     }
 
     @Test
