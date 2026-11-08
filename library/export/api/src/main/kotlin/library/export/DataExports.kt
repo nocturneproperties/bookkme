@@ -1,7 +1,6 @@
 package library.export
 
 import com.bookk.core.domain.entity.BusinessError
-import com.bookk.core.domain.entity.CoreErrorCodes
 import io.ktor.http.HttpStatusCode
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.hours
@@ -21,7 +20,7 @@ interface DataExports {
         class TooFrequent :
             BusinessError(
                 statusCode = HttpStatusCode.TooManyRequests.value,
-                code = CoreErrorCodes.DATA_EXPORT_TOO_FREQUENT,
+                code = ExportErrorCodes.DATA_EXPORT_TOO_FREQUENT,
                 message = "Only one data export can be started per day",
             ),
             Error

@@ -8,6 +8,7 @@ import kotlin.uuid.Uuid
 interface UserDataSource {
     suspend fun insertNewUser(user: User): User
     suspend fun updateUser(id: Uuid, user: UserEditModel, updatedAt: Instant): User?
+    suspend fun changeEmail(id: Uuid, verifiedEmail: String, updatedAt: Instant): User?
     suspend fun getUserById(id: Uuid): User?
     suspend fun getUserByEmail(email: String): User?
     suspend fun deleteUser(id: Uuid)

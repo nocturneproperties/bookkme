@@ -11,6 +11,7 @@ application {
 dependencies {
     implementation(projects.library.signing.impl)
     implementation(projects.library.actionconfirmation.impl)
+    implementation(projects.library.email.impl)
     implementation(projects.core.service)
     implementation(projects.core.domain)
     implementation(projects.core.data.eventstreaming.api)

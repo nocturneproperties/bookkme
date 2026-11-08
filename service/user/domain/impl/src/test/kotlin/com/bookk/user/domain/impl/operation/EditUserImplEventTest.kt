@@ -63,7 +63,7 @@ internal class EditUserImplEventTest {
         val fixture = SutFixture()
         val userId = Uuid.random()
         val edit = editModel(phone = "+10000000000")
-        val updated = User(userId, "Jane", "Smith", "jane@example.com", "+10000000000")
+        val updated = User.stub(id = userId, name = "Jane", lastName = "Smith", email = "jane@example.com", phone = "+10000000000")
         with(fixture) {
             transactionManager.mockTransaction()
             coEvery { userDataSource.updateUser(userId, edit, any()) } returns updated
@@ -93,7 +93,7 @@ internal class EditUserImplEventTest {
         val edit = editModel()
         with(fixture) {
             transactionManager.mockTransaction()
-            coEvery { userDataSource.updateUser(userId, edit, any()) } returns User.stub(id = userId)
+            coEvery { userDataSource.updateUser(userId, edit, any()) } returns User.stub(id = userId, email = "jane@example.com")
         }
 
         whenn()

@@ -9,6 +9,8 @@ import com.bookk.auth.domain.api.authentication.operation.SignIn
 import com.bookk.auth.domain.api.authentication.operation.StartAssertion
 import com.bookk.auth.domain.api.delete_account.operation.DeleteAccount
 import com.bookk.auth.domain.api.device.operation.DeleteInactiveDevices
+import com.bookk.auth.domain.api.email.operation.ConfirmEmailChange
+import com.bookk.auth.domain.api.email.operation.StartEmailChange
 import com.bookk.auth.domain.api.erasure.operation.DeleteExpiredErasureRecords
 import com.bookk.auth.domain.api.erasure.operation.ReapplyAccountErasures
 import com.bookk.auth.domain.api.identification.operation.DeletePasskey
@@ -31,6 +33,8 @@ import com.bookk.auth.domain.impl.operation.authentication.HandleDormantAccounts
 import com.bookk.auth.domain.impl.operation.authentication.SignInImpl
 import com.bookk.auth.domain.impl.operation.authentication.StartAssertionImpl
 import com.bookk.auth.domain.impl.operation.device.DeleteInactiveDevicesImpl
+import com.bookk.auth.domain.impl.operation.email.ConfirmEmailChangeImpl
+import com.bookk.auth.domain.impl.operation.email.StartEmailChangeImpl
 import com.bookk.auth.domain.impl.operation.erasure.DeleteExpiredErasureRecordsImpl
 import com.bookk.auth.domain.impl.operation.erasure.ReapplyAccountErasuresImpl
 import com.bookk.auth.domain.impl.operation.export.ExportAccountDataImpl
@@ -69,6 +73,8 @@ fun authDomainModule() = module {
         scopedOf(::ExportAccountDataImpl) bind ExportAccountData::class
         scopedOf(::StartRegistrationImpl) bind StartRegistration::class
         scopedOf(::FinishRegistrationImpl) bind FinishRegistration::class
+        scopedOf(::StartEmailChangeImpl) bind StartEmailChange::class
+        scopedOf(::ConfirmEmailChangeImpl) bind ConfirmEmailChange::class
         scopedOf(::StartAssertionImpl) bind StartAssertion::class
         scopedOf(::FinishAssertionImpl) bind FinishAssertion::class
         scopedOf(::SignInImpl) bind SignIn::class

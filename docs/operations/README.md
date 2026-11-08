@@ -58,8 +58,10 @@ Reactions to cross-service events:
 
 | Route | Diagram |
 |---|---|
-| `POST /api/auth/sign_up/challenge` | [Get sign-up challenge](authorization/sign-up-challenge.md) |
+| `POST /api/auth/passkey/sign_up/challenge` | [Get sign-up challenge](authorization/sign-up-challenge.md) |
 | `POST /api/auth/sign_up` | [Verify sign-up (create account)](authorization/sign-up.md) |
+| `POST /api/auth/email` | [Request an email change code](authorization/start-email-change.md) |
+| `POST /api/auth/email/confirm` | [Confirm an email change](authorization/confirm-email-change.md) |
 | `POST /api/auth/sign_in` | [Verify sign-in](authorization/sign-in.md) |
 | `POST /api/auth/refresh` | [Refresh access token](authorization/refresh-token.md) |
 | `DELETE /api/auth/session` | [Sign out](authorization/sign-out.md) |
@@ -138,6 +140,7 @@ Reactions to cross-service events (all handled by the same
 | `POST /api/user/me/legal` | [Accept legal documents](user/accept-legal-documents.md) |
 | `POST /api/user/export` | [Start personal data export](user/start-personal-data-export.md) |
 | `POST /api/internal/user` | [Create user (internal)](user/create-user-internal.md) |
+| `POST /api/internal/user/{id}/email` | [Store a verified email (internal)](user/change-user-email-internal.md) |
 
 Reactions to cross-service events:
 
@@ -173,7 +176,7 @@ the operation committed, and reaches its consumers at least once. See
 | `BusinessEvent.ClientLinked` | [Get appointment booking context (internal)](business/get-appointment-booking-context.md), [React to user profile update (business)](business/on-user-updated.md) | [appointments](appointments/on-client-linked.md) |
 | `BusinessEvent.ClientDeleted` | [Delete client](business/delete-client.md), [`business-deleteInactiveClients` job](scheduled-jobs.md), [`business-reapplyErasures` job](scheduled-jobs.md) | [appointments](appointments/on-client-deleted.md) |
 | `AppointmentEvent.ClientVisitBooked` | [Create appointment request](appointments/create-appointment-request.md), [Create appointment from a pending request](appointments/create-appointment-from-request.md), [Create instant appointment](appointments/create-appointment-instant.md), [Update appointment (reschedule)](appointments/update-appointment.md) | [business](business/on-client-visit-booked.md) |
-| `UserEvent.Updated` | [Update user](user/update-user.md) | [business](business/on-user-updated.md), [notifications](notifications/on-user-updated.md) |
+| `UserEvent.Updated` | [Update user](user/update-user.md), [Confirm an email change](authorization/confirm-email-change.md) through [Store a verified email](user/change-user-email-internal.md) | [business](business/on-user-updated.md), [notifications](notifications/on-user-updated.md) |
 | `BusinessEvent.ExportReady` | [Start business data export](business/start-business-data-export.md) (`business-buildDataExports` job) | [notifications](notifications/on-business-export-ready.md) |
 | `UserEvent.DataExportReady` | [Start personal data export](user/start-personal-data-export.md) (`user-buildDataExports` job) | [notifications](notifications/on-data-export-ready.md) |
 | `AppointmentEvent.RequestCreated` | [Create appointment request](appointments/create-appointment-request.md) | [notifications](notifications/on-appointment-request-created.md) |

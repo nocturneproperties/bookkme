@@ -97,6 +97,17 @@ class RedisCacheClient(
         }
     }
 
+    override suspend fun increment(key: String, expiration: Duration): Long = withPooledConnection {
+        requireNotNull(
+            coroutines().eval<Long>(
+                INCREMENT_KEEPING_FIRST_EXPIRATION_SCRIPT,
+                ScriptOutputType.INTEGER,
+                arrayOf(key),
+                ByteBuffer.wrap(expiration.inWholeMilliseconds.toString().toByteArray()),
+            ),
+        )
+    }
+
     private inline fun <T> withPooledConnection(action: StatefulRedisConnection<String, ByteBuffer>.() -> T): T = connectionPool.borrowObject().use { connection -> connection.action() }
 
     override fun close() {
@@ -124,6 +135,8 @@ class RedisCacheClient(
 
         override suspend fun <V : Any> deleteIfEquals(key: String, expected: V, kType: KType): Unit = throw UnsupportedOperationException("Conditional delete inside transaction is not supported, the compared value is only known after EXEC")
 
+        override suspend fun increment(key: String, expiration: Duration): Long = throw UnsupportedOperationException("Incrementing inside transaction is not supported, the count is only known after EXEC")
+
         override suspend fun withTransaction(action: suspend CacheClient<String>.() -> Unit): Unit = throw UnsupportedOperationException("Transaction inside transaction is not supported")
 
         override fun close(): Unit = throw UnsupportedOperationException("Redis transaction is not closeable")
@@ -132,5 +145,7 @@ class RedisCacheClient(
     private companion object {
         const val DELETE_IF_EQUALS_SCRIPT =
             "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end"
+        const val INCREMENT_KEEPING_FIRST_EXPIRATION_SCRIPT =
+            "local count = redis.call('incr', KEYS[1]) redis.call('pexpire', KEYS[1], ARGV[1], 'NX') return count"
     }
 }

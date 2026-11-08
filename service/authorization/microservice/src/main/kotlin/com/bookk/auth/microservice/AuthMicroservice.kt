@@ -23,6 +23,7 @@ import io.ktor.server.application.Application
 import io.ktor.server.application.install
 import io.ktor.server.routing.application
 import library.actionconfirmation.impl.di.actionConfirmationModule
+import library.email.impl.di.emailModule
 import library.scheduler.Scheduler
 import library.scheduler.SchedulerConfiguration
 import library.signing.RotateSigningKeys
@@ -32,12 +33,13 @@ import org.koin.dsl.module
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.minutes
 
-fun authModule() = module {
+fun authModule(environment: (String) -> String? = System::getenv) = module {
     includes(
         authDomainModule(),
         authDataModule(),
         signingModule(AuthScope),
         actionConfirmationModule(AuthScope),
+        emailModule(AuthScope, environment),
         eventStreamingTransportModule(AuthScope, AUTH_SERVICE_NAME),
         outboxModule(AuthScope),
         cacheModule(),
@@ -45,12 +47,13 @@ fun authModule() = module {
     )
 }
 
-fun authEmbeddedModule() = module {
+fun authEmbeddedModule(environment: (String) -> String? = System::getenv) = module {
     includes(
         authDomainModule(),
         authDataModule(),
         signingModule(AuthScope),
         actionConfirmationModule(AuthScope),
+        emailModule(AuthScope, environment),
         embeddedEventStreamingTransportModule(AuthScope, AUTH_SERVICE_NAME),
         outboxModule(AuthScope),
         cacheModule(),

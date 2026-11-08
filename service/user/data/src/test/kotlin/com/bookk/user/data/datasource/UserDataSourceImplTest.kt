@@ -18,6 +18,7 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import kotlin.time.Clock
+import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
 internal class UserDataSourceImplTest {
@@ -26,6 +27,7 @@ internal class UserDataSourceImplTest {
         val db = createTestDatabase(UserTable)
         val cacheClient = InMemoryCacheClient()
         val sut = UserDataSourceImpl(cacheClient)
+        val uncached = UserDataSourceImpl(InMemoryCacheClient())
     }
 
     @Test
@@ -219,6 +221,82 @@ internal class UserDataSourceImplTest {
 
         then()
         assertNull(updated)
+    }
+
+    @Test
+    fun `should leave the email alone when an edit sends another one`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val created = suspendTransaction { fixture.sut.insertNewUser(User.stub(email = "kept@example.com")) }
+
+        whenn()
+        val updated = suspendTransaction {
+            fixture.sut.updateUser(created.id, UserEditModel(id = null, firstName = null, lastName = null, email = "changed@example.com", phone = null), Clock.System.now())
+        }
+        val found = suspendTransaction { fixture.sut.getUserById(created.id) }
+
+        then()
+        assertEquals("kept@example.com", updated!!.email)
+        assertEquals("kept@example.com", found!!.email)
+    }
+
+    @Test
+    fun `should store a changed email`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val created = suspendTransaction { fixture.sut.insertNewUser(User.stub(email = "old@example.com")) }
+        val updatedAt = Instant.parse("2026-11-08T10:00:00Z")
+
+        whenn()
+        val changed = suspendTransaction { fixture.sut.changeEmail(created.id, "new@example.com", updatedAt) }
+        val found = suspendTransaction { fixture.uncached.getUserById(created.id) }
+
+        then()
+        assertEquals(changed, found)
+        assertEquals("new@example.com", found!!.email)
+    }
+
+    @Test
+    fun `should stop serving the cached profile once the email changes`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val created = suspendTransaction { fixture.sut.insertNewUser(User.stub(email = "old@example.com")) }
+        suspendTransaction { fixture.sut.getUserById(created.id) }
+
+        whenn()
+        suspendTransaction { fixture.sut.changeEmail(created.id, "new@example.com", Clock.System.now()) }
+        val found = suspendTransaction { fixture.sut.getUserById(created.id) }
+
+        then()
+        assertEquals("new@example.com", found!!.email)
+    }
+
+    @Test
+    fun `should reject an email another user already holds`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        suspendTransaction { fixture.sut.insertNewUser(User.stub(email = "taken@example.com")) }
+        val other = suspendTransaction { fixture.sut.insertNewUser(User.stub(email = "other@example.com")) }
+
+        whenn()
+        val result = runCatching {
+            suspendTransaction { fixture.sut.changeEmail(other.id, "taken@example.com", Clock.System.now()) }
+        }
+
+        then()
+        assertTrue(result.exceptionOrNull()?.toDomain() is Error.UniqueConstraintFailed) { result.toString() }
+    }
+
+    @Test
+    fun `should return null when changing the email of a missing user`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+
+        whenn()
+        val changed = suspendTransaction { fixture.sut.changeEmail(Uuid.random(), "new@example.com", Clock.System.now()) }
+
+        then()
+        assertNull(changed)
     }
 
     @Test

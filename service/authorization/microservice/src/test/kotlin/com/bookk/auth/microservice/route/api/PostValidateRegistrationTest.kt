@@ -10,6 +10,7 @@ import com.bookk.auth.domain.api.registration.operation.FinishRegistration.Error
 import com.bookk.auth.domain.api.registration.operation.FinishRegistration.Error.UserAlreadyExist
 import com.bookk.auth.domain.api.token.entity.AuthTokens
 import com.bookk.auth.microservice.route.AuthRouting
+import com.bookk.core.domain.entity.BusinessError
 import com.bookk.core.domain.entity.Language
 import com.bookk.core.domain.entity.SimpleServerError
 import com.bookk.core.service.test.createTestClient
@@ -26,13 +27,17 @@ import io.ktor.client.call.body
 import io.ktor.client.plugins.resources.post
 import io.ktor.client.request.header
 import io.ktor.client.request.setBody
+import io.ktor.client.statement.HttpResponse
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
+import io.ktor.server.testing.ApplicationTestBuilder
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.protobuf.ProtoNumber
+import library.email.EmailCodeError
+import library.email.EmailErrorCodes
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.koin.dsl.module
@@ -55,6 +60,8 @@ class PostValidateRegistrationTest {
         ),
         publicKeyCredentialJson = "mock",
         acceptedDocuments = acceptedDocuments,
+        verificationId = Uuid.random(),
+        emailCode = "123456",
     )
 
     @Test
@@ -338,6 +345,84 @@ class PostValidateRegistrationTest {
         then()
         coVerify { useCase.invoke(eq(request), eq(Language.EN)) }
     }
+
+    @Test
+    fun `should return bad request when an older app sends no email code`() = routeTest {
+        given()
+        val useCase: FinishRegistration = mockk()
+        val request = createSimpleRequest()
+        setupApplication(
+            diModule = module { single<FinishRegistration> { useCase } },
+            routeUnderTest = { registration() },
+        )
+
+        whenn()
+        val response = createTestClient().post(AuthRouting.Api.Auth.SignUp()) {
+            setBody(SignUpWithoutEmailCode(request.requestId, request.deviceInfo, request.userInfo, request.publicKeyCredentialJson, request.acceptedDocuments))
+        }
+
+        then()
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+        coVerify(exactly = 0) { useCase.invoke(any(), any()) }
+    }
+
+    private suspend fun ApplicationTestBuilder.rejectedWith(error: BusinessError): HttpResponse {
+        val useCase: FinishRegistration = mockk()
+        coEvery { useCase.invoke(any(), any()) } returns Result.failure(error)
+        setupApplication(
+            diModule = module { single<FinishRegistration> { useCase } },
+            routeUnderTest = { registration() },
+        )
+        return createTestClient().post(AuthRouting.Api.Auth.SignUp()) { setBody(createSimpleRequest()) }
+    }
+
+    @Test
+    fun `should return unprocessable entity when the email code is wrong`() = routeTest {
+        given()
+        val response = rejectedWith(EmailCodeError.Invalid())
+
+        whenn()
+        val body = response.body<SimpleServerError>()
+
+        then()
+        assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
+        assertEquals(EmailErrorCodes.EMAIL_CODE_INVALID, body.errorCode)
+    }
+
+    @Test
+    fun `should return unprocessable entity when the email code expired`() = routeTest {
+        given()
+        val response = rejectedWith(EmailCodeError.Expired())
+
+        whenn()
+        val body = response.body<SimpleServerError>()
+
+        then()
+        assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
+        assertEquals(EmailErrorCodes.EMAIL_CODE_EXPIRED, body.errorCode)
+    }
+
+    @Test
+    fun `should return unprocessable entity after too many wrong email codes`() = routeTest {
+        given()
+        val response = rejectedWith(EmailCodeError.AttemptsExceeded())
+
+        whenn()
+        val body = response.body<SimpleServerError>()
+
+        then()
+        assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
+        assertEquals(EmailErrorCodes.EMAIL_CODE_ATTEMPTS_EXCEEDED, body.errorCode)
+    }
+
+    @Serializable
+    private class SignUpWithoutEmailCode(
+        @ProtoNumber(1) val requestId: String,
+        @ProtoNumber(2) val deviceInfo: VerifyAccountCreationRequest.DeviceInfo,
+        @ProtoNumber(3) val userInfo: VerifyAccountCreationRequest.UserInfo,
+        @ProtoNumber(4) val publicKeyCredentialJson: String,
+        @ProtoNumber(5) val acceptedDocuments: AcceptedLegalDocuments,
+    )
 
     @Serializable
     private class SignUpWithoutAcceptedDocuments(

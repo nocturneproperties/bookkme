@@ -183,6 +183,36 @@ internal class UserMeTest {
     }
 
     @Test
+    fun `should return unprocessable entity when the email is changed without verification`() = routeTest {
+        given()
+        val useCase: EditUser = mockk()
+        val editModel = UserEditModel(id = userId, firstName = null, lastName = null, email = "other@example.com", phone = null)
+        coEvery { useCase.invoke(userId, editModel) } returns Result.failure(EditUser.Error.EmailChangeRequiresVerification())
+
+        setupApplication(
+            extension = {
+                install(Authentication) {
+                    provider {
+                        authenticate { it.principal(AppPrincipal(Uuid.random(), userId, Uuid.random())) }
+                    }
+                }
+            },
+            diModule = module { single { useCase } },
+            routeUnderTest = { patchUser() },
+        )
+
+        whenn()
+        val client = createTestClient()
+        val response = client.patch(UserRouting.Api.User.Me()) {
+            setBody(editModel)
+        }
+
+        then()
+        assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
+        assertEquals(UserErrorCodes.EMAIL_CHANGE_REQUIRES_VERIFICATION, response.body<SimpleServerError>().errorCode)
+    }
+
+    @Test
     fun `should return unauthorized when getting current user without authentication`() = routeTest {
         given()
         val useCase: GetUserById = mockk()

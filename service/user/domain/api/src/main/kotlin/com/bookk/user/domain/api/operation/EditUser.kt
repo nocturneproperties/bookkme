@@ -25,5 +25,13 @@ interface EditUser {
                 message = "Phone or email is already used by another account",
             ),
             Error
+
+        class EmailChangeRequiresVerification :
+            BusinessError(
+                statusCode = HttpStatusCode.UnprocessableEntity.value,
+                code = UserErrorCodes.EMAIL_CHANGE_REQUIRES_VERIFICATION,
+                message = "A new email address must be verified with a code before it is stored",
+            ),
+            Error
     }
 }
