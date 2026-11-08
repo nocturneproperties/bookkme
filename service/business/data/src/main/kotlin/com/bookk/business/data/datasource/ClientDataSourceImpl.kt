@@ -10,7 +10,6 @@ import com.bookk.core.data.DataSource
 import com.bookk.core.data.map.toDomain
 import com.bookk.core.domain.entity.Error
 import org.jetbrains.exposed.v1.core.JoinType
-import org.jetbrains.exposed.v1.core.Op
 import org.jetbrains.exposed.v1.core.alias
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
@@ -60,19 +59,10 @@ internal class ClientDataSourceImpl : DataSource(), ClientDataSource {
         }.map(ClientEntity::toDomain)
     }
 
-    override suspend fun getClientsByContacts(
-        businessId: Uuid,
-        phones: Collection<String>,
-        emails: Collection<String>,
-    ): List<Client> = dbQuery {
-        val contactMatches = listOfNotNull<Op<Boolean>>(
-            phones.takeIf { it.isNotEmpty() }?.let { ClientTable.phone inList it },
-            emails.takeIf { it.isNotEmpty() }?.let { ClientTable.email inList it },
-        )
-        if (contactMatches.isEmpty()) return@dbQuery emptyList()
-        ClientEntity.find {
-            (ClientTable.businessId eq businessId) and contactMatches.reduce { acc, match -> acc or match }
-        }.map(ClientEntity::toDomain)
+    override suspend fun getClientsByEmails(businessId: Uuid, emails: Collection<String>): List<Client> = dbQuery {
+        if (emails.isEmpty()) return@dbQuery emptyList()
+        ClientEntity.find { (ClientTable.businessId eq businessId) and (ClientTable.email inList emails) }
+            .map(ClientEntity::toDomain)
     }
 
     override suspend fun getClientById(businessId: Uuid, id: Uuid): Client? = dbQuery {
@@ -105,21 +95,15 @@ internal class ClientDataSourceImpl : DataSource(), ClientDataSource {
         ClientEntity.takeOver(businessId, detachedClientId, profile)?.toDomain()
     }
 
-    override suspend fun findClientMergesForUser(
-        userId: Uuid,
-        phone: String?,
-        email: String,
-        updatedAt: Instant,
-    ): List<ClientMerge> = dbQuery {
+    override suspend fun findClientMergesForUser(userId: Uuid, email: String, updatedAt: Instant): List<ClientMerge> = dbQuery {
         val integrated = ClientTable.alias("integrated")
-        val phoneMatch = phone?.let { ClientTable.phone eq it.trim() } ?: Op.FALSE
         ClientTable.join(integrated, JoinType.INNER, ClientTable.businessId, integrated[ClientTable.businessId])
             .select(ClientTable.businessId, ClientTable.id, integrated[ClientTable.id])
             .where {
                 (integrated[ClientTable.userId] eq userId) and
                     (integrated[ClientTable.sourceUpdatedAt].isNull() or (integrated[ClientTable.sourceUpdatedAt] less updatedAt)) and
                     ClientTable.userId.isNull() and
-                    ((ClientTable.email eq email.trim()) or phoneMatch)
+                    (ClientTable.email eq email.trim())
             }
             .map {
                 ClientMerge(

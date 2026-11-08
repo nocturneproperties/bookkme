@@ -24,7 +24,7 @@ internal class SyncUserProfileImpl(
         phone: String?,
         updatedAt: Instant,
     ): Result<Unit> = transactionManager.transaction {
-        val merges = clientDataSource.findClientMergesForUser(userId, phone, email, updatedAt)
+        val merges = clientDataSource.findClientMergesForUser(userId, email, updatedAt)
         merges.forEach { merge -> clientDataSource.deleteClient(merge.businessId, merge.fromClientId) }
         merges.groupBy { it.businessId to it.toClientId }.forEach { (kept, mergedInto) ->
             val (businessId, keptClientId) = kept

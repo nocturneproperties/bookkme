@@ -6,11 +6,10 @@ Says: client row `clientId` of the business belongs to `userId`, and the
 rows `mergedClientIds` were deleted as its duplicates. Produced by:
 
 - [Get appointment booking context](../business/get-appointment-booking-context.md),
-  when a user's first booking takes over a detached client of the business
-  (the row holding their email or phone) and deletes any other detached
-  row holding their contacts;
+  when a user's first booking takes over the detached client of the
+  business holding their email (no merged ids);
 - [React to user profile update (business)](../business/on-user-updated.md),
-  when the user's new phone or email belongs to detached clients of a
+  when the user's new email belongs to a detached client of a
   business where they are already a client, which are deleted as
   duplicates of their row (one event per kept row).
 

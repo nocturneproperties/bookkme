@@ -14,7 +14,7 @@ interface CreateClient {
         class ClientExist : BusinessError(
             statusCode = HttpStatusCode.UnprocessableEntity.value,
             code = BusinessErrorCodes.BUSINESS_CLIENT_EXISTS,
-            message = "Client with this phone or email already exists",
+            message = "Client with this email already exists",
         )
 
         class ClientValidationError : BusinessError(
