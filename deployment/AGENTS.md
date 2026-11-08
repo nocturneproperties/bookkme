@@ -1,6 +1,6 @@
 # bookk-server — Deployment Playbook
 
-Dev and prod deployment, CI image publishing aside (that stays in the root `AGENTS.md`). Claude Code loads this file through `deployment/CLAUDE.md` whenever it reads a file under `deployment/`; every rule in the root `AGENTS.md` still applies.
+Dev and prod deployment, CI image publishing aside (that is in `docs/agents/build-and-ci.md`). Claude Code loads this file through `deployment/CLAUDE.md` whenever it reads a file under `deployment/`; every rule in the root `AGENTS.md` still applies.
 
 ## Prod topology
 
@@ -8,7 +8,7 @@ Dev and prod deployment, CI image publishing aside (that stays in the root `AGEN
 
 ## Database and cache networking
 
-MariaDB and Valkey sit only on the encrypted `storage` overlay (the app, both exporters and NocoDB join it next to `operational`; nginx, the VPN and monitoring can't reach them), and MariaDB runs with `require_secure_transport = ON` (`db/my.cnf`; dev's `deployment/dev/db/my.cnf` sets it too, so a local SQL client on `127.0.0.1:3307` must enable SSL, while the throwaway migration database on 3308 stays plaintext). Every client other than the app (whose `createDatabase` connects with `sslMode=verify-full`, see the root `AGENTS.md`) must enable TLS itself: `database-exporter` runs with `--tls.insecure-skip-verify` (its Go driver can't do that verification), and each NocoDB source has SSL on.
+MariaDB and Valkey sit only on the encrypted `storage` overlay (the app, both exporters and NocoDB join it next to `operational`; nginx, the VPN and monitoring can't reach them), and MariaDB runs with `require_secure_transport = ON` (`db/my.cnf`; dev's `deployment/dev/db/my.cnf` sets it too, so a local SQL client on `127.0.0.1:3307` must enable SSL, while the throwaway migration database on 3308 stays plaintext). Every client other than the app (whose `createDatabase` connects with `sslMode=verify-full`, see `docs/agents/infrastructure.md`) must enable TLS itself: `database-exporter` runs with `--tls.insecure-skip-verify` (its Go driver can't do that verification), and each NocoDB source has SSL on.
 
 MariaDB's sizing lives in its own `db/tuning.cnf` (swarm config `monolith-mariadb-tuning-v<n>`, mounted next to the encryption `my.cnf` in `/etc/mysql/conf.d/`, which the ubi9 image reads through `/etc/my.cnf.d/docker.cnf`), sized for the 2 vCPU / 8 GB / NVMe worker: a 2G buffer pool, 512M redo log, `innodb_io_capacity = 1000`, `innodb_flush_neighbors = 0`; and `wait_timeout = 600` (down from 8 hours, so a client connection that vanished without closing is dropped within 10 minutes instead of filling `max_connections`); everything else stays at the 11.8 defaults, and a change needs a new config name.
 

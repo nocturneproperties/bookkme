@@ -2,7 +2,7 @@
 
 ## 0.18.0
 
-Changes since `monolith/0.17.0`. Sign-up verifies the email with a code before the account exists, and the email changes only through a code sent to the new address; older apps can no longer sign up.
+Changes since `monolith/0.17.0`. Sign-up verifies the email with a code before the account exists, the email changes only through a code sent to the new address, and business clients are matched to accounts by that verified email only; older apps can no longer sign up.
 
 ### Clients
 
@@ -11,13 +11,17 @@ Changes since `monolith/0.17.0`. Sign-up verifies the email with a code before t
 - The sign-up passkey challenge now lives 10 minutes, as long as the code.
 - New `POST /api/auth/email` (`EmailChangeRequest`) emails a code to a new address, and `POST /api/auth/email/confirm` (`EmailConfirmation`) stores it; errors as above, plus `EMAIL_EXIST` (1) and `INVALID_EMAIL_FORMAT` (2).
 - `PATCH /api/user/me` no longer changes the email: a different one returns 422 `EMAIL_CHANGE_REQUIRES_VERIFICATION` (100006). Send the stored email back or leave it null.
+- Several clients of a business may now share a phone: creating, updating and importing clients return `BUSINESS_CLIENT_EXISTS` (200004) only for a taken email.
+- A user's first booking takes over only the business's client holding their email, never one holding just their phone (that one stays and the user gets a new client), and a profile change merges clients by email only.
 
 ### Services
 
 - New internal route `POST /api/internal/user/{id}/email`, the only writer of a user's email after sign-up. The unused `UserClient.deleteUser` is gone.
+- `BusinessEvent.ClientLinked` from a booking now always has empty `mergedClientIds`; only a profile email change still merges.
 
 ### Upgrade
 
+- Business migration `V18` drops the client phone indexes `client_business_id_phone_unique` and `client_phone`; it cannot fail on existing data.
 - Set `APPLICATION_POSTMARK_SERVER_TOKEN`, `APPLICATION_EMAIL_FROM` and `APPLICATION_EMAIL_CODE_SECRET` (at least 32 bytes) for auth (the monolith in prod), or every sign-up and email change fails with 500.
 - Prod: run `make vault-update` (generates `vault_email_code_secret`), then set `vault_postmark_server_token` with `make vault-edit`. The sender is `no-reply@<domain>`, which Postmark must accept. The deploy refuses `CHANGE_ME` and `development_token`, which only dev uses: it logs every email, codes included, instead of sending it.
 

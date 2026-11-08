@@ -7,20 +7,22 @@ services and the user's client record from the business service's own
 data. An employee booking an existing client uses [Get staff booking
 context](get-staff-booking-context.md) instead. On the user's first booking with the business it attaches them as an
 integrated client. A detached client is only a placeholder for a person
-until they use the app, so before inserting a new row it looks for
-detached clients of the business holding the user's email or phone
-(`getClientsByContacts`) and takes one over instead: the row keeps its
-`id` (which appointments store as `client_id`) and `description`, gets the
-user's `user_id`, and its name, last name, email and phone are replaced by
-the profile's (the stored phone is kept when the profile has none). The
-row holding the email wins; any other matching detached row is the same
-person twice, so it is deleted. One `BusinessEvent.ClientLinked` then names
-the kept row, its new owner and the deleted duplicates, so appointments
-moves the duplicates' history onto the kept row and records the account on
-all of it. Integrated rows of other users are never taken over.
+until they use the app, so before inserting a new row it looks for the
+detached client of the business holding the user's email
+(`getClientsByEmails`; the email is unique per business, so there is at
+most one) and takes it over instead: the row keeps its `id` (which
+appointments store as `client_id`) and `description`, gets the user's
+`user_id`, and its name, last name, email and phone are replaced by the
+profile's (the stored phone is kept when the profile has none). One
+`BusinessEvent.ClientLinked` with no merged ids then names the row and its
+new owner, so appointments records the account on its history. Integrated
+rows of other users are never taken over.
 
-Phone and email are not verified yet, so whoever puts a phone or email in
-their profile takes over the matching contact, notes included.
+Only the email is matched, because only the email is verified: sign-up
+proves the address with a code, so the takeover goes to the person who
+owns it. A phone is never verified and is not unique per business, so a
+detached row holding only the user's phone stays as it is and the user gets
+a new row.
 
 ```mermaid
 flowchart TD
@@ -33,22 +35,15 @@ flowchart TD
     Emp -- ok --> Own[ClientDataSource.getClientByUserId businessId userId]
     Own -- found --> Services
     Own -- none --> Profile[UserClient.getUserById userId]
-    Profile --> Match[ClientDataSource.getClientsByContacts businessId phone email - detached only, email match first]
+    Profile --> Match[ClientDataSource.getClientsByEmails businessId email - detached only]
     Match -- none --> Create[ClientDataSource.getOrCreateIntegratedClient businessId profile]
-    Match -- found --> Others{more than one detached match?}
-    Others -- Yes --> Merge["ClientDataSource.deleteClient businessId duplicate.id per duplicate"]
-    Others -- No --> TakeOver
-    Merge --> TakeOver[ClientDataSource.takeOverClient businessId kept.id profile]
-    TakeOver -- ok --> Linked["eventProducer.send BusinessEvent.ClientLinked businessId kept.id userId mergedClientIds = duplicate ids"]
-    TakeOver -- taken over concurrently --> Fallback[ClientDataSource.getOrCreateIntegratedClient businessId profile]
-    Fallback --> Dups{duplicates deleted?}
-    Dups -- Yes --> LinkedFallback["eventProducer.send BusinessEvent.ClientLinked businessId client.id userId mergedClientIds - the row the user actually got, never the one the takeover missed"]
-    Dups -- No --> Services
-    LinkedFallback --> Services
+    Match -- found --> TakeOver[ClientDataSource.takeOverClient businessId detached.id profile]
+    TakeOver -- ok --> Linked["eventProducer.send BusinessEvent.ClientLinked businessId detached.id userId mergedClientIds = empty"]
+    TakeOver -- taken over concurrently --> Create
     Linked --> Services
     Create --> Services[ServiceDataSource.getServicesByIds - expanded per requested count]
     Services -- missing --> R422n([422 BUSINESS_QUOTE_SERVICE_NOT_FOUND 200013])
     Services -- ok --> R200([200 AppointmentBookingContext])
 ```
 
-**Consumed by:** `BusinessEvent.ClientLinked` → [appointments: move the duplicates' history and give the client's appointments the account](../appointments/on-client-linked.md).
+**Consumed by:** `BusinessEvent.ClientLinked` → [appointments: give the client's appointments the account](../appointments/on-client-linked.md).

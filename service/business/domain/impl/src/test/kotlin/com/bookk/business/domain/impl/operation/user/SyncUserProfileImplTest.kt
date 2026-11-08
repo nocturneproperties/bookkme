@@ -31,7 +31,7 @@ internal class SyncUserProfileImplTest {
         val sut = SyncUserProfileImpl(transactionManager, clientDataSource, employeeDataSource, eventProducer)
 
         init {
-            coEvery { clientDataSource.findClientMergesForUser(any(), any(), any(), any()) } returns emptyList()
+            coEvery { clientDataSource.findClientMergesForUser(any(), any(), any()) } returns emptyList()
         }
     }
 
@@ -114,7 +114,7 @@ internal class SyncUserProfileImplTest {
     }
 
     @Test
-    fun `should merge detached clients holding the new contacts into the user's client before syncing`() = runUnitTest {
+    fun `should merge detached clients holding the new email into the user's client before syncing`() = runUnitTest {
         given()
         val fixture = SutFixture()
         val userId = Uuid.random()
@@ -122,7 +122,7 @@ internal class SyncUserProfileImplTest {
         val merge = ClientMerge.stub()
         with(fixture) {
             transactionManager.mockTransaction()
-            coEvery { clientDataSource.findClientMergesForUser(userId, "+1555", "john@doe.com", updatedAt) } returns listOf(merge)
+            coEvery { clientDataSource.findClientMergesForUser(userId, "john@doe.com", updatedAt) } returns listOf(merge)
             coEvery { clientDataSource.deleteClient(merge.businessId, merge.fromClientId) } returns true
             coEvery { clientDataSource.updateIntegratedClients(userId, any(), any(), any(), any(), any()) } returns 1
             coEvery { employeeDataSource.updateIntegratedEmployees(userId, any(), any(), any(), any(), any()) } returns 0
@@ -158,7 +158,7 @@ internal class SyncUserProfileImplTest {
         val linked = mutableListOf<BusinessEvent.ClientLinked>()
         with(fixture) {
             transactionManager.mockTransaction()
-            coEvery { clientDataSource.findClientMergesForUser(userId, any(), any(), updatedAt) } returns listOf(kept, sameKept, elsewhere)
+            coEvery { clientDataSource.findClientMergesForUser(userId, any(), updatedAt) } returns listOf(kept, sameKept, elsewhere)
             coEvery { clientDataSource.deleteClient(any(), any()) } returns true
             coEvery { eventProducer.send(capture(linked), any()) } returns Unit
             coEvery { clientDataSource.updateIntegratedClients(userId, any(), any(), any(), any(), any()) } returns 1
@@ -179,7 +179,7 @@ internal class SyncUserProfileImplTest {
     }
 
     @Test
-    fun `should not publish a merge when no detached client holds the new contacts`() = runUnitTest {
+    fun `should not publish a merge when no detached client holds the new email`() = runUnitTest {
         given()
         val fixture = SutFixture()
         val userId = Uuid.random()
