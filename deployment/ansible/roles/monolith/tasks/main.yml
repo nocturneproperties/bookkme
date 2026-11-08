@@ -6,6 +6,12 @@
     fail_msg: "Pass -e version=<image tag of {{ monolith.image }}>"
     quiet: true
 
+- name: Refuse a Postmark server token that would not send email
+  ansible.builtin.assert:
+    that: vault_postmark_server_token | default('CHANGE_ME') not in ['', 'CHANGE_ME', 'development_token']
+    fail_msg: "Set vault_postmark_server_token to the Postmark server token with 'make vault-edit'; development_token logs every email code instead of sending it"
+    quiet: true
+
 - name: Render the monolith environment and database users init files
   ansible.builtin.set_fact:
     monolith_env_file: "{{ lookup('ansible.builtin.template', 'monolith.env.j2') }}"

@@ -19,6 +19,7 @@ Changes since `monolith/0.17.0`. Sign-up verifies the email with a code before t
 ### Upgrade
 
 - Set `APPLICATION_POSTMARK_SERVER_TOKEN`, `APPLICATION_EMAIL_FROM` and `APPLICATION_EMAIL_CODE_SECRET` (at least 32 bytes) for auth (the monolith in prod), or every sign-up and email change fails with 500.
+- Prod: run `make vault-update` (generates `vault_email_code_secret`), then set `vault_postmark_server_token` with `make vault-edit`. The sender is `no-reply@<domain>`, which Postmark must accept. The deploy refuses `CHANGE_ME` and `development_token`, which only dev uses: it logs every email, codes included, instead of sending it.
 
 ## 0.17.0
 

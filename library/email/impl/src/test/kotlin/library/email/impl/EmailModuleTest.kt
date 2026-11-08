@@ -43,6 +43,30 @@ internal class EmailModuleTest {
     }
 
     @Test
+    fun `should log emails instead of sending them when the server token is the development token`() = runUnitTest {
+        given()
+        val fixture = SutFixture(CONFIGURED + ("APPLICATION_POSTMARK_SERVER_TOKEN" to "development_token"))
+
+        whenn()
+        val sender = fixture.scope.get<EmailSender>()
+
+        then()
+        assertTrue(sender is LoggingEmailSender) { sender.toString() }
+    }
+
+    @Test
+    fun `should send emails through Postmark when the server token is a real token`() = runUnitTest {
+        given()
+        val fixture = SutFixture(CONFIGURED)
+
+        whenn()
+        val sender = fixture.scope.get<EmailSender>()
+
+        then()
+        assertTrue(sender is PostmarkEmailSender) { sender.toString() }
+    }
+
+    @Test
     fun `should name the missing server token variable`() = runUnitTest {
         given()
         val fixture = SutFixture(CONFIGURED - "APPLICATION_POSTMARK_SERVER_TOKEN")

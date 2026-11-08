@@ -9,6 +9,7 @@ import library.email.impl.EmailCodeHasher
 import library.email.impl.EmailCodeIssuerImpl
 import library.email.impl.EmailCodeRedeemerImpl
 import library.email.impl.EmailCodeStore
+import library.email.impl.LoggingEmailSender
 import library.email.impl.PostmarkEmailSender
 import library.email.impl.postmarkHttpClient
 import org.koin.core.qualifier.Qualifier
@@ -26,11 +27,13 @@ fun emailModule(qualifier: Qualifier, environment: (String) -> String? = System:
     scope(qualifier) {
         scoped<HttpClient>(postmarkClient) { postmarkHttpClient(CIO.create()) }
         scoped<EmailSender> {
-            PostmarkEmailSender(
-                httpClient = get(postmarkClient),
-                serverToken = environment.require(POSTMARK_SERVER_TOKEN),
-                from = environment.require(EMAIL_FROM),
-            )
+            val serverToken = environment.require(POSTMARK_SERVER_TOKEN)
+            val from = environment.require(EMAIL_FROM)
+            if (serverToken == LoggingEmailSender.DEVELOPMENT_SERVER_TOKEN) {
+                LoggingEmailSender(from)
+            } else {
+                PostmarkEmailSender(httpClient = get(postmarkClient), serverToken = serverToken, from = from)
+            }
         }
         scoped<EmailCodeHasher> { environment.codeHasher() }
         scoped<EmailCodeStore> { EmailCodeStore(get(), get()) }
