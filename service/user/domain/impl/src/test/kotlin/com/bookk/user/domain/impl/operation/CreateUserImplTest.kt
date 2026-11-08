@@ -1,11 +1,13 @@
 package com.bookk.user.domain.impl.operation
 
+import com.bookk.core.data.eventstreaming.StandardEventProducer
 import com.bookk.core.domain.datasource.transaction.TransactionManager
 import com.bookk.core.domain.datasource.transaction.mockTransaction
 import com.bookk.core.test.given
 import com.bookk.core.test.runUnitTest
 import com.bookk.core.test.then
 import com.bookk.core.test.whenn
+import com.bookk.server.user.client.api.event.UserEvent
 import com.bookk.user.domain.api.entity.AcceptedLegalDocuments
 import com.bookk.user.domain.api.entity.LegalDocument
 import com.bookk.user.domain.api.entity.LegalDocumentAcceptance
@@ -33,7 +35,8 @@ internal class CreateUserImplTest {
         val userDataSource = mockk<UserDataSource>()
         val legalDocumentDataSource = mockk<LegalDocumentDataSource>()
         val transactionManager = mockk<TransactionManager>()
-        val sut = CreateUserImpl(userDataSource, legalDocumentDataSource, transactionManager)
+        val eventProducer = mockk<StandardEventProducer>(relaxed = true)
+        val sut = CreateUserImpl(userDataSource, legalDocumentDataSource, transactionManager, eventProducer)
     }
 
     private val policy = LegalDocumentVersion.stub(version = "2026-01-01")
@@ -89,6 +92,48 @@ internal class CreateUserImplTest {
             fixture.userDataSource.insertNewUser(any())
             fixture.legalDocumentDataSource.recordAcceptance(created.id, any())
         }
+    }
+
+    @Test
+    fun `should publish the created profile so other services learn the verified email`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val created = User.stub(name = "Ann", lastName = "Lee", email = "ann@example.com", phone = null)
+        val published = slot<UserEvent.Updated>()
+        with(fixture) {
+            transactionManager.mockTransaction()
+            coEvery { legalDocumentDataSource.getVersionsInEffect(any()) } returns emptyList()
+            coEvery { userDataSource.insertNewUser(any()) } returns created
+            coEvery { eventProducer.send(capture(published), any()) } just runs
+        }
+
+        whenn()
+        val result = fixture.sut.invoke(NewUser("Ann", "Lee", "ann@example.com", AcceptedLegalDocuments(null, null)))
+
+        then()
+        assertTrue(result.isSuccess)
+        coVerify(exactly = 1) { fixture.eventProducer.send(any(UserEvent.Updated::class), any()) }
+        assertEquals(
+            listOf(created.id.toString(), "Ann", "Lee", "ann@example.com", null),
+            with(published.captured) { listOf(userId.toString(), name, lastName, email, phone) },
+        )
+    }
+
+    @Test
+    fun `should publish nothing when the legal documents are not accepted`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        with(fixture) {
+            transactionManager.mockTransaction()
+            coEvery { legalDocumentDataSource.getVersionsInEffect(any()) } returns listOf(policy)
+        }
+
+        whenn()
+        val result = fixture.sut.invoke(newUser(AcceptedLegalDocuments(null, null)))
+
+        then()
+        assertTrue(result.exceptionOrNull() is CreateUser.Error.LegalDocumentsNotAccepted)
+        coVerify(exactly = 0) { fixture.eventProducer.send(any(UserEvent.Updated::class), any()) }
     }
 
     @Test

@@ -2,7 +2,7 @@
 
 ## 0.18.0
 
-Changes since `monolith/0.17.0`. Sign-up verifies the email with a code before the account exists, the email changes only through a code sent to the new address, and business clients are matched to accounts by that verified email only; older apps can no longer sign up.
+Changes since `monolith/0.17.0`. Sign-up verifies the email with a code before the account exists, the email changes only through a code sent to the new address, business clients are matched to accounts by that verified email only, and notifications can now go out by email; older apps can no longer sign up.
 
 ### Clients
 
@@ -13,17 +13,21 @@ Changes since `monolith/0.17.0`. Sign-up verifies the email with a code before t
 - `PATCH /api/user/me` no longer changes the email: a different one returns 422 `EMAIL_CHANGE_REQUIRES_VERIFICATION` (100006). Send the stored email back or leave it null.
 - Several clients of a business may now share a phone: creating, updating and importing clients return `BUSINESS_CLIENT_EXISTS` (200004) only for a taken email.
 - A user's first booking takes over only the business's client holding their email, never one holding just their phone (that one stays and the user gets a new client), and a profile change merges clients by email only.
+- `GET`/`PUT /api/notification/settings` now include the `EMAIL` channel (off by default); turning it on emails every notification the user gets, in the language of the device they signed in to last.
+- Account notices (dormancy warnings, data export ready) are always emailed to the account's address, even with the email channel off.
 - Prod nginx limits each IP to 6 code sends at once, then one per 30 s (`sign_up/challenge` and `POST /api/auth/email` together), to 11 code checks, then one per 6 s (`sign_up` and `email/confirm`), and to 21 `GET /api/auth/passkey/sign_in/challenge`, then one per 6 s; beyond that it answers 429 with an HTML body, so treat any 429 as "try again later".
 
 ### Services
 
 - New internal route `POST /api/internal/user/{id}/email`, the only writer of a user's email after sign-up. The unused `UserClient.deleteUser` is gone.
 - `BusinessEvent.ClientLinked` from a booking now always has empty `mergedClientIds`; only a profile email change still merges.
+- `POST /api/internal/user` now publishes `UserEvent.Updated` for the new user, so notifications learns the sign-up email.
 
 ### Upgrade
 
+- Notifications migration `V5` offers the email channel on existing settings rows; it cannot fail on existing data.
 - Business migration `V18` drops the client phone indexes `client_business_id_phone_unique` and `client_phone`; it cannot fail on existing data.
-- Set `APPLICATION_POSTMARK_SERVER_TOKEN`, `APPLICATION_EMAIL_FROM` and `APPLICATION_EMAIL_CODE_SECRET` (at least 32 bytes) for auth (the monolith in prod), or every sign-up and email change fails with 500.
+- Set `APPLICATION_POSTMARK_SERVER_TOKEN`, `APPLICATION_EMAIL_FROM` and `APPLICATION_EMAIL_CODE_SECRET` (at least 32 bytes) for auth (the monolith in prod), or every sign-up and email change fails with 500. A standalone notifications service now needs the first two as well, or its event handling fails to start.
 - Prod: run `make vault-update` (generates `vault_email_code_secret`), then set `vault_postmark_server_token` and `vault_stack_env.EMAIL_DOMAIN_NAME` with `make vault-edit`; the deploy refuses either one unset. The sender is `no-reply@<EMAIL_DOMAIN_NAME>`, not the app's domain: verify that domain in Postmark and add its DKIM and Return-Path records in Cloudflare before deploying. The deploy refuses `CHANGE_ME` and `development_token`, which only dev uses: it logs every email, codes included, instead of sending it.
 - Prod: deploy nginx (`make infra tags=nginx`) for the new rate limits and upstream keepalive.
 

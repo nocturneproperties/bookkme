@@ -12,8 +12,10 @@ operation runs. Every sent version must be published and in effect, and
 every document with a version in effect must be accepted in exactly that
 version (see [Legal documents](../../legal-documents.md)); a document with
 no published version needs nothing. Both checks run before the profile is
-inserted, and the profile and its acceptances are written in one
-transaction.
+inserted, and the profile, its acceptances and a `UserEvent.Updated`
+carrying the new profile are written in one transaction, so other
+services learn the verified sign-up email without waiting for a profile
+edit.
 
 ```mermaid
 flowchart TD
@@ -26,6 +28,11 @@ flowchart TD
     InEffect -- a version in effect not sent --> R422b([422 LEGAL_DOCUMENTS_NOT_ACCEPTED 100004])
     InEffect -- all accepted --> Insert[UserDataSource.insertNewUser - id generated]
     Insert --> Record[LegalDocumentDataSource.recordAcceptance userId document version now - INSERT IGNORE, per sent document]
-    Record --> Commit[[Commit transaction]]
+    Record --> Event[eventProducer.send UserEvent.Updated userId name lastName email phone now]
+    Event --> Commit[[Commit transaction]]
     Commit --> R200([200 UserId])
 ```
+
+**Consumed by:** `UserEvent.Updated` → [business: sync denormalized client/
+employee copies](../business/on-user-updated.md) and [notifications: sync
+the email delivery target](../notifications/on-user-updated.md).
