@@ -27,6 +27,12 @@ object AuthRouting {
             @Resource("/sign_up")
             class SignUp(val parent: Auth = Auth())
 
+            @Resource("/email")
+            class Email(val parent: Auth = Auth()) {
+                @Resource("/confirm")
+                class Confirm(val parent: Email = Email())
+            }
+
             @Resource("/passkey")
             class PassKey(val parent: Auth = Auth()) {
                 @Resource("/sign_in/test")

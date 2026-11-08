@@ -66,11 +66,36 @@ internal class EmailModuleTest {
         assertTrue(generateSequence(resolved.exceptionOrNull()) { it.cause }.any { it.message.orEmpty().contains("APPLICATION_EMAIL_FROM") }) { resolved.toString() }
     }
 
+    @Test
+    fun `should name the missing code secret variable`() = runUnitTest {
+        given()
+        val fixture = SutFixture(CONFIGURED - "APPLICATION_EMAIL_CODE_SECRET")
+
+        whenn()
+        val resolved = runCatching { fixture.scope.get<EmailCodeIssuer>() }
+
+        then()
+        assertTrue(generateSequence(resolved.exceptionOrNull()) { it.cause }.any { it.message.orEmpty().contains("APPLICATION_EMAIL_CODE_SECRET") }) { resolved.toString() }
+    }
+
+    @Test
+    fun `should refuse a code secret too short to key the hash`() = runUnitTest {
+        given()
+        val fixture = SutFixture(CONFIGURED + ("APPLICATION_EMAIL_CODE_SECRET" to "short"))
+
+        whenn()
+        val resolved = runCatching { fixture.scope.get<EmailCodeRedeemer>() }
+
+        then()
+        assertTrue(generateSequence(resolved.exceptionOrNull()) { it.cause }.any { it.message.orEmpty().contains("APPLICATION_EMAIL_CODE_SECRET") }) { resolved.toString() }
+    }
+
     private companion object {
         val SCOPE = named("EmailModuleTestScope")
         val CONFIGURED = mapOf(
             "APPLICATION_POSTMARK_SERVER_TOKEN" to "POSTMARK_API_TEST",
             "APPLICATION_EMAIL_FROM" to "no-reply@example.com",
+            "APPLICATION_EMAIL_CODE_SECRET" to "0123456789abcdef0123456789abcdef-test-secret",
         )
     }
 }

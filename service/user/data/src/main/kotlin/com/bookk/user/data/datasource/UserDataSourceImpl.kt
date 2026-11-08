@@ -44,6 +44,12 @@ internal class UserDataSourceImpl(
         cacheClient.deleteUser(id)
     }
 
+    override suspend fun changeEmail(id: Uuid, verifiedEmail: String, updatedAt: Instant): User? = dbQuery {
+        UserEntity.changeEmail(id, verifiedEmail, updatedAt)?.domain()
+    }?.also {
+        cacheClient.deleteUser(id)
+    }
+
     override suspend fun getUserById(id: Uuid): User? = dbQuery {
         val cached: User? = cacheClient.getUser(id)
         if (cached != null) return@dbQuery cached

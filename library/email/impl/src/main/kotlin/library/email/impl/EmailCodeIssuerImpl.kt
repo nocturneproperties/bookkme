@@ -17,6 +17,7 @@ import kotlin.uuid.Uuid
 
 internal class EmailCodeIssuerImpl(
     private val store: EmailCodeStore,
+    private val hasher: EmailCodeHasher,
     private val sender: EmailSender,
     private val random: Random,
     private val clock: Clock,
@@ -28,7 +29,7 @@ internal class EmailCodeIssuerImpl(
             if (store.countSend(email, SEND_LIMIT_WINDOW) > MAX_SENDS_PER_WINDOW) throw EmailCodeError.ResendTooSoon()
             val verificationId = Uuid.random()
             val code = newEmailCode(random)
-            val session = EmailCodeSession(ownerId, email, purpose, emailCodeHash(verificationId.toString(), code))
+            val session = EmailCodeSession(ownerId, email, purpose, hasher.codeHash(verificationId, code))
             store.saveSession(verificationId, session, CODE_LIFETIME)
             sender.send(EmailMessage(to = email, content = render(code))).getOrThrow()
             store.markLatest(ownerId, verificationId, CODE_LIFETIME)

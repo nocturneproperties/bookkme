@@ -32,11 +32,12 @@ internal class EmailCodeRedeemerImplTest {
 
     private class SutFixture {
         val timeSource = TestTimeSource()
-        val store = EmailCodeStore(InMemoryCacheClient(timeSource = timeSource))
+        val hasher = EmailCodeHasher.fromSecret("0123456789abcdef0123456789abcdef-test-secret")
+        val store = EmailCodeStore(InMemoryCacheClient(timeSource = timeSource), hasher)
         val sender = mockk<EmailSender>()
-        val issuer = EmailCodeIssuerImpl(store, sender, SecureRandom(), Clock.System)
+        val issuer = EmailCodeIssuerImpl(store, hasher, sender, SecureRandom(), Clock.System)
         val ownerId = Uuid.random()
-        val sut = EmailCodeRedeemerImpl(store)
+        val sut = EmailCodeRedeemerImpl(store, hasher)
         var actionRuns = 0
 
         init {

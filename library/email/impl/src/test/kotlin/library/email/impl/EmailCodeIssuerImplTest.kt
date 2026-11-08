@@ -39,12 +39,13 @@ internal class EmailCodeIssuerImplTest {
 
             override fun now(): Instant = start + startMark.elapsedNow()
         }
-        val store = EmailCodeStore(InMemoryCacheClient(timeSource = timeSource))
+        val hasher = EmailCodeHasher.fromSecret("0123456789abcdef0123456789abcdef-test-secret")
+        val store = EmailCodeStore(InMemoryCacheClient(timeSource = timeSource), hasher)
         val sender = mockk<EmailSender>()
         val sentMessages = mutableListOf<EmailMessage>()
         val renderedCodes = mutableListOf<String>()
         val ownerId = Uuid.random()
-        val sut = EmailCodeIssuerImpl(store, sender, SecureRandom(), clock)
+        val sut = EmailCodeIssuerImpl(store, hasher, sender, SecureRandom(), clock)
 
         init {
             coEvery { sender.send(any()) } answers {

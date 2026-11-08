@@ -10,6 +10,7 @@ import kotlin.uuid.Uuid
 
 internal class EmailCodeStore(
     private val cacheClient: CacheClient<String>,
+    private val hasher: EmailCodeHasher,
 ) : DataSource() {
 
     suspend fun claimCooldown(email: String, cooldown: Duration): Boolean = mapExceptions {
@@ -57,6 +58,10 @@ internal class EmailCodeStore(
         cacheClient.delete(attemptsKey(verificationId))
     }
 
+    private fun cooldownKey(email: String) = "$PREFIX:cooldown:${hasher.addressKey(email)}"
+
+    private fun sentKey(email: String) = "$PREFIX:sent:${hasher.addressKey(email)}"
+
     private companion object {
         const val PREFIX = "email-verification"
         const val MARKER = "1"
@@ -68,11 +73,5 @@ internal class EmailCodeStore(
         fun redeemedKey(verificationId: Uuid) = "$PREFIX:$verificationId:redeemed"
 
         fun latestKey(ownerId: Uuid) = "$PREFIX:latest:$ownerId"
-
-        fun cooldownKey(email: String) = "$PREFIX:cooldown:${addressKey(email)}"
-
-        fun sentKey(email: String) = "$PREFIX:sent:${addressKey(email)}"
-
-        fun addressKey(email: String) = sha256Hex(email.lowercase())
     }
 }

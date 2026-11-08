@@ -30,8 +30,12 @@ class UserEntity(id: EntityID<Uuid>) : UuidEntity(id) {
         fun applyEdit(id: Uuid, model: UserEditModel, updatedAt: Instant): UserEntity? = findByIdAndUpdate(id) {
             model.firstName?.let { firstName -> it.name = firstName }
             model.lastName?.let { lastName -> it.lastName = lastName }
-            model.email?.let { email -> it.email = email }
             model.phone?.let { phone -> it.phone = phone.trim().ifBlank { null } }
+            it.updatedAt = updatedAt
+        }
+
+        fun changeEmail(id: Uuid, verifiedEmail: String, updatedAt: Instant): UserEntity? = findByIdAndUpdate(id) {
+            it.email = verifiedEmail
             it.updatedAt = updatedAt
         }
     }

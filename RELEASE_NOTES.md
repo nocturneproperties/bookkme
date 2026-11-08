@@ -1,8 +1,24 @@
 # Release notes
 
-## 0.17.1
+## 0.18.0
 
-Changes since `monolith/0.17.0`. Groundwork for email verification, with no change for clients or operators yet.
+Changes since `monolith/0.17.0`. Sign-up verifies the email with a code before the account exists, and the email changes only through a code sent to the new address; older apps can no longer sign up.
+
+### Clients
+
+- `POST /api/auth/passkey/sign_up/challenge` now emails a 6-digit code (10 minutes) in the `Accept-Language` language and returns `SignUpChallengeResponse` with `emailVerification` (6); it can answer 422 `EMAIL_UNDELIVERABLE` (910005) and 429 `EMAIL_CODE_RESEND_TOO_SOON` (910004). Call it again to resend.
+- `POST /api/auth/sign_up` requires `verificationId` (6) and `emailCode` (7), else 400, and answers a bad code with 422 `EMAIL_CODE_INVALID` (910001), `EMAIL_CODE_EXPIRED` (910002) or `EMAIL_CODE_ATTEMPTS_EXCEEDED` (910003). The account takes the address the code was sent to; `userInfo.email` is ignored.
+- The sign-up passkey challenge now lives 10 minutes, as long as the code.
+- New `POST /api/auth/email` (`EmailChangeRequest`) emails a code to a new address, and `POST /api/auth/email/confirm` (`EmailConfirmation`) stores it; errors as above, plus `EMAIL_EXIST` (1) and `INVALID_EMAIL_FORMAT` (2).
+- `PATCH /api/user/me` no longer changes the email: a different one returns 422 `EMAIL_CHANGE_REQUIRES_VERIFICATION` (100006). Send the stored email back or leave it null.
+
+### Services
+
+- New internal route `POST /api/internal/user/{id}/email`, the only writer of a user's email after sign-up. The unused `UserClient.deleteUser` is gone.
+
+### Upgrade
+
+- Set `APPLICATION_POSTMARK_SERVER_TOKEN`, `APPLICATION_EMAIL_FROM` and `APPLICATION_EMAIL_CODE_SECRET` (at least 32 bytes) for auth (the monolith in prod), or every sign-up and email change fails with 500.
 
 ## 0.17.0
 

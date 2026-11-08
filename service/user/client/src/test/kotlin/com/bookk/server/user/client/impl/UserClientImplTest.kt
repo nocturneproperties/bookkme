@@ -8,11 +8,14 @@ import com.bookk.server.user.client.api.CreateUserRequest
 import com.bookk.user.domain.api.entity.AcceptedLegalDocuments
 import com.bookk.user.domain.api.entity.NewUser
 import com.bookk.user.domain.api.entity.UserId
+import com.bookk.user.domain.api.operation.ChangeUserEmail
 import com.bookk.user.domain.api.operation.CreateUser
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.mockk
 import io.mockk.slot
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import kotlin.uuid.Uuid
 
@@ -20,7 +23,8 @@ internal class UserClientImplTest {
 
     private class SutFixture {
         val createUser = mockk<CreateUser>()
-        val sut = UserClientImpl(mockk(), mockk(), createUser, mockk())
+        val changeUserEmail = mockk<ChangeUserEmail>()
+        val sut = UserClientImpl(mockk(), mockk(), createUser, changeUserEmail)
     }
 
     @Test
@@ -38,5 +42,20 @@ internal class UserClientImplTest {
         then()
         assertEquals(userId, result.getOrNull())
         assertEquals(NewUser("Ann", "Lee", "ann@example.com", accepted), sent.captured)
+    }
+
+    @Test
+    fun `should store a verified email for the user`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        coEvery { fixture.changeUserEmail.invoke(userId, "new@example.com") } returns Result.success(Unit)
+
+        whenn()
+        val result = fixture.sut.changeEmail(userId, "new@example.com")
+
+        then()
+        assertTrue(result.isSuccess)
+        coVerify(exactly = 1) { fixture.changeUserEmail.invoke(userId, "new@example.com") }
     }
 }

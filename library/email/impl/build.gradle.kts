@@ -1,5 +1,6 @@
 plugins {
     alias(libs.plugins.bookk.data)
+    alias(libs.plugins.kotlin.fixtures)
 }
 
 dependencies {
@@ -13,7 +14,8 @@ dependencies {
     implementation(libs.ktor.json)
     implementation(libs.kotlin.serialization.json)
 
+    testFixturesApi(testFixtures(projects.core.data.cache.impl))
+
     testImplementation(testFixtures(projects.core))
-    testImplementation(testFixtures(projects.core.data.cache.impl))
     testImplementation(libs.ktor.client.mock)
 }

@@ -25,7 +25,7 @@ internal class CommunicationDataSourceImplTest {
         val userSut = UserDataSourceImpl(mockk(relaxed = true))
 
         suspend fun insertUser(): Uuid = suspendTransaction {
-            userSut.insertNewUser(User(Uuid.random(), "Test", "User", "test${Uuid.random()}@example.com", null))
+            userSut.insertNewUser(User.stub(name = "Test", lastName = "User", email = "test${Uuid.random()}@example.com"))
         }.id
     }
 

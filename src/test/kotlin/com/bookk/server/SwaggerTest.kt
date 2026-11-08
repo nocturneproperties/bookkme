@@ -59,11 +59,14 @@ internal class SwaggerTest {
                 "post /api/auth/passkey/add/finish",
                 "post /api/auth/passkey/confirm_action",
                 "delete /api/auth/account",
+                "post /api/auth/email",
+                "post /api/auth/email/confirm",
             ),
         ),
         USER(
             Routing::userRoute,
             setOf(
+                "post /api/internal/user/{id}/email",
                 "get /api/internal/user/email",
                 "post /api/internal/user",
                 "patch /api/user/me",
@@ -238,6 +241,16 @@ internal class SwaggerTest {
             val resolved = resolveSchema(document, schema)
             assertTrue("acceptedDocuments" in resolved.getValue("properties").jsonObject)
             assertTrue(JsonPrimitive("acceptedDocuments") in (resolved.getValue("required") as JsonArray))
+            assertTrue(listOf("verificationId", "emailCode").all { JsonPrimitive(it) in (resolved.getValue("required") as JsonArray) }) { resolved.toString() }
+            val challenge = operations.getValue("post /api/auth/passkey/sign_up/challenge")
+            val challengeSchema = challenge.getValue("responses").jsonObject.getValue("200").jsonObject.getValue("content").jsonObject
+                .getValue("application/x-protobuf").jsonObject.getValue("schema").jsonObject
+            assertTrue("emailVerification" in resolveSchema(document, challengeSchema).getValue("properties").jsonObject) { challengeSchema.toString() }
+            assertTrue(challenge.getValue("responses").jsonObject.keys.containsAll(setOf("200", "422", "429")))
+            val confirmEmail = operations.getValue("post /api/auth/email/confirm")
+            val confirmSchema = confirmEmail.getValue("requestBody").jsonObject.getValue("content").jsonObject
+                .getValue("application/x-protobuf").jsonObject.getValue("schema").jsonObject
+            assertEquals(setOf("verificationId", "code"), resolveSchema(document, confirmSchema).getValue("properties").jsonObject.keys)
             val deletion = operations.getValue("delete /api/auth/account")
             val deletionSchema = deletion.getValue("requestBody").jsonObject.getValue("content").jsonObject
                 .getValue("application/x-protobuf").jsonObject.getValue("schema").jsonObject

@@ -10,6 +10,7 @@ import kotlin.uuid.Uuid
 
 internal class EmailCodeRedeemerImpl(
     private val store: EmailCodeStore,
+    private val hasher: EmailCodeHasher,
 ) : EmailCodeRedeemer {
 
     override suspend fun <T> redeem(verificationId: Uuid, code: String, ownerId: Uuid, action: suspend (VerifiedEmail) -> T): Result<T> = runSuspendCatching {
@@ -18,7 +19,7 @@ internal class EmailCodeRedeemerImpl(
             store.discard(verificationId)
             throw EmailCodeError.AttemptsExceeded()
         }
-        if (!emailCodeMatches(session.codeHash, verificationId.toString(), code)) throw EmailCodeError.Invalid()
+        if (!hasher.matches(session.codeHash, verificationId, code)) throw EmailCodeError.Invalid()
         if (!store.claimRedeemed(verificationId, CODE_LIFETIME)) throw EmailCodeError.Expired()
         runCleaningUpOnFailure(cleanUp = { store.releaseRedeemed(verificationId) }) {
             action(VerifiedEmail(email = session.email, purpose = session.purpose))

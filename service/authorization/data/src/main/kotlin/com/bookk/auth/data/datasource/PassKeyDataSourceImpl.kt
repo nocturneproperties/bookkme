@@ -31,7 +31,7 @@ internal class PassKeyDataSourceImpl(
 ) : DataSource(), PassKeyDataSource {
 
     override suspend fun saveChallengeToCache(requestId: String, challenge: String) = mapExceptions {
-        cacheClient.set(requestId, challenge, 5.minutes)
+        cacheClient.set(requestId, challenge, CHALLENGE_LIFETIME)
     }
 
     override suspend fun getCachedChallenge(requestId: String): String? = mapExceptions { cacheClient.get(requestId) }
@@ -145,5 +145,9 @@ internal class PassKeyDataSourceImpl(
         PasskeyCredentialTable.deleteWhere {
             (PasskeyCredentialTable.id eq id) and (existingPasskeys greater longLiteral(1L))
         }
+    }
+
+    private companion object {
+        val CHALLENGE_LIFETIME = 10.minutes
     }
 }

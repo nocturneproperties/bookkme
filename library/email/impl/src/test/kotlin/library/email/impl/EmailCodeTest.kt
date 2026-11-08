@@ -5,7 +5,6 @@ import com.bookk.core.test.runUnitTest
 import com.bookk.core.test.then
 import com.bookk.core.test.whenn
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.security.SecureRandom
@@ -46,19 +45,5 @@ internal class EmailCodeTest {
 
         then()
         assertTrue(codes.all { it.matches(Regex("\\d{6}")) }) { codes.toString() }
-    }
-
-    @Test
-    fun `should hash the same code for different verifications differently`() = runUnitTest {
-        given()
-        val code = "123456"
-
-        whenn()
-        val first = emailCodeHash("first", code)
-        val second = emailCodeHash("second", code)
-
-        then()
-        assertNotEquals(first, second)
-        assertEquals(first, emailCodeHash("first", code))
     }
 }

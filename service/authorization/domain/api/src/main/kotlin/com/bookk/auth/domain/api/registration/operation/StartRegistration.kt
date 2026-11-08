@@ -2,13 +2,14 @@ package com.bookk.auth.domain.api.registration.operation
 
 import com.bookk.auth.domain.api.error.AuthErrorCodes
 import com.bookk.auth.domain.api.registration.entity.CreateAccountRequest
-import com.bookk.auth.domain.api.registration.entity.RegistrationChallengeResponse
+import com.bookk.auth.domain.api.registration.entity.SignUpChallengeResponse
 import com.bookk.core.domain.entity.BusinessError
+import com.bookk.core.domain.entity.Language
 import io.ktor.http.HttpStatusCode
 
 interface StartRegistration {
 
-    suspend operator fun invoke(request: CreateAccountRequest): Result<RegistrationChallengeResponse>
+    suspend operator fun invoke(request: CreateAccountRequest, language: Language): Result<SignUpChallengeResponse>
 
     sealed interface Error {
         class EmailAlreadyExist :

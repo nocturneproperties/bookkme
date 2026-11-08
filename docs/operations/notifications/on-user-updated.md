@@ -2,7 +2,7 @@
 
 Kafka topic `UserEvent.Updated` → `NotificationEventHandler` → `UpdateTargetInformation`
 
-Produced by [Update user](../user/update-user.md). Keeps the user's email
+Produced by [Update user](../user/update-user.md) and [Store a verified email](../user/change-user-email-internal.md). Keeps the user's email
 delivery target in sync with their profile email; requires notification
 settings to already exist (created lazily elsewhere), so an update for a
 user with none is treated as a failure rather than silently creating them.

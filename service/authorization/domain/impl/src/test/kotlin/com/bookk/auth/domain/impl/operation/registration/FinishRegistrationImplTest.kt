@@ -9,6 +9,8 @@ import com.bookk.auth.domain.api.token.entity.AuthTokens
 import com.bookk.auth.domain.api.token.operation.GenerateAuthToken
 import com.bookk.auth.domain.datasource.AccountDataSource
 import com.bookk.auth.domain.datasource.DeviceDataSource
+import com.bookk.auth.domain.impl.email.AuthEmails
+import com.bookk.auth.domain.impl.email.EmailPurpose
 import com.bookk.core.data.eventstreaming.StandardEventProducer
 import com.bookk.core.domain.datasource.transaction.TransactionManager
 import com.bookk.core.domain.datasource.transaction.mockTransaction
@@ -28,10 +30,11 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
 import io.mockk.slot
+import library.email.EmailCodeError
+import library.email.test.EmailTestMailbox
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import kotlin.time.Clock
 import kotlin.uuid.Uuid
 
 internal class FinishRegistrationImplTest {
@@ -44,6 +47,7 @@ internal class FinishRegistrationImplTest {
         val eventProducer = mockk<StandardEventProducer>(relaxed = true)
         val transactionManager = mockk<TransactionManager>()
         val finishPasskeyRegistration = mockk<FinishPasskeyRegistration>()
+        val mailbox = EmailTestMailbox()
         val sut = FinishRegistrationImpl(
             accountDataSource,
             deviceDataSource,
@@ -52,109 +56,190 @@ internal class FinishRegistrationImplTest {
             eventProducer,
             transactionManager,
             finishPasskeyRegistration,
+            mailbox.redeemer,
         )
-    }
 
-    private fun makeRequest(
-        deviceId: Uuid = Uuid.random(),
-        acceptedDocuments: AcceptedLegalDocuments = AcceptedLegalDocuments(privacyPolicy = "2026-01-01", termsOfService = "2025-06-01"),
-    ): VerifyAccountCreationRequest = VerifyAccountCreationRequest(
-        requestId = "req-id",
-        publicKeyCredentialJson = "{}",
-        deviceInfo = VerifyAccountCreationRequest.DeviceInfo(deviceUUID = deviceId, deviceName = "Test Device"),
-        userInfo = VerifyAccountCreationRequest.UserInfo(name = "John", lastName = "Doe", email = "john@example.com"),
-        acceptedDocuments = acceptedDocuments,
-    )
+        suspend fun signUpRequest(
+            requestId: String = Uuid.random().toString(),
+            verifiedEmail: String = VERIFIED_EMAIL,
+            deviceId: Uuid = Uuid.random(),
+            acceptedDocuments: AcceptedLegalDocuments = AcceptedLegalDocuments(privacyPolicy = "2026-01-01", termsOfService = "2025-06-01"),
+            purpose: String = EmailPurpose.SIGN_UP,
+        ): VerifyAccountCreationRequest {
+            val started = mailbox.issuer.issue(verifiedEmail, purpose, Uuid.parse(requestId)) { AuthEmails.signUpCode(Language.EN, it) }.getOrThrow()
+            return VerifyAccountCreationRequest(
+                requestId = requestId,
+                publicKeyCredentialJson = "{}",
+                deviceInfo = VerifyAccountCreationRequest.DeviceInfo(deviceUUID = deviceId, deviceName = "Test Device"),
+                userInfo = VerifyAccountCreationRequest.UserInfo(name = "John", lastName = "Doe", email = "typed@example.com"),
+                acceptedDocuments = acceptedDocuments,
+                verificationId = started.verificationId,
+                emailCode = mailbox.codeSentTo(verifiedEmail),
+            )
+        }
 
-    private fun makePasskeyCredential(handle: Uuid = Uuid.random()): PasskeyCredential {
-        val now = Clock.System.now()
-        return PasskeyCredential(
-            id = Uuid.random(),
-            authId = Uuid.random(),
-            authInfo = Authentication(id = Uuid.random(), userId = Uuid.random(), uuid = Uuid.random()),
-            handle = handle,
-            name = "Test Passkey",
-            credDescriptor = PasskeyCredential.CredentialDescriptor(ByteArray(0), "public-key", emptySet()),
-            publicKey = "key",
-            signatureCount = 0,
-            isDiscoverable = true,
-            isBackupEligible = false,
-            isBackedUp = false,
-            attestationObject = ByteArray(0),
-            clientData = "{}",
-            createdAt = now,
-            lastUsedAt = now,
-        )
+        fun registrationSucceeds(request: VerifyAccountCreationRequest, userId: Uuid = Uuid.random(), tokens: AuthTokens = AuthTokens("access", "refresh")) {
+            val passkey = PasskeyCredential.stub()
+            val authRecord = Authentication.stub(userId = userId, uuid = passkey.handle)
+            transactionManager.mockTransaction()
+            coEvery { finishPasskeyRegistration.verifyRequest(request) } returns Result.success(passkey)
+            coEvery { userClient.createUser(any()) } returns Result.success(userId)
+            coEvery { accountDataSource.createAuthorization(any()) } returns authRecord
+            coEvery { finishPasskeyRegistration.attachOwner(authRecord.id, passkey) } returns Unit
+            coEvery { deviceDataSource.insertDevice(authRecord.id, request.deviceInfo.deviceUUID, any(), Language.EN) } returns Uuid.random()
+            coEvery { generateAuthToken(any<GenerateAuthToken.Source.InitialAuthentication>()) } returns Result.success(tokens)
+        }
     }
 
     @Test
     fun `should complete registration successfully and emit DeviceCreated event`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        val deviceId = Uuid.random()
-        val request = makeRequest(deviceId)
-        val userId = Uuid.random()
-        val passkey = makePasskeyCredential()
-        val authRecord = Authentication(id = Uuid.random(), userId = userId, uuid = passkey.handle)
+        val request = fixture.signUpRequest()
         val tokens = AuthTokens(accessToken = "access", refreshToken = "refresh")
-        with(fixture) {
-            transactionManager.mockTransaction()
-            coEvery { finishPasskeyRegistration.verifyRequest(request) } returns Result.success(passkey)
-            coEvery { userClient.createUser(any()) } returns Result.success(userId)
-            coEvery { accountDataSource.createAuthorization(any()) } returns authRecord
-            coEvery { finishPasskeyRegistration.attachOwner(authRecord.id, passkey) } returns Unit
-            coEvery { deviceDataSource.insertDevice(authRecord.id, deviceId, any(), Language.EN) } returns Uuid.random()
-            coEvery { generateAuthToken(any<GenerateAuthToken.Source.InitialAuthentication>()) } returns Result.success(tokens)
-        }
+        fixture.registrationSucceeds(request, tokens = tokens)
 
         whenn()
         val result = fixture.sut.invoke(request, Language.EN)
 
         then()
-        assertTrue(result.isSuccess)
-        assertEquals(tokens, result.getOrNull())
+        assertEquals(tokens, result.getOrThrow())
         coVerify(exactly = 1) { fixture.eventProducer.send(any<AuthEvent.DeviceCreated>(), any()) }
         coVerify(exactly = 0) { fixture.eventProducer.send(any<AuthEvent.UserDeleted>(), any()) }
     }
 
     @Test
-    fun `should create the user with the legal documents accepted at sign-up`() = runUnitTest {
+    fun `should create the user with the verified email and the legal documents accepted at sign-up`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        val deviceId = Uuid.random()
         val accepted = AcceptedLegalDocuments(privacyPolicy = "2026-01-01", termsOfService = "2025-06-01")
-        val request = makeRequest(deviceId, accepted)
-        val userId = Uuid.random()
-        val passkey = makePasskeyCredential()
-        val authRecord = Authentication(id = Uuid.random(), userId = userId, uuid = passkey.handle)
+        val request = fixture.signUpRequest(acceptedDocuments = accepted)
         val sent = slot<CreateUserRequest>()
-        with(fixture) {
-            transactionManager.mockTransaction()
-            coEvery { finishPasskeyRegistration.verifyRequest(request) } returns Result.success(passkey)
-            coEvery { userClient.createUser(capture(sent)) } returns Result.success(userId)
-            coEvery { accountDataSource.createAuthorization(any()) } returns authRecord
-            coEvery { finishPasskeyRegistration.attachOwner(authRecord.id, passkey) } returns Unit
-            coEvery { deviceDataSource.insertDevice(authRecord.id, deviceId, any(), Language.EN) } returns Uuid.random()
-            coEvery { generateAuthToken(any<GenerateAuthToken.Source.InitialAuthentication>()) } returns Result.success(AuthTokens("access", "refresh"))
-        }
+        fixture.registrationSucceeds(request)
+        coEvery { fixture.userClient.createUser(capture(sent)) } returns Result.success(Uuid.random())
 
         whenn()
         val result = fixture.sut.invoke(request, Language.EN)
 
         then()
-        assertTrue(result.isSuccess)
+        assertTrue(result.isSuccess) { result.toString() }
         assertEquals(accepted, sent.captured.acceptedDocuments)
-        assertEquals(listOf("John", "Doe", "john@example.com"), with(sent.captured) { listOf(name, lastName, email) })
+        assertEquals(listOf("John", "Doe", VERIFIED_EMAIL), with(sent.captured) { listOf(name, lastName, email) })
+    }
+
+    @Test
+    fun `should return Invalid and keep the passkey challenge when the code is wrong`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val request = fixture.signUpRequest()
+        val wrongCode = request.copy(emailCode = if (request.emailCode == "000000") "000001" else "000000")
+
+        whenn()
+        val result = fixture.sut.invoke(wrongCode, Language.EN)
+
+        then()
+        assertTrue(result.exceptionOrNull() is EmailCodeError.Invalid) { result.toString() }
+        coVerify(exactly = 0) { fixture.finishPasskeyRegistration.verifyRequest(any()) }
+        coVerify(exactly = 0) { fixture.userClient.createUser(any()) }
+    }
+
+    @Test
+    fun `should accept the right code after a wrong one`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val request = fixture.signUpRequest()
+        fixture.registrationSucceeds(request)
+        fixture.sut.invoke(request.copy(emailCode = if (request.emailCode == "000000") "000001" else "000000"), Language.EN)
+
+        whenn()
+        val result = fixture.sut.invoke(request, Language.EN)
+
+        then()
+        assertTrue(result.isSuccess) { result.toString() }
+    }
+
+    @Test
+    fun `should return Expired when the code was sent for another sign-up attempt`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val request = fixture.signUpRequest()
+        val otherAttempt = request.copy(requestId = Uuid.random().toString())
+
+        whenn()
+        val result = fixture.sut.invoke(otherAttempt, Language.EN)
+
+        then()
+        assertTrue(result.exceptionOrNull() is EmailCodeError.Expired) { result.toString() }
+        coVerify(exactly = 0) { fixture.userClient.createUser(any()) }
+    }
+
+    @Test
+    fun `should return Invalid when the code was issued for something other than sign-up`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val request = fixture.signUpRequest(purpose = EmailPurpose.EMAIL_CHANGE)
+
+        whenn()
+        val result = fixture.sut.invoke(request, Language.EN)
+
+        then()
+        assertTrue(result.exceptionOrNull() is EmailCodeError.Invalid) { result.toString() }
+        coVerify(exactly = 0) { fixture.userClient.createUser(any()) }
+    }
+
+    @Test
+    fun `should return ChallengeWindowExpired when the request id names no challenge`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val request = fixture.signUpRequest().copy(requestId = "not-a-challenge")
+
+        whenn()
+        val result = fixture.sut.invoke(request, Language.EN)
+
+        then()
+        assertTrue(result.exceptionOrNull() is FinishPasskeyRegistration.Error.ChallengeWindowExpired) { result.toString() }
+    }
+
+    @Test
+    fun `should refuse the code once an account was created with it`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val request = fixture.signUpRequest()
+        fixture.registrationSucceeds(request)
+        fixture.sut.invoke(request, Language.EN).getOrThrow()
+
+        whenn()
+        val result = fixture.sut.invoke(request, Language.EN)
+
+        then()
+        assertTrue(result.exceptionOrNull() is EmailCodeError.Expired) { result.toString() }
+        coVerify(exactly = 1) { fixture.userClient.createUser(any()) }
+    }
+
+    @Test
+    fun `should give the code back when registration fails after it was checked`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val request = fixture.signUpRequest()
+        coEvery { fixture.finishPasskeyRegistration.verifyRequest(request) } returns Result.success(PasskeyCredential.stub())
+        coEvery { fixture.userClient.createUser(any()) } returns Result.failure(RuntimeException("user service error"))
+        fixture.sut.invoke(request, Language.EN)
+
+        whenn()
+        val redeemedAgain = fixture.mailbox.redeemer.redeem(request.verificationId, request.emailCode, Uuid.parse(request.requestId)) { it.email }
+
+        then()
+        assertEquals(VERIFIED_EMAIL, redeemedAgain.getOrThrow())
     }
 
     @Test
     fun `should fail with the user service's error and create no account when an accepted version is not published`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        val request = makeRequest(acceptedDocuments = AcceptedLegalDocuments(privacyPolicy = "unpublished", termsOfService = null))
+        val request = fixture.signUpRequest(acceptedDocuments = AcceptedLegalDocuments(privacyPolicy = "unpublished", termsOfService = null))
         with(fixture) {
             transactionManager.mockTransaction()
-            coEvery { finishPasskeyRegistration.verifyRequest(request) } returns Result.success(makePasskeyCredential())
+            coEvery { finishPasskeyRegistration.verifyRequest(request) } returns Result.success(PasskeyCredential.stub())
             coEvery { userClient.createUser(any()) } returns Result.failure(LegalDocumentError.VersionUnknown())
         }
 
@@ -171,16 +256,9 @@ internal class FinishRegistrationImplTest {
     fun `should compensate the remote user without deleting device associations when registration fails`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        val deviceId = Uuid.random()
-        val request = makeRequest(deviceId)
-        val userId = Uuid.random()
-        val passkey = makePasskeyCredential()
-        with(fixture) {
-            transactionManager.mockTransaction()
-            coEvery { finishPasskeyRegistration.verifyRequest(request) } returns Result.success(passkey)
-            coEvery { userClient.createUser(any()) } returns Result.success(userId)
-            coEvery { accountDataSource.createAuthorization(any()) } throws RuntimeException("db failure")
-        }
+        val request = fixture.signUpRequest()
+        fixture.registrationSucceeds(request)
+        coEvery { fixture.accountDataSource.createAuthorization(any()) } throws RuntimeException("db failure")
 
         whenn()
         val result = fixture.sut.invoke(request, Language.EN)
@@ -195,13 +273,10 @@ internal class FinishRegistrationImplTest {
     fun `should emit user cleanup inside a transaction when registration fails`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        val request = makeRequest()
-        val passkey = makePasskeyCredential()
+        val request = fixture.signUpRequest()
         val eventsSentOutsideTransaction = mutableListOf<Any>()
+        fixture.registrationSucceeds(request)
         with(fixture) {
-            transactionManager.mockTransaction()
-            coEvery { finishPasskeyRegistration.verifyRequest(request) } returns Result.success(passkey)
-            coEvery { userClient.createUser(any()) } returns Result.success(Uuid.random())
             coEvery { accountDataSource.createAuthorization(any()) } throws RuntimeException("db failure")
             coEvery { eventProducer.send(any<AuthEvent>(), any()) } coAnswers {
                 if (!transactionManager.isInTransaction()) eventsSentOutsideTransaction += firstArg<AuthEvent>()
@@ -221,25 +296,14 @@ internal class FinishRegistrationImplTest {
     fun `should return AccountCreationFailed when device insert returns null`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        val deviceId = Uuid.random()
-        val request = makeRequest(deviceId)
-        val userId = Uuid.random()
-        val passkey = makePasskeyCredential()
-        val authRecord = Authentication(id = Uuid.random(), userId = userId, uuid = passkey.handle)
-        with(fixture) {
-            transactionManager.mockTransaction()
-            coEvery { finishPasskeyRegistration.verifyRequest(request) } returns Result.success(passkey)
-            coEvery { userClient.createUser(any()) } returns Result.success(userId)
-            coEvery { accountDataSource.createAuthorization(any()) } returns authRecord
-            coEvery { finishPasskeyRegistration.attachOwner(authRecord.id, passkey) } returns Unit
-            coEvery { deviceDataSource.insertDevice(authRecord.id, deviceId, any(), Language.EN) } returns null
-        }
+        val request = fixture.signUpRequest()
+        fixture.registrationSucceeds(request)
+        coEvery { fixture.deviceDataSource.insertDevice(any(), request.deviceInfo.deviceUUID, any(), Language.EN) } returns null
 
         whenn()
         val result = fixture.sut.invoke(request, Language.EN)
 
         then()
-        assertTrue(result.isFailure)
         assertTrue(result.exceptionOrNull() is FinishRegistration.Error.AccountCreationFailed)
         coVerify(exactly = 1) { fixture.eventProducer.send(any<AuthEvent.UserDeleted>(), any()) }
         coVerify(exactly = 0) { fixture.eventProducer.send(any<AuthEvent.DeviceDeleted>(), any()) }
@@ -249,19 +313,10 @@ internal class FinishRegistrationImplTest {
     fun `should only compensate the remote user when token creation fails after staging a device event`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        val request = makeRequest()
+        val request = fixture.signUpRequest()
         val userId = Uuid.random()
-        val passkey = makePasskeyCredential()
-        val authRecord = Authentication.stub(userId = userId, uuid = passkey.handle)
-        with(fixture) {
-            transactionManager.mockTransaction()
-            coEvery { finishPasskeyRegistration.verifyRequest(request) } returns Result.success(passkey)
-            coEvery { userClient.createUser(any()) } returns Result.success(userId)
-            coEvery { accountDataSource.createAuthorization(any()) } returns authRecord
-            coEvery { finishPasskeyRegistration.attachOwner(authRecord.id, passkey) } returns Unit
-            coEvery { deviceDataSource.insertDevice(authRecord.id, request.deviceInfo.deviceUUID, any(), Language.EN) } returns Uuid.random()
-            coEvery { generateAuthToken(any<GenerateAuthToken.Source.InitialAuthentication>()) } returns Result.failure(RuntimeException("token failure"))
-        }
+        fixture.registrationSucceeds(request, userId = userId)
+        coEvery { fixture.generateAuthToken(any<GenerateAuthToken.Source.InitialAuthentication>()) } returns Result.failure(RuntimeException("token failure"))
 
         whenn()
         val result = fixture.sut.invoke(request, Language.EN)
@@ -277,18 +332,15 @@ internal class FinishRegistrationImplTest {
     fun `should return failure when passkey verification fails`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        val request = makeRequest()
-        with(fixture) {
-            coEvery { finishPasskeyRegistration.verifyRequest(request) } returns Result.failure(
-                FinishPasskeyRegistration.Error.ChallengeWindowExpired(),
-            )
-        }
+        val request = fixture.signUpRequest()
+        coEvery { fixture.finishPasskeyRegistration.verifyRequest(request) } returns Result.failure(
+            FinishPasskeyRegistration.Error.ChallengeWindowExpired(),
+        )
 
         whenn()
         val result = fixture.sut.invoke(request, Language.EN)
 
         then()
-        assertTrue(result.isFailure)
         assertTrue(result.exceptionOrNull() is FinishPasskeyRegistration.Error.ChallengeWindowExpired)
         coVerify(exactly = 0) { fixture.userClient.createUser(any()) }
     }
@@ -297,17 +349,18 @@ internal class FinishRegistrationImplTest {
     fun `should return failure when user creation fails`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        val request = makeRequest()
-        val passkey = makePasskeyCredential()
-        with(fixture) {
-            coEvery { finishPasskeyRegistration.verifyRequest(request) } returns Result.success(passkey)
-            coEvery { userClient.createUser(any()) } returns Result.failure(RuntimeException("user service error"))
-        }
+        val request = fixture.signUpRequest()
+        coEvery { fixture.finishPasskeyRegistration.verifyRequest(request) } returns Result.success(PasskeyCredential.stub())
+        coEvery { fixture.userClient.createUser(any()) } returns Result.failure(RuntimeException("user service error"))
 
         whenn()
         val result = fixture.sut.invoke(request, Language.EN)
 
         then()
         assertTrue(result.isFailure)
+    }
+
+    private companion object {
+        const val VERIFIED_EMAIL = "john@example.com"
     }
 }
