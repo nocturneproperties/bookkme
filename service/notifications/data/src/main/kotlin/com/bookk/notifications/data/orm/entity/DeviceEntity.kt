@@ -13,6 +13,8 @@ internal class DeviceEntity(id: EntityID<Uuid>) : UuidEntity(id) {
     var userId by DeviceTable.userId
     var notificationToken by DeviceTable.notificationToken
     var language by DeviceTable.language
+    val createdAt by DeviceTable.createdAt
+    var updatedAt by DeviceTable.updatedAt
 
     fun domain() = Device(
         id = id.value,

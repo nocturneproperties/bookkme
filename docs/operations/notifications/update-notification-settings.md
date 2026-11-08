@@ -4,7 +4,8 @@
 
 An upsert keyed on the caller's `userId`: the first call creates the row,
 every later call overwrites it. The response strips channels not marked
-`availableToClients` before returning.
+`availableToClients` before returning. Push and email are offered to the
+app; Telegram is not.
 
 ```mermaid
 flowchart TD

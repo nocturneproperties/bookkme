@@ -8,6 +8,8 @@ import com.bookk.core.test.runUnitTest
 import com.bookk.core.test.then
 import com.bookk.core.test.whenn
 import com.bookk.notifications.domain.impl.di.NotificationsScope
+import library.email.EmailSender
+import org.junit.jupiter.api.Assertions.assertDoesNotThrow
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
@@ -66,5 +68,34 @@ internal class NotificationsModuleTest {
 
         then()
         assertNotNull(replayer)
+    }
+
+    private val developmentEmailEnvironment = mapOf(
+        "APPLICATION_POSTMARK_SERVER_TOKEN" to "development_token",
+        "APPLICATION_EMAIL_FROM" to "no-reply@example.com",
+    )
+
+    @Test
+    fun `should wire email delivery in the standalone microservice`() = runUnitTest {
+        given()
+        val fixture = SutFixture(notificationsModule(developmentEmailEnvironment::get))
+
+        whenn()
+        val resolve = { fixture.scope.get<EmailSender>() }
+
+        then()
+        assertDoesNotThrow(resolve)
+    }
+
+    @Test
+    fun `should wire email delivery in the monolith`() = runUnitTest {
+        given()
+        val fixture = SutFixture(notificationsEmbeddedModule(developmentEmailEnvironment::get))
+
+        whenn()
+        val resolve = { fixture.scope.get<EmailSender>() }
+
+        then()
+        assertDoesNotThrow(resolve)
     }
 }

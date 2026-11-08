@@ -2,7 +2,10 @@
 
 Kafka topic `UserEvent.Updated` → `BusinessEventHandlerImpl` → `SyncUserProfile`
 
-Produced by [Update user](../user/update-user.md) and [Store a verified email](../user/change-user-email-internal.md). Business keeps
+Produced by [Create user (internal)](../user/create-user-internal.md),
+[Update user](../user/update-user.md) and [Store a verified email](../user/change-user-email-internal.md).
+A new user has no integrated client or employee rows yet, so the event
+from sign-up finds nothing to merge or update. Business keeps
 denormalized copies of a user's name/last name/email/phone on any
 `Client.Integrated` or `Employee` row linked to that `userId` (so listing
 clients/employees doesn't need a live call to the user service); this

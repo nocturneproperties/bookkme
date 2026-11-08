@@ -18,11 +18,17 @@ internal class SendNotification(
         val settings = transactionManager.transactionOrThrow { notificationDataSource.getByUserId(to) }
             ?: throw IllegalArgumentException("Settings not found")
         if (!settings.isTypeAllowed(notification.type)) return@runSuspendCatching
-        val enabledChannelSettings = settings.channels.filter { it.enabled }
-        enabledChannelSettings.forEach { settings ->
-            senderMap[settings.channel]?.send(to, notification)
+        val enabledChannels = settings.channels.filter { it.enabled }.map { it.channel }
+        (enabledChannels + notification.type.mandatoryChannels).distinct().forEach { channel ->
+            senderMap[channel]?.send(to, notification)
         }
     }
+
+    private val NotificationType.mandatoryChannels: List<CommunicationChannel>
+        get() = when (this) {
+            NotificationType.ACCOUNT -> listOf(CommunicationChannel.EMAIL)
+            NotificationType.APPOINTMENT, NotificationType.EMPLOYEE -> emptyList()
+        }
 
     private fun NotificationSettings.isTypeAllowed(type: NotificationType): Boolean = when (type) {
         NotificationType.APPOINTMENT -> appointmentEnabled

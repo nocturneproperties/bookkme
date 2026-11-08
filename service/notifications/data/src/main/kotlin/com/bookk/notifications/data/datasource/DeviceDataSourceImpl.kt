@@ -11,6 +11,7 @@ import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.upsert
+import kotlin.time.Clock
 import kotlin.uuid.Uuid
 
 internal class DeviceDataSourceImpl : DataSource(), DeviceDataSource {
@@ -37,6 +38,13 @@ internal class DeviceDataSourceImpl : DataSource(), DeviceDataSource {
             .map { it.domain() }
     }
 
+    override suspend fun getLastUsedLanguage(userId: Uuid): Language? = dbQuery {
+        DeviceEntity
+            .find { DeviceTable.userId eq userId }
+            .maxByOrNull { it.updatedAt ?: it.createdAt }
+            ?.language
+    }
+
     override suspend fun updateToken(authId: Uuid, deviceUuid: Uuid, token: String?): Device = dbQuery {
         DeviceEntity
             .find { (DeviceTable.authId eq authId) and (DeviceTable.deviceUuid eq deviceUuid) }
@@ -50,7 +58,10 @@ internal class DeviceDataSourceImpl : DataSource(), DeviceDataSource {
         DeviceEntity
             .find { (DeviceTable.authId eq authId) and (DeviceTable.deviceUuid eq deviceUuid) }
             .firstOrNull()
-            ?.also { it.language = language }
+            ?.also {
+                it.language = language
+                it.updatedAt = Clock.System.now()
+            }
             ?.domain()
             ?: throw Error.NotFound()
     }

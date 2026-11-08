@@ -27,7 +27,7 @@ data class NotificationSettings(
                 id = Uuid.random(),
                 channel = CommunicationChannel.EMAIL,
                 enabled = false,
-                availableToClients = false,
+                availableToClients = true,
             ),
             NotificationChannelSettings(
                 id = Uuid.random(),

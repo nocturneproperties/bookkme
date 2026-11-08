@@ -17,21 +17,24 @@ import com.google.auth.oauth2.GoogleCredentials
 import com.google.firebase.FirebaseApp
 import com.google.firebase.FirebaseOptions
 import io.ktor.server.routing.application
+import library.email.impl.di.emailModule
 import org.koin.dsl.module
 
-fun notificationsModule() = module {
+fun notificationsModule(environment: (String) -> String? = System::getenv) = module {
     includes(
         notificationsDomainModule(),
         notificationsDataModule(),
+        emailModule(NotificationsScope, environment),
         eventStreamingTransportModule(NotificationsScope, NOTIFICATIONS_SERVICE_NAME),
         cacheModule(),
     )
 }
 
-fun notificationsEmbeddedModule() = module {
+fun notificationsEmbeddedModule(environment: (String) -> String? = System::getenv) = module {
     includes(
         notificationsDomainModule(),
         notificationsDataModule(),
+        emailModule(NotificationsScope, environment),
         embeddedEventStreamingTransportModule(NotificationsScope, NOTIFICATIONS_SERVICE_NAME),
         cacheModule(),
     )
