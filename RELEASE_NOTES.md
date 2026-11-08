@@ -13,6 +13,7 @@ Changes since `monolith/0.17.0`. Sign-up verifies the email with a code before t
 - `PATCH /api/user/me` no longer changes the email: a different one returns 422 `EMAIL_CHANGE_REQUIRES_VERIFICATION` (100006). Send the stored email back or leave it null.
 - Several clients of a business may now share a phone: creating, updating and importing clients return `BUSINESS_CLIENT_EXISTS` (200004) only for a taken email.
 - A user's first booking takes over only the business's client holding their email, never one holding just their phone (that one stays and the user gets a new client), and a profile change merges clients by email only.
+- Prod nginx limits each IP to 6 code sends at once, then one per 30 s (`sign_up/challenge` and `POST /api/auth/email` together), to 11 code checks, then one per 6 s (`sign_up` and `email/confirm`), and to 21 `GET /api/auth/passkey/sign_in/challenge`, then one per 6 s; beyond that it answers 429 with an HTML body, so treat any 429 as "try again later".
 
 ### Services
 
@@ -23,7 +24,8 @@ Changes since `monolith/0.17.0`. Sign-up verifies the email with a code before t
 
 - Business migration `V18` drops the client phone indexes `client_business_id_phone_unique` and `client_phone`; it cannot fail on existing data.
 - Set `APPLICATION_POSTMARK_SERVER_TOKEN`, `APPLICATION_EMAIL_FROM` and `APPLICATION_EMAIL_CODE_SECRET` (at least 32 bytes) for auth (the monolith in prod), or every sign-up and email change fails with 500.
-- Prod: run `make vault-update` (generates `vault_email_code_secret`), then set `vault_postmark_server_token` with `make vault-edit`. The sender is `no-reply@<domain>`, which Postmark must accept. The deploy refuses `CHANGE_ME` and `development_token`, which only dev uses: it logs every email, codes included, instead of sending it.
+- Prod: run `make vault-update` (generates `vault_email_code_secret`), then set `vault_postmark_server_token` with `make vault-edit`. The sender is `no-reply@<domain>`: verify the domain in Postmark and add its DKIM and Return-Path records in Cloudflare before deploying. The deploy refuses `CHANGE_ME` and `development_token`, which only dev uses: it logs every email, codes included, instead of sending it.
+- Prod: deploy nginx (`make infra tags=nginx`) for the new rate limits and upstream keepalive.
 
 ## 0.17.0
 
