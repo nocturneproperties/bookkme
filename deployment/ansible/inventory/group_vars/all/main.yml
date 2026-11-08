@@ -100,5 +100,5 @@ monolith_env:
   APPLICATION_APPOINTMENTS_SERVICE_HOSTNAME: monolith.service
   APPLICATION_NOTIFICATIONS_SERVICE_HOSTNAME: monolith.service
   APPLICATION_POSTMARK_SERVER_TOKEN: "{{ vault_postmark_server_token }}"
-  APPLICATION_EMAIL_FROM: "no-reply@{{ vault_stack_env.DOMAIN_NAME }}"
+  APPLICATION_EMAIL_FROM: "no-reply@{{ vault_stack_env.EMAIL_DOMAIN_NAME }}"
   APPLICATION_EMAIL_CODE_SECRET: "{{ vault_email_code_secret }}"

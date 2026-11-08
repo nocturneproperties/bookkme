@@ -24,7 +24,7 @@ Changes since `monolith/0.17.0`. Sign-up verifies the email with a code before t
 
 - Business migration `V18` drops the client phone indexes `client_business_id_phone_unique` and `client_phone`; it cannot fail on existing data.
 - Set `APPLICATION_POSTMARK_SERVER_TOKEN`, `APPLICATION_EMAIL_FROM` and `APPLICATION_EMAIL_CODE_SECRET` (at least 32 bytes) for auth (the monolith in prod), or every sign-up and email change fails with 500.
-- Prod: run `make vault-update` (generates `vault_email_code_secret`), then set `vault_postmark_server_token` with `make vault-edit`. The sender is `no-reply@<domain>`: verify the domain in Postmark and add its DKIM and Return-Path records in Cloudflare before deploying. The deploy refuses `CHANGE_ME` and `development_token`, which only dev uses: it logs every email, codes included, instead of sending it.
+- Prod: run `make vault-update` (generates `vault_email_code_secret`), then set `vault_postmark_server_token` and `vault_stack_env.EMAIL_DOMAIN_NAME` with `make vault-edit`; the deploy refuses either one unset. The sender is `no-reply@<EMAIL_DOMAIN_NAME>`, not the app's domain: verify that domain in Postmark and add its DKIM and Return-Path records in Cloudflare before deploying. The deploy refuses `CHANGE_ME` and `development_token`, which only dev uses: it logs every email, codes included, instead of sending it.
 - Prod: deploy nginx (`make infra tags=nginx`) for the new rate limits and upstream keepalive.
 
 ## 0.17.0
