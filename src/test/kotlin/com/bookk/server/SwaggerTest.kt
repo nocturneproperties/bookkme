@@ -70,7 +70,6 @@ internal class SwaggerTest {
                 "get /api/internal/user/email",
                 "post /api/internal/user",
                 "patch /api/user/me",
-                "post /api/user/contactus",
                 "post /api/user/me/legal",
                 "post /api/user/export",
             ),

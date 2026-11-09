@@ -5,11 +5,8 @@ import com.bookk.core.test.given
 import com.bookk.core.test.runUnitTest
 import com.bookk.core.test.then
 import com.bookk.core.test.whenn
-import com.bookk.user.data.orm.table.ContactFormTable
 import com.bookk.user.data.orm.table.UserTable
-import com.bookk.user.domain.api.entity.ContactForm
 import com.bookk.user.domain.api.entity.User
-import com.bookk.user.domain.api.export.ContactMessageExport
 import com.bookk.user.domain.api.export.ProfileExport
 import io.mockk.mockk
 import org.jetbrains.exposed.v1.core.eq
@@ -24,17 +21,11 @@ import kotlin.uuid.Uuid
 internal class UserDataExportDataSourceImplTest {
 
     private class SutFixture {
-        val db = createTestDatabase(UserTable, ContactFormTable)
+        val db = createTestDatabase(UserTable)
         val sut = UserDataExportDataSourceImpl()
         val userSut = UserDataSourceImpl(mockk(relaxed = true))
-        val communicationSut = CommunicationDataSourceImpl()
 
         suspend fun user(user: User = User.stub(email = "u${Uuid.random()}@example.com")): User = suspendTransaction { userSut.insertNewUser(user) }
-
-        suspend fun message(userId: Uuid, text: String, sentAt: Instant) {
-            suspendTransaction { communicationSut.saveContactForm(ContactForm(userId, text, usageLogs = "app 1.4.2", status = ContactForm.ContactFormStatus.DONE)) }
-            suspendTransaction { ContactFormTable.update({ ContactFormTable.text eq text }) { it[createdAt] = sentAt } }
-        }
     }
 
     @Test
@@ -62,28 +53,5 @@ internal class UserDataExportDataSourceImplTest {
 
         then()
         assertNull(profile)
-    }
-
-    @Test
-    fun `should export the user's contact messages oldest first, and no one else's`() = runUnitTest {
-        given()
-        val fixture = SutFixture()
-        val user = fixture.user()
-        val other = fixture.user()
-        fixture.message(user.id, "second", Instant.fromEpochMilliseconds(2_000))
-        fixture.message(user.id, "first", Instant.fromEpochMilliseconds(1_000))
-        fixture.message(other.id, "not mine", Instant.fromEpochMilliseconds(500))
-
-        whenn()
-        val messages = suspendTransaction { fixture.sut.getContactMessages(user.id) }
-
-        then()
-        assertEquals(
-            listOf(
-                ContactMessageExport("first", "app 1.4.2", "DONE", Instant.fromEpochMilliseconds(1_000)),
-                ContactMessageExport("second", "app 1.4.2", "DONE", Instant.fromEpochMilliseconds(2_000)),
-            ),
-            messages,
-        )
     }
 }
