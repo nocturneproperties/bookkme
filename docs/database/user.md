@@ -2,11 +2,10 @@
 
 # User service
 
-Smallest schema — the canonical user profile, inbound contact-form submissions, and the legal documents users accepted.
+Smallest schema — the canonical user profile and the legal documents users accepted.
 
 ```mermaid
 erDiagram
-    PROFILE ||--o{ CONTACT_FORM : "submits"
     PROFILE ||--o{ LEGAL_DOCUMENT_ACCEPTANCE : "accepts (cascade delete)"
     LEGAL_DOCUMENT_VERSION ||--o{ LEGAL_DOCUMENT_ACCEPTANCE : "accepted as"
 
@@ -16,16 +15,6 @@ erDiagram
         string last_name
         string email UK
         string phone UK "nullable; blank stored as NULL"
-        timestamp created_at
-        timestamp updated_at
-    }
-
-    CONTACT_FORM {
-        uuid id PK
-        uuid user_id FK
-        text text
-        text usage_logs
-        byte status
         timestamp created_at
         timestamp updated_at
     }

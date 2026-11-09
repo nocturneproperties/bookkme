@@ -136,7 +136,6 @@ Reactions to cross-service events (all handled by the same
 | Route | Diagram |
 |---|---|
 | `PATCH /api/user/me` | [Update user](user/update-user.md) |
-| `POST /api/user/contact_us` | [Send contact form](user/create-contact-form.md) |
 | `POST /api/user/me/legal` | [Accept legal documents](user/accept-legal-documents.md) |
 | `POST /api/user/export` | [Start personal data export](user/start-personal-data-export.md) |
 | `POST /api/internal/user` | [Create user (internal)](user/create-user-internal.md) |

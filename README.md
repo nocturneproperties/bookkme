@@ -27,7 +27,7 @@ Written in Kotlin as a **modular monolith**: one Gradle build, one shared core, 
 | Service | Port (local) | Responsibility |
 |---|---|---|
 | `authorization` | 8000 | Account registration, WebAuthn/passkey login, JWT issuing & refresh, device sessions |
-| `user` | 8001 | User profiles, contact forms, account deletion |
+| `user` | 8001 | User profiles, account deletion |
 | `business` | 8002 | Businesses, services & service groups, employees and invitations, clients, quotes |
 | `appointments` | 8003 | Booking requests, approval flow, schedules, day-offs, appointment history |
 | `notifications` | 8004 | Push notification targets, device tokens, per-user notification settings |

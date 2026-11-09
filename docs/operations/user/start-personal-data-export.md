@@ -45,7 +45,7 @@ flowchart TD
     Abandon --> Queue["DataExportDataSource.claimable now - PENDING, or RUNNING with lease over, up to 20"]
     Queue --> Claim{"DataExportDataSource.claim userId claimId now+10 min - conditional UPDATE, attempts+1"}
     Claim -- another instance claimed it --> Next([Next export])
-    Claim -- claimed --> Own["PersonalDataExportAssembler.assemble - transaction: UserDataExportDataSource.getProfile, getContactMessages, LegalDocumentDataSource.getAcceptances"]
+    Claim -- claimed --> Own["PersonalDataExportAssembler.assemble - transaction: UserDataExportDataSource.getProfile, LegalDocumentDataSource.getAcceptances"]
     Own --> Calls["Outside a transaction - GET /api/internal/export/auth, business, appointments, notifications /userId"]
     Calls -- any call fails --> GiveBack["DataExportDataSource.giveBack userId claimId - PENDING while attempts remain, else FAILED until now+72 h"]
     Calls -- all parts --> Gzip[Encode PersonalDataExport as JSON, gzip]

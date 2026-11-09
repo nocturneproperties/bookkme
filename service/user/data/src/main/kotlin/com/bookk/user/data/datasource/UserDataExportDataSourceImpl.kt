@@ -1,13 +1,9 @@
 package com.bookk.user.data.datasource
 
 import com.bookk.core.data.DataSource
-import com.bookk.user.data.orm.table.ContactFormTable
 import com.bookk.user.data.orm.table.UserTable
-import com.bookk.user.domain.api.entity.ContactForm
-import com.bookk.user.domain.api.export.ContactMessageExport
 import com.bookk.user.domain.api.export.ProfileExport
 import com.bookk.user.domain.datasource.UserDataExportDataSource
-import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import kotlin.uuid.Uuid
@@ -25,19 +21,5 @@ internal class UserDataExportDataSourceImpl : DataSource(), UserDataExportDataSo
                 createdAt = it[UserTable.createdAt],
             )
         }
-    }
-
-    override suspend fun getContactMessages(userId: Uuid): List<ContactMessageExport> = dbQuery {
-        ContactFormTable.selectAll()
-            .where { ContactFormTable.userId eq userId }
-            .orderBy(ContactFormTable.createdAt, SortOrder.ASC)
-            .map {
-                ContactMessageExport(
-                    text = it[ContactFormTable.text],
-                    usageLogs = it[ContactFormTable.usageLogs],
-                    status = ContactForm.ContactFormStatus.entries.firstOrNull { status -> status.id == it[ContactFormTable.status] }?.name ?: it[ContactFormTable.status].toString(),
-                    sentAt = it[ContactFormTable.createdAt],
-                )
-            }
     }
 }

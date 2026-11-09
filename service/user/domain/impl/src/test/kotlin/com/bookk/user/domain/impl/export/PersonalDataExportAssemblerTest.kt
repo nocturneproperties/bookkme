@@ -21,7 +21,6 @@ import com.bookk.server.auth.client.export.ExportAccountData
 import com.bookk.server.user.client.api.event.UserEvent
 import com.bookk.user.domain.api.entity.LegalDocument
 import com.bookk.user.domain.api.entity.LegalDocumentAcceptance
-import com.bookk.user.domain.api.export.ContactMessageExport
 import com.bookk.user.domain.api.export.ProfileExport
 import com.bookk.user.domain.datasource.LegalDocumentDataSource
 import com.bookk.user.domain.datasource.UserDataExportDataSource
@@ -75,7 +74,6 @@ internal class PersonalDataExportAssemblerTest {
                 readInTransaction += transactionManager.isInTransaction()
                 profile
             }
-            coEvery { userDataExportDataSource.getContactMessages(userId) } returns listOf(ContactMessageExport.stub())
             coEvery { legalDocumentDataSource.getAcceptances(userId) } returns listOf(
                 LegalDocumentAcceptance(LegalDocument.PRIVACY_POLICY, "2026-11", Instant.fromEpochMilliseconds(1_000)),
             )
@@ -102,7 +100,6 @@ internal class PersonalDataExportAssemblerTest {
                 generatedAt = fixture.clock.now,
                 userId = fixture.userId,
                 profile = fixture.profile,
-                contactMessages = listOf(ContactMessageExport.stub()),
                 legalAcceptances = listOf(PersonalDataExport.LegalAcceptanceExport("PRIVACY_POLICY", "2026-11", Instant.fromEpochMilliseconds(1_000))),
                 account = fixture.account,
                 businesses = fixture.businesses,
@@ -123,7 +120,7 @@ internal class PersonalDataExportAssemblerTest {
 
         then()
         assertEquals(
-            setOf("formatVersion", "generatedAt", "userId", "profile", "contactMessages", "legalAcceptances", "account", "businesses", "appointments", "notifications"),
+            setOf("formatVersion", "generatedAt", "userId", "profile", "legalAcceptances", "account", "businesses", "appointments", "notifications"),
             Json.parseToJsonElement(json).jsonObject.keys,
         )
     }
