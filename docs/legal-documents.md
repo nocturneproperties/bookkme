@@ -1,6 +1,10 @@
 # Legal documents
 
-The user service records which version of the privacy policy and the terms of service each user accepted, and when. The server publishes the version in effect. Sign-up must accept the version in effect of every published document, as Apple and Google require at account creation. After that, the app compares the version in effect with what the user accepted and asks them to accept a new one; the server doesn't block an existing user who hasn't.
+The user service records which version of the privacy policy and the terms of service each user accepted, and when. The server publishes the version in effect. Sign-up must record the version in effect of every published document under the current product rules. After that, the app compares the version in effect with what the user accepted and asks them to accept a new one; the server doesn't block an existing user who hasn't.
+
+The texts themselves, for BookkMe and as a template for self-hosting businesses, are in [`docs/legal/`](legal/README.md), in English, Polish and Ukrainian. Complete the operator details and publication dependencies in that README and the [legal review](legal/legal-review.md) before publication.
+
+The API calls both records “acceptance”; for a privacy policy this documents receipt of information, not blanket consent to processing. The client must distinguish accepting the terms from acknowledging privacy information. Any purpose-specific consent required by applicable law needs a separate flow and record; this API does not provide one.
 
 ## Publishing a version
 
@@ -14,6 +18,7 @@ VALUES ('PRIVACY_POLICY', '2026-11-03', 'https://bookk.me/privacy/2026-11-03', '
 - `document` is `PRIVACY_POLICY` or `TERMS_OF_SERVICE` (stored by name).
 - `version` is any string up to 32 characters, unique per document. A date is the convention.
 - `url` is where the app links to the text of that version (up to 512 characters). Link to a page that keeps this version's text, not to one that always shows the latest, so the record still shows what the user read.
+- Each version's page must give visible links to its English, Polish and Ukrainian texts. The single stored URL can point to a version-specific language selector; every translation must retain that version's meaning and remain available. Language does not select governing law or override mandatory local rights.
 - `effective_at` is a UTC time. The version in effect is the row with the latest `effective_at` that has passed, so a version can be published ahead and takes effect on its own. Until then, nobody can accept it and `GET /api/user/legal` still returns the previous one.
 
 A document with no row in effect is left out of both read routes and needs no acceptance at sign-up. Publishing a version makes it required for every sign-up from that moment, so publish it when the text is live at its link.
