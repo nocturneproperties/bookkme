@@ -12,4 +12,6 @@ internal data class PostmarkEmail(
     @SerialName("HtmlBody") val htmlBody: String,
     @SerialName("MessageStream") val messageStream: String,
     @SerialName("Tag") val tag: String,
+    @SerialName("TrackOpens") val trackOpens: Boolean,
+    @SerialName("TrackLinks") val trackLinks: String,
 )

@@ -20,6 +20,7 @@ Changes since `monolith/0.17.0`. Sign-up verifies the email with a code before t
 
 ### Services
 
+- Every email now goes to Postmark with open and link tracking off (`TrackOpens=false`, `TrackLinks=None`), whatever the Postmark server or stream settings say.
 - New internal route `POST /api/internal/user/{id}/email`, the only writer of a user's email after sign-up. The unused `UserClient.deleteUser` is gone.
 - `BusinessEvent.ClientLinked` from a booking now always has empty `mergedClientIds`; only a profile email change still merges.
 - `POST /api/internal/user` now publishes `UserEvent.Updated` for the new user, so notifications learns the sign-up email.

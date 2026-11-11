@@ -12,7 +12,7 @@ A version is a row in `user.legal_document_version`, inserted by hand. There is 
 
 ```sql
 INSERT INTO `user`.legal_document_version (document, version, url, effective_at)
-VALUES ('PRIVACY_POLICY', '2026-11-03', 'https://bookk.me/privacy/2026-11-03', '2026-11-03 00:00:00');
+VALUES ('PRIVACY_POLICY', '2026-11-03', 'https://bookkme.com/privacy/2026-11-03', '2026-11-03 00:00:00');
 ```
 
 - `document` is `PRIVACY_POLICY` or `TERMS_OF_SERVICE` (stored by name).

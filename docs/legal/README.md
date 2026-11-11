@@ -4,7 +4,7 @@ Two document sets, each in English (`.en.md`), Polish (`.pl.md`) and Ukrainian (
 
 | Folder | For | Who is the controller |
 |---|---|---|
-| `bookkme/` (not in the public repository) | The BookkMe service at bookk.me, operated by us for many businesses | BookkMe for accounts; each business for its workspace records, with BookkMe as processor |
+| `bookkme/` (not in the public repository) | The BookkMe service at bookkme.com, operated by us for many businesses | BookkMe for accounts; each business for its workspace records, with BookkMe as processor |
 | [`template/`](template) | A business running its own copy of Bookk under [`LICENSE-SELF-HOSTING.md`](../../LICENSE-SELF-HOSTING.md) | That business for its deployment |
 
 | Document | English | Polish | Ukrainian |
@@ -18,7 +18,7 @@ The server records document versions through the existing acceptance API ([publi
 
 ## Keeping the texts accurate
 
-When a change affects the statements below, update both sets in all three languages in the same change. Keep placeholders, numbered sections, retention values and legal meaning aligned. Publish a new BookkMe document version after completing the relevant publication steps; never overwrite text already accepted by users.
+When a change affects the statements below, update both sets in all three languages in the same change, and the annexes of the BookkMe data processing agreement (workspace data, retention, security measures, subprocessors), which is kept with the BookkMe texts. Keep placeholders, numbered sections, retention values and legal meaning aligned. Publish a new BookkMe document version after completing the relevant publication steps; never overwrite text already accepted by users.
 
 | Statement | Decided by |
 |---|---|
@@ -28,20 +28,21 @@ When a change affects the statements below, update both sets in all three langua
 | Email code valid 10 minutes | `EmailCodeIssuerImpl.CODE_LIFETIME` |
 | Client retention 12 to 120 months, 36 by default | `Business.CLIENT_DATA_RETENTION_MONTHS_RANGE` |
 | Requests deleted 60 days after their slot ends; erasure records and tombstones after 60 days | `docs/agents/personal-data.md` |
-| Client erasure clears contact details and note, while cancellation and price-adjustment reasons remain | `AppointmentDataSourceImpl.eraseClientDetails` |
+| Client erasure clears contact details and note, while cancellation and price-adjustment reasons remain; only employees write those reasons, and the terms forbid personal details in them | `AppointmentDataSourceImpl.eraseClientDetails`, `CancelAppointmentImpl` |
 | Data export once a day, kept 72 hours | `library.export.DataExports` |
 | Logs 14 days, backups 30 days (BookkMe production) | `deployment/prod/monitoring/loki/loki.yml`, `deployment/prod/backup` |
 | Undelivered events kept 30 days | `ExhaustedEventReplayerImpl.DEFAULT_RETENTION` |
 | Profile changes propagate to client and employee records; duplicate client records merge by confirmed email | `SyncUserProfileImpl` |
 | Business deletion follows owner-account deletion and deletes employees, clients, services and appointments | `BusinessEventHandlerImpl`, appointments `BusinessEvent.Deleted` handler |
 | Providers include Firebase Cloud Messaging, Postmark, Cloudflare and hosting | Notification and email senders, deployment configuration |
-| Emails carry no open or click tracking; BookkMe Postmark message retention is 45 days, with suppression records kept longer | Retention confirmed by the operator on 2026-11-09 and provider documentation; tracking still depends on server/stream settings |
+| Emails carry no open or click tracking; BookkMe Postmark message retention is 45 days, with suppression records kept longer | `PostmarkEmailSender` sends every email with `TrackOpens=false` and `TrackLinks=None`, overriding server/stream settings; retention confirmed by the operator on 2026-11-09 and provider documentation |
 | No Telegram notifications yet | `TelegramNotificationSender` is a stub; add Telegram to both sets in all languages if it starts sending |
 | Minimum account age 16 | Product decision; contractual capacity and guardian authorisation depend on local law |
-| Crashlytics on by default, switch in Settings → Account → Privacy, no deliberate attached user id; Firebase Analytics and advertising ids disabled | Current Android/iOS source inspected on 2026-11-09; see the follow-up audit for the prior-consent recommendation and source-test limits |
+| Crashlytics off by default and sent only after the user turns it on in Settings → Account → Privacy (consent); no deliberate attached user id; Firebase Analytics and advertising ids disabled | Client `firebase_crashlytics_collection_enabled=false` in `AndroidManifest.xml` and `FirebaseCrashlyticsCollectionEnabled=false` in `Info.plist` (2026-11-11) |
 | Google starts Crashlytics removal after 90 days rather than guaranteeing completion by then | Firebase privacy/retention documentation |
 | Appointment history has no age-based expiry while the business exists; client/account erasure rules still apply | Operator decision confirmed on 2026-11-09; current server behaviour |
-| In-app contact forms and their uploaded usage logs are removed from the current server source | User migration `V6` drops `contact_form`; deployment must run the migration to remove stored records. Support email and server security logs are separate |
+| No in-app contact form; support is by email only. BookkMe keeps support correspondence 24 months after the last message, longer only for a legal claim | Contact form removed from server and app, prod holds no contact-form records; support retention decided by the operator on 2026-11-11 and applied in the support mailbox |
+| People who operate BookkMe, including its employees, may access production data from the countries where they are located | Operator decision on 2026-11-11 |
 | Contacts read locally for client import; only selected contacts uploaded | Client `DeviceContactsDataSource`, `ImportClientsImpl` |
 | System device name and per-install device id; local data cleared on sign-out | Client `library/device`, `LogOutAction`, `docs/database/preferences.md` |
 | No location or photo access and no other SDKs | Client manifests and dependency inventory; recheck current builds |
@@ -60,9 +61,9 @@ Replace every placeholder in the documents you publish. Resolve each optional sq
 | `{{SUPERVISORY_AUTHORITY}}` | Name, website and contact details of the relevant privacy regulator; preserve GDPR complaint options in the text |
 | `{{GOVERNING_LAW}}` | Chosen contract law with mandatory consumer protections preserved; it does not select the only applicable privacy law |
 | `{{COURTS}}` | Lawful agreed venue for disputes with business users only; it must not override protected consumers' jurisdiction rights |
-| `{{TRANSFER_SAFEGUARDS}}` | For BookkMe, administrative access countries and any further transfer arrangements beyond the three providers already documented; for templates, the complete deployment-specific transfer description. Identify applicable mechanisms and supplementary measures and how to obtain a copy |
-| `{{EMAIL_RETENTION}}` | Self-hosting deployment's actual Postmark message retention, default 45 days; BookkMe's three notices already state its confirmed 45 days. Suppression records are separate; verify server/stream tracking is disabled |
-| `{{SUPPORT_RETENTION}}` | Actual period or objective deletion criteria for support correspondence (support is by email only, there is no in-app contact form), and any documented legal exception; align the mailbox/helpdesk process |
+| `{{TRANSFER_SAFEGUARDS}}` | Templates only: the complete deployment-specific transfer description, including remote access. Identify applicable mechanisms and supplementary measures and how to obtain a copy. BookkMe's notice states its access arrangement directly |
+| `{{EMAIL_RETENTION}}` | Self-hosting deployment's actual Postmark message retention, default 45 days; BookkMe's three notices already state its confirmed 45 days. Suppression records are separate; the server turns open and link tracking off on every email |
+| `{{SUPPORT_RETENTION}}` | Templates only, default 24 months after the last message in the conversation, longer only for a legal claim; BookkMe's notices state that default. Support is by email only; align the mailbox/helpdesk process |
 | `{{COMPLAINT_RESPONSE_TIME}}` | Actual complaint deadline meeting each target market's rules, including any shorter mandatory deadline; do not copy the privacy-rights deadline |
 | `{{CONSUMER_INFORMATION}}` | Local pre-contract disclosures, applicable withdrawal conditions and model form, conformity remedies, and relevant ADR information; state any actual participation obligation or commitment |
 | `{{TECHNICAL_REQUIREMENTS}}` | Verified OS and app requirements, internet and email access, passkey support, compatibility and accessibility information; make available before sign-up |
@@ -79,7 +80,7 @@ Use market-specific additions where required rather than hiding differences behi
 | `{{COMPANY_NAME}}`, `{{COMPANY_FORM}}`, `{{COMPANY_REGISTRATION_NUMBER}}` | Actual operator legal name, form and public registration identifier |
 | `{{COMPANY_ADDRESS}}`, `{{COMPANY_COUNTRY}}` | Registered postal address and country; no assumed establishment country |
 | `{{ACCOUNT_DELETION_URL}}` | Public page explaining deletion without the app, including an identity-verification alternative when account email is inaccessible |
-| `{{DPA_URL}}` | Published, versioned BookkMe data processing agreement incorporated into business-owner terms; the agreement must actually exist before publication |
+| `{{DPA_URL}}` | Published, versioned URL of the BookkMe data processing agreement, incorporated into business-owner terms; it is drafted with the BookkMe texts in all three languages and uses the same operator placeholders |
 
 ## Self-hosting details
 
@@ -111,10 +112,10 @@ Deleting the owner's account deletes the business and all its employees, clients
 ## Before publication
 
 1. Complete the operator and target-market assessment in the [review](legal-review.md), obtain local legal review, and resolve every placeholder and optional block in all published languages.
-2. Publish the BookkMe-to-business DPA and confirm role allocation and subprocessor authorisations. The follow-up audit verifies incorporated DPAs in standard provider terms; retain the applicable contracts and check any custom agreement without assuming a separate signature is required. Keep the private hosting-provider inventory.
-3. Complete administrative access countries and any further transfer arrangements. The three named providers' published mechanisms are now linked in BookkMe's notice; assess their application to the actual deployment, including any necessary supplementary measures, and do not treat ordinary service necessity as a general transfer exemption.
-4. Resolve the confirmed default-on Crashlytics configuration through prior optional consent or a documented applicable exemption. Current Android/iOS source was inspected, but clean-install/upgraded-device behaviour and website cookies still need verification; see the concrete findings in the follow-up audit.
-5. Record the chosen business-lifetime appointment history without adding an age-based deletion job, preserve client/account erasure and handle retained personal text appropriately. Run user migration `V6` for the contact-form records removed from the current source; support email and security logs have separate lifetimes. BookkMe Postmark message retention is confirmed as 45 days; check tracking, suppression/deletion handling, support mailbox retention, encryption and restore controls.
+2. Publish the BookkMe-to-business DPA, which is drafted, and keep its commitments: publish a new DPA version before a subprocessor change takes effect, and notify business owners of a breach without undue delay. The follow-up audit verifies incorporated DPAs in standard provider terms; retain the applicable contracts and check any custom agreement without assuming a separate signature is required. Keep the private hosting-provider inventory.
+3. Keep a current list of the countries BookkMe staff access production data from, to answer requests; the notice and DPA state that access happens from where staff are located. The three named providers' published mechanisms are linked; assess any necessary supplementary measures, and do not treat ordinary service necessity as a general transfer exemption.
+4. Crashlytics is now off by default and opt-in in the app. Verify clean-install, opt-in, opt-out and upgraded-device behaviour on both platforms, and check website cookies.
+5. Record the chosen business-lifetime appointment history without adding an age-based deletion job, preserve client/account erasure and handle retained personal text appropriately. Delete support mail after 24 months in the mailbox. BookkMe Postmark message retention is confirmed as 45 days and tracking is off per email; check suppression/deletion handling, encryption and restore controls.
 6. Establish complaint, moderation and privacy-request handling, with deadlines, review of errors, any necessary restriction or correction of retained text, and an identity-verification route. Set up legally required advance notices and durable confirmations; an in-app acceptance prompt alone is not evidence these processes work.
 7. Confirm BookkMe remains free. Complete target-market consumer information and verify technical requirements, account age/capacity rules and underlying booking terms.
 8. Publish all three languages under immutable URLs for the same version, for example language-specific pages linked by a version landing page. Then insert `legal_document_version` rows as described in [publishing instructions](../legal-documents.md). Its single `url` must let users reach every published language of that version; provide visible language links even when choosing a default from browser settings. Publish a new version for any previously published text that needs correction.

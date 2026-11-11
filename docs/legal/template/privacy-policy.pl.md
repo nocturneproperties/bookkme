@@ -46,7 +46,7 @@ Przetwarzamy dane osobowe zgodnie z {{DATA_PROTECTION_LAW}}, w tym RODO, gdy ma 
 
 **Kontakty, tylko przy imporcie klientów przez pracowników.** Pracownicy mogą importować klientów z kontaktów telefonu po udzieleniu aplikacji dostępu. Aplikacja odczytuje kontakty na urządzeniu i je wyświetla; tylko wybrane kontakty (imię i nazwisko, telefon i e-mail) są przesyłane na nasz serwer i stają się rekordami klientów. Cała książka adresowa nigdy nie jest przesyłana.
 
-[Jeśli Twoja wersja aplikacji zawiera Firebase Crashlytics, jak domyślny klient BookkMe: **Raporty o awariach.** Gdy aplikacja ulegnie awarii, wysyła do Firebase Crashlytics dane techniczne błędu i urządzenia (model, wersję systemu i aplikacji, identyfikator instalacji i czas awarii), abyśmy mogli naprawić problem. Nie dołączamy celowo identyfikatora konta, imienia i nazwiska, e-maila ani dokumentacji firmy lub klientów. Ślady awarii mogą zawierać komunikaty wyjątków, więc nie gwarantujemy anonimowości raportów. Raporty są domyślnie włączone; możesz je wyłączyć w Ustawienia → Konto → Prywatność, co usuwa również raporty jeszcze niewysłane.]
+[Jeśli Twoja wersja aplikacji zawiera Firebase Crashlytics, jak klient BookkMe: **Raporty o awariach.** Gdy aplikacja ulegnie awarii, wysyła do Firebase Crashlytics dane techniczne błędu i urządzenia (model, wersję systemu i aplikacji, identyfikator instalacji i czas awarii), abyśmy mogli naprawić problem. Nie dołączamy celowo identyfikatora konta, imienia i nazwiska, e-maila ani dokumentacji firmy lub klientów. Ślady awarii mogą zawierać komunikaty wyjątków, więc nie gwarantujemy anonimowości raportów. Raporty o awariach są domyślnie wyłączone i są wysyłane tylko wtedy, gdy włączysz je w Ustawienia → Konto → Prywatność. W każdej chwili możesz je tam wyłączyć, co usuwa również raporty jeszcze niewysłane.]
 
 **Na urządzeniu.** Aplikacja przechowuje na urządzeniu kopię wyświetlanych danych, aby szybciej się otwierać. Kopia jest usuwana po wylogowaniu. Jeśli włączysz odblokowanie biometryczne, weryfikacja odbywa się na urządzeniu i nie otrzymujemy jej danych.
 
@@ -66,7 +66,7 @@ Nie uzyskujemy przez {{SERVICE_NAME}} dostępu do lokalizacji ani zdjęć; aplik
 | Organizacja pracy personelu: grafiki, usługi, uprawnienia | Profil pracownika | Twoja umowa o pracę lub świadczenie usług z nami |
 | Dokumentowanie akceptacji regulaminu i otrzymania informacji o prywatności | Dokumentacja prawna | Nasz prawnie uzasadniony interes w dokumentowaniu umowy i przekazanych informacji o prywatności |
 | Zapewnienie bezpieczeństwa, zapobieganie nadużyciom, wykrywanie i usuwanie błędów | Dane techniczne, logowanie | Nasz prawnie uzasadniony interes w bezpiecznym i sprawnym działaniu usługi |
-| [Z Crashlytics] Wykrywanie i usuwanie awarii aplikacji | Raporty o awariach | Nasz prawnie uzasadniony interes w niezawodności aplikacji, z uwzględnieniem odrębnej zgody na dostęp do urządzenia, gdy jest wymagana |
+| [Z Crashlytics] Wykrywanie i usuwanie awarii aplikacji | Raporty o awariach | Twoja zgoda, wyrażona przez włączenie raportów o awariach; możesz ją wycofać, wyłączając je |
 | Obsługa zgłoszeń do wsparcia | Wiadomości e-mail i ich załączniki | Nasz prawnie uzasadniony interes w rozwiązywaniu zgłoszeń i utrzymaniu usługi |
 | Obsługa żądań, realizacja praw i przestrzeganie prawa | Dane potrzebne do obsługi żądania lub wymagane prawem | Nasze obowiązki prawne |
 

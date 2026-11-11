@@ -50,6 +50,8 @@ internal class PostmarkEmailSender(
         htmlBody = content.htmlBody,
         messageStream = TRANSACTIONAL_STREAM,
         tag = content.tag,
+        trackOpens = false,
+        trackLinks = NO_LINK_TRACKING,
     )
 
     private suspend fun HttpResponse.refusal(): PostmarkResponse? = runSuspendCatching { body<PostmarkResponse>() }.getOrNull()
@@ -58,6 +60,7 @@ internal class PostmarkEmailSender(
         const val EMAIL_URL = "https://api.postmarkapp.com/email"
         const val SERVER_TOKEN_HEADER = "X-Postmark-Server-Token"
         const val TRANSACTIONAL_STREAM = "outbound"
+        const val NO_LINK_TRACKING = "None"
         const val INVALID_EMAIL_REQUEST = 300
         const val INACTIVE_RECIPIENT = 406
         val UNDELIVERABLE_ERROR_CODES = setOf(INVALID_EMAIL_REQUEST, INACTIVE_RECIPIENT)

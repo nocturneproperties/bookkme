@@ -46,7 +46,7 @@ We process personal data under {{DATA_PROTECTION_LAW}}, including GDPR where it 
 
 **Contacts, only if our staff import clients.** Our staff can import clients from their phone's contacts after allowing the app to access them. The app reads the contacts on the device and shows them; only the contacts selected (name, phone and email) are sent to our server and become client records. The address book itself is never uploaded.
 
-[If your app build includes Firebase Crashlytics, as the BookkMe client does by default: **Crash reports.** When the app crashes, it sends Firebase Crashlytics technical details about the error and your device (model, operating system and app version, an installation identifier, and the time of the crash), so we can fix it. We do not deliberately attach your account identifier, name, email or business/client records. Crash traces can include exception messages, so reports are not guaranteed to be anonymous. Crash reports are on by default; you can turn them off in Settings → Account → Privacy, which also deletes reports not yet sent.]
+[If your app build includes Firebase Crashlytics, as the BookkMe client does: **Crash reports.** When the app crashes, it sends Firebase Crashlytics technical details about the error and your device (model, operating system and app version, an installation identifier, and the time of the crash), so we can fix it. We do not deliberately attach your account identifier, name, email or business/client records. Crash traces can include exception messages, so reports are not guaranteed to be anonymous. Crash reports are off by default and are sent only if you turn them on in Settings → Account → Privacy. You can turn them off there at any time, which also deletes reports not yet sent.]
 
 **On your device.** The app keeps a copy of the data you see on your device so it opens quickly. The copy is deleted when you sign out. If you turn on biometric unlock, the check happens on your device and we receive nothing.
 
@@ -66,7 +66,7 @@ We do not access your location or photos through {{SERVICE_NAME}}, the app uses 
 | Organise our staff's work: schedules, services, permissions | Employee profile | Your employment or service contract with us |
 | Record terms acceptance and receipt of privacy information | Legal document records | Our legitimate interest in documenting the agreement and the privacy information provided |
 | Keep the service secure, prevent abuse, find and fix errors | Technical data, sign-in | Our legitimate interest in a secure, working service |
-| [With Crashlytics] Find and fix app crashes | Crash reports | Our legitimate interest in app reliability, subject to any separate consent required for device access |
+| [With Crashlytics] Find and fix app crashes | Crash reports | Your consent, given by turning crash reports on; you can withdraw it by turning them off |
 | Answer support requests | Support emails and their attachments | Our legitimate interest in resolving requests and maintaining the service |
 | Answer your requests and exercise of your rights; comply with the law | What the request or law needs | Our legal obligations |
 

@@ -17,6 +17,7 @@ import io.ktor.http.content.TextContent
 import io.ktor.http.headersOf
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.boolean
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import library.email.EmailContent
@@ -78,6 +79,21 @@ internal class PostmarkEmailSenderTest {
         assertEquals("<p>Code 123456</p>", body.getValue("HtmlBody").jsonPrimitive.content)
         assertEquals("outbound", body.getValue("MessageStream").jsonPrimitive.content)
         assertEquals("email-verification", body.getValue("Tag").jsonPrimitive.content)
+    }
+
+    @Test
+    fun `should ask Postmark not to track opens or links`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+
+        whenn()
+        val result = fixture.sut.send(EmailMessage.stub())
+
+        then()
+        assertTrue(result.isSuccess) { result.toString() }
+        val body = fixture.sentJson()
+        assertEquals(false, body.getValue("TrackOpens").jsonPrimitive.boolean)
+        assertEquals("None", body.getValue("TrackLinks").jsonPrimitive.content)
     }
 
     @Test
