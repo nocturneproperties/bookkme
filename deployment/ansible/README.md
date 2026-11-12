@@ -64,9 +64,11 @@ make deploy v=0.15.2 first=1   # the monolith, creating its stack
 | Run this checkout's migrations on the latest backup before deploying | `make migration-rehearsal` |
 | Syntax check / lint | `make syntax` / `make lint` |
 
-Tags: `hosts` (Docker and SSH), `ssh` (only the SSH hardening), `swarm`, `vpn`, `nginx`, `orchestrator`, `monitoring`, `admin`, `backup`.
+Tags: `hosts` (Docker, SSH and the geoblock), `ssh` (only the SSH hardening), `geoblock` (only the geoblock), `swarm`, `vpn`, `nginx`, `orchestrator`, `monitoring`, `admin`, `backup`.
 
 Every host allows SSH logins by key only: `roles/ssh_hardening` writes `/etc/ssh/sshd_config.d/10-hardening.conf` (`PasswordAuthentication no`, `KbdInteractiveAuthentication no`, `PermitRootLogin prohibit-password`), checks it with `sshd -t`, reloads `ssh` and asserts the effective `sshd -T` values. The file name sorts before Ubuntu's `50-cloud-init.conf`, which turns password logins on, and sshd keeps the first value it reads. Port 22 is open to the internet for the GitHub-hosted deploy job, so this is what keeps it safe.
+
+No one may reach production data from Ukraine (BookkMe's privacy policy and DPA say so), so every host drops SSH (22/tcp) and WireGuard (51820/udp) from Ukrainian addresses: `roles/geoblock` installs `/usr/local/sbin/bookk-geoblock`, which builds the ranges from RIPE NCC's delegated statistics (checked against their MD5) and loads them as the nftables table `inet bookk_geoblock`. `bookk-geoblock.service` loads the saved rules at boot and `bookk-geoblock.timer` refreshes them daily; a failed refresh keeps the previous rules. The run refuses to load ranges that hold any connected SSH client's address (read from `/proc/net/tcp` and `tcp6`, so this run's own connection included) and changes nothing, so run `make infra tags=geoblock` from outside Ukraine and with no SSH session open from there. Countries and ports are `geoblock_countries`, `geoblock_tcp_ports` and `geoblock_udp_ports` in `roles/geoblock/defaults/main.yml`. The registry country is the holder's, so this stops ordinary Ukrainian connections, not one routed through another country; the rule itself is a policy every operator follows, and this is its enforcement for the two ways into the servers. Check it on a host with `nft list table inet bookk_geoblock` (the counters show dropped packets). Locked out by a wrong range: log in through the provider's browser console and run `nft delete table inet bookk_geoblock`.
 
 ## Safety rails
 

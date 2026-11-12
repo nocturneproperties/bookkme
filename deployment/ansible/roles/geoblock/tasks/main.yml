@@ -1,0 +1,93 @@
+- name: Install nftables
+  ansible.builtin.apt:
+    name: nftables
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Create the geoblock config directory
+  ansible.builtin.file:
+    path: /etc/bookk
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Write the geoblock config
+  ansible.builtin.copy:
+    dest: /etc/bookk/geoblock.json
+    content: "{{ geoblock_config | to_nice_json }}\n"
+    owner: root
+    group: root
+    mode: "0644"
+  vars:
+    geoblock_config:
+      countries: "{{ geoblock_countries }}"
+      tcp_ports: "{{ geoblock_tcp_ports }}"
+      udp_ports: "{{ geoblock_udp_ports }}"
+      min_ranges: "{{ geoblock_min_ranges }}"
+
+- name: Install the geoblock script
+  ansible.builtin.copy:
+    src: bookk-geoblock.py
+    dest: /usr/local/sbin/bookk-geoblock
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Install the geoblock service and its daily timer
+  ansible.builtin.copy:
+    src: "{{ item }}"
+    dest: "/etc/systemd/system/{{ item }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop:
+    - bookk-geoblock.service
+    - bookk-geoblock.timer
+  register: geoblock_units
+
+- name: Reload systemd for the geoblock units
+  ansible.builtin.systemd_service:
+    daemon_reload: true
+  when: geoblock_units is changed
+
+- name: Load the blocked ranges, refusing to cut off this run
+  ansible.builtin.command:
+    argv:
+      - /usr/local/sbin/bookk-geoblock
+      - apply
+      - --refuse-ssh-peers
+  register: geoblock_apply
+  changed_when: geoblock_apply.stdout is search('^changed')
+  failed_when: false
+  when: not ansible_check_mode
+
+- name: Stop when this run connects from a blocked country
+  ansible.builtin.assert:
+    that: geoblock_apply.rc != 3
+    fail_msg: >-
+      {{ geoblock_apply.stderr }} ({{ geoblock_countries | join(', ') }}): blocking it would cut off that session,
+      possibly this run. Nothing was changed on {{ inventory_hostname }}.
+    quiet: true
+  when: not ansible_check_mode
+
+- name: Require the blocked ranges to be loaded
+  ansible.builtin.assert:
+    that: geoblock_apply.rc == 0
+    fail_msg: "bookk-geoblock failed on {{ inventory_hostname }}: {{ geoblock_apply.stderr }}"
+    quiet: true
+  when: not ansible_check_mode
+
+- name: Load the blocked ranges at boot and refresh them daily
+  ansible.builtin.systemd_service:
+    name: "{{ item }}"
+    enabled: true
+  loop:
+    - bookk-geoblock.service
+    - bookk-geoblock.timer
+
+- name: Start the daily refresh
+  ansible.builtin.systemd_service:
+    name: bookk-geoblock.timer
+    state: started

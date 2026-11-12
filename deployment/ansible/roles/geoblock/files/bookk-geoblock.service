@@ -1,0 +1,12 @@
+[Unit]
+Description=Drop SSH and VPN traffic from blocked countries
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStartPre=-/usr/local/sbin/bookk-geoblock load
+ExecStart=/usr/local/sbin/bookk-geoblock apply
+
+[Install]
+WantedBy=multi-user.target
