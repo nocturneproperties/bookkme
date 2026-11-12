@@ -11,6 +11,7 @@ dependencies {
     implementation(projects.service.notifications.data.source)
 
     testImplementation(testFixtures(projects.core))
+    testImplementation(testFixtures(projects.library.encryption.impl))
     testImplementation(testFixtures(projects.core.data))
     testImplementation(libs.testcontainers.junit)
 }

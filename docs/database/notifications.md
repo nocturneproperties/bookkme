@@ -64,6 +64,13 @@ erDiagram
         timestamp createdAt
         timestamp updatedAt
     }
+
+    SUBJECT_KEY {
+        uuid subject_id PK "the person the key encrypts for; in schema notifications_keys, not notifications"
+        varbinary wrapped_key "60 bytes; the AES-256 key wrapped by the vault master key"
+        int master_key_version
+        timestamp created_at
+    }
 ```
 
 `notification_email_targets` and `notification_telegram_targets` are not
@@ -73,3 +80,5 @@ user's settings at query time via the shared `user_id`.
 `EXHAUSTED_EVENT` is not part of the notifications domain model — it's the shared DLT landing table (`core/data/eventstreaming/data`, one instance per service schema) that `KafkaEventConsumer`/`EmbeddedEventConsumer` write to when an event exhausts its retry budget, so a failed event survives a process restart or crash instead of being lost. Every start, and every row an operator sets `replay_requested` on, is replayed through the consumer group's DLT topic by `ExhaustedEventReplayer`, which also exports the parked rows as the `events_exhausted` metric. See [Exhausted events](../exhausted-events.md).
 
 `device` is unique on `(auth_id, device_uuid)`, matching authorization. One installation UUID can belong to several accounts, with independent tokens and languages. Repeated `DeviceCreated` events preserve the existing association and reject a conflicting `user_id`.
+
+`SUBJECT_KEY` lives in its own schema, `notifications_keys`, created by the same migration: it holds one AES-GCM key per person whose fields this service encrypts, wrapped by the master key from the vault (`library/encryption`). Erasing a person deletes their row in the erasure's transaction, so their encrypted fields become unreadable in the live database at once, and in backups once the last key backup holding the row expires after 7 days. That is why the key schema is separate: it stays out of the binary log and the 30-day dump and gets its own short-lived backup. No foreign keys; NocoDB can't read it.

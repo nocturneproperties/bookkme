@@ -4,6 +4,7 @@
   'appointments': ['appointment', 'appointment_services', 'appointment_price_adjustment', 'appointment_price_adjustment_services', 'appointment_request', 'appointment_request_services', 'appointment_settings', 'appointment_permission_grants', 'appointment_day_offs', 'business_has_appointments', 'working_hours'],
   'notifications': ['device', 'notification_channels', 'notification_settings', 'notification_email_targets', 'notification_telegram_targets'],
 } %}
+{% set subject_key_schemas = ['user_keys', 'business_keys', 'appointments_keys', 'notifications_keys'] %}
 {% set nocodb_insertable_tables = {
   'user': ['legal_document_version'],
 } %}
@@ -24,3 +25,4 @@ GRANT REPLICATION SLAVE, BINLOG MONITOR, RELOAD ON *.* TO 'backup'@'%';
 {% for schema in ['user', 'authorization', 'business', 'appointments', 'notifications'] %}
 GRANT SELECT, SHOW VIEW, TRIGGER ON `{{ schema }}`.* TO 'backup'@'%';
 {% endfor %}
+BEGIN NOT ATOMIC DECLARE CONTINUE HANDLER FOR 1133 BEGIN END;{% for schema in subject_key_schemas %} GRANT ALL PRIVILEGES ON `{{ schema }}`.* TO '{{ monolith_env.APPLICATION_DB_USER }}'@'%';{% endfor %} END;
