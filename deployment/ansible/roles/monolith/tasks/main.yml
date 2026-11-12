@@ -15,7 +15,7 @@
 - name: Refuse a missing email sender domain
   ansible.builtin.assert:
     that: vault_stack_env.EMAIL_DOMAIN_NAME | default('', true) not in ['', 'CHANGE_ME']
-    fail_msg: "Set vault_stack_env.EMAIL_DOMAIN_NAME to the domain verified in Postmark with 'make vault-edit'; the app sends from no-reply@<it>"
+    fail_msg: "Set vault_stack_env.EMAIL_DOMAIN_NAME to the domain verified in Postmark with 'make vault-edit'; the app sends from notifications@<it>"
     quiet: true
 
 - name: Render the monolith environment and database users init files

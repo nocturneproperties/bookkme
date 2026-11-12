@@ -185,7 +185,7 @@ internal class ClientDataSourceImpl : DataSource(), ClientDataSource {
 
     override suspend fun deleteInactiveClients(businessId: Uuid, inactiveSince: Instant): List<Uuid> = dbQuery {
         val inactiveIds = ClientTable.select(ClientTable.id)
-            .where { (ClientTable.businessId eq businessId) and (ClientTable.lastActivityAt less inactiveSince) }
+            .where { (ClientTable.businessId eq businessId) and (ClientTable.lastActivityAt less inactiveSince) and (ClientTable.deletionHold eq false) }
             .forUpdate()
             .map { it[ClientTable.id].value }
         if (inactiveIds.isNotEmpty()) {

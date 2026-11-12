@@ -104,7 +104,7 @@ redeemer. The rules are in `docs/agents/security.md`.
   `APPLICATION_POSTMARK_SERVER_TOKEN`, `APPLICATION_EMAIL_FROM` and
   `APPLICATION_EMAIL_CODE_SECRET` (at least 32 bytes), or every sign-up and
   email change fails with 500. Prod reads them from `vault_postmark_server_token`,
-  `no-reply@<EMAIL_DOMAIN_NAME>` (`vault_stack_env`, separate from the app's `DOMAIN_NAME`) and `vault_email_code_secret`.
+  `notifications@<EMAIL_DOMAIN_NAME>` (`vault_stack_env`, separate from the app's `DOMAIN_NAME`) and `vault_email_code_secret`.
 - **Postmark.** Sent through its HTTP API on the `outbound` stream. A 422
   with Postmark error 300 (invalid address) or 406 (inactive recipient)
   becomes `EMAIL_UNDELIVERABLE`; 429, 5xx, timeouts and connection errors

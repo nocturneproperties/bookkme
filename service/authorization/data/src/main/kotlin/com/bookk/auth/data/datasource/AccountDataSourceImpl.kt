@@ -86,7 +86,7 @@ internal class AccountDataSourceImpl : DataSource(), AccountDataSource {
 
     override suspend fun getDormantAccounts(inactiveSince: Instant): List<DormantAccount> = dbQuery {
         AuthenticationTable.selectAll()
-            .where { AuthenticationTable.lastActiveAt less inactiveSince }
+            .where { (AuthenticationTable.lastActiveAt less inactiveSince) and (AuthenticationTable.deletionHold eq false) }
             .map { it.toDormantAccount() }
     }
 
@@ -118,5 +118,6 @@ internal class AccountDataSourceImpl : DataSource(), AccountDataSource {
         lastActiveAt = this[AuthenticationTable.lastActiveAt],
         stage = this[AuthenticationTable.dormancyStage],
         warnedAt = this[AuthenticationTable.dormancyWarnedAt],
+        deletionHold = this[AuthenticationTable.deletionHold],
     )
 }

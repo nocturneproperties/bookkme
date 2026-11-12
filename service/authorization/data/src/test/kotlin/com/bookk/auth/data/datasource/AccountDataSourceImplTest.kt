@@ -33,6 +33,10 @@ internal class AccountDataSourceImplTest {
         suspend fun backdate(authId: Uuid, lastActiveAt: Instant) = suspendTransaction {
             AuthenticationTable.update(where = { AuthenticationTable.id eq authId }) { it[AuthenticationTable.lastActiveAt] = lastActiveAt }
         }
+
+        suspend fun hold(authId: Uuid) = suspendTransaction {
+            AuthenticationTable.update(where = { AuthenticationTable.id eq authId }) { it[AuthenticationTable.deletionHold] = true }
+        }
     }
 
     @Test
@@ -192,8 +196,39 @@ internal class AccountDataSourceImplTest {
         val found = suspendTransaction { fixture.sut.getDormantAccounts(inactiveSince = Clock.System.now() - 1.days) }
 
         then()
-        assertEquals(listOf(DormantAccount(dormant.id, dormant.userId, Instant.fromEpochMilliseconds(0), DormancyStage.ACTIVE, null)), found)
+        assertEquals(listOf(DormantAccount(dormant.id, dormant.userId, Instant.fromEpochMilliseconds(0), DormancyStage.ACTIVE, null, deletionHold = false)), found)
         assertTrue(found.none { it.userId == active.userId })
+    }
+
+    @Test
+    fun `should not list an inactive account whose deletion is on hold`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val held = suspendTransaction { fixture.sut.createAuthorization(Authentication.stub()) }
+        val dormant = suspendTransaction { fixture.sut.createAuthorization(Authentication.stub()) }
+        fixture.backdate(held.id, Instant.fromEpochMilliseconds(0))
+        fixture.backdate(dormant.id, Instant.fromEpochMilliseconds(0))
+        fixture.hold(held.id)
+
+        whenn()
+        val found = suspendTransaction { fixture.sut.getDormantAccounts(inactiveSince = Clock.System.now() - 1.days) }
+
+        then()
+        assertEquals(listOf(dormant.userId), found.map { it.userId })
+    }
+
+    @Test
+    fun `should report a hold on the locked account`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val created = suspendTransaction { fixture.sut.createAuthorization(Authentication.stub()) }
+        fixture.hold(created.id)
+
+        whenn()
+        val account = suspendTransaction { fixture.sut.getDormantAccountForUpdate(created.userId) }
+
+        then()
+        assertEquals(true, account?.deletionHold)
     }
 
     @Test

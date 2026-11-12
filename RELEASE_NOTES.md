@@ -24,15 +24,16 @@ Changes since `monolith/0.17.0`. Sign-up verifies the email with a code before t
 - New internal route `POST /api/internal/user/{id}/email`, the only writer of a user's email after sign-up. The unused `UserClient.deleteUser` is gone.
 - `BusinessEvent.ClientLinked` from a booking now always has empty `mergedClientIds`; only a profile email change still merges.
 - `POST /api/internal/user` now publishes `UserEvent.Updated` for the new user, so notifications learns the sign-up email.
+- New `deletion_hold` flag on `authorization.authentication` and `business.client`, set by staff in the database: `auth-handleDormantAccounts` neither warns nor deletes a held account, and `business-deleteInactiveClients` skips a held client.
 
 ### Upgrade
 
 - Legal drafts in `docs/legal/` now include Polish, configurable operator/jurisdiction details, provider transfer terms, Postmark's 45-day message retention and business-lifetime appointment history; complete the linked reviews and publish new BookkMe privacy-policy and terms versions before using the revised texts.
 - Notifications migration `V5` offers the email channel on existing settings rows; it cannot fail on existing data.
 - User migration `V6` drops `contact_form` and every stored contact message; save any you still need before deploying.
-- Business migration `V18` drops the client phone indexes `client_business_id_phone_unique` and `client_phone`; it cannot fail on existing data.
+- Business migration `V18` drops the client phone indexes `client_business_id_phone_unique` and `client_phone` and adds `client.deletion_hold`; authorization migration `V5` adds `authentication.deletion_hold`. Neither can fail on existing data.
 - Set `APPLICATION_POSTMARK_SERVER_TOKEN`, `APPLICATION_EMAIL_FROM` and `APPLICATION_EMAIL_CODE_SECRET` (at least 32 bytes) for auth (the monolith in prod), or every sign-up and email change fails with 500. A standalone notifications service now needs the first two as well, or its event handling fails to start.
-- Prod: run `make vault-update` (generates `vault_email_code_secret`), then set `vault_postmark_server_token` and `vault_stack_env.EMAIL_DOMAIN_NAME` with `make vault-edit`; the deploy refuses either one unset. The sender is `no-reply@<EMAIL_DOMAIN_NAME>`, not the app's domain: verify that domain in Postmark and add its DKIM and Return-Path records in Cloudflare before deploying. The deploy refuses `CHANGE_ME` and `development_token`, which only dev uses: it logs every email, codes included, instead of sending it.
+- Prod: run `make vault-update` (generates `vault_email_code_secret`), then set `vault_postmark_server_token` and `vault_stack_env.EMAIL_DOMAIN_NAME` with `make vault-edit`; the deploy refuses either one unset. The sender is `notifications@<EMAIL_DOMAIN_NAME>`, not the app's domain: verify that domain in Postmark and add its DKIM and Return-Path records in Cloudflare before deploying. The deploy refuses `CHANGE_ME` and `development_token`, which only dev uses: it logs every email, codes included, instead of sending it.
 - Prod: deploy nginx (`make infra tags=nginx`) for the new rate limits and upstream keepalive.
 - Prod: SSH and the VPN now refuse Ukrainian addresses; run `make infra tags=geoblock` from outside Ukraine, since the run refuses to cut off a connection from there and changes nothing.
 
