@@ -105,7 +105,7 @@ internal class BusinessEventTest {
     }
 
     @Test
-    fun `should decode an employee permissions changed event produced before the suspended flag existed as not suspended`() = runUnitTest {
+    fun `should decode a permissions changed event from before the suspended flag as not suspended`() = runUnitTest {
         given()
         val legacy = LegacyEmployeePermissionsChanged(Uuid.random(), businessId, BusinessPermissions.VIEW_ONLY, "key")
         val bytes = protoBuf.encodeToByteArray(LegacyEmployeePermissionsChanged.serializer(), legacy)
@@ -115,30 +115,50 @@ internal class BusinessEventTest {
 
         then()
         assertEquals(
-            BusinessEvent.EmployeePermissionsChanged(legacy.employeeUserId, businessId, BusinessPermissions.VIEW_ONLY, "key", suspended = false),
+            BusinessEvent.EmployeePermissionsChanged(
+                legacy.employeeUserId,
+                businessId,
+                BusinessPermissions.VIEW_ONLY,
+                "key",
+                suspended = false,
+            ),
             decoded,
         )
         assertEquals(BusinessEvent.EmployeePermissionsChanged.TOPIC, decoded.topic)
     }
 
     @Test
-    fun `should let a consumer without the suspended flag decode a new employee permissions changed event`() = runUnitTest {
+    fun `should let a consumer without the suspended flag decode a new permissions changed event`() = runUnitTest {
         given()
-        val event = BusinessEvent.EmployeePermissionsChanged(Uuid.random(), businessId, BusinessPermissions.NONE, "key", suspended = true)
+        val event = BusinessEvent.EmployeePermissionsChanged(
+            Uuid.random(),
+            businessId,
+            BusinessPermissions.NONE,
+            "key",
+            suspended = true,
+        )
         val bytes = protoBuf.encodeToByteArray(BusinessEvent.EmployeePermissionsChanged.serializer(), event)
 
         whenn()
         val decoded = protoBuf.decodeFromByteArray(LegacyEmployeePermissionsChanged.serializer(), bytes)
 
         then()
-        assertEquals(LegacyEmployeePermissionsChanged(event.employeeUserId, businessId, BusinessPermissions.NONE, "key"), decoded)
+        assertEquals(
+            LegacyEmployeePermissionsChanged(event.employeeUserId, businessId, BusinessPermissions.NONE, "key"),
+            decoded,
+        )
         assertEquals(BusinessEvent.EmployeePermissionsChanged.TOPIC, decoded.topic)
     }
 
     @Test
     fun `should round trip the suspended flag`() = runUnitTest {
         given()
-        val event = BusinessEvent.EmployeePermissionsChanged(Uuid.random(), businessId, BusinessPermissions.NONE, suspended = true)
+        val event = BusinessEvent.EmployeePermissionsChanged(
+            Uuid.random(),
+            businessId,
+            BusinessPermissions.NONE,
+            suspended = true,
+        )
 
         whenn()
         val decoded = protoBuf.decodeFromByteArray(
@@ -181,14 +201,22 @@ internal class BusinessEventTest {
         )
 
         then()
-        assertEquals(BusinessEvent.ClientLinked(businessId, pinned.clientId, pinned.userId, pinned.mergedClientIds, "key"), decoded)
+        assertEquals(
+            BusinessEvent.ClientLinked(businessId, pinned.clientId, pinned.userId, pinned.mergedClientIds, "key"),
+            decoded,
+        )
         assertEquals(BusinessEvent.ClientLinked.TOPIC, decoded.topic)
     }
 
     @Test
     fun `should round trip a client linked event that merged nothing`() = runUnitTest {
         given()
-        val event = BusinessEvent.ClientLinked(businessId, clientId = Uuid.random(), userId = Uuid.random(), mergedClientIds = emptyList())
+        val event = BusinessEvent.ClientLinked(
+            businessId,
+            clientId = Uuid.random(),
+            userId = Uuid.random(),
+            mergedClientIds = emptyList(),
+        )
 
         whenn()
         val decoded = protoBuf.decodeFromByteArray(
@@ -203,7 +231,11 @@ internal class BusinessEventTest {
     @Test
     fun `should round trip an export ready event, keyed by the business`() = runUnitTest {
         given()
-        val event = BusinessEvent.ExportReady(businessId, ownerUserId = Uuid.random(), expiresAt = Instant.fromEpochMilliseconds(5_000))
+        val event = BusinessEvent.ExportReady(
+            businessId,
+            ownerUserId = Uuid.random(),
+            expiresAt = Instant.fromEpochMilliseconds(5_000),
+        )
 
         whenn()
         val decoded = protoBuf.decodeFromByteArray(

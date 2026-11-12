@@ -105,7 +105,8 @@ internal class IssueServiceQuoteImplTest {
         val serviceIds = listOf(serviceX.id, serviceX.id, serviceX.id, serviceX.id, serviceX.id, serviceY.id)
         with(fixture) {
             transactionManager.mockTransaction()
-            coEvery { serviceDataSource.getServicesByIds(listOf(serviceX.id, serviceY.id)) } returns listOf(serviceX, serviceY)
+            coEvery { serviceDataSource.getServicesByIds(listOf(serviceX.id, serviceY.id)) } returns
+                listOf(serviceX, serviceY)
             coEvery { tokenIssuer.issue(any(), any()) } returns "signed-token"
         }
 

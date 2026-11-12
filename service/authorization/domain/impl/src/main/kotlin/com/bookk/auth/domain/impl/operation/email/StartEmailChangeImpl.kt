@@ -20,7 +20,11 @@ internal class StartEmailChangeImpl(
     private val emailCodeIssuer: EmailCodeIssuer,
 ) : StartEmailChange {
 
-    override suspend fun invoke(userId: Uuid, email: String, language: Language): Result<EmailVerificationStarted> = runSuspendCatching {
+    override suspend fun invoke(
+        userId: Uuid,
+        email: String,
+        language: Language,
+    ): Result<EmailVerificationStarted> = runSuspendCatching {
         if (!EmailValidator.isValid(email)) throw InvalidEmailFormat()
         userClient.getUserByEmail(email)
             .onSuccess { throw EmailAlreadyExist() }

@@ -62,7 +62,9 @@ internal class GetAppointmentHistoryTest {
 
         whenn()
         val client = createTestClient()
-        val response = client.get(AppointmentsRouting.Api.AppointmentHistory(businessId = businessId, limit = 50, offset = 0))
+        val response = client.get(
+            AppointmentsRouting.Api.AppointmentHistory(businessId = businessId, limit = 50, offset = 0),
+        )
 
         then()
         assertEquals(HttpStatusCode.OK, response.status)
@@ -139,7 +141,9 @@ internal class GetAppointmentHistoryTest {
 
         whenn()
         val client = createTestClient()
-        val response = client.get(AppointmentsRouting.Api.AppointmentHistory(businessId = businessId, limit = 50, offset = 0))
+        val response = client.get(
+            AppointmentsRouting.Api.AppointmentHistory(businessId = businessId, limit = 50, offset = 0),
+        )
 
         then()
         assertEquals(HttpStatusCode.Unauthorized, response.status)
@@ -176,7 +180,9 @@ internal class GetAppointmentHistoryTest {
 
         whenn()
         val client = createTestClient()
-        val response = client.get(AppointmentsRouting.Api.AppointmentHistory(businessId = businessId, limit = 50, offset = 0))
+        val response = client.get(
+            AppointmentsRouting.Api.AppointmentHistory(businessId = businessId, limit = 50, offset = 0),
+        )
 
         then()
         assertEquals(HttpStatusCode.InternalServerError, response.status)
@@ -188,7 +194,13 @@ internal class GetAppointmentHistoryTest {
         val useCase: GetAppointmentHistory = mockk()
         val businessId = Uuid.random()
         val userId = Uuid.random()
-        val appointments = listOf(Appointment.stub(initiatorUserId = userId, businessId = businessId).copy(status = AppointmentStatus.UNRESOLVED))
+        val appointments =
+            listOf(
+                Appointment.stub(
+                    initiatorUserId = userId,
+                    businessId = businessId,
+                ).copy(status = AppointmentStatus.UNRESOLVED),
+            )
         val pagination = AppointmentPagination(
             data = appointments,
             metadata = PaginationMetadata(total = 1L, page = 0L, pageSize = 50),
@@ -216,7 +228,9 @@ internal class GetAppointmentHistoryTest {
 
         whenn()
         val client = createTestClient()
-        val response = client.get(AppointmentsRouting.Api.AppointmentHistory(businessId = businessId, limit = 50, offset = 0))
+        val response = client.get(
+            AppointmentsRouting.Api.AppointmentHistory(businessId = businessId, limit = 50, offset = 0),
+        )
 
         then()
         assertEquals(HttpStatusCode.OK, response.status)

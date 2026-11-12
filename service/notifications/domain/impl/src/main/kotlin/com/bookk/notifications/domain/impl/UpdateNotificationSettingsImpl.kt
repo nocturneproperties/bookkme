@@ -11,7 +11,10 @@ internal class UpdateNotificationSettingsImpl(
     private val notificationSettingsDataSource: NotificationSettingsDataSource,
     private val transactionManager: TransactionManager,
 ) : UpdateNotificationSettings {
-    override suspend fun invoke(userId: Uuid, settings: NotificationSettingsUpdate): Result<NotificationSettings> = transactionManager.transaction {
+    override suspend fun invoke(
+        userId: Uuid,
+        settings: NotificationSettingsUpdate,
+    ): Result<NotificationSettings> = transactionManager.transaction {
         val settings = notificationSettingsDataSource.upsert(
             NotificationSettings(
                 id = settings.id,

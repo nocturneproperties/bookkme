@@ -35,7 +35,11 @@ internal class DataExportsImplTest {
             coEvery { dataSource.get(ownerId) } returns record
         }
 
-        fun record(state: DataExportState, requestedAgo: kotlin.time.Duration, expiresAt: Instant? = null) = DataExportRecord(ownerId, state, clock.now - requestedAgo, attempts = 1, expiresAt = expiresAt)
+        fun record(
+            state: DataExportState,
+            requestedAgo: kotlin.time.Duration,
+            expiresAt: Instant? = null,
+        ) = DataExportRecord(ownerId, state, clock.now - requestedAgo, attempts = 1, expiresAt = expiresAt)
     }
 
     @Test
@@ -49,7 +53,16 @@ internal class DataExportsImplTest {
 
         then()
         coVerify(exactly = 1) { fixture.dataSource.insert(fixture.ownerId, fixture.clock.now) }
-        assertEquals(DataExport(DataExportStatus.RUNNING, fixture.clock.now, expiresAt = null, availableAgainAt = fixture.clock.now + 1.days), export)
+        assertEquals(
+            DataExport(
+                DataExportStatus.RUNNING,
+                fixture.clock.now,
+                expiresAt = null,
+                availableAgainAt =
+                fixture.clock.now + 1.days,
+            ),
+            export,
+        )
     }
 
     @Test
@@ -70,14 +83,28 @@ internal class DataExportsImplTest {
     fun `should return the export that is still being built instead of starting another`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        val running = DataExportRecord.stub(fixture.ownerId, DataExportState.RUNNING, requestedAt = fixture.clock.now - 1.hours)
+        val running = DataExportRecord.stub(
+            fixture.ownerId,
+            DataExportState.RUNNING,
+            requestedAt =
+            fixture.clock.now - 1.hours,
+        )
         fixture.stored(running)
 
         whenn()
         val export = fixture.sut.start(fixture.ownerId)
 
         then()
-        assertEquals(DataExport(DataExportStatus.RUNNING, running.requestedAt, expiresAt = null, availableAgainAt = running.requestedAt + 1.days), export)
+        assertEquals(
+            DataExport(
+                DataExportStatus.RUNNING,
+                running.requestedAt,
+                expiresAt = null,
+                availableAgainAt =
+                running.requestedAt + 1.days,
+            ),
+            export,
+        )
         coVerify(exactly = 0) { fixture.dataSource.insert(any(), any()) }
         coVerify(exactly = 0) { fixture.dataSource.restart(any(), any()) }
     }
@@ -86,7 +113,14 @@ internal class DataExportsImplTest {
     fun `should return a queued export instead of starting another`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        fixture.stored(DataExportRecord.stub(fixture.ownerId, DataExportState.PENDING, requestedAt = fixture.clock.now - 1.hours))
+        fixture.stored(
+            DataExportRecord.stub(
+                fixture.ownerId,
+                DataExportState.PENDING,
+                requestedAt =
+                fixture.clock.now - 1.hours,
+            ),
+        )
 
         whenn()
         val export = fixture.sut.start(fixture.ownerId)
@@ -100,7 +134,15 @@ internal class DataExportsImplTest {
     fun `should refuse a second export within a day of the previous one`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        fixture.stored(DataExportRecord.stub(fixture.ownerId, DataExportState.READY, requestedAt = fixture.clock.now - 23.hours, expiresAt = fixture.clock.now + 49.hours))
+        fixture.stored(
+            DataExportRecord.stub(
+                fixture.ownerId,
+                DataExportState.READY,
+                requestedAt =
+                fixture.clock.now - 23.hours,
+                expiresAt = fixture.clock.now + 49.hours,
+            ),
+        )
 
         whenn()
         val result = runSuspendCatching { fixture.sut.start(fixture.ownerId) }
@@ -114,7 +156,15 @@ internal class DataExportsImplTest {
     fun `should start a new export a day after the previous one`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        fixture.stored(DataExportRecord.stub(fixture.ownerId, DataExportState.READY, requestedAt = fixture.clock.now - 1.days, expiresAt = fixture.clock.now + 48.hours))
+        fixture.stored(
+            DataExportRecord.stub(
+                fixture.ownerId,
+                DataExportState.READY,
+                requestedAt =
+                fixture.clock.now - 1.days,
+                expiresAt = fixture.clock.now + 48.hours,
+            ),
+        )
 
         whenn()
         val export = fixture.sut.start(fixture.ownerId)
@@ -128,7 +178,15 @@ internal class DataExportsImplTest {
     fun `should let a failed export be started again at once`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        fixture.stored(DataExportRecord.stub(fixture.ownerId, DataExportState.FAILED, requestedAt = fixture.clock.now - 1.hours, expiresAt = fixture.clock.now + 71.hours))
+        fixture.stored(
+            DataExportRecord.stub(
+                fixture.ownerId,
+                DataExportState.FAILED,
+                requestedAt =
+                fixture.clock.now - 1.hours,
+                expiresAt = fixture.clock.now + 71.hours,
+            ),
+        )
 
         whenn()
         val export = fixture.sut.start(fixture.ownerId)
@@ -155,21 +213,44 @@ internal class DataExportsImplTest {
     fun `should report a ready export with its expiry and when the next one can start`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        val ready = DataExportRecord.stub(fixture.ownerId, DataExportState.READY, requestedAt = fixture.clock.now - 2.hours, expiresAt = fixture.clock.now + 70.hours)
+        val ready = DataExportRecord.stub(
+            fixture.ownerId,
+            DataExportState.READY,
+            requestedAt =
+            fixture.clock.now - 2.hours,
+            expiresAt = fixture.clock.now + 70.hours,
+        )
         fixture.stored(ready)
 
         whenn()
         val export = fixture.sut.status(fixture.ownerId)
 
         then()
-        assertEquals(DataExport(DataExportStatus.READY, ready.requestedAt, ready.expiresAt, availableAgainAt = ready.requestedAt + 1.days), export)
+        assertEquals(
+            DataExport(
+                DataExportStatus.READY,
+                ready.requestedAt,
+                ready.expiresAt,
+                availableAgainAt =
+                ready.requestedAt + 1.days,
+            ),
+            export,
+        )
     }
 
     @Test
     fun `should report a ready export older than a day as open to a new one`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        fixture.stored(DataExportRecord.stub(fixture.ownerId, DataExportState.READY, requestedAt = fixture.clock.now - 30.hours, expiresAt = fixture.clock.now + 42.hours))
+        fixture.stored(
+            DataExportRecord.stub(
+                fixture.ownerId,
+                DataExportState.READY,
+                requestedAt =
+                fixture.clock.now - 30.hours,
+                expiresAt = fixture.clock.now + 42.hours,
+            ),
+        )
 
         whenn()
         val export = fixture.sut.status(fixture.ownerId)
@@ -183,7 +264,15 @@ internal class DataExportsImplTest {
     fun `should report an expired export as no export`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        fixture.stored(DataExportRecord.stub(fixture.ownerId, DataExportState.READY, requestedAt = fixture.clock.now - 73.hours, expiresAt = fixture.clock.now))
+        fixture.stored(
+            DataExportRecord.stub(
+                fixture.ownerId,
+                DataExportState.READY,
+                requestedAt =
+                fixture.clock.now - 73.hours,
+                expiresAt = fixture.clock.now,
+            ),
+        )
 
         whenn()
         val export = fixture.sut.status(fixture.ownerId)
@@ -196,14 +285,23 @@ internal class DataExportsImplTest {
     fun `should report a failed export`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        val failed = DataExportRecord.stub(fixture.ownerId, DataExportState.FAILED, requestedAt = fixture.clock.now - 1.hours, expiresAt = fixture.clock.now + 71.hours)
+        val failed = DataExportRecord.stub(
+            fixture.ownerId,
+            DataExportState.FAILED,
+            requestedAt =
+            fixture.clock.now - 1.hours,
+            expiresAt = fixture.clock.now + 71.hours,
+        )
         fixture.stored(failed)
 
         whenn()
         val export = fixture.sut.status(fixture.ownerId)
 
         then()
-        assertEquals(DataExport(DataExportStatus.FAILED, failed.requestedAt, expiresAt = null, availableAgainAt = null), export)
+        assertEquals(
+            DataExport(DataExportStatus.FAILED, failed.requestedAt, expiresAt = null, availableAgainAt = null),
+            export,
+        )
     }
 
     @Test

@@ -144,13 +144,19 @@ internal class AppointmentRequestDataSourceImpl(
     }
 
     override suspend fun reassignClient(businessId: Uuid, fromClientId: Uuid, toClientId: Uuid) = dbQuery<Unit> {
-        AppointmentRequestTable.update(where = { (AppointmentRequestTable.businessId eq businessId) and (AppointmentRequestTable.clientId eq fromClientId) }) {
+        AppointmentRequestTable.update(where = {
+            (AppointmentRequestTable.businessId eq businessId) and
+                (AppointmentRequestTable.clientId eq fromClientId)
+        }) {
             it[clientId] = toClientId
         }
     }
 
     override suspend fun linkClientUser(businessId: Uuid, clientId: Uuid, userId: Uuid) = dbQuery<Unit> {
-        AppointmentRequestTable.update(where = { (AppointmentRequestTable.businessId eq businessId) and (AppointmentRequestTable.clientId eq clientId) }) {
+        AppointmentRequestTable.update(where = {
+            (AppointmentRequestTable.businessId eq businessId) and
+                (AppointmentRequestTable.clientId eq clientId)
+        }) {
             it[clientUserId] = userId
         }
     }

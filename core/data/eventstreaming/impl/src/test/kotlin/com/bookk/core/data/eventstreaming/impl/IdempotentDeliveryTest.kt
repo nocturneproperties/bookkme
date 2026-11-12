@@ -48,10 +48,15 @@ internal class IdempotentDeliveryTest {
         }
 
         fun claimReturns(vararg claims: EventClaim) {
-            coEvery { storage.claim("business_group", event.topic, event.idempotencyKey, any()) } returnsMany claims.toList()
+            coEvery { storage.claim("business_group", event.topic, event.idempotencyKey, any()) } returnsMany
+                claims.toList()
         }
 
-        suspend fun deliver(onEvent: suspend (KeyedTestEvent) -> Unit = { handled.incrementAndGet() }) = sut.deliver(event, onEvent)
+        suspend fun deliver(
+            onEvent: suspend (KeyedTestEvent) -> Unit = {
+                handled.incrementAndGet()
+            },
+        ) = sut.deliver(event, onEvent)
     }
 
     @Test
@@ -66,7 +71,9 @@ internal class IdempotentDeliveryTest {
         then()
         assertEquals(DeliveryOutcome.HANDLED, result.getOrNull())
         assertEquals(1, fixture.handled.get())
-        coVerify(exactly = 1) { fixture.storage.markProcessed("business_group", fixture.event.topic, fixture.event.idempotencyKey) }
+        coVerify(exactly = 1) {
+            fixture.storage.markProcessed("business_group", fixture.event.topic, fixture.event.idempotencyKey)
+        }
     }
 
     @Test
@@ -137,7 +144,9 @@ internal class IdempotentDeliveryTest {
 
         then()
         assertTrue(result.exceptionOrNull() is IllegalStateException)
-        coVerify(exactly = 1) { fixture.storage.release("business_group", fixture.event.topic, fixture.event.idempotencyKey, any()) }
+        coVerify(exactly = 1) {
+            fixture.storage.release("business_group", fixture.event.topic, fixture.event.idempotencyKey, any())
+        }
         coVerify(exactly = 0) { fixture.storage.markProcessed(any(), any(), any()) }
     }
 
@@ -152,7 +161,9 @@ internal class IdempotentDeliveryTest {
 
         then()
         assertTrue(result.exceptionOrNull() is CancellationException)
-        coVerify(exactly = 1) { fixture.storage.release("business_group", fixture.event.topic, fixture.event.idempotencyKey, any()) }
+        coVerify(exactly = 1) {
+            fixture.storage.release("business_group", fixture.event.topic, fixture.event.idempotencyKey, any())
+        }
     }
 
     @Test
@@ -175,7 +186,9 @@ internal class IdempotentDeliveryTest {
 
         then()
         assertTrue(delivery.isCancelled)
-        coVerify(exactly = 1) { fixture.storage.release("business_group", fixture.event.topic, fixture.event.idempotencyKey, any()) }
+        coVerify(exactly = 1) {
+            fixture.storage.release("business_group", fixture.event.topic, fixture.event.idempotencyKey, any())
+        }
     }
 
     @Test

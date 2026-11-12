@@ -8,9 +8,15 @@ sealed class AppointmentStatusError(code: Int, message: String) : BusinessError(
     code = code,
     message = message,
 ) {
-    class AlreadyCancelled : AppointmentStatusError(AppointmentErrorCodes.APPOINTMENT_ALREADY_CANCELED, "Appointment already cancelled")
+    class AlreadyCancelled : AppointmentStatusError(
+        AppointmentErrorCodes.APPOINTMENT_ALREADY_CANCELED,
+        "Appointment already cancelled",
+    )
 
-    class NotStarted : AppointmentStatusError(AppointmentErrorCodes.APPOINTMENT_NOT_STARTED, "Appointment has not started yet")
+    class NotStarted : AppointmentStatusError(
+        AppointmentErrorCodes.APPOINTMENT_NOT_STARTED,
+        "Appointment has not started yet",
+    )
 
     class EditWindowClosed : AppointmentStatusError(
         AppointmentErrorCodes.APPOINTMENT_EDIT_WINDOW_CLOSED,

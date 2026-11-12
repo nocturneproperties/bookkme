@@ -24,7 +24,12 @@ internal enum class DeliveryOutcome {
 
 internal fun Logger.logDelivered(event: Event<String>, outcome: DeliveryOutcome) = when (outcome) {
     DeliveryOutcome.HANDLED -> debug("Event successfully processed for topic: {}. Event: {}", event.topic, event)
-    DeliveryOutcome.SKIPPED_DUPLICATE -> debug("Skipping already processed event, topic: {}, idempotencyKey: {}", event.topic, event.idempotencyKey)
+
+    DeliveryOutcome.SKIPPED_DUPLICATE -> debug(
+        "Skipping already processed event, topic: {}, idempotencyKey: {}",
+        event.topic,
+        event.idempotencyKey,
+    )
 }
 
 internal class IdempotentDelivery(
@@ -39,7 +44,11 @@ internal class IdempotentDelivery(
             .getOrElse { return Result.failure(it) }
         return when (claim) {
             EventClaim.CLAIMED -> handleClaimed(event, deliveryId, onEvent)
-            EventClaim.IN_PROGRESS -> Result.failure(EventClaimedByUnfinishedDelivery(event.topic, event.idempotencyKey))
+
+            EventClaim.IN_PROGRESS -> Result.failure(
+                EventClaimedByUnfinishedDelivery(event.topic, event.idempotencyKey),
+            )
+
             EventClaim.ALREADY_PROCESSED -> Result.success(DeliveryOutcome.SKIPPED_DUPLICATE)
         }
     }
@@ -56,9 +65,15 @@ internal class IdempotentDelivery(
 
     private fun claimPollsWithinTtl(): Int = (eventIdempotencyStorage.claimTtl / CLAIM_POLL_INTERVAL).toInt() + 1
 
-    private suspend fun claim(event: Event<String>, deliveryId: String): EventClaim = eventIdempotencyStorage.claim(consumerGroup, event.topic, event.idempotencyKey, deliveryId)
+    private suspend fun claim(event: Event<String>, deliveryId: String): EventClaim {
+        return eventIdempotencyStorage.claim(consumerGroup, event.topic, event.idempotencyKey, deliveryId)
+    }
 
-    private suspend fun <T : Event<String>> handleClaimed(event: T, deliveryId: String, onEvent: suspend (T) -> Unit): Result<DeliveryOutcome> {
+    private suspend fun <T : Event<String>> handleClaimed(
+        event: T,
+        deliveryId: String,
+        onEvent: suspend (T) -> Unit,
+    ): Result<DeliveryOutcome> {
         val handled = try {
             runSuspendCatching { onEvent(event) }
         } catch (e: CancellationException) {
@@ -74,12 +89,28 @@ internal class IdempotentDelivery(
 
     private suspend fun markProcessed(event: Event<String>) {
         runSuspendCatching { eventIdempotencyStorage.markProcessed(consumerGroup, event.topic, event.idempotencyKey) }
-            .onFailure { logger.error("Failed to mark event as processed, topic: {}, idempotencyKey: {}. Error: {}", event.topic, event.idempotencyKey, it.message) }
+            .onFailure {
+                logger.error(
+                    "Failed to mark event as processed, topic: {}, idempotencyKey: {}. Error: {}",
+                    event.topic,
+                    event.idempotencyKey,
+                    it.message,
+                )
+            }
     }
 
     private suspend fun release(event: Event<String>, deliveryId: String) = withContext(NonCancellable) {
-        runSuspendCatching { eventIdempotencyStorage.release(consumerGroup, event.topic, event.idempotencyKey, deliveryId) }
-            .onFailure { logger.error("Failed to release event claim, topic: {}, idempotencyKey: {}. Error: {}", event.topic, event.idempotencyKey, it.message) }
+        runSuspendCatching {
+            eventIdempotencyStorage.release(consumerGroup, event.topic, event.idempotencyKey, deliveryId)
+        }
+            .onFailure {
+                logger.error(
+                    "Failed to release event claim, topic: {}, idempotencyKey: {}. Error: {}",
+                    event.topic,
+                    event.idempotencyKey,
+                    it.message,
+                )
+            }
     }
 
     private companion object {

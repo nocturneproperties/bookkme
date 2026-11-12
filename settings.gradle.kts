@@ -56,6 +56,8 @@ include(":library:export:impl")
 include(":library:export:route")
 include(":library:email:api")
 include(":library:email:impl")
+include(":library:encryption:api")
+include(":library:encryption:impl")
 
 // Authorization
 include(":service:authorization:microservice")

@@ -23,7 +23,10 @@ internal class SignInImpl(
     private val producer: StandardEventProducer,
 ) : SignIn {
 
-    override suspend fun invoke(request: VerifySignInRequest, language: Language): Result<AuthTokens> = transactionManager.transaction {
+    override suspend fun invoke(
+        request: VerifySignInRequest,
+        language: Language,
+    ): Result<AuthTokens> = transactionManager.transaction {
         val credentials = finishAssertion(request).getOrThrow()
         val ownerId = credentials.authInfo.id
         val userId = credentials.authInfo.userId

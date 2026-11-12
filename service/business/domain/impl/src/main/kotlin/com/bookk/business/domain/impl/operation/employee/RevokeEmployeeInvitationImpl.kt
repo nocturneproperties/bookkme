@@ -16,7 +16,11 @@ internal class RevokeEmployeeInvitationImpl(
     private val businessPermissionDataSource: BusinessPermissionDataSource,
     private val transactionManager: TransactionManager,
 ) : RevokeEmployeeInvitation {
-    override suspend fun invoke(requestUserId: Uuid, businessId: Uuid, id: Uuid): Result<Unit> = transactionManager.transaction {
+    override suspend fun invoke(
+        requestUserId: Uuid,
+        businessId: Uuid,
+        id: Uuid,
+    ): Result<Unit> = transactionManager.transaction {
         businessPermissionDataSource.getPermission(requestUserId, businessId, BusinessResource.EMPLOYEES)
             .assert(PermissionAction.UPDATE)
         val invitation = invitationDataSource.getInvitation(businessId, id) ?: throw Error.NotFound()

@@ -35,7 +35,8 @@ internal class SyncEmployeePermissionTest {
         with(fixture) {
             transactionManager.mockTransaction()
             coEvery { subscriptionDataSource.isBusinessEnabled(businessId) } returns true
-            coEvery { appointmentPermissionDataSource.setPermission(userId, businessId, permission, false) } returns Unit
+            coEvery { appointmentPermissionDataSource.setPermission(userId, businessId, permission, false) } returns
+                Unit
         }
 
         whenn()
@@ -43,7 +44,9 @@ internal class SyncEmployeePermissionTest {
 
         then()
         assertTrue(result.isSuccess)
-        coVerify(exactly = 1) { fixture.appointmentPermissionDataSource.setPermission(userId, businessId, permission, false) }
+        coVerify(exactly = 1) {
+            fixture.appointmentPermissionDataSource.setPermission(userId, businessId, permission, false)
+        }
     }
 
     @Test
@@ -58,7 +61,12 @@ internal class SyncEmployeePermissionTest {
         }
 
         whenn()
-        val result = fixture.sut.invoke(userId, businessId, ResourcePermission(view = false, update = true, delete = false), suspended = false)
+        val result = fixture.sut.invoke(
+            userId,
+            businessId,
+            ResourcePermission(view = false, update = true, delete = false),
+            suspended = false,
+        )
 
         then()
         assertTrue(result.isSuccess)
@@ -74,7 +82,10 @@ internal class SyncEmployeePermissionTest {
         with(fixture) {
             transactionManager.mockTransaction()
             coEvery { subscriptionDataSource.isBusinessEnabled(businessId) } returns true
-            coEvery { appointmentPermissionDataSource.setPermission(userId, businessId, ResourcePermission.NONE, true) } returns Unit
+            coEvery {
+                appointmentPermissionDataSource.setPermission(userId, businessId, ResourcePermission.NONE, true)
+            } returns
+                Unit
         }
 
         whenn()
@@ -82,6 +93,8 @@ internal class SyncEmployeePermissionTest {
 
         then()
         assertTrue(result.isSuccess)
-        coVerify(exactly = 1) { fixture.appointmentPermissionDataSource.setPermission(userId, businessId, ResourcePermission.NONE, true) }
+        coVerify(exactly = 1) {
+            fixture.appointmentPermissionDataSource.setPermission(userId, businessId, ResourcePermission.NONE, true)
+        }
     }
 }

@@ -11,7 +11,11 @@ private const val NOTIFICATIONS_HTTP_CLIENT = "notificationsHttpClient"
 
 fun notificationsClientModule(qualifier: Qualifier, clientTag: String) = module {
     scope(qualifier) {
-        scoped(named(NOTIFICATIONS_HTTP_CLIENT)) { internalHttpClient("APPLICATION_NOTIFICATIONS_SERVICE_HOSTNAME", clientTag) }
-        scoped<ExportUserNotificationData> { ExportUserNotificationDataClientImpl(get(named(NOTIFICATIONS_HTTP_CLIENT))) }
+        scoped(named(NOTIFICATIONS_HTTP_CLIENT)) {
+            internalHttpClient("APPLICATION_NOTIFICATIONS_SERVICE_HOSTNAME", clientTag)
+        }
+        scoped<ExportUserNotificationData> {
+            ExportUserNotificationDataClientImpl(get(named(NOTIFICATIONS_HTTP_CLIENT)))
+        }
     }
 }

@@ -72,7 +72,13 @@ internal class DataExportDataSource : DataSource() {
         } > 0
     }
 
-    suspend fun complete(ownerId: Uuid, claimId: Uuid, document: ByteArray, finishedAt: Instant, expiresAt: Instant): Boolean = dbQuery {
+    suspend fun complete(
+        ownerId: Uuid,
+        claimId: Uuid,
+        document: ByteArray,
+        finishedAt: Instant,
+        expiresAt: Instant,
+    ): Boolean = dbQuery {
         DataExportTable.update({ heldBy(ownerId, claimId) }) {
             it[state] = DataExportState.READY
             it[this.document] = ExposedBlob(document)
@@ -83,7 +89,10 @@ internal class DataExportDataSource : DataSource() {
     }
 
     suspend fun giveBack(ownerId: Uuid, claimId: Uuid, failedAt: Instant, expiresAt: Instant) = dbQuery<Unit> {
-        val requeued = DataExportTable.update({ heldBy(ownerId, claimId) and (DataExportTable.attempts less DataExports.MAX_BUILD_ATTEMPTS) }) {
+        val requeued = DataExportTable.update({
+            heldBy(ownerId, claimId) and
+                (DataExportTable.attempts less DataExports.MAX_BUILD_ATTEMPTS)
+        }) {
             it[state] = DataExportState.PENDING
             it.clearClaim()
         }
@@ -120,7 +129,9 @@ internal class DataExportDataSource : DataSource() {
         DataExportTable.deleteWhere { DataExportTable.expiresAt lessEq now }
     }
 
-    private fun claimableAt(now: Instant): Op<Boolean> = (DataExportTable.attempts less DataExports.MAX_BUILD_ATTEMPTS) and (
+    private fun claimableAt(
+        now: Instant,
+    ): Op<Boolean> = (DataExportTable.attempts less DataExports.MAX_BUILD_ATTEMPTS) and (
         (DataExportTable.state eq DataExportState.PENDING) or
             ((DataExportTable.state eq DataExportState.RUNNING) and (DataExportTable.claimedUntil less now))
         )

@@ -117,7 +117,9 @@ internal class AppointmentRequestDataSourceImplTest {
         val declined = suspendTransaction { fixture.sut.create(fixture.buildRequest(userId = userId)) }
         suspendTransaction { fixture.sut.decline(declined.id, "Fully booked") }
         suspendTransaction { fixture.sut.create(fixture.buildRequest()) }
-        suspendTransaction { fixture.sut.create(AppointmentRequest.stub(initiatorUserId = userId, businessId = otherBusiness.id)) }
+        suspendTransaction {
+            fixture.sut.create(AppointmentRequest.stub(initiatorUserId = userId, businessId = otherBusiness.id))
+        }
 
         whenn()
         val pending = suspendTransaction { fixture.sut.getPendingByUser(userId, fixture.businessId) }
@@ -295,7 +297,8 @@ internal class AppointmentRequestDataSourceImplTest {
         val fixture = SutFixture()
         fixture.setup()
         // date at epoch → dateEnd = epoch + 30 min, well before now
-        val created = suspendTransaction { fixture.sut.create(fixture.buildRequest(date = Instant.fromEpochMilliseconds(0))) }
+        val created =
+            suspendTransaction { fixture.sut.create(fixture.buildRequest(date = Instant.fromEpochMilliseconds(0))) }
 
         whenn()
         suspendTransaction { fixture.sut.cancelOutdated(Clock.System.now()) }
@@ -381,7 +384,9 @@ internal class AppointmentRequestDataSourceImplTest {
         val fixture = SutFixture()
         fixture.setup()
         val userId = Uuid.random()
-        val request = fixture.buildRequest(userId = userId).let { it.copy(client = it.client.copy(userId = Uuid.random())) }
+        val request = fixture.buildRequest(userId = userId).let {
+            it.copy(client = it.client.copy(userId = Uuid.random()))
+        }
         val created = suspendTransaction { fixture.sut.create(request) }
 
         whenn()
@@ -530,7 +535,10 @@ internal class AppointmentRequestDataSourceImplTest {
         val userId = Uuid.random()
         val request = fixture.buildRequest().let { it.copy(client = it.client.copy(id = clientId, userId = null)) }
         val created = suspendTransaction { fixture.sut.create(request) }
-        val other = suspendTransaction { fixture.sut.create(fixture.buildRequest().let { it.copy(client = it.client.copy(userId = null)) }) }
+        val other =
+            suspendTransaction {
+                fixture.sut.create(fixture.buildRequest().let { it.copy(client = it.client.copy(userId = null)) })
+            }
 
         whenn()
         suspendTransaction { fixture.sut.linkClientUser(fixture.businessId, clientId, userId) }
@@ -550,10 +558,16 @@ internal class AppointmentRequestDataSourceImplTest {
         val fromClientId = Uuid.random()
         val toClientId = Uuid.random()
         val request = fixture.buildRequest()
-        val merged = suspendTransaction { fixture.sut.create(request.copy(client = request.client.copy(id = fromClientId))) }
+        val merged =
+            suspendTransaction { fixture.sut.create(request.copy(client = request.client.copy(id = fromClientId))) }
         val unrelated = suspendTransaction { fixture.sut.create(fixture.buildRequest()) }
         val inOtherBusiness = suspendTransaction {
-            fixture.sut.create(fixture.buildRequest().copy(businessId = otherBusiness.id, client = request.client.copy(id = fromClientId)))
+            fixture.sut.create(
+                fixture.buildRequest().copy(
+                    businessId = otherBusiness.id,
+                    client = request.client.copy(id = fromClientId),
+                ),
+            )
         }
 
         whenn()
@@ -606,8 +620,16 @@ internal class AppointmentRequestDataSourceImplTest {
         given()
         val fixture = SutFixture()
         fixture.setup()
-        val pending = suspendTransaction { fixture.sut.create(fixture.buildRequest(date = Instant.fromEpochMilliseconds(0))) }
-        val declined = suspendTransaction { fixture.sut.create(fixture.buildRequest(date = Instant.fromEpochMilliseconds(0) + 2.hours)) }
+        val pending =
+            suspendTransaction { fixture.sut.create(fixture.buildRequest(date = Instant.fromEpochMilliseconds(0))) }
+        val declined = suspendTransaction {
+            fixture.sut.create(
+                fixture.buildRequest(
+                    date =
+                    Instant.fromEpochMilliseconds(0) + 2.hours,
+                ),
+            )
+        }
         suspendTransaction { fixture.sut.decline(declined.id, "Fully booked") }
 
         whenn()
@@ -623,7 +645,8 @@ internal class AppointmentRequestDataSourceImplTest {
         given()
         val fixture = SutFixture()
         fixture.setup()
-        val recent = suspendTransaction { fixture.sut.create(fixture.buildRequest(date = Clock.System.now() - 30.days)) }
+        val recent =
+            suspendTransaction { fixture.sut.create(fixture.buildRequest(date = Clock.System.now() - 30.days)) }
 
         whenn()
         suspendTransaction { fixture.sut.deleteEndedBefore(Clock.System.now() - 60.days) }

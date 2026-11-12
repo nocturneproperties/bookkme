@@ -46,7 +46,10 @@ internal class AccountDormancyWarningNotificationTest {
 
         then()
         assertEquals("Your Bookk account will be deleted", push.title)
-        assertEquals("You haven't used Bookk for almost 3 years, so your account will be deleted on $deletionDate. Open the app to keep it.", push.body)
+        assertEquals(
+            "You haven't used Bookk for almost 3 years, so your account will be deleted on $deletionDate. Open the app to keep it.",
+            push.body,
+        )
         assertEquals("Your Bookk account will be deleted on $deletionDate", email.subject)
     }
 
@@ -61,7 +64,10 @@ internal class AccountDormancyWarningNotificationTest {
 
         then()
         assertEquals("Ваш акаунт Bookk буде видалено", push.title)
-        assertEquals("Ви не користувалися Bookk майже 3 роки, тож ваш акаунт буде видалено $deletionDate. Відкрийте застосунок, щоб зберегти його.", push.body)
+        assertEquals(
+            "Ви не користувалися Bookk майже 3 роки, тож ваш акаунт буде видалено $deletionDate. Відкрийте застосунок, щоб зберегти його.",
+            push.body,
+        )
     }
 
     @Test
@@ -76,7 +82,10 @@ internal class AccountDormancyWarningNotificationTest {
 
         then()
         assertEquals("Last reminder: your Bookk account will be deleted", push.title)
-        assertEquals("Last reminder: your Bookk account will be deleted on $deletionDate. Sign in to keep it.", text.text)
+        assertEquals(
+            "Last reminder: your Bookk account will be deleted on $deletionDate. Sign in to keep it.",
+            text.text,
+        )
     }
 
     @Test

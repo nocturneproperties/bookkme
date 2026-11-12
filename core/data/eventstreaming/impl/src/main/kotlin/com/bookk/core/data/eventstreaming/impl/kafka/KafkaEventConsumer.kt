@@ -126,7 +126,13 @@ class KafkaEventConsumer(
 
     private suspend fun handleFailure(topic: String, rawBytes: ByteArray, attempt: Int) {
         val nextAttempt = attempt + 1
-        val dltEvent = DltEvent(payload = rawBytes, originalTopic = topic, attempt = nextAttempt, topic = DltRetry.dltTopic(topic, consumerGroup))
+        val dltEvent =
+            DltEvent(
+                payload = rawBytes,
+                originalTopic = topic,
+                attempt = nextAttempt,
+                topic = DltRetry.dltTopic(topic, consumerGroup),
+            )
         if (DltRetry.isExhausted(nextAttempt, maxAttempts)) {
             persistOrRequeue(dltEvent)
         } else {
@@ -152,7 +158,11 @@ class KafkaEventConsumer(
     private suspend fun persistOrRequeue(dltEvent: DltEvent) {
         transactionManager.transaction { exhaustedEventDataSource.save(dltEvent) }
             .onFailure {
-                logger.error("Failed to persist exhausted event for topic: {}. Retrying. Error: {}", dltEvent.originalTopic, it.message)
+                logger.error(
+                    "Failed to persist exhausted event for topic: {}. Retrying. Error: {}",
+                    dltEvent.originalTopic,
+                    it.message,
+                )
                 dltProducer.send(dltEvent.copy(attempt = dltEvent.attempt + 1))
             }
     }

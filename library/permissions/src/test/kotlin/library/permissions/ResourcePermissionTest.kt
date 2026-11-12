@@ -95,7 +95,8 @@ internal class ResourcePermissionTest {
         val permission = ResourcePermission(view = false, update = true, delete = false)
 
         whenn()
-        val result = runCatching { permission.assertOrSelf(PermissionAction.UPDATE, actorId = actorId, assigneeId = assigneeId) }
+        val result =
+            runCatching { permission.assertOrSelf(PermissionAction.UPDATE, actorId = actorId, assigneeId = assigneeId) }
 
         then()
         assertTrue(result.isSuccess)
@@ -108,7 +109,8 @@ internal class ResourcePermissionTest {
         val permission = ResourcePermission(view = true, update = false, delete = false)
 
         whenn()
-        val result = runCatching { permission.assertOrSelf(PermissionAction.UPDATE, actorId = actorId, assigneeId = actorId) }
+        val result =
+            runCatching { permission.assertOrSelf(PermissionAction.UPDATE, actorId = actorId, assigneeId = actorId) }
 
         then()
         assertTrue(result.isSuccess)
@@ -122,7 +124,8 @@ internal class ResourcePermissionTest {
         val permission = ResourcePermission(view = true, update = false, delete = false)
 
         whenn()
-        val result = runCatching { permission.assertOrSelf(PermissionAction.UPDATE, actorId = actorId, assigneeId = assigneeId) }
+        val result =
+            runCatching { permission.assertOrSelf(PermissionAction.UPDATE, actorId = actorId, assigneeId = assigneeId) }
 
         then()
         assertTrue(result.exceptionOrNull() is Error.OperationNotAllowed)

@@ -1,0 +1,11 @@
+package library.encryption
+
+import kotlin.uuid.Uuid
+
+interface SubjectKeys {
+    suspend fun encryptor(subjectId: Uuid): Encryptor
+
+    suspend fun decryptor(subjectIds: Collection<Uuid>): Decryptor
+
+    suspend fun shred(subjectId: Uuid)
+}

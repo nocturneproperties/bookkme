@@ -8,7 +8,13 @@ sealed class AppointmentRequestStatusError(code: Int, message: String) : Busines
     code = code,
     message = message,
 ) {
-    class AlreadyDeclined : AppointmentRequestStatusError(AppointmentErrorCodes.REQUEST_ALREADY_DECLINED, "Appointment request already declined")
+    class AlreadyDeclined : AppointmentRequestStatusError(
+        AppointmentErrorCodes.REQUEST_ALREADY_DECLINED,
+        "Appointment request already declined",
+    )
 
-    class AlreadyApproved : AppointmentRequestStatusError(AppointmentErrorCodes.REQUEST_ALREADY_APPROVED, "Appointment request already approved")
+    class AlreadyApproved : AppointmentRequestStatusError(
+        AppointmentErrorCodes.REQUEST_ALREADY_APPROVED,
+        "Appointment request already approved",
+    )
 }

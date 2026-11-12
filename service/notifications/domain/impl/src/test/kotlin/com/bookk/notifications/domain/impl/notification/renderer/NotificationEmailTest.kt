@@ -30,7 +30,10 @@ internal class NotificationEmailTest {
     @Test
     fun `should render the subject and body in the requested language`() = runUnitTest {
         given()
-        val params = notification(email = { language -> EmailNotification(subject = "Subject $language", body = "Body $language") })
+        val params =
+            notification(email = { language ->
+                EmailNotification(subject = "Subject $language", body = "Body $language")
+            })
 
         whenn()
         val content = params.emailContent(Language.PL)
@@ -44,7 +47,10 @@ internal class NotificationEmailTest {
     @Test
     fun `should escape markup from user-entered values in the html body`() = runUnitTest {
         given()
-        val params = notification(email = { EmailNotification(subject = "Subject", body = "<script>alert('x')</script> & \"Salon\"") })
+        val params =
+            notification(email = {
+                EmailNotification(subject = "Subject", body = "<script>alert('x')</script> & \"Salon\"")
+            })
 
         whenn()
         val content = params.emailContent(Language.EN)

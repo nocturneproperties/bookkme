@@ -16,7 +16,10 @@ internal class MarkAppointmentNoShowImpl(
     private val transactionManager: TransactionManager,
 ) : MarkAppointmentNoShow {
 
-    override suspend fun invoke(userId: Uuid, appointmentId: Uuid): Result<Appointment> = transactionManager.transaction {
+    override suspend fun invoke(
+        userId: Uuid,
+        appointmentId: Uuid,
+    ): Result<Appointment> = transactionManager.transaction {
         val appointment = appointmentDataSource.getForUpdate(appointmentId)
         appointmentPermissionDataSource.getPermission(userId, appointment.businessId)
             .assertOrSelf(PermissionAction.UPDATE, actorId = userId, assigneeId = appointment.employee.userId)

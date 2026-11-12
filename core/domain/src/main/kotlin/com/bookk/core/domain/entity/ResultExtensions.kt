@@ -41,7 +41,9 @@ suspend inline fun <R> runCatchingUnlessCancelled(block: () -> R): Result<R> = t
     Result.failure(failure)
 }
 
-inline fun <R, T : R> Result<T>.recoverSuspendCatching(transform: (Throwable) -> R): Result<R> = when (val failure = exceptionOrNull()) {
+inline fun <R, T : R> Result<T>.recoverSuspendCatching(
+    transform: (Throwable) -> R,
+): Result<R> = when (val failure = exceptionOrNull()) {
     null -> this
     else -> runSuspendCatching { transform(failure) }
 }

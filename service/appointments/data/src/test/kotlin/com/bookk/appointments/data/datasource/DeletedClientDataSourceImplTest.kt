@@ -102,7 +102,10 @@ internal class DeletedClientDataSourceImplTest {
         suspendTransaction {
             fixture.sut.markDeleted(businessId, expired)
             fixture.sut.markDeleted(businessId, recent)
-            DeletedClientTable.update(where = { DeletedClientTable.clientId eq expired }) { it[deletedAt] = Instant.fromEpochMilliseconds(0) }
+            DeletedClientTable.update(where = { DeletedClientTable.clientId eq expired }) {
+                it[deletedAt] =
+                    Instant.fromEpochMilliseconds(0)
+            }
         }
 
         whenn()

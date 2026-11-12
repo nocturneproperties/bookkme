@@ -67,7 +67,14 @@ internal class UserMeTest {
     fun `should patch user`() = routeTest {
         given()
         val useCase: EditUser = mockk()
-        val editModel = UserEditModel(id = userId, firstName = "NewName", lastName = "NewLastName", email = "test@example.com", phone = null)
+        val editModel =
+            UserEditModel(
+                id = userId,
+                firstName = "NewName",
+                lastName = "NewLastName",
+                email = "test@example.com",
+                phone = null,
+            )
 
         coEvery { useCase.invoke(userId, editModel) } returns Result.success(Unit)
 
@@ -126,7 +133,14 @@ internal class UserMeTest {
     fun `should return not found when user does not exist on patch`() = routeTest {
         given()
         val useCase: EditUser = mockk()
-        val editModel = UserEditModel(id = userId, firstName = "NewName", lastName = "NewLastName", email = "test@example.com", phone = null)
+        val editModel =
+            UserEditModel(
+                id = userId,
+                firstName = "NewName",
+                lastName = "NewLastName",
+                email = "test@example.com",
+                phone = null,
+            )
         coEvery { useCase.invoke(userId, editModel) } returns Result.failure(EditUser.Error.UserNotFound())
 
         setupApplication(
@@ -156,7 +170,8 @@ internal class UserMeTest {
     fun `should return unprocessable entity when the phone or email belongs to another user`() = routeTest {
         given()
         val useCase: EditUser = mockk()
-        val editModel = UserEditModel(id = userId, firstName = null, lastName = null, email = null, phone = "+10000000000")
+        val editModel =
+            UserEditModel(id = userId, firstName = null, lastName = null, email = null, phone = "+10000000000")
         coEvery { useCase.invoke(userId, editModel) } returns Result.failure(EditUser.Error.ContactTaken())
 
         setupApplication(
@@ -186,8 +201,10 @@ internal class UserMeTest {
     fun `should return unprocessable entity when the email is changed without verification`() = routeTest {
         given()
         val useCase: EditUser = mockk()
-        val editModel = UserEditModel(id = userId, firstName = null, lastName = null, email = "other@example.com", phone = null)
-        coEvery { useCase.invoke(userId, editModel) } returns Result.failure(EditUser.Error.EmailChangeRequiresVerification())
+        val editModel =
+            UserEditModel(id = userId, firstName = null, lastName = null, email = "other@example.com", phone = null)
+        coEvery { useCase.invoke(userId, editModel) } returns
+            Result.failure(EditUser.Error.EmailChangeRequiresVerification())
 
         setupApplication(
             extension = {

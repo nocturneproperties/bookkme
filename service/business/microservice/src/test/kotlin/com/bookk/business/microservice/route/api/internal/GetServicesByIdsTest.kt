@@ -58,7 +58,8 @@ internal class GetServicesByIdsTest {
         given()
         val useCase: GetServicesByIds = mockk()
         val body = ServicesByIdsRequest.stub()
-        coEvery { useCase.invoke(businessId, body.serviceIds) } returns Result.failure(GetServicesByIds.Error.ServiceNotFound())
+        coEvery { useCase.invoke(businessId, body.serviceIds) } returns
+            Result.failure(GetServicesByIds.Error.ServiceNotFound())
 
         setupApplication(
             diModule = module { single { useCase } },

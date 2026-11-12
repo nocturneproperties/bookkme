@@ -24,7 +24,12 @@ internal class AuthTokenValidatorTest {
     private class SutFixture {
         val call = mockk<ApplicationCall>()
 
-        fun credential(expiresIn: Duration = 5.minutes, claims: JWTCreator.Builder.() -> JWTCreator.Builder = { this }) = JWTCredential(
+        fun credential(
+            expiresIn: Duration = 5.minutes,
+            claims: JWTCreator.Builder.() -> JWTCreator.Builder = {
+                this
+            },
+        ) = JWTCredential(
             JWT.decode(
                 JWT.create()
                     .withExpiresAt((Clock.System.now() + expiresIn).toJavaInstant())

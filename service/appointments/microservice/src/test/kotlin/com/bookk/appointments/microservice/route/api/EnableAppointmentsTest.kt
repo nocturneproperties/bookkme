@@ -146,7 +146,8 @@ internal class EnableAppointmentsTest {
         given()
         val useCase: EnableAppointmentsForBusiness = mockk()
         val userId = Uuid.random()
-        coEvery { useCase.invoke(userId, testBusinessId) } returns Result.failure(EnableAppointmentsForBusiness.Error.AlreadyEnabled())
+        coEvery { useCase.invoke(userId, testBusinessId) } returns
+            Result.failure(EnableAppointmentsForBusiness.Error.AlreadyEnabled())
 
         setupApplication(
             extension = {
@@ -256,7 +257,10 @@ internal class EnableAppointmentsTest {
 
         then()
         assertEquals(HttpStatusCode.Forbidden, response.status)
-        assertEquals(BusinessErrorCodes.BUSINESS_EMPLOYEE_ACCESS_SUSPENDED, response.body<SimpleServerError>().errorCode)
+        assertEquals(
+            BusinessErrorCodes.BUSINESS_EMPLOYEE_ACCESS_SUSPENDED,
+            response.body<SimpleServerError>().errorCode,
+        )
     }
 
     @Test
@@ -298,7 +302,7 @@ internal class EnableAppointmentsTest {
     }
 
     @Test
-    fun `should return unauthorized when checking client businesses appointments status without authentication`() = routeTest {
+    fun `should return unauthorized for client businesses appointments status without authentication`() = routeTest {
         given()
         val useCase: GetClientBusinessesAppointmentsStatus = mockk()
 

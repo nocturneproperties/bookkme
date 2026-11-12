@@ -23,7 +23,12 @@ internal class EmailCodeIssuerImpl(
     private val clock: Clock,
 ) : EmailCodeIssuer {
 
-    override suspend fun issue(email: String, purpose: String, ownerId: Uuid, render: (code: String) -> EmailContent): Result<EmailVerificationStarted> = runSuspendCatching {
+    override suspend fun issue(
+        email: String,
+        purpose: String,
+        ownerId: Uuid,
+        render: (code: String) -> EmailContent,
+    ): Result<EmailVerificationStarted> = runSuspendCatching {
         if (!store.claimCooldown(email, RESEND_COOLDOWN)) throw EmailCodeError.ResendTooSoon()
         runCleaningUpOnFailure(cleanUp = { store.releaseCooldown(email) }) {
             if (store.countSend(email, SEND_LIMIT_WINDOW) > MAX_SENDS_PER_WINDOW) throw EmailCodeError.ResendTooSoon()
@@ -34,7 +39,12 @@ internal class EmailCodeIssuerImpl(
             sender.send(EmailMessage(to = email, content = render(code))).getOrThrow()
             store.markLatest(ownerId, verificationId, CODE_LIFETIME)
             val now = clock.now()
-            EmailVerificationStarted(verificationId, expiresAt = now + CODE_LIFETIME, resendAvailableAt = now + RESEND_COOLDOWN)
+            EmailVerificationStarted(
+                verificationId,
+                expiresAt = now + CODE_LIFETIME,
+                resendAvailableAt =
+                now + RESEND_COOLDOWN,
+            )
         }
     }
 

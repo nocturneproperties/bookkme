@@ -26,7 +26,9 @@ internal class ExportUserAppointmentsTest {
     fun `should return the user's appointments`() = routeTest {
         given()
         val useCase: ExportUserAppointments = mockk()
-        val export = AppointmentsUserDataExport.stub(appointments = listOf(AppointmentsUserDataExport.AppointmentExport.stub()))
+        val export = AppointmentsUserDataExport.stub(
+            appointments = listOf(AppointmentsUserDataExport.AppointmentExport.stub()),
+        )
         coEvery { useCase.invoke(userId) } returns Result.success(export)
         setupApplication(diModule = module { single { useCase } }, routeUnderTest = { exportUserAppointments() })
 

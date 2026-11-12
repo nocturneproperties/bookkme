@@ -122,10 +122,12 @@ internal class SyncUserProfileImplTest {
         val merge = ClientMerge.stub()
         with(fixture) {
             transactionManager.mockTransaction()
-            coEvery { clientDataSource.findClientMergesForUser(userId, "john@doe.com", updatedAt) } returns listOf(merge)
+            coEvery { clientDataSource.findClientMergesForUser(userId, "john@doe.com", updatedAt) } returns
+                listOf(merge)
             coEvery { clientDataSource.deleteClient(merge.businessId, merge.fromClientId) } returns true
             coEvery { clientDataSource.updateIntegratedClients(userId, any(), any(), any(), any(), any()) } returns 1
-            coEvery { employeeDataSource.updateIntegratedEmployees(userId, any(), any(), any(), any(), any()) } returns 0
+            coEvery { employeeDataSource.updateIntegratedEmployees(userId, any(), any(), any(), any(), any()) } returns
+                0
         }
 
         whenn()
@@ -158,11 +160,13 @@ internal class SyncUserProfileImplTest {
         val linked = mutableListOf<BusinessEvent.ClientLinked>()
         with(fixture) {
             transactionManager.mockTransaction()
-            coEvery { clientDataSource.findClientMergesForUser(userId, any(), updatedAt) } returns listOf(kept, sameKept, elsewhere)
+            coEvery { clientDataSource.findClientMergesForUser(userId, any(), updatedAt) } returns
+                listOf(kept, sameKept, elsewhere)
             coEvery { clientDataSource.deleteClient(any(), any()) } returns true
             coEvery { eventProducer.send(capture(linked), any()) } returns Unit
             coEvery { clientDataSource.updateIntegratedClients(userId, any(), any(), any(), any(), any()) } returns 1
-            coEvery { employeeDataSource.updateIntegratedEmployees(userId, any(), any(), any(), any(), any()) } returns 0
+            coEvery { employeeDataSource.updateIntegratedEmployees(userId, any(), any(), any(), any(), any()) } returns
+                0
         }
 
         whenn()
@@ -186,7 +190,8 @@ internal class SyncUserProfileImplTest {
         with(fixture) {
             transactionManager.mockTransaction()
             coEvery { clientDataSource.updateIntegratedClients(userId, any(), any(), any(), any(), any()) } returns 1
-            coEvery { employeeDataSource.updateIntegratedEmployees(userId, any(), any(), any(), any(), any()) } returns 0
+            coEvery { employeeDataSource.updateIntegratedEmployees(userId, any(), any(), any(), any(), any()) } returns
+                0
         }
 
         whenn()

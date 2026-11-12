@@ -91,14 +91,17 @@ internal class DeleteUserAppointmentDataImplTest {
 
     private fun AppointmentEvent.Cancelled.withoutIdempotencyKey() = copy(idempotencyKey = "")
 
-    private fun bookedBy(clientUserId: Uuid, businessId: Uuid) = Appointment.stub(initiatorUserId = clientUserId, businessId = businessId)
+    private fun bookedBy(clientUserId: Uuid, businessId: Uuid) = Appointment.stub(
+        initiatorUserId = clientUserId,
+        businessId = businessId,
+    )
 
     private fun assignedTo(employeeUserId: Uuid, businessId: Uuid) = Appointment.stub(businessId = businessId)
         .let { it.copy(employee = it.employee.copy(userId = employeeUserId)) }
         .copy(cancellationReason = DeleteUserAppointmentDataImpl.EMPLOYEE_DELETED_CANCELLATION_REASON)
 
     @Test
-    fun `should erase the user as client, employee and initiator and delete their requests and permissions in one transaction`() = runUnitTest {
+    fun `should erase the user as client, employee and initiator with requests and grants at once`() = runUnitTest {
         given()
         val fixture = SutFixture()
         val userId = Uuid.random()
@@ -165,7 +168,7 @@ internal class DeleteUserAppointmentDataImplTest {
     }
 
     @Test
-    fun `should tell the assigned employee about every appointment cancelled because their client deleted the account`() = runUnitTest {
+    fun `should notify the employee of each appointment cancelled by its client's account deletion`() = runUnitTest {
         given()
         val fixture = SutFixture()
         val userId = Uuid.random()
@@ -196,7 +199,7 @@ internal class DeleteUserAppointmentDataImplTest {
     }
 
     @Test
-    fun `should tell the client with an account about an appointment cancelled because its employee deleted the account`() = runUnitTest {
+    fun `should notify a registered client when its employee's deletion cancels an appointment`() = runUnitTest {
         given()
         val fixture = SutFixture()
         val userId = Uuid.random()
@@ -230,7 +233,7 @@ internal class DeleteUserAppointmentDataImplTest {
     }
 
     @Test
-    fun `should not notify a client without an account about an appointment cancelled because its employee deleted the account`() = runUnitTest {
+    fun `should not notify an unregistered client when its employee's deletion cancels an appointment`() = runUnitTest {
         given()
         val fixture = SutFixture()
         val userId = Uuid.random()
@@ -304,7 +307,8 @@ internal class DeleteUserAppointmentDataImplTest {
         val fixture = SutFixture()
         val userId = Uuid.random()
         fixture.stubWrites(userId)
-        coEvery { fixture.appointmentDataSource.anonymizeClientUser(userId) } throws IllegalStateException("database down")
+        coEvery { fixture.appointmentDataSource.anonymizeClientUser(userId) } throws
+            IllegalStateException("database down")
 
         whenn()
         val result = fixture.sut(userId)

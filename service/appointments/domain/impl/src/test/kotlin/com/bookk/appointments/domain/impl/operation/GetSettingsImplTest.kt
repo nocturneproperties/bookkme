@@ -76,7 +76,8 @@ internal class GetSettingsImplTest {
         val businessId = Uuid.random()
         with(fixture) {
             transactionManager.mockTransaction()
-            coEvery { permissionsSource.getPermission(userId, businessId) } returns ResourcePermission(view = true, update = false, delete = false)
+            coEvery { permissionsSource.getPermission(userId, businessId) } returns
+                ResourcePermission(view = true, update = false, delete = false)
             coEvery { settingsSource.get(businessId) } returns null
         }
 

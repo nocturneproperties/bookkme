@@ -44,7 +44,10 @@ internal class GenerateAuthTokenImplTest {
         )
     }
 
-    private fun device(refreshToken: SafeRefreshToken?, previousRefreshToken: SafeRefreshToken? = null): Device = Device(
+    private fun device(
+        refreshToken: SafeRefreshToken?,
+        previousRefreshToken: SafeRefreshToken? = null,
+    ): Device = Device(
         authRecord = Authentication(id = Uuid.random(), userId = Uuid.random(), uuid = Uuid.random()),
         deviceInfo = DeviceInfo(
             id = Uuid.random(),
@@ -134,7 +137,13 @@ internal class GenerateAuthTokenImplTest {
             coEvery { tokenIssuer.issue(any(), any()) } returns "access-token"
             coEvery { deviceDataSource.getDeviceByRefreshTokenId(refreshToken.id) } returns deviceRecord
             coEvery { deviceDataSource.rotateRefreshToken(any(), any(), any()) } returns Unit
-            coEvery { accountDataSource.recordActivity(deviceRecord.authRecord.id, capture(recordedAt), capture(unlessRecordedSince)) } returns Unit
+            coEvery {
+                accountDataSource.recordActivity(
+                    deviceRecord.authRecord.id,
+                    capture(recordedAt),
+                    capture(unlessRecordedSince),
+                )
+            } returns Unit
             transactionManager.mockTransaction()
         }
         val startedAt = Clock.System.now()
@@ -154,7 +163,12 @@ internal class GenerateAuthTokenImplTest {
         val deviceRecord = device(refreshToken = null)
         with(fixture) {
             coEvery { tokenIssuer.issue(any(), any()) } returns "access-token"
-            coEvery { deviceDataSource.getDeviceByAuthIdAndUUID(deviceRecord.authRecord.id, deviceRecord.deviceInfo.deviceUUID) } returns deviceRecord
+            coEvery {
+                deviceDataSource.getDeviceByAuthIdAndUUID(
+                    deviceRecord.authRecord.id,
+                    deviceRecord.deviceInfo.deviceUUID,
+                )
+            } returns deviceRecord
             coEvery { deviceDataSource.attachRefreshTokenToDevice(any(), any(), any()) } returns Unit
             transactionManager.mockTransaction()
         }

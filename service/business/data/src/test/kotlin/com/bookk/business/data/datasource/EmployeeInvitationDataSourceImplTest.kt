@@ -654,7 +654,7 @@ internal class EmployeeInvitationDataSourceImplTest {
     }
 
     @Test
-    fun `should delete processed invitations without an update timestamp when created before the cutoff`() = runUnitTest {
+    fun `should delete processed invitations without an update time when created before the cutoff`() = runUnitTest {
         given()
         val fixture = SutFixture()
         fixture.setup()

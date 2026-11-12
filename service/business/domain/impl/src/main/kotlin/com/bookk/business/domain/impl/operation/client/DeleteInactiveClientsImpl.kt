@@ -26,7 +26,9 @@ internal class DeleteInactiveClientsImpl(
     private val eventProducer: StandardEventProducer,
 ) : DeleteInactiveClients {
     override suspend fun invoke(): Result<Unit> = runSuspendCatching {
-        val retentionMonthsByBusiness = transactionManager.transactionOrThrow { businessDataSource.getClientDataRetentionMonths() }
+        val retentionMonthsByBusiness = transactionManager.transactionOrThrow {
+            businessDataSource.getClientDataRetentionMonths()
+        }
         val now = Clock.System.now()
         val failures = mutableListOf<Throwable>()
         for ((businessId, retentionMonths) in retentionMonthsByBusiness) {
@@ -43,7 +45,10 @@ internal class DeleteInactiveClientsImpl(
             ?.let { throw it }
     }
 
-    private suspend fun deleteInactiveClients(businessId: Uuid, inactiveSince: Instant): Result<Unit> = transactionManager.transaction(TransactionIsolation.READ_COMMITTED) {
+    private suspend fun deleteInactiveClients(
+        businessId: Uuid,
+        inactiveSince: Instant,
+    ): Result<Unit> = transactionManager.transaction(TransactionIsolation.READ_COMMITTED) {
         clientDataSource.deleteInactiveClients(businessId, inactiveSince).forEach { clientId ->
             erasedClientDataSource.record(businessId, clientId)
             eventProducer.send(BusinessEvent.ClientDeleted(businessId = businessId, clientId = clientId))

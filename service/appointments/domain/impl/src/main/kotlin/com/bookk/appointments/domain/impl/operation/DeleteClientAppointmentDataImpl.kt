@@ -42,7 +42,9 @@ internal class DeleteClientAppointmentDataImpl(
 
     private suspend fun notifyCancellations(businessId: Uuid, cancelled: List<Appointment>) {
         val business = subscriptionDataSource.getBusinessSnapshot(businessId) ?: run {
-            deleteClientAppointmentDataLogger.error("No business with id $businessId exists, nobody is notified of the cancellations")
+            deleteClientAppointmentDataLogger.error(
+                "No business with id $businessId exists, nobody is notified of the cancellations",
+            )
             return
         }
         cancelled.forEach { appointment ->
@@ -53,7 +55,10 @@ internal class DeleteClientAppointmentDataImpl(
 
     private fun Appointment.isOwnBookingOfEmployee() = client.userId == employee.userId
 
-    private fun employeeNotification(appointment: Appointment, business: BusinessSnapshot) = AppointmentEvent.CancelledForDeletedClient(
+    private fun employeeNotification(
+        appointment: Appointment,
+        business: BusinessSnapshot,
+    ) = AppointmentEvent.CancelledForDeletedClient(
         employeeUserId = appointment.employee.userId,
         from = appointment.date,
         to = appointment.dateEnd,

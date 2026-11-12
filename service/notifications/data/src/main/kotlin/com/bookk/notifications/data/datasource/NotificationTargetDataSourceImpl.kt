@@ -18,12 +18,16 @@ import kotlin.uuid.Uuid
 
 internal class NotificationTargetDataSourceImpl : DataSource(), NotificationTargetDataSource {
 
-    override suspend fun getEmail(userId: Uuid): String? = NotificationEmailTargetTable.select(NotificationEmailTargetTable.email)
+    override suspend fun getEmail(userId: Uuid): String? = NotificationEmailTargetTable.select(
+        NotificationEmailTargetTable.email,
+    )
         .where { NotificationEmailTargetTable.userId eq userId }
         .singleOrNull()
         ?.get(NotificationEmailTargetTable.email)
 
-    override suspend fun getTelegram(userId: Uuid): String? = NotificationTelegramTargetTable.select(NotificationTelegramTargetTable.telegramTag)
+    override suspend fun getTelegram(userId: Uuid): String? = NotificationTelegramTargetTable.select(
+        NotificationTelegramTargetTable.telegramTag,
+    )
         .where { NotificationTelegramTargetTable.userId eq userId }
         .singleOrNull()
         ?.get(NotificationTelegramTargetTable.telegramTag)

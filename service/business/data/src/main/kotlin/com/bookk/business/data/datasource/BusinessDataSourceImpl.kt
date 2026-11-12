@@ -32,7 +32,12 @@ import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
 internal class BusinessDataSourceImpl : DataSource(), BusinessDataSource {
-    override suspend fun createBusiness(userId: Uuid, name: String, currencyCode: String, timeZone: TimeZone): Business = dbQuery {
+    override suspend fun createBusiness(
+        userId: Uuid,
+        name: String,
+        currencyCode: String,
+        timeZone: TimeZone,
+    ): Business = dbQuery {
         val entity = BusinessEntity.new(userId, name, currencyCode, timeZone)
         BusinessDashboardTable.upsert {
             it[this.userId] = userId

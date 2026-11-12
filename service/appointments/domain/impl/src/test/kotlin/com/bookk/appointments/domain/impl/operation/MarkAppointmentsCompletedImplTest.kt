@@ -58,7 +58,9 @@ internal class MarkAppointmentsCompletedImplTest {
             fixture.appointmentDataSource.markUnresolved(any())
             fixture.appointmentDataSource.markCompleted(any())
         }
-        coVerify(exactly = 1) { fixture.transactionManager.transaction<Any>(TransactionIsolation.READ_COMMITTED, any()) }
+        coVerify(exactly = 1) {
+            fixture.transactionManager.transaction<Any>(TransactionIsolation.READ_COMMITTED, any())
+        }
     }
 
     @Test
@@ -85,7 +87,8 @@ internal class MarkAppointmentsCompletedImplTest {
         given()
         val fixture = SutFixture()
         fixture.transactionManager.mockTransaction()
-        coEvery { fixture.appointmentDataSource.markUnresolved(any()) } throws IllegalStateException("Expiration failed")
+        coEvery { fixture.appointmentDataSource.markUnresolved(any()) } throws
+            IllegalStateException("Expiration failed")
 
         whenn()
         val result = fixture.sut()

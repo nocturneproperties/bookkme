@@ -25,7 +25,11 @@ internal class ExportUserAppointmentsImpl(
     override suspend fun invoke(userId: Uuid): Result<AppointmentsUserDataExport> = transactionManager.transaction {
         val appointments = dataSource.getAppointmentsOfUser(userId)
         val requests = dataSource.getRequestsOfUser(userId)
-        val businessNames = dataSource.getBusinessNames(appointments.map { it.businessId } + requests.map { it.businessId })
+        val businessNames = dataSource.getBusinessNames(
+            appointments.map {
+                it.businessId
+            } + requests.map { it.businessId },
+        )
         AppointmentsUserDataExport(
             appointments = appointments.map { it.toExport(userId, businessNames[it.businessId].orEmpty()) },
             requests = requests.map { it.toExport(userId, businessNames[it.businessId].orEmpty()) },
@@ -76,13 +80,32 @@ internal class ExportUserAppointmentsImpl(
         )
     }
 
-    private fun rolesOf(userId: Uuid, client: ClientSnapshot, employee: EmployeeSnapshot, initiatorUserId: Uuid): List<Role> = buildList {
+    private fun rolesOf(
+        userId: Uuid,
+        client: ClientSnapshot,
+        employee: EmployeeSnapshot,
+        initiatorUserId: Uuid,
+    ): List<Role> = buildList {
         if (client.userId == userId) add(Role.CLIENT)
         if (employee.userId == userId) add(Role.EMPLOYEE)
         if (initiatorUserId == userId) add(Role.BOOKER)
     }
 
-    private fun ClientSnapshot.detailsIf(isClient: Boolean, note: String): ClientDetailsExport? = ClientDetailsExport(name = fullName, phone = phone, email = email, note = note.ifBlank { null }).takeIf { isClient }
+    private fun ClientSnapshot.detailsIf(
+        isClient: Boolean,
+        note: String,
+    ): ClientDetailsExport? = ClientDetailsExport(
+        name = fullName,
+        phone = phone,
+        email = email,
+        note = note.ifBlank {
+            null
+        },
+    ).takeIf { isClient }
 
-    private fun ServiceSnapshot.toExport() = ServiceExport(name = name, price = price.toString(), durationMinutes = duration.inWholeMinutes)
+    private fun ServiceSnapshot.toExport() = ServiceExport(
+        name = name,
+        price = price.toString(),
+        durationMinutes = duration.inWholeMinutes,
+    )
 }

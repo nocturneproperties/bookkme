@@ -32,9 +32,13 @@ fun businessClientModule(qualifier: Qualifier, clientTag: String) = module {
         scoped(named(BUSINESS_HTTP_CLIENT)) { internalHttpClient("APPLICATION_BUSINESS_SERVICE_HOSTNAME", clientTag) }
         scoped<GetBusinessDetails> { GetBusinessDetailsClientImpl(get(named(BUSINESS_HTTP_CLIENT))) }
         scoped<GetBusinessPermission> { GetBusinessPermissionClientImpl(get(named(BUSINESS_HTTP_CLIENT))) }
-        scoped<GetAppointmentBookingContext> { GetAppointmentBookingContextClientImpl(get(named(BUSINESS_HTTP_CLIENT))) }
+        scoped<GetAppointmentBookingContext> {
+            GetAppointmentBookingContextClientImpl(get(named(BUSINESS_HTTP_CLIENT)))
+        }
         scoped<GetStaffBookingContext> { GetStaffBookingContextClientImpl(get(named(BUSINESS_HTTP_CLIENT))) }
-        scoped<GetAppointmentRescheduleContext> { GetAppointmentRescheduleContextClientImpl(get(named(BUSINESS_HTTP_CLIENT))) }
+        scoped<GetAppointmentRescheduleContext> {
+            GetAppointmentRescheduleContextClientImpl(get(named(BUSINESS_HTTP_CLIENT)))
+        }
         scoped<GetClientBusinessIds> { GetClientBusinessIdsClientImpl(get(named(BUSINESS_HTTP_CLIENT))) }
         scoped<GetServicesByIds> { GetServicesByIdsClientImpl(get(named(BUSINESS_HTTP_CLIENT))) }
         scoped<GetOwnedBusinessMemberIds> { GetOwnedBusinessMemberIdsClientImpl(get(named(BUSINESS_HTTP_CLIENT))) }

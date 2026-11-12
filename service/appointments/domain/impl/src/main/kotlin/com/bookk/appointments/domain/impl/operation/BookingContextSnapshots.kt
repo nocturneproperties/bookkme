@@ -24,5 +24,7 @@ internal fun AppointmentBookingContext.serviceSnapshots(requested: List<Requeste
     val servicesById = services.associateBy { it.id }
     return requested
         .flatMap { service -> List(service.count) { servicesById.getValue(service.serviceId) } }
-        .map { ServiceSnapshot(id = it.id, name = it.name, groupId = it.group.id, price = it.price, duration = it.duration) }
+        .map {
+            ServiceSnapshot(id = it.id, name = it.name, groupId = it.group.id, price = it.price, duration = it.duration)
+        }
 }

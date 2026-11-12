@@ -58,7 +58,7 @@ internal class AppointmentRequestCreatedNotificationTest {
     }
 
     @Test
-    fun `should render English email content with the price but not the employee's own business address`() = runUnitTest {
+    fun `should render English email content with the price but not the employee's business address`() = runUnitTest {
         given()
         val event = event()
         val whenText = event.from.formatLocalized(event.timeZone, Language.EN)
@@ -69,11 +69,14 @@ internal class AppointmentRequestCreatedNotificationTest {
         then()
         assertTrue(email.subject.contains("New appointment request"))
         assertTrue(email.subject.contains("Alice"))
-        assertEquals("Alice has requested an appointment at Barbershop on $whenText. Price: ${event.price}.", email.body)
+        assertEquals(
+            "Alice has requested an appointment at Barbershop on $whenText. Price: ${event.price}.",
+            email.body,
+        )
     }
 
     @Test
-    fun `should render Ukrainian email content with the price but not the employee's own business address`() = runUnitTest {
+    fun `should render Ukrainian email content with the price but not the employee's business address`() = runUnitTest {
         given()
         val event = event()
         val whenText = event.from.formatLocalized(event.timeZone, Language.UK)
@@ -84,7 +87,10 @@ internal class AppointmentRequestCreatedNotificationTest {
         then()
         assertTrue(email.subject.contains("Новий запит на запис"))
         assertTrue(email.subject.contains("Alice"))
-        assertEquals("Alice залишив(ла) запит на запис до Barbershop на $whenText. Вартість: ${event.price}.", email.body)
+        assertEquals(
+            "Alice залишив(ла) запит на запис до Barbershop на $whenText. Вартість: ${event.price}.",
+            email.body,
+        )
     }
 
     @Test

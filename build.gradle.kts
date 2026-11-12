@@ -60,16 +60,22 @@ dependencies {
     testImplementation(testFixtures(projects.library.scheduler))
 }
 
+val ktlintOverrides = mapOf(
+    "ktlint_standard_function-expression-body" to "disabled",
+    "ktlint_ignore_back_ticked_identifier" to "true",
+    "ktlint_standard_function-signature" to "disabled",
+)
+
 spotless {
     kotlin {
         target("**/*.kt")
         targetExclude("**/build/**", ".gradle/**", ".kotlin/**")
-        ktlint(libs.versions.ktlint.get())
+        ktlint(libs.versions.ktlint.get()).editorConfigOverride(ktlintOverrides)
     }
     kotlinGradle {
         target("**/*.gradle.kts")
         targetExclude("**/build/**", ".gradle/**", ".kotlin/**")
-        ktlint(libs.versions.ktlint.get())
+        ktlint(libs.versions.ktlint.get()).editorConfigOverride(ktlintOverrides)
     }
 }
 

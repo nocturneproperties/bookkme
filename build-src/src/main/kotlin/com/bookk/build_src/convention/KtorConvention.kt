@@ -47,4 +47,10 @@ fun KtorExtension.applyConvention(project: Project) {
     }
 }
 
-private fun Project.dockerImageName(): String = if (this == rootProject) "bookkme-server" else "bookkme-${requireNotNull(parent).name}"
+private fun Project.dockerImageName(): String = if (this ==
+    rootProject
+) {
+    "bookkme-server"
+} else {
+    "bookkme-${requireNotNull(parent).name}"
+}

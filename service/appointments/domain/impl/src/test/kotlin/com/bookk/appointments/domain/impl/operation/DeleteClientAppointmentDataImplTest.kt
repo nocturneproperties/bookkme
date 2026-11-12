@@ -80,7 +80,9 @@ internal class DeleteClientAppointmentDataImplTest {
 
     private fun AppointmentEvent.Cancelled.withoutIdempotencyKey() = copy(idempotencyKey = "")
 
-    private fun Appointment.cancelledForRemoval() = copy(cancellationReason = DeleteClientAppointmentDataImpl.CLIENT_REMOVED_CANCELLATION_REASON)
+    private fun Appointment.cancelledForRemoval() = copy(
+        cancellationReason = DeleteClientAppointmentDataImpl.CLIENT_REMOVED_CANCELLATION_REASON,
+    )
 
     @Test
     fun `should erase the client from the business's appointments and requests in one transaction`() = runUnitTest {
@@ -101,7 +103,7 @@ internal class DeleteClientAppointmentDataImplTest {
     }
 
     @Test
-    fun `should record the deletion first, then lock and cancel the client's upcoming appointments before anonymizing`() = runUnitTest {
+    fun `should record the deletion, then lock and cancel upcoming appointments before anonymizing`() = runUnitTest {
         given()
         val fixture = SutFixture()
         val businessId = Uuid.random()
@@ -139,7 +141,12 @@ internal class DeleteClientAppointmentDataImplTest {
         then()
         assertTrue(result.isSuccess)
         coVerify(exactly = 1) {
-            fixture.appointmentDataSource.cancelUpcomingForClient(businessId, clientId, any(), "Client was removed by the business")
+            fixture.appointmentDataSource.cancelUpcomingForClient(
+                businessId,
+                clientId,
+                any(),
+                "Client was removed by the business",
+            )
         }
         assertTrue(startingAfter.single() in before..(before + 5.seconds))
     }
@@ -237,7 +244,12 @@ internal class DeleteClientAppointmentDataImplTest {
         val clientId = Uuid.random()
         val userId = Uuid.random()
         val ownAppointment = Appointment.stub(businessId = business.id)
-            .let { it.copy(client = it.client.copy(id = clientId, userId = userId), employee = it.employee.copy(userId = userId)) }
+            .let {
+                it.copy(
+                    client = it.client.copy(id = clientId, userId = userId),
+                    employee = it.employee.copy(userId = userId),
+                )
+            }
             .cancelledForRemoval()
         fixture.stubWrites(business.id, clientId, cancelled = listOf(ownAppointment))
         coEvery { fixture.subscriptionDataSource.getBusinessSnapshot(business.id) } returns business
@@ -291,7 +303,8 @@ internal class DeleteClientAppointmentDataImplTest {
         val businessId = Uuid.random()
         val clientId = Uuid.random()
         fixture.stubWrites(businessId, clientId)
-        coEvery { fixture.appointmentDataSource.anonymizeClient(businessId, clientId) } throws IllegalStateException("database down")
+        coEvery { fixture.appointmentDataSource.anonymizeClient(businessId, clientId) } throws
+            IllegalStateException("database down")
 
         whenn()
         val result = fixture.sut(businessId, clientId)

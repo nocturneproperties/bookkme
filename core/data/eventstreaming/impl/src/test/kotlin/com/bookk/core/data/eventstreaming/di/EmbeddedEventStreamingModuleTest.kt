@@ -51,7 +51,9 @@ internal class EmbeddedEventStreamingModuleTest {
             }
         }
 
-        fun scopeWith(eventStreaming: Module): Scope = koinApplication { modules(topicQueueHolderModule(), sharedModule, serviceModule(qualifier), eventStreaming) }
+        fun scopeWith(eventStreaming: Module): Scope = koinApplication {
+            modules(topicQueueHolderModule(), sharedModule, serviceModule(qualifier), eventStreaming)
+        }
             .koin
             .createScope("embedded-test-scope", qualifier)
 

@@ -68,7 +68,14 @@ internal class AppointmentEventTest {
     @Test
     fun `should decode the client visit booked event from its pinned field numbers`() = runUnitTest {
         given()
-        val pinned = PinnedClientVisitBooked(Uuid.random(), Uuid.random(), Instant.fromEpochMilliseconds(1_000_000), "key", AppointmentEvent.ClientVisitBooked.TOPIC)
+        val pinned =
+            PinnedClientVisitBooked(
+                Uuid.random(),
+                Uuid.random(),
+                Instant.fromEpochMilliseconds(1_000_000),
+                "key",
+                AppointmentEvent.ClientVisitBooked.TOPIC,
+            )
 
         whenn()
         val decoded = protoBuf.decodeFromByteArray(
@@ -77,14 +84,21 @@ internal class AppointmentEventTest {
         )
 
         then()
-        assertEquals(AppointmentEvent.ClientVisitBooked(pinned.businessId, pinned.clientId, pinned.visitEnd, "key"), decoded)
+        assertEquals(
+            AppointmentEvent.ClientVisitBooked(pinned.businessId, pinned.clientId, pinned.visitEnd, "key"),
+            decoded,
+        )
         assertEquals(AppointmentEvent.ClientVisitBooked.TOPIC, decoded.topic)
     }
 
     @Test
     fun `should key the client visit booked event by client id`() = runUnitTest {
         given()
-        val event = AppointmentEvent.ClientVisitBooked(Uuid.random(), Uuid.random(), Instant.fromEpochMilliseconds(1_000_000))
+        val event = AppointmentEvent.ClientVisitBooked(
+            Uuid.random(),
+            Uuid.random(),
+            Instant.fromEpochMilliseconds(1_000_000),
+        )
 
         whenn()
         val partitionKey = event.partitionKey

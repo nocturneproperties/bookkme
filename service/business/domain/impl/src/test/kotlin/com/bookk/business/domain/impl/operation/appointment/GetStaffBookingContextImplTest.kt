@@ -29,7 +29,8 @@ internal class GetStaffBookingContextImplTest {
         val clientDataSource = mockk<ClientDataSource>()
         val serviceDataSource = mockk<ServiceDataSource>()
         val transactionManager = mockk<TransactionManager>()
-        val sut = GetStaffBookingContextImpl(employeeDataSource, clientDataSource, serviceDataSource, transactionManager)
+        val sut =
+            GetStaffBookingContextImpl(employeeDataSource, clientDataSource, serviceDataSource, transactionManager)
 
         val businessId = Uuid.random()
         val employee = Employee.stub(businessId = businessId)

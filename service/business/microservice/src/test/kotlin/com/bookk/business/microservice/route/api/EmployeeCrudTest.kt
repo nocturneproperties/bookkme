@@ -96,7 +96,9 @@ internal class EmployeeCrudTest {
 
         whenn()
         val client = createTestClient()
-        val response = client.put(BusinessRouting.Api.Employee.Id(BusinessRouting.Api.Employee(businessId = businessId), employee.id)) {
+        val response = client.put(
+            BusinessRouting.Api.Employee.Id(BusinessRouting.Api.Employee(businessId = businessId), employee.id),
+        ) {
             setBody(updateModel(employee))
         }
 
@@ -113,7 +115,9 @@ internal class EmployeeCrudTest {
 
         whenn()
         val client = createTestClient()
-        val response = client.put(BusinessRouting.Api.Employee.Id(BusinessRouting.Api.Employee(businessId = Uuid.random()), employee.id)) {
+        val response = client.put(
+            BusinessRouting.Api.Employee.Id(BusinessRouting.Api.Employee(businessId = Uuid.random()), employee.id),
+        ) {
             setBody(updateModel(employee))
         }
 
@@ -130,7 +134,9 @@ internal class EmployeeCrudTest {
 
         whenn()
         val client = createTestClient()
-        val response = client.put(BusinessRouting.Api.Employee.Id(BusinessRouting.Api.Employee(businessId = businessId), Uuid.random())) {
+        val response = client.put(
+            BusinessRouting.Api.Employee.Id(BusinessRouting.Api.Employee(businessId = businessId), Uuid.random()),
+        ) {
             setBody(updateModel(employee))
         }
 
@@ -143,18 +149,24 @@ internal class EmployeeCrudTest {
         given()
         val useCase: UpdateEmployee = mockk()
         val employee = createTestEmployee()
-        coEvery { useCase.invoke(userId, updateModel(employee)) } returns Result.failure(UpdateEmployee.Error.ValidationError())
+        coEvery { useCase.invoke(userId, updateModel(employee)) } returns
+            Result.failure(UpdateEmployee.Error.ValidationError())
         authenticatedApplication(useCase)
 
         whenn()
         val client = createTestClient()
-        val response = client.put(BusinessRouting.Api.Employee.Id(BusinessRouting.Api.Employee(businessId = businessId), employee.id)) {
+        val response = client.put(
+            BusinessRouting.Api.Employee.Id(BusinessRouting.Api.Employee(businessId = businessId), employee.id),
+        ) {
             setBody(updateModel(employee))
         }
 
         then()
         assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
-        assertEquals(BusinessErrorCodes.BUSINESS_EMPLOYEE_VALIDATION_ERROR, response.body<SimpleServerError>().errorCode)
+        assertEquals(
+            BusinessErrorCodes.BUSINESS_EMPLOYEE_VALIDATION_ERROR,
+            response.body<SimpleServerError>().errorCode,
+        )
     }
 
     @Test
@@ -162,18 +174,24 @@ internal class EmployeeCrudTest {
         given()
         val useCase: UpdateEmployee = mockk()
         val employee = createTestEmployee()
-        coEvery { useCase.invoke(userId, updateModel(employee)) } returns Result.failure(UpdateEmployee.Error.ActiveDayWithoutWorkHours())
+        coEvery { useCase.invoke(userId, updateModel(employee)) } returns
+            Result.failure(UpdateEmployee.Error.ActiveDayWithoutWorkHours())
         authenticatedApplication(useCase)
 
         whenn()
         val client = createTestClient()
-        val response = client.put(BusinessRouting.Api.Employee.Id(BusinessRouting.Api.Employee(businessId = businessId), employee.id)) {
+        val response = client.put(
+            BusinessRouting.Api.Employee.Id(BusinessRouting.Api.Employee(businessId = businessId), employee.id),
+        ) {
             setBody(updateModel(employee))
         }
 
         then()
         assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
-        assertEquals(BusinessErrorCodes.BUSINESS_EMPLOYEE_ACTIVE_DAY_WITHOUT_WORK_HOURS, response.body<SimpleServerError>().errorCode)
+        assertEquals(
+            BusinessErrorCodes.BUSINESS_EMPLOYEE_ACTIVE_DAY_WITHOUT_WORK_HOURS,
+            response.body<SimpleServerError>().errorCode,
+        )
     }
 
     @Test
@@ -181,18 +199,24 @@ internal class EmployeeCrudTest {
         given()
         val useCase: UpdateEmployee = mockk()
         val employee = createTestEmployee()
-        coEvery { useCase.invoke(userId, updateModel(employee)) } returns Result.failure(UpdateEmployee.Error.InvalidDayOffRange())
+        coEvery { useCase.invoke(userId, updateModel(employee)) } returns
+            Result.failure(UpdateEmployee.Error.InvalidDayOffRange())
         authenticatedApplication(useCase)
 
         whenn()
         val client = createTestClient()
-        val response = client.put(BusinessRouting.Api.Employee.Id(BusinessRouting.Api.Employee(businessId = businessId), employee.id)) {
+        val response = client.put(
+            BusinessRouting.Api.Employee.Id(BusinessRouting.Api.Employee(businessId = businessId), employee.id),
+        ) {
             setBody(updateModel(employee))
         }
 
         then()
         assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
-        assertEquals(BusinessErrorCodes.BUSINESS_EMPLOYEE_INVALID_DAY_OFF_RANGE, response.body<SimpleServerError>().errorCode)
+        assertEquals(
+            BusinessErrorCodes.BUSINESS_EMPLOYEE_INVALID_DAY_OFF_RANGE,
+            response.body<SimpleServerError>().errorCode,
+        )
     }
 
     @Test
@@ -205,7 +229,9 @@ internal class EmployeeCrudTest {
 
         whenn()
         val client = createTestClient()
-        val response = client.put(BusinessRouting.Api.Employee.Id(BusinessRouting.Api.Employee(businessId = businessId), employee.id)) {
+        val response = client.put(
+            BusinessRouting.Api.Employee.Id(BusinessRouting.Api.Employee(businessId = businessId), employee.id),
+        ) {
             setBody(updateModel(employee))
         }
 
@@ -227,7 +253,9 @@ internal class EmployeeCrudTest {
 
         whenn()
         val client = createTestClient()
-        val response = client.put(BusinessRouting.Api.Employee.Id(BusinessRouting.Api.Employee(businessId = businessId), employee.id)) {
+        val response = client.put(
+            BusinessRouting.Api.Employee.Id(BusinessRouting.Api.Employee(businessId = businessId), employee.id),
+        ) {
             setBody(updateModel(employee))
         }
 
@@ -245,7 +273,9 @@ internal class EmployeeCrudTest {
 
         whenn()
         val client = createTestClient()
-        val response = client.put(BusinessRouting.Api.Employee.Id(BusinessRouting.Api.Employee(businessId = businessId), employee.id)) {
+        val response = client.put(
+            BusinessRouting.Api.Employee.Id(BusinessRouting.Api.Employee(businessId = businessId), employee.id),
+        ) {
             setBody(updateModel(employee))
         }
 
@@ -263,7 +293,9 @@ internal class EmployeeCrudTest {
 
         whenn()
         val client = createTestClient()
-        val response = client.put(BusinessRouting.Api.Employee.Id(BusinessRouting.Api.Employee(businessId = businessId), employee.id)) {
+        val response = client.put(
+            BusinessRouting.Api.Employee.Id(BusinessRouting.Api.Employee(businessId = businessId), employee.id),
+        ) {
             setBody(employee)
         }
 
@@ -285,7 +317,10 @@ internal class EmployeeCrudTest {
         val updated = Employee.stub(
             id = id,
             businessId = businessId,
-            permissions = BusinessPermissions.stub(clients = ResourcePermission(view = true, update = true, delete = false), services = ResourcePermission.FULL),
+            permissions = BusinessPermissions.stub(
+                clients = ResourcePermission(view = true, update = true, delete = false),
+                services = ResourcePermission.FULL,
+            ),
         )
         coEvery { useCase.invoke(userId, businessId, id, grants) } returns Result.success(updated)
         authenticatedApplication(useCase)
@@ -318,7 +353,8 @@ internal class EmployeeCrudTest {
             BusinessResource.SERVICES to services,
             BusinessResource.APPOINTMENTS to appointments,
         )
-        coEvery { useCase.invoke(userId, businessId, id, grants) } returns Result.success(Employee.stub(id = id, businessId = businessId))
+        coEvery { useCase.invoke(userId, businessId, id, grants) } returns
+            Result.success(Employee.stub(id = id, businessId = businessId))
         authenticatedApplication(useCase)
 
         whenn()
@@ -369,7 +405,10 @@ internal class EmployeeCrudTest {
 
         then()
         assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
-        assertEquals(BusinessErrorCodes.BUSINESS_OWNER_PERMISSIONS_IMMUTABLE, response.body<SimpleServerError>().errorCode)
+        assertEquals(
+            BusinessErrorCodes.BUSINESS_OWNER_PERMISSIONS_IMMUTABLE,
+            response.body<SimpleServerError>().errorCode,
+        )
     }
 
     @Test
@@ -441,7 +480,9 @@ internal class EmployeeCrudTest {
 
         whenn()
         val client = createTestClient()
-        val response = client.put(suspensionResource(employee.id)) { setBody(EmployeeSuspensionRequest(suspended = true)) }
+        val response = client.put(suspensionResource(employee.id)) {
+            setBody(EmployeeSuspensionRequest(suspended = true))
+        }
 
         then()
         assertEquals(HttpStatusCode.OK, response.status)
@@ -458,7 +499,9 @@ internal class EmployeeCrudTest {
 
         whenn()
         val client = createTestClient()
-        val response = client.put(suspensionResource(employee.id)) { setBody(EmployeeSuspensionRequest(suspended = false)) }
+        val response = client.put(suspensionResource(employee.id)) {
+            setBody(EmployeeSuspensionRequest(suspended = false))
+        }
 
         then()
         assertEquals(HttpStatusCode.OK, response.status)
@@ -480,7 +523,10 @@ internal class EmployeeCrudTest {
 
         then()
         assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
-        assertEquals(BusinessErrorCodes.BUSINESS_OWNER_SUSPENSION_NOT_ALLOWED, response.body<SimpleServerError>().errorCode)
+        assertEquals(
+            BusinessErrorCodes.BUSINESS_OWNER_SUSPENSION_NOT_ALLOWED,
+            response.body<SimpleServerError>().errorCode,
+        )
     }
 
     @Test
@@ -528,7 +574,9 @@ internal class EmployeeCrudTest {
 
         whenn()
         val client = createTestClient()
-        val response = client.put(suspensionResource(Uuid.random())) { setBody(EmployeeSuspensionRequest(suspended = true)) }
+        val response = client.put(suspensionResource(Uuid.random())) {
+            setBody(EmployeeSuspensionRequest(suspended = true))
+        }
 
         then()
         assertEquals(HttpStatusCode.Unauthorized, response.status)
@@ -582,7 +630,10 @@ internal class EmployeeCrudTest {
 
         then()
         assertEquals(HttpStatusCode.Forbidden, response.status)
-        assertEquals(BusinessErrorCodes.BUSINESS_EMPLOYEE_ACCESS_SUSPENDED, response.body<SimpleServerError>().errorCode)
+        assertEquals(
+            BusinessErrorCodes.BUSINESS_EMPLOYEE_ACCESS_SUSPENDED,
+            response.body<SimpleServerError>().errorCode,
+        )
     }
 
     @Test

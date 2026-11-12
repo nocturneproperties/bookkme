@@ -33,8 +33,15 @@ internal class AppointmentEventHandler(
             .registerResultReceiver(AuthEvent.UserDeleted.TOPIC) { event: AuthEvent.UserDeleted ->
                 deleteUserAppointmentData(event.userId)
             }
-            .registerResultReceiver(BusinessEvent.EmployeePermissionsChanged.TOPIC) { event: BusinessEvent.EmployeePermissionsChanged ->
-                syncEmployeePermission(event.employeeUserId, event.businessId, event.permissions.appointments, event.suspended)
+            .registerResultReceiver(
+                BusinessEvent.EmployeePermissionsChanged.TOPIC,
+            ) { event: BusinessEvent.EmployeePermissionsChanged ->
+                syncEmployeePermission(
+                    event.employeeUserId,
+                    event.businessId,
+                    event.permissions.appointments,
+                    event.suspended,
+                )
             }
             .registerResultReceiver(BusinessEvent.ClientLinked.TOPIC) { event: BusinessEvent.ClientLinked ->
                 linkClientUser(event.businessId, event.clientId, event.userId, event.mergedClientIds)

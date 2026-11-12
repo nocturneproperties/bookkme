@@ -143,7 +143,9 @@ internal class UpdateAppointmentImplTest {
         val storedService = ServiceSnapshot.stub().copy(price = Money.parse("USD 40"))
         val stored = Appointment.stub(date = futureDate).copy(services = listOf(storedService))
         fixture.givenValidUpdate(userId, stored)
-        val update = keepingEverything(stored).copy(services = listOf(RequestedService(serviceId = storedService.id, count = 2)))
+        val update = keepingEverything(
+            stored,
+        ).copy(services = listOf(RequestedService(serviceId = storedService.id, count = 2)))
 
         whenn()
         val result = fixture.sut(userId, update)
@@ -162,7 +164,10 @@ internal class UpdateAppointmentImplTest {
         val storedService = stored.services.single()
         val added = Service.stub(businessId = stored.businessId, price = Money.parse("USD 25"))
         val update = keepingEverything(stored).copy(
-            services = listOf(RequestedService(serviceId = storedService.id, count = 1), RequestedService(serviceId = added.id, count = 1)),
+            services = listOf(
+                RequestedService(serviceId = storedService.id, count = 1),
+                RequestedService(serviceId = added.id, count = 1),
+            ),
         )
         with(fixture) {
             givenValidUpdate(userId, stored)
@@ -175,7 +180,14 @@ internal class UpdateAppointmentImplTest {
         val result = fixture.sut(userId, update)
 
         then()
-        val addedSnapshot = ServiceSnapshot(id = added.id, name = added.name, groupId = added.group.id, price = added.price, duration = added.duration)
+        val addedSnapshot =
+            ServiceSnapshot(
+                id = added.id,
+                name = added.name,
+                groupId = added.group.id,
+                price = added.price,
+                duration = added.duration,
+            )
         assertEquals(listOf(storedService, addedSnapshot), result.getOrNull()?.services)
     }
 
@@ -198,7 +210,10 @@ internal class UpdateAppointmentImplTest {
         val result = fixture.sut(userId, update)
 
         then()
-        assertEquals(EmployeeSnapshot(id = newEmployee.id, userId = newEmployee.userId, fullName = "Ann Lee"), result.getOrNull()?.employee)
+        assertEquals(
+            EmployeeSnapshot(id = newEmployee.id, userId = newEmployee.userId, fullName = "Ann Lee"),
+            result.getOrNull()?.employee,
+        )
     }
 
     @Test
@@ -211,7 +226,9 @@ internal class UpdateAppointmentImplTest {
         val employeeNotFound = Error.NotFound()
         with(fixture) {
             givenValidUpdate(userId, stored)
-            coEvery { businessClient.getAppointmentRescheduleContext(stored.businessId, update.employeeId, emptyList()) } returns Result.failure(employeeNotFound)
+            coEvery {
+                businessClient.getAppointmentRescheduleContext(stored.businessId, update.employeeId, emptyList())
+            } returns Result.failure(employeeNotFound)
         }
 
         whenn()
@@ -231,7 +248,8 @@ internal class UpdateAppointmentImplTest {
         val update = keepingEverything(stored).copy(employeeId = Uuid.random())
         with(fixture) {
             givenValidUpdate(userId, stored)
-            coEvery { businessClient.getAppointmentRescheduleContext(any(), any(), any()) } returns Result.failure(Error.NotFound())
+            coEvery { businessClient.getAppointmentRescheduleContext(any(), any(), any()) } returns
+                Result.failure(Error.NotFound())
         }
 
         whenn()
@@ -261,7 +279,10 @@ internal class UpdateAppointmentImplTest {
         val fixture = SutFixture()
 
         whenn()
-        val result = fixture.sut(Uuid.random(), AppointmentUpdate.stub(services = listOf(RequestedService.stub(count = 0))))
+        val result = fixture.sut(
+            Uuid.random(),
+            AppointmentUpdate.stub(services = listOf(RequestedService.stub(count = 0))),
+        )
 
         then()
         assertTrue(result.exceptionOrNull() is UpdateAppointment.Error.InvalidServiceSelection)
@@ -276,7 +297,12 @@ internal class UpdateAppointmentImplTest {
         whenn()
         val result = fixture.sut(
             Uuid.random(),
-            AppointmentUpdate.stub(services = listOf(RequestedService.stub(serviceId = serviceId), RequestedService.stub(serviceId = serviceId))),
+            AppointmentUpdate.stub(
+                services = listOf(
+                    RequestedService.stub(serviceId = serviceId),
+                    RequestedService.stub(serviceId = serviceId),
+                ),
+            ),
         )
 
         then()
@@ -319,7 +345,7 @@ internal class UpdateAppointmentImplTest {
     }
 
     @Test
-    fun `should lock the settings and then the appointment before reading the permission in the booking transaction`() = runUnitTest {
+    fun `should lock the settings, then the appointment, before reading the permission when booking`() = runUnitTest {
         given()
         val fixture = SutFixture()
         val userId = Uuid.random()
@@ -400,12 +426,16 @@ internal class UpdateAppointmentImplTest {
     }
 
     @Test
-    fun `should return failure when user has view permission but appointment belongs to another employee`() = runUnitTest {
+    fun `should return failure when user has view permission on another employee's appointment`() = runUnitTest {
         given()
         val fixture = SutFixture()
         val userId = Uuid.random()
         val stored = Appointment.stub(date = futureDate)
-        fixture.givenValidUpdate(userId, stored, permission = ResourcePermission(view = true, update = false, delete = false))
+        fixture.givenValidUpdate(
+            userId,
+            stored,
+            permission = ResourcePermission(view = true, update = false, delete = false),
+        )
 
         whenn()
         val result = fixture.sut(userId, keepingEverything(stored))
@@ -420,7 +450,11 @@ internal class UpdateAppointmentImplTest {
         val fixture = SutFixture()
         val userId = Uuid.random()
         val stored = Appointment.stub(date = futureDate).copy(employee = EmployeeSnapshot.stub(userId = userId))
-        fixture.givenValidUpdate(userId, stored, permission = ResourcePermission(view = true, update = false, delete = false))
+        fixture.givenValidUpdate(
+            userId,
+            stored,
+            permission = ResourcePermission(view = true, update = false, delete = false),
+        )
 
         whenn()
         val result = fixture.sut(userId, keepingEverything(stored))
@@ -437,7 +471,8 @@ internal class UpdateAppointmentImplTest {
         val stored = Appointment.stub(date = futureDate)
         with(fixture) {
             givenValidUpdate(userId, stored)
-            coEvery { appointmentPermissionDataSource.getPermission(userId, stored.businessId) } throws EmployeeAccessSuspended()
+            coEvery { appointmentPermissionDataSource.getPermission(userId, stored.businessId) } throws
+                EmployeeAccessSuspended()
         }
 
         whenn()
@@ -466,7 +501,16 @@ internal class UpdateAppointmentImplTest {
         val result = fixture.sut(userId, update)
 
         then()
-        assertEquals(stored.copy(date = laterDate, note = "Updated note", status = AppointmentStatus.SCHEDULED, completedBy = null, priceAdjustment = null), result.getOrNull())
+        assertEquals(
+            stored.copy(
+                date = laterDate,
+                note = "Updated note",
+                status = AppointmentStatus.SCHEDULED,
+                completedBy = null,
+                priceAdjustment = null,
+            ),
+            result.getOrNull(),
+        )
         coVerify(exactly = 1) { fixture.appointmentDataSource.hasOverlapsWith(any()) }
         coVerify(exactly = 1) { fixture.eventProducer.send(any(AppointmentEvent.ClientVisitBooked::class), any()) }
     }
@@ -484,7 +528,16 @@ internal class UpdateAppointmentImplTest {
         val result = fixture.sut(userId, update)
 
         then()
-        assertEquals(stored.copy(date = laterDate, note = "Updated note", status = AppointmentStatus.SCHEDULED, completedBy = null, priceAdjustment = null), result.getOrNull())
+        assertEquals(
+            stored.copy(
+                date = laterDate,
+                note = "Updated note",
+                status = AppointmentStatus.SCHEDULED,
+                completedBy = null,
+                priceAdjustment = null,
+            ),
+            result.getOrNull(),
+        )
         coVerify(exactly = 1) { fixture.appointmentDataSource.hasOverlapsWith(any()) }
         coVerify(exactly = 1) { fixture.eventProducer.send(any(AppointmentEvent.ClientVisitBooked::class), any()) }
     }
@@ -551,7 +604,10 @@ internal class UpdateAppointmentImplTest {
         val stored = Appointment.stub(date = futureDate)
         with(fixture) {
             givenValidUpdate(userId, stored)
-            coEvery { appointmentDataSource.hasOverlapsWith(stored.copy(date = laterDate, note = "Updated note")) } returns true
+            coEvery {
+                appointmentDataSource.hasOverlapsWith(stored.copy(date = laterDate, note = "Updated note"))
+            } returns
+                true
         }
 
         whenn()
@@ -629,7 +685,13 @@ internal class UpdateAppointmentImplTest {
         val result = fixture.sut(userId, update)
 
         then()
-        val expected = stored.copy(date = laterDate, note = "Updated note", status = AppointmentStatus.SCHEDULED, completedBy = null, priceAdjustment = null)
+        val expected = stored.copy(
+            date = laterDate,
+            note = "Updated note",
+            status = AppointmentStatus.SCHEDULED,
+            completedBy = null,
+            priceAdjustment = null,
+        )
         assertEquals(expected, result.getOrNull())
         coVerifyOrder {
             fixture.appointmentDataSource.reopen(stored.id)

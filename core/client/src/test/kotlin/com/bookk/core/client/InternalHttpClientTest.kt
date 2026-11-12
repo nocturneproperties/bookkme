@@ -25,7 +25,9 @@ internal class InternalHttpClientTest {
 
     private class SutFixture(
         hostname: String? = "business.service",
-        handler: suspend MockRequestHandleScope.(HttpRequestData) -> HttpResponseData = { respond("", HttpStatusCode.OK) },
+        handler: suspend MockRequestHandleScope.(
+            HttpRequestData,
+        ) -> HttpResponseData = { respond("", HttpStatusCode.OK) },
     ) {
         val requests = mutableListOf<HttpRequestData>()
         val sut = internalHttpClient(
@@ -74,7 +76,15 @@ internal class InternalHttpClientTest {
     fun `should retry a call that failed on the server`() = runUnitTest {
         given()
         val calls = AtomicInteger()
-        val fixture = SutFixture { if (calls.incrementAndGet() == 1) respond("", HttpStatusCode.ServiceUnavailable) else respond("", HttpStatusCode.OK) }
+        val fixture = SutFixture {
+            if (calls.incrementAndGet() ==
+                1
+            ) {
+                respond("", HttpStatusCode.ServiceUnavailable)
+            } else {
+                respond("", HttpStatusCode.OK)
+            }
+        }
 
         whenn()
         val response = fixture.sut.get("/flaky")
@@ -93,7 +103,9 @@ internal class InternalHttpClientTest {
         val result = runCatching { fixture.sut.get("/api/internal/export/business/user") }
 
         then()
-        assertTrue(result.exceptionOrNull()?.message.orEmpty().contains(HOSTNAME_VARIABLE)) { result.exceptionOrNull().toString() }
+        assertTrue(result.exceptionOrNull()?.message.orEmpty().contains(HOSTNAME_VARIABLE)) {
+            result.exceptionOrNull().toString()
+        }
         assertTrue(fixture.requests.isEmpty())
     }
 

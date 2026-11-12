@@ -56,7 +56,8 @@ internal class CreateDeviceEntryImplTest {
         val userId = Uuid.random()
         with(fixture) {
             transactionManager.mockTransaction()
-            coEvery { deviceDataSource.getOrCreate(authId, deviceId, userId, Language.EN) } throws RuntimeException("db error")
+            coEvery { deviceDataSource.getOrCreate(authId, deviceId, userId, Language.EN) } throws
+                RuntimeException("db error")
         }
 
         whenn()

@@ -43,7 +43,12 @@ internal class EmployeeDataSourceImpl : DataSource(), EmployeeDataSource {
             EmployeeTable.businessId eq businessId
         }
             .toList()
-            .with(EmployeeEntity::services, EmployeeEntity::workingHours, EmployeeEntity::dayOffs, EmployeeEntity::grants)
+            .with(
+                EmployeeEntity::services,
+                EmployeeEntity::workingHours,
+                EmployeeEntity::dayOffs,
+                EmployeeEntity::grants,
+            )
             .map(EmployeeEntity::toDomain)
     }
 
@@ -112,7 +117,12 @@ internal class EmployeeDataSourceImpl : DataSource(), EmployeeDataSource {
             EmployeeTable.id inSubQuery employeeIds
         }
             .toList()
-            .with(EmployeeEntity::services, EmployeeEntity::workingHours, EmployeeEntity::dayOffs, EmployeeEntity::grants)
+            .with(
+                EmployeeEntity::services,
+                EmployeeEntity::workingHours,
+                EmployeeEntity::dayOffs,
+                EmployeeEntity::grants,
+            )
             .map(EmployeeEntity::toDomain)
     }
 

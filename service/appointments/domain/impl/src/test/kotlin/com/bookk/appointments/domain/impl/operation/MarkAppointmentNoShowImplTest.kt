@@ -42,7 +42,11 @@ internal class MarkAppointmentNoShowImplTest {
             transactionManager,
         )
 
-        fun givenLockedAppointment(userId: Uuid, appointment: Appointment, permission: ResourcePermission = updatePermission) {
+        fun givenLockedAppointment(
+            userId: Uuid,
+            appointment: Appointment,
+            permission: ResourcePermission = updatePermission,
+        ) {
             transactionManager.mockTransaction()
             coEvery { appointmentDataSource.getForUpdate(appointment.id) } returns appointment
             coEvery { appointmentPermissionDataSource.getPermission(userId, appointment.businessId) } returns permission
@@ -78,7 +82,9 @@ internal class MarkAppointmentNoShowImplTest {
         given()
         val fixture = SutFixture()
         val userId = Uuid.random()
-        val appointment = Appointment.stub(date = recentlyStarted).copy(status = AppointmentStatus.COMPLETED, completedBy = AppointmentCompletedBy.SYSTEM)
+        val appointment = Appointment.stub(
+            date = recentlyStarted,
+        ).copy(status = AppointmentStatus.COMPLETED, completedBy = AppointmentCompletedBy.SYSTEM)
         val noShow = appointment.copy(status = AppointmentStatus.NO_SHOW, completedBy = null)
         with(fixture) {
             givenLockedAppointment(userId, appointment)
@@ -113,10 +119,13 @@ internal class MarkAppointmentNoShowImplTest {
         given()
         val fixture = SutFixture()
         val userId = Uuid.random()
-        val appointment = Appointment.stub(date = recentlyStarted).copy(employee = EmployeeSnapshot.stub(userId = userId))
+        val appointment = Appointment.stub(
+            date = recentlyStarted,
+        ).copy(employee = EmployeeSnapshot.stub(userId = userId))
         with(fixture) {
             givenLockedAppointment(userId, appointment, ResourcePermission(view = true, update = false, delete = false))
-            coEvery { appointmentDataSource.markNoShow(appointment.id) } returns appointment.copy(status = AppointmentStatus.NO_SHOW)
+            coEvery { appointmentDataSource.markNoShow(appointment.id) } returns
+                appointment.copy(status = AppointmentStatus.NO_SHOW)
         }
 
         whenn()
@@ -127,12 +136,16 @@ internal class MarkAppointmentNoShowImplTest {
     }
 
     @Test
-    fun `should return failure when user has view permission but appointment belongs to another employee`() = runUnitTest {
+    fun `should return failure when user has view permission on another employee's appointment`() = runUnitTest {
         given()
         val fixture = SutFixture()
         val userId = Uuid.random()
         val appointment = Appointment.stub(date = recentlyStarted)
-        fixture.givenLockedAppointment(userId, appointment, ResourcePermission(view = true, update = false, delete = false))
+        fixture.givenLockedAppointment(
+            userId,
+            appointment,
+            ResourcePermission(view = true, update = false, delete = false),
+        )
 
         whenn()
         val result = fixture.sut.invoke(userId, appointment.id)
@@ -151,7 +164,8 @@ internal class MarkAppointmentNoShowImplTest {
         with(fixture) {
             transactionManager.mockTransaction()
             coEvery { appointmentDataSource.getForUpdate(appointment.id) } returns appointment
-            coEvery { appointmentPermissionDataSource.getPermission(userId, appointment.businessId) } throws EmployeeAccessSuspended()
+            coEvery { appointmentPermissionDataSource.getPermission(userId, appointment.businessId) } throws
+                EmployeeAccessSuspended()
         }
 
         whenn()
@@ -199,7 +213,9 @@ internal class MarkAppointmentNoShowImplTest {
         given()
         val fixture = SutFixture()
         val userId = Uuid.random()
-        val appointment = Appointment.stub(date = Clock.System.now() + 1.hours).copy(status = AppointmentStatus.COMPLETED)
+        val appointment = Appointment.stub(
+            date = Clock.System.now() + 1.hours,
+        ).copy(status = AppointmentStatus.COMPLETED)
         fixture.givenLockedAppointment(userId, appointment)
 
         whenn()
@@ -232,7 +248,9 @@ internal class MarkAppointmentNoShowImplTest {
         given()
         val fixture = SutFixture()
         val userId = Uuid.random()
-        val appointment = Appointment.stub(date = Clock.System.now() - 30.days).copy(status = AppointmentStatus.COMPLETED)
+        val appointment = Appointment.stub(
+            date = Clock.System.now() - 30.days,
+        ).copy(status = AppointmentStatus.COMPLETED)
         fixture.givenLockedAppointment(userId, appointment)
 
         whenn()

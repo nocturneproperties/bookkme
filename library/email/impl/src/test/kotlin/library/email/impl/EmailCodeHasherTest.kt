@@ -104,7 +104,9 @@ internal class EmailCodeHasherTest {
         assertTrue(result.exceptionOrNull() is IllegalArgumentException) { result.toString() }
     }
 
-    private fun sha256Hex(value: String): String = MessageDigest.getInstance("SHA-256").digest(value.toByteArray()).toHexString()
+    private fun sha256Hex(value: String): String = MessageDigest.getInstance(
+        "SHA-256",
+    ).digest(value.toByteArray()).toHexString()
 
     private companion object {
         const val SECRET = "0123456789abcdef0123456789abcdef-test-secret"

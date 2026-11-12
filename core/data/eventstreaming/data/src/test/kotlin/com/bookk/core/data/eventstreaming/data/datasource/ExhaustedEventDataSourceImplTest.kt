@@ -166,7 +166,9 @@ internal class ExhaustedEventDataSourceImplTest {
             fixture.sut.save(kept)
             fixture.sut.requestReplayOfAll()
         }
-        val deletedId = suspendTransaction { fixture.sut.lockReplayRequested(limit = 10) }.single { it.event == deleted }.id
+        val deletedId = suspendTransaction {
+            fixture.sut.lockReplayRequested(limit = 10)
+        }.single { it.event == deleted }.id
 
         whenn()
         suspendTransaction { fixture.sut.delete(listOf(deletedId)) }

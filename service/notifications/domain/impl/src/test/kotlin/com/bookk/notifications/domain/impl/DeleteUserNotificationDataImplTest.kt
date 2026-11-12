@@ -21,7 +21,12 @@ internal class DeleteUserNotificationDataImplTest {
         val notificationSettingsDataSource = mockk<NotificationSettingsDataSource>()
         val notificationTargetDataSource = mockk<NotificationTargetDataSource>()
         val transactionManager = mockk<TransactionManager>()
-        val sut = DeleteUserNotificationDataImpl(notificationSettingsDataSource, notificationTargetDataSource, transactionManager)
+        val sut =
+            DeleteUserNotificationDataImpl(
+                notificationSettingsDataSource,
+                notificationTargetDataSource,
+                transactionManager,
+            )
     }
 
     @Test

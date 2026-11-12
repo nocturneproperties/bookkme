@@ -31,7 +31,9 @@ internal class RespondDataExportTest {
 
     private fun io.ktor.server.testing.ApplicationTestBuilder.serveDocument() = setupApplication(
         diModule = module { },
-        routeUnderTest = { get("/export/download") { call.respondDataExport(document, fileName = "bookk-personal-data.json") } },
+        routeUnderTest = {
+            get("/export/download") { call.respondDataExport(document, fileName = "bookk-personal-data.json") }
+        },
     )
 
     @Test
@@ -40,7 +42,9 @@ internal class RespondDataExportTest {
         serveDocument()
 
         whenn()
-        val response = createTestClient().get("/export/download") { header(HttpHeaders.AcceptEncoding, "gzip, deflate") }
+        val response = createTestClient().get("/export/download") {
+            header(HttpHeaders.AcceptEncoding, "gzip, deflate")
+        }
 
         then()
         assertEquals(HttpStatusCode.OK, response.status)
@@ -69,7 +73,9 @@ internal class RespondDataExportTest {
         serveDocument()
 
         whenn()
-        val response = createTestClient().get("/export/download") { header(HttpHeaders.AcceptEncoding, "gzip;q=0, identity") }
+        val response = createTestClient().get("/export/download") {
+            header(HttpHeaders.AcceptEncoding, "gzip;q=0, identity")
+        }
 
         then()
         assertNull(response.headers[HttpHeaders.ContentEncoding])

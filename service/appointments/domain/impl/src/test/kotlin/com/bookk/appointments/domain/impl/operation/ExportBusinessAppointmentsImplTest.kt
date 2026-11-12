@@ -43,12 +43,20 @@ internal class ExportBusinessAppointmentsImplTest {
         val requestDataSource = mockk<AppointmentRequestDataSource>()
         val settingsDataSource = mockk<AppointmentSettingsDataSource>()
         val transactionManager = mockk<TransactionManager>()
-        val sut = ExportBusinessAppointmentsImpl(appointmentDataSource, requestDataSource, settingsDataSource, transactionManager)
+        val sut =
+            ExportBusinessAppointmentsImpl(
+                appointmentDataSource,
+                requestDataSource,
+                settingsDataSource,
+                transactionManager,
+            )
         val businessId = Uuid.random()
         val readInTransaction = mutableListOf<Boolean>()
         val service = ServiceSnapshot(Uuid.random(), "Haircut", Uuid.random(), Money.parse("UAH 450.00"), 45.minutes)
         val employee = EmployeeSnapshot.stub().copy(fullName = "Olena Koval")
-        val client = ClientSnapshot.stub(userId = Uuid.random()).copy(fullName = "Ivan Petrenko", phone = "+380509998877", email = "ivan@example.com")
+        val client = ClientSnapshot.stub(
+            userId = Uuid.random(),
+        ).copy(fullName = "Ivan Petrenko", phone = "+380509998877", email = "ivan@example.com")
 
         init {
             transactionManager.mockTransaction()
@@ -65,7 +73,10 @@ internal class ExportBusinessAppointmentsImplTest {
     fun `should export every appointment of the business with its client, employee, notes and reasons`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        val appointment = Appointment.stub(businessId = fixture.businessId, date = Instant.fromEpochMilliseconds(3_600_000)).copy(
+        val appointment = Appointment.stub(
+            businessId = fixture.businessId,
+            date = Instant.fromEpochMilliseconds(3_600_000),
+        ).copy(
             employee = fixture.employee,
             client = fixture.client,
             services = listOf(fixture.service),
@@ -73,7 +84,11 @@ internal class ExportBusinessAppointmentsImplTest {
             note = "allergic to latex",
             cancellationReason = "",
             completedBy = AppointmentCompletedBy.USER,
-            priceAdjustment = PriceAdjustment(additionalServices = emptyList(), price = Money.parse("UAH 500.00"), reason = "extra styling"),
+            priceAdjustment = PriceAdjustment(
+                additionalServices = emptyList(),
+                price = Money.parse("UAH 500.00"),
+                reason = "extra styling",
+            ),
         )
         coEvery { fixture.appointmentDataSource.getAll(fixture.businessId) } returns listOf(appointment)
 
@@ -90,7 +105,13 @@ internal class ExportBusinessAppointmentsImplTest {
                     status = "COMPLETED",
                     services = listOf(ServiceExport("Haircut", "UAH 450.00", 45)),
                     employee = EmployeeExport(fixture.employee.id, "Olena Koval"),
-                    client = ClientExport(fixture.client.id, "Ivan Petrenko", "+380509998877", "ivan@example.com", hasAccount = true),
+                    client = ClientExport(
+                        fixture.client.id,
+                        "Ivan Petrenko",
+                        "+380509998877",
+                        "ivan@example.com",
+                        hasAccount = true,
+                    ),
                     note = "allergic to latex",
                     cancellationReason = null,
                     priceAdjustment = PriceAdjustmentExport("UAH 500.00", emptyList(), "extra styling"),
@@ -124,7 +145,13 @@ internal class ExportBusinessAppointmentsImplTest {
                     end = request.dateEnd,
                     services = listOf(ServiceExport("Haircut", "UAH 450.00", 45)),
                     employee = EmployeeExport(fixture.employee.id, "Olena Koval"),
-                    client = ClientExport(fixture.client.id, "Ivan Petrenko", "+380509998877", "ivan@example.com", hasAccount = false),
+                    client = ClientExport(
+                        fixture.client.id,
+                        "Ivan Petrenko",
+                        "+380509998877",
+                        "ivan@example.com",
+                        hasAccount = false,
+                    ),
                     note = null,
                 ),
             ),
@@ -136,18 +163,27 @@ internal class ExportBusinessAppointmentsImplTest {
     fun `should export the business's appointment settings`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        coEvery { fixture.settingsDataSource.get(fixture.businessId) } returns AppointmentSettings.stub(fixture.businessId).copy(
-            automaticApproval = true,
-            automaticCompletion = false,
-            inBetweenBreakInMinutes = 15,
-            appointmentNote = "Bring your card",
-        )
+        coEvery { fixture.settingsDataSource.get(fixture.businessId) } returns
+            AppointmentSettings.stub(fixture.businessId).copy(
+                automaticApproval = true,
+                automaticCompletion = false,
+                inBetweenBreakInMinutes = 15,
+                appointmentNote = "Bring your card",
+            )
 
         whenn()
         val export = fixture.sut(fixture.businessId).getOrThrow()
 
         then()
-        assertEquals(SettingsExport(automaticApproval = true, automaticCompletion = false, breakBetweenAppointmentsMinutes = 15, appointmentNote = "Bring your card"), export.settings)
+        assertEquals(
+            SettingsExport(
+                automaticApproval = true,
+                automaticCompletion = false,
+                breakBetweenAppointmentsMinutes = 15,
+                appointmentNote = "Bring your card",
+            ),
+            export.settings,
+        )
     }
 
     @Test
@@ -167,7 +203,8 @@ internal class ExportBusinessAppointmentsImplTest {
     fun `should fail when the appointments can't be read`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        coEvery { fixture.appointmentDataSource.getAll(fixture.businessId) } throws IllegalStateException("database unreachable")
+        coEvery { fixture.appointmentDataSource.getAll(fixture.businessId) } throws
+            IllegalStateException("database unreachable")
 
         whenn()
         val result = fixture.sut(fixture.businessId)

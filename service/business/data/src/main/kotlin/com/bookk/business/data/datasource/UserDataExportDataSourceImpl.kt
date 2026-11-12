@@ -29,14 +29,22 @@ internal class UserDataExportDataSourceImpl : DataSource(), UserDataExportDataSo
 
     override suspend fun export(userId: Uuid): BusinessUserDataExport = dbQuery {
         val employees = EmployeeEntity.find { EmployeeTable.userId eq userId }
-            .with(EmployeeEntity::services, EmployeeEntity::workingHours, EmployeeEntity::dayOffs, EmployeeEntity::grants)
+            .with(
+                EmployeeEntity::services,
+                EmployeeEntity::workingHours,
+                EmployeeEntity::dayOffs,
+                EmployeeEntity::grants,
+            )
             .map { it.toDomain() }
         val clientRows = ClientTable.selectAll().where { ClientTable.userId eq userId }.toList()
-        val businessNames = businessNames(employees.map { it.businessId } + clientRows.map { it[ClientTable.businessId].value })
+        val businessNames =
+            businessNames(employees.map { it.businessId } + clientRows.map { it[ClientTable.businessId].value })
         BusinessUserDataExport(
             ownedBusiness = BusinessEntity.find { BusinessTable.userId eq userId }.singleOrNull()?.toExport(),
             employments = employees.map { it.toExport(businessNames.getValue(it.businessId)) },
-            clientRecords = clientRows.map { it.toClientRecord(businessNames.getValue(it[ClientTable.businessId].value)) },
+            clientRecords = clientRows.map {
+                it.toClientRecord(businessNames.getValue(it[ClientTable.businessId].value))
+            },
             dashboardBusinessId = BusinessDashboardTable.select(BusinessDashboardTable.businessId)
                 .where { BusinessDashboardTable.userId eq userId }
                 .singleOrNull()

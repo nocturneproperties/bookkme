@@ -21,7 +21,11 @@ internal class AuthEmailsTest {
         val emails = Language.entries.map { AuthEmails.signUpCode(it, code) }
 
         then()
-        assertTrue(emails.all { code in it.textBody && code in it.htmlBody && it.subject.isNotBlank() }) { emails.toString() }
+        assertTrue(
+            emails.all {
+                code in it.textBody && code in it.htmlBody && it.subject.isNotBlank()
+            },
+        ) { emails.toString() }
         assertTrue(emails.all { it.tag == "sign-up-code" }) { emails.toString() }
     }
 
@@ -34,7 +38,11 @@ internal class AuthEmailsTest {
         val emails = Language.entries.map { AuthEmails.emailChangeCode(it, code) }
 
         then()
-        assertTrue(emails.all { code in it.textBody && code in it.htmlBody && it.subject.isNotBlank() }) { emails.toString() }
+        assertTrue(
+            emails.all {
+                code in it.textBody && code in it.htmlBody && it.subject.isNotBlank()
+            },
+        ) { emails.toString() }
         assertTrue(emails.all { it.tag == "email-change-code" }) { emails.toString() }
     }
 

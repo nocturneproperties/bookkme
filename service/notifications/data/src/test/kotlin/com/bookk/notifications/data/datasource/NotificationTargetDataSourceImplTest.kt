@@ -102,7 +102,9 @@ internal class NotificationTargetDataSourceImplTest {
         val userId = Uuid.random()
 
         whenn()
-        suspendTransaction { fixture.sut.insertEmail(userId, "inserted@example.com", Instant.fromEpochMilliseconds(1000)) }
+        suspendTransaction {
+            fixture.sut.insertEmail(userId, "inserted@example.com", Instant.fromEpochMilliseconds(1000))
+        }
 
         then()
         val email = suspendTransaction { fixture.sut.getEmail(userId) }

@@ -19,7 +19,12 @@ internal class LinkClientUser(
     private val transactionManager: TransactionManager,
 ) {
 
-    suspend operator fun invoke(businessId: Uuid, clientId: Uuid, userId: Uuid, mergedClientIds: List<Uuid>): Result<Unit> = transactionManager.transaction {
+    suspend operator fun invoke(
+        businessId: Uuid,
+        clientId: Uuid,
+        userId: Uuid,
+        mergedClientIds: List<Uuid>,
+    ): Result<Unit> = transactionManager.transaction {
         val accountAlreadyDeleted = deletedUserDataSource.isDeletedForShare(userId)
         val clientAlreadyDeleted = deletedClientDataSource.isDeletedForShare(businessId, clientId)
         mergedClientIds.forEach { mergedClientId ->

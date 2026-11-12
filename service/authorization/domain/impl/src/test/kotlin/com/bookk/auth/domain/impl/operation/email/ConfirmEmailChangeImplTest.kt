@@ -30,8 +30,13 @@ internal class ConfirmEmailChangeImplTest {
         val mailbox = EmailTestMailbox()
         val sut = ConfirmEmailChangeImpl(userClient, mailbox.redeemer)
 
-        suspend fun codeFor(userId: Uuid, purpose: String = EmailPurpose.EMAIL_CHANGE): Pair<EmailVerificationStarted, String> {
-            val started = mailbox.issuer.issue(NEW_EMAIL, purpose, userId) { AuthEmails.emailChangeCode(Language.EN, it) }.getOrThrow()
+        suspend fun codeFor(
+            userId: Uuid,
+            purpose: String = EmailPurpose.EMAIL_CHANGE,
+        ): Pair<EmailVerificationStarted, String> {
+            val started = mailbox.issuer.issue(NEW_EMAIL, purpose, userId) {
+                AuthEmails.emailChangeCode(Language.EN, it)
+            }.getOrThrow()
             return started to mailbox.codeSentTo(NEW_EMAIL)
         }
     }
@@ -114,7 +119,7 @@ internal class ConfirmEmailChangeImplTest {
     }
 
     @Test
-    fun `should return EmailAlreadyExist and give the code back when another account took the address meanwhile`() = runUnitTest {
+    fun `should return EmailAlreadyExist and release the code when another account took the address`() = runUnitTest {
         given()
         val fixture = SutFixture()
         val userId = Uuid.random()

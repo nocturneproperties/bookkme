@@ -19,9 +19,13 @@ import kotlin.time.Duration.Companion.milliseconds
 import org.jetbrains.exposed.v1.jdbc.transactions.TransactionManager as JdbcTransactionManager
 
 class ExposedTransactionManager(private val database: Database) : TransactionManager {
-    override suspend fun <T> transaction(transaction: suspend () -> T): Result<T> = transaction(jdbcIsolation = null, transaction)
+    override suspend fun <T> transaction(transaction: suspend () -> T): Result<T> {
+        return transaction(jdbcIsolation = null, transaction)
+    }
 
-    override suspend fun <T> transaction(isolation: TransactionIsolation, transaction: suspend () -> T): Result<T> = transaction(isolation.jdbcLevel(), transaction)
+    override suspend fun <T> transaction(isolation: TransactionIsolation, transaction: suspend () -> T): Result<T> {
+        return transaction(isolation.jdbcLevel(), transaction)
+    }
 
     private suspend fun <T> transaction(jdbcIsolation: Int?, transaction: suspend () -> T): Result<T> {
         if (currentCoroutineContext()[OutermostTransaction] != null) return attempt(jdbcIsolation, transaction)
@@ -34,7 +38,8 @@ class ExposedTransactionManager(private val database: Database) : TransactionMan
         var attempt = 1
         while (true) {
             val result = attempt(jdbcIsolation, transaction)
-            val shouldRetry = result.exceptionOrNull() is Error.TransactionConflict && attempt < MAX_ATTEMPTS_ON_CONFLICT
+            val shouldRetry =
+                result.exceptionOrNull() is Error.TransactionConflict && attempt < MAX_ATTEMPTS_ON_CONFLICT
             if (!shouldRetry) return result
             delay(conflictBackoff(attempt))
             attempt++
@@ -59,7 +64,9 @@ class ExposedTransactionManager(private val database: Database) : TransactionMan
         TransactionIsolation.REPEATABLE_READ -> Connection.TRANSACTION_REPEATABLE_READ
     }
 
-    private fun conflictBackoff(attempt: Int): Duration = (Random.nextLong(MIN_CONFLICT_BACKOFF_MILLIS, MAX_CONFLICT_BACKOFF_MILLIS) * attempt).milliseconds
+    private fun conflictBackoff(attempt: Int): Duration {
+        return (Random.nextLong(MIN_CONFLICT_BACKOFF_MILLIS, MAX_CONFLICT_BACKOFF_MILLIS) * attempt).milliseconds
+    }
 
     private object OutermostTransaction : CoroutineContext.Element, CoroutineContext.Key<OutermostTransaction> {
         override val key: CoroutineContext.Key<*> get() = this

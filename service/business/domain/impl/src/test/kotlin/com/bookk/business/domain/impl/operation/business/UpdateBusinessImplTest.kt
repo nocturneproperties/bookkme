@@ -48,14 +48,23 @@ internal class UpdateBusinessImplTest {
         val businessPermissionDataSource = mockk<BusinessPermissionDataSource>(relaxed = true)
         val transactionManager = mockk<TransactionManager>()
         val eventProducer = mockk<StandardEventProducer>(relaxed = true)
-        val sut = UpdateBusinessImpl(businessDataSource, serviceDataSource, businessPermissionDataSource, transactionManager, eventProducer)
+        val sut =
+            UpdateBusinessImpl(
+                businessDataSource,
+                serviceDataSource,
+                businessPermissionDataSource,
+                transactionManager,
+                eventProducer,
+            )
 
         init {
-            coEvery { businessPermissionDataSource.getPermission(any(), any(), BusinessResource.BUSINESS) } returns ResourcePermission.FULL
+            coEvery { businessPermissionDataSource.getPermission(any(), any(), BusinessResource.BUSINESS) } returns
+                ResourcePermission.FULL
         }
 
         fun grantPermission(permission: ResourcePermission) {
-            coEvery { businessPermissionDataSource.getPermission(any(), any(), BusinessResource.BUSINESS) } returns permission
+            coEvery { businessPermissionDataSource.getPermission(any(), any(), BusinessResource.BUSINESS) } returns
+                permission
         }
     }
 
@@ -263,7 +272,8 @@ internal class UpdateBusinessImplTest {
                             isActive = true,
                         ) &&
                         !it.business.schedule[DayOfWeek.MONDAY].isActive &&
-                        it.business.schedule.dayOffs == listOf(DayOffRange(LocalDate(2099, 12, 30), LocalDate(2099, 12, 31)))
+                        it.business.schedule.dayOffs ==
+                        listOf(DayOffRange(LocalDate(2099, 12, 30), LocalDate(2099, 12, 31)))
                 },
                 any(),
             )
@@ -393,7 +403,9 @@ internal class UpdateBusinessImplTest {
 
         then()
         assertTrue(result.isSuccess)
-        coVerify(exactly = 1) { fixture.businessPermissionDataSource.getPermission(requestUserId, businessId, BusinessResource.BUSINESS) }
+        coVerify(exactly = 1) {
+            fixture.businessPermissionDataSource.getPermission(requestUserId, businessId, BusinessResource.BUSINESS)
+        }
     }
 
     @Test
@@ -522,7 +534,7 @@ internal class UpdateBusinessImplTest {
     }
 
     @Test
-    fun `should not check services or update when user has no update permission to change the currency`() = runUnitTest {
+    fun `should not check services or update when user lacks update permission to change the currency`() = runUnitTest {
         given()
         val fixture = SutFixture()
         val businessId = Uuid.random()
@@ -585,7 +597,7 @@ internal class UpdateBusinessImplTest {
     }
 
     @Test
-    fun `should return failure when replacing an unsupported stored currency with another unsupported one`() = runUnitTest {
+    fun `should return failure when replacing an unsupported stored currency with an unsupported one`() = runUnitTest {
         given()
         val fixture = SutFixture()
         val businessId = Uuid.random()
@@ -642,7 +654,9 @@ internal class UpdateBusinessImplTest {
 
         then()
         assertTrue(result.isSuccess)
-        coVerify(exactly = 1) { fixture.businessDataSource.updateBusiness(match { it.clientDataRetentionMonths == 12 }, any()) }
+        coVerify(exactly = 1) {
+            fixture.businessDataSource.updateBusiness(match { it.clientDataRetentionMonths == 12 }, any())
+        }
     }
 
     @Test
@@ -657,7 +671,9 @@ internal class UpdateBusinessImplTest {
 
         then()
         assertTrue(result.isSuccess)
-        coVerify(exactly = 1) { fixture.businessDataSource.updateBusiness(match { it.clientDataRetentionMonths == 120 }, any()) }
+        coVerify(exactly = 1) {
+            fixture.businessDataSource.updateBusiness(match { it.clientDataRetentionMonths == 120 }, any())
+        }
     }
 
     @Test

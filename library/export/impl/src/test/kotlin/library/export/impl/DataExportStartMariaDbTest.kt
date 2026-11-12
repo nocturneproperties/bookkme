@@ -98,7 +98,7 @@ internal class DataExportStartMariaDbTest {
     }
 
     @Test
-    fun `should give both of two first exports started at the same moment the one queued export`() = runIntegrationTest {
+    fun `should give two first exports started at the same moment the one queued export`() = runIntegrationTest {
         given()
         val fixture = SutFixture()
 

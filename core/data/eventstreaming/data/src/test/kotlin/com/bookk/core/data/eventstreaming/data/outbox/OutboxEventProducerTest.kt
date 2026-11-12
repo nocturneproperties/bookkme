@@ -35,7 +35,9 @@ internal class OutboxEventProducerTest {
         val outboxEventDataSource = OutboxEventDataSourceImpl()
         val sut = OutboxEventProducer(outboxEventDataSource, transactionManager, protoBuf)
 
-        suspend fun pendingEvents() = transactionManager.transaction { outboxEventDataSource.lockPending(limit = 10) }.getOrThrow()
+        suspend fun pendingEvents() = transactionManager.transaction {
+            outboxEventDataSource.lockPending(limit = 10)
+        }.getOrThrow()
     }
 
     @Test

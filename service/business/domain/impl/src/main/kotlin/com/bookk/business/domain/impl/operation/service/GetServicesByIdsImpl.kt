@@ -14,7 +14,8 @@ internal class GetServicesByIdsImpl(
     override suspend fun invoke(businessId: Uuid, serviceIds: List<Uuid>): Result<List<Service>> {
         if (serviceIds.isEmpty()) return Result.success(emptyList())
         return transactionManager.transaction {
-            serviceDataSource.getServicesExpanded(businessId, serviceIds) ?: throw GetServicesByIds.Error.ServiceNotFound()
+            serviceDataSource.getServicesExpanded(businessId, serviceIds)
+                ?: throw GetServicesByIds.Error.ServiceNotFound()
         }
     }
 }

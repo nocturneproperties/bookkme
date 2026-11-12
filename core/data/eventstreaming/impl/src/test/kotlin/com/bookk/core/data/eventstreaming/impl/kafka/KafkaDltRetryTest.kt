@@ -39,7 +39,11 @@ internal class KafkaDltRetryTest {
         }
     }
 
-    private fun producer() = KafkaEventProducer(KafkaTestBroker.servers, "dlt-retry-test-${Uuid.random()}", KafkaTestBroker.protoBuf)
+    private fun producer() = KafkaEventProducer(
+        KafkaTestBroker.servers,
+        "dlt-retry-test-${Uuid.random()}",
+        KafkaTestBroker.protoBuf,
+    )
 
     private fun consumerGroupFor(topic: String) = "$topic-group"
 

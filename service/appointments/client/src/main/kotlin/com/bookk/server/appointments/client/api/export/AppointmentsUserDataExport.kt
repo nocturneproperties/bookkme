@@ -53,7 +53,23 @@ data class AppointmentsUserDataExport(
                 cancellationReason: String? = null,
                 priceAdjustment: PriceAdjustmentExport? = null,
                 completedBy: String? = null,
-            ) = AppointmentExport(id, businessId, businessName, roles, start, end, status, services, employeeName, client, cancellationReason, priceAdjustment, completedBy)
+            ): AppointmentExport {
+                return AppointmentExport(
+                    id,
+                    businessId,
+                    businessName,
+                    roles,
+                    start,
+                    end,
+                    status,
+                    services,
+                    employeeName,
+                    client,
+                    cancellationReason,
+                    priceAdjustment,
+                    completedBy,
+                )
+            }
         }
     }
 
@@ -84,7 +100,21 @@ data class AppointmentsUserDataExport(
                 employeeName: String = "Olena Koval",
                 client: ClientDetailsExport? = null,
                 declineReason: String? = null,
-            ) = AppointmentRequestExport(id, businessId, businessName, roles, start, end, status, services, employeeName, client, declineReason)
+            ): AppointmentRequestExport {
+                return AppointmentRequestExport(
+                    id,
+                    businessId,
+                    businessName,
+                    roles,
+                    start,
+                    end,
+                    status,
+                    services,
+                    employeeName,
+                    client,
+                    declineReason,
+                )
+            }
         }
     }
 

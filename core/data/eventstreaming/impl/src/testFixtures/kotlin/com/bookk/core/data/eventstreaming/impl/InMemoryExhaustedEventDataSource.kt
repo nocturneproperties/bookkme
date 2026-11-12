@@ -13,7 +13,11 @@ import kotlin.uuid.Uuid
 class InMemoryExhaustedEventDataSource(
     private val transactionManager: TransactionManager,
 ) : ExhaustedEventDataSource {
-    private class Row(val exhausted: ExhaustedEvent, @Volatile var replayRequested: Boolean = false, @Volatile var parkedAt: Instant = Clock.System.now())
+    private class Row(
+        val exhausted: ExhaustedEvent,
+        @Volatile var replayRequested: Boolean = false,
+        @Volatile var parkedAt: Instant = Clock.System.now(),
+    )
 
     private val rows = ConcurrentLinkedQueue<Row>()
 
@@ -24,7 +28,9 @@ class InMemoryExhaustedEventDataSource(
         }
     }
 
-    override suspend fun findByOriginalTopic(originalTopic: String): List<DltEvent> = rows.map { it.exhausted.event }.filter { it.originalTopic == originalTopic }
+    override suspend fun findByOriginalTopic(originalTopic: String): List<DltEvent> {
+        return rows.map { it.exhausted.event }.filter { it.originalTopic == originalTopic }
+    }
 
     override suspend fun requestReplayOfAll() {
         requireTransaction()
@@ -58,7 +64,11 @@ class InMemoryExhaustedEventDataSource(
         return expired.size
     }
 
-    suspend fun park(dltEvent: DltEvent, replayRequested: Boolean = false, parkedAt: Instant = Clock.System.now()): ExhaustedEvent {
+    suspend fun park(
+        dltEvent: DltEvent,
+        replayRequested: Boolean = false,
+        parkedAt: Instant = Clock.System.now(),
+    ): ExhaustedEvent {
         transactionManager.transaction { save(dltEvent) }
         val row = rows.single { it.exhausted.event.idempotencyKey == dltEvent.idempotencyKey }
         row.replayRequested = replayRequested

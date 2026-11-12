@@ -40,7 +40,12 @@ internal class ImportClientsImpl(
                 .getOrNull()
         }
 
-        val takenEmails = clientDataSource.getClientsByEmails(businessId, validated.mapNotNull { it.value.email }.distinct())
+        val takenEmails = clientDataSource.getClientsByEmails(
+            businessId,
+            validated.mapNotNull {
+                it.value.email
+            }.distinct(),
+        )
             .mapNotNull { it.email?.lowercase() }
             .toMutableSet()
 
@@ -53,7 +58,14 @@ internal class ImportClientsImpl(
             fields.toDetachedClient()
         }
 
-        val created = if (accepted.isEmpty()) emptyList() else clientDataSource.createDetachedClients(businessId, accepted)
+        val created = if (accepted.isEmpty()) {
+            emptyList()
+        } else {
+            clientDataSource.createDetachedClients(
+                businessId,
+                accepted,
+            )
+        }
         ClientImportResult(
             created = created.map(Client::toRemote),
             rejected = rejected.sortedBy(RejectedClient::index),

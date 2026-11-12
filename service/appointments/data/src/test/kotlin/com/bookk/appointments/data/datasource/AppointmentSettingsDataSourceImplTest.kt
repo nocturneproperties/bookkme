@@ -122,7 +122,9 @@ internal class AppointmentSettingsDataSourceImplTest {
 
         whenn()
         val updated = suspendTransaction {
-            fixture.sut.update(AppointmentSettingsUpdate.stub(businessId = fixture.businessId, automaticCompletion = false))
+            fixture.sut.update(
+                AppointmentSettingsUpdate.stub(businessId = fixture.businessId, automaticCompletion = false),
+            )
         }
 
         then()
@@ -141,7 +143,9 @@ internal class AppointmentSettingsDataSourceImplTest {
 
         whenn()
         val updated = suspendTransaction {
-            fixture.sut.update(AppointmentSettingsUpdate.stub(businessId = fixture.businessId, automaticCompletion = null))
+            fixture.sut.update(
+                AppointmentSettingsUpdate.stub(businessId = fixture.businessId, automaticCompletion = null),
+            )
         }
 
         then()

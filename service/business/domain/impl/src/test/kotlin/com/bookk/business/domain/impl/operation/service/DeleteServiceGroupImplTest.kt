@@ -29,7 +29,13 @@ internal class DeleteServiceGroupImplTest {
         val businessDataSource = mockk<BusinessDataSource>()
         val businessPermissionDataSource = mockk<BusinessPermissionDataSource>()
         val transactionManager = mockk<TransactionManager>()
-        val sut = DeleteServiceGroupImpl(serviceDataSource, businessDataSource, businessPermissionDataSource, transactionManager)
+        val sut =
+            DeleteServiceGroupImpl(
+                serviceDataSource,
+                businessDataSource,
+                businessPermissionDataSource,
+                transactionManager,
+            )
     }
 
     @Test
@@ -42,7 +48,10 @@ internal class DeleteServiceGroupImplTest {
         with(fixture) {
             transactionManager.mockTransaction()
             coEvery { businessDataSource.lockBusiness(businessId, RowLock.EXCLUSIVE) } returns LockedBusiness("USD")
-            coEvery { businessPermissionDataSource.getPermission(userId, businessId, BusinessResource.SERVICES) } returns ResourcePermission(view = false, update = false, delete = true)
+            coEvery {
+                businessPermissionDataSource.getPermission(userId, businessId, BusinessResource.SERVICES)
+            } returns
+                ResourcePermission(view = false, update = false, delete = true)
         }
 
         whenn()
@@ -63,7 +72,10 @@ internal class DeleteServiceGroupImplTest {
         with(fixture) {
             transactionManager.mockTransaction()
             coEvery { businessDataSource.lockBusiness(businessId, RowLock.EXCLUSIVE) } returns LockedBusiness("USD")
-            coEvery { businessPermissionDataSource.getPermission(userId, businessId, BusinessResource.SERVICES) } returns ResourcePermission(view = true, update = false, delete = false)
+            coEvery {
+                businessPermissionDataSource.getPermission(userId, businessId, BusinessResource.SERVICES)
+            } returns
+                ResourcePermission(view = true, update = false, delete = false)
         }
 
         whenn()
@@ -84,7 +96,10 @@ internal class DeleteServiceGroupImplTest {
         with(fixture) {
             transactionManager.mockTransaction()
             coEvery { businessDataSource.lockBusiness(businessId, RowLock.EXCLUSIVE) } returns LockedBusiness("USD")
-            coEvery { businessPermissionDataSource.getPermission(userId, businessId, BusinessResource.SERVICES) } returns ResourcePermission(view = false, update = false, delete = true)
+            coEvery {
+                businessPermissionDataSource.getPermission(userId, businessId, BusinessResource.SERVICES)
+            } returns
+                ResourcePermission(view = false, update = false, delete = true)
         }
 
         whenn()

@@ -49,7 +49,9 @@ internal class PostmarkEmailSenderTest {
             return respond(body, status, headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()))
         }
 
-        fun sentJson(index: Int = 0): JsonObject = Json.parseToJsonElement((requests[index].body as TextContent).text).jsonObject
+        fun sentJson(index: Int = 0): JsonObject {
+            return Json.parseToJsonElement((requests[index].body as TextContent).text).jsonObject
+        }
     }
 
     @Test
@@ -58,7 +60,12 @@ internal class PostmarkEmailSenderTest {
         val fixture = SutFixture()
         val message = EmailMessage.stub(
             to = "client@example.com",
-            content = EmailContent.stub(subject = "Your code", textBody = "Code 123456", htmlBody = "<p>Code 123456</p>", tag = "email-verification"),
+            content = EmailContent.stub(
+                subject = "Your code",
+                textBody = "Code 123456",
+                htmlBody = "<p>Code 123456</p>",
+                tag = "email-verification",
+            ),
         )
 
         whenn()
@@ -137,7 +144,8 @@ internal class PostmarkEmailSenderTest {
     @Test
     fun `should retry after Postmark's rate limit and succeed`() = runUnitTest {
         given()
-        val fixture = SutFixture(listOf(HttpStatusCode.TooManyRequests to postmarkError(429), HttpStatusCode.OK to SENT))
+        val fixture =
+            SutFixture(listOf(HttpStatusCode.TooManyRequests to postmarkError(429), HttpStatusCode.OK to SENT))
 
         whenn()
         val result = fixture.sut.send(EmailMessage.stub())
@@ -179,7 +187,9 @@ internal class PostmarkEmailSenderTest {
     private companion object {
         const val SERVER_TOKEN = "POSTMARK_API_TEST"
         const val FROM = "no-reply@example.com"
-        const val SENT = """{"To":"client@example.com","SubmittedAt":"2026-11-07T10:00:00Z","MessageID":"id","ErrorCode":0,"Message":"OK"}"""
+        const val SENT =
+            """{"To":"client@example.com","SubmittedAt":"2026-11-07T10:00:00Z",""" +
+                """"MessageID":"id","ErrorCode":0,"Message":"OK"}"""
 
         fun postmarkError(errorCode: Int) = """{"ErrorCode":$errorCode,"Message":"Postmark error $errorCode"}"""
     }

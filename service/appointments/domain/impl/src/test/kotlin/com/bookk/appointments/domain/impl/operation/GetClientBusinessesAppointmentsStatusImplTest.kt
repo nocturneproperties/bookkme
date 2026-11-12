@@ -36,7 +36,8 @@ internal class GetClientBusinessesAppointmentsStatusImplTest {
         val disabledBusinessId = Uuid.random()
         with(fixture) {
             transactionManager.mockTransaction()
-            coEvery { businessClient.getClientBusinessIds(userId) } returns Result.success(listOf(enabledBusinessId, disabledBusinessId))
+            coEvery { businessClient.getClientBusinessIds(userId) } returns
+                Result.success(listOf(enabledBusinessId, disabledBusinessId))
             coEvery { subscriptionDataSource.isBusinessEnabled(enabledBusinessId) } returns true
             coEvery { subscriptionDataSource.isBusinessEnabled(disabledBusinessId) } returns false
         }

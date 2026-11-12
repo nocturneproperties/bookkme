@@ -35,8 +35,15 @@ internal class BusinessDataExportDataSourceImpl : DataSource(), BusinessDataExpo
     }
 
     override suspend fun getPendingInvitations(businessId: Uuid): List<PendingInvitationExport> = dbQuery {
-        EmployeeInvitationTable.select(EmployeeInvitationTable.id, EmployeeInvitationTable.invitedBy, EmployeeInvitationTable.createdAt)
-            .where { (EmployeeInvitationTable.businessId eq businessId) and (EmployeeInvitationTable.status eq EmployeeInvitationStatus.PENDING) }
+        EmployeeInvitationTable.select(
+            EmployeeInvitationTable.id,
+            EmployeeInvitationTable.invitedBy,
+            EmployeeInvitationTable.createdAt,
+        )
+            .where {
+                (EmployeeInvitationTable.businessId eq businessId) and
+                    (EmployeeInvitationTable.status eq EmployeeInvitationStatus.PENDING)
+            }
             .orderBy(EmployeeInvitationTable.createdAt to SortOrder.ASC)
             .map {
                 PendingInvitationExport(

@@ -66,7 +66,9 @@ internal class ExposedTransactionManagerTest {
         val fixture = SutFixture()
 
         whenn()
-        val thrown = runCatching { fixture.sut.transaction { throw CancellationException("cancelled") } }.exceptionOrNull()
+        val thrown = runCatching {
+            fixture.sut.transaction { throw CancellationException("cancelled") }
+        }.exceptionOrNull()
 
         then()
         assertTrue(thrown is CancellationException)

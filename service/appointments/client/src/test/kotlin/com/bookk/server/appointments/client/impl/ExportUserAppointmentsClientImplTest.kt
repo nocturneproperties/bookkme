@@ -27,10 +27,19 @@ internal class ExportUserAppointmentsClientImplTest {
             appointments = listOf(
                 AppointmentsUserDataExport.AppointmentExport.stub(
                     start = Instant.fromEpochMilliseconds(1_000),
-                    client = AppointmentsUserDataExport.ClientDetailsExport("Olena Koval", phone = null, email = "olena@example.com", note = "first visit"),
+                    client = AppointmentsUserDataExport.ClientDetailsExport(
+                        "Olena Koval",
+                        phone = null,
+                        email = "olena@example.com",
+                        note = "first visit",
+                    ),
                 ),
             ),
-            requests = listOf(AppointmentsUserDataExport.AppointmentRequestExport.stub(roles = listOf(AppointmentsUserDataExport.Role.BOOKER))),
+            requests = listOf(
+                AppointmentsUserDataExport.AppointmentRequestExport.stub(
+                    roles = listOf(AppointmentsUserDataExport.Role.BOOKER),
+                ),
+            ),
         )
         val requestedPaths = mutableListOf<String>()
         val sut = ExportUserAppointmentsClientImpl(

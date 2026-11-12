@@ -97,7 +97,13 @@ internal class EditUserImplTest {
         given()
         val fixture = SutFixture()
         val editModel = editModel(firstName = "Jane", lastName = "Smith", email = "jane@example.com")
-        val updated = User.stub(id = userId, name = "Jane", lastName = "Smith", email = "jane@example.com", phone = null)
+        val updated = User.stub(
+            id = userId,
+            name = "Jane",
+            lastName = "Smith",
+            email = "jane@example.com",
+            phone = null,
+        )
         with(fixture) {
             transactionManager.mockTransaction()
             coEvery { userDataSource.updateUser(userId, editModel, any()) } returns updated
@@ -173,7 +179,8 @@ internal class EditUserImplTest {
         val editModel = editModel(firstName = "Jane", email = "jane@example.com")
         with(fixture) {
             transactionManager.mockTransaction()
-            coEvery { userDataSource.updateUser(userId, editModel, any()) } returns User.stub(id = userId, email = "jane@example.com")
+            coEvery { userDataSource.updateUser(userId, editModel, any()) } returns
+                User.stub(id = userId, email = "jane@example.com")
         }
 
         whenn()
@@ -190,7 +197,8 @@ internal class EditUserImplTest {
         val editModel = editModel(firstName = "Jane", email = "other@example.com")
         with(fixture) {
             transactionManager.mockTransaction()
-            coEvery { userDataSource.updateUser(userId, editModel, any()) } returns User.stub(id = userId, email = "jane@example.com")
+            coEvery { userDataSource.updateUser(userId, editModel, any()) } returns
+                User.stub(id = userId, email = "jane@example.com")
         }
 
         whenn()

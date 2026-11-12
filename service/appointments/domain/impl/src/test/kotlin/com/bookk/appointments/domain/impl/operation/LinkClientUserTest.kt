@@ -42,7 +42,13 @@ internal class LinkClientUserTest {
             transactionManager,
         )
 
-        fun stubLink(businessId: Uuid, clientId: Uuid, userId: Uuid, userDeleted: Boolean, clientDeleted: Boolean = false) {
+        fun stubLink(
+            businessId: Uuid,
+            clientId: Uuid,
+            userId: Uuid,
+            userDeleted: Boolean,
+            clientDeleted: Boolean = false,
+        ) {
             transactionManager.mockTransaction()
             coEvery { deletedUserDataSource.isDeletedForShare(userId) } returns userDeleted
             coEvery { deletedClientDataSource.isDeletedForShare(businessId, clientId) } returns clientDeleted
@@ -152,7 +158,8 @@ internal class LinkClientUserTest {
         val clientId = Uuid.random()
         val userId = Uuid.random()
         fixture.stubLink(businessId, clientId, userId, userDeleted = true)
-        coEvery { fixture.deleteUserAppointmentData(userId) } returns Result.failure(IllegalStateException("database down"))
+        coEvery { fixture.deleteUserAppointmentData(userId) } returns
+            Result.failure(IllegalStateException("database down"))
 
         whenn()
         val result = fixture.sut(businessId, clientId, userId, mergedClientIds = emptyList())
@@ -216,7 +223,8 @@ internal class LinkClientUserTest {
         val clientId = Uuid.random()
         val userId = Uuid.random()
         fixture.stubLink(businessId, clientId, userId, userDeleted = false, clientDeleted = true)
-        coEvery { fixture.deleteClientAppointmentData(businessId, clientId) } returns Result.failure(IllegalStateException("database down"))
+        coEvery { fixture.deleteClientAppointmentData(businessId, clientId) } returns
+            Result.failure(IllegalStateException("database down"))
 
         whenn()
         val result = fixture.sut(businessId, clientId, userId, mergedClientIds = emptyList())

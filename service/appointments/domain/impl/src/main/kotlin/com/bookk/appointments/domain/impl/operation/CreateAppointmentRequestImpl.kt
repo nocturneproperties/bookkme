@@ -75,9 +75,18 @@ internal class CreateAppointmentRequestImpl(
         createOrRequestAppointment(userId, request).getOrThrow()
     }
 
-    private suspend fun createOrRequestAppointment(userId: Uuid, request: AppointmentRequest): Result<Unit> = transactionManager.transaction<Unit> {
+    private suspend fun createOrRequestAppointment(
+        userId: Uuid,
+        request: AppointmentRequest,
+    ): Result<Unit> = transactionManager.transaction<Unit> {
         if (deletedUserDataSource.isDeletedForShare(userId)) throw Error.OperationNotAllowed()
-        if (deletedClientDataSource.isDeletedForShare(request.businessId, request.client.id)) throw Error.OperationNotAllowed()
+        if (deletedClientDataSource.isDeletedForShare(
+                request.businessId,
+                request.client.id,
+            )
+        ) {
+            throw Error.OperationNotAllowed()
+        }
         val settings = settingsDataSource.getForUpdate(request.businessId) ?: throw Error.NotFound()
 
         if (settings.automaticApproval) {
@@ -89,14 +98,21 @@ internal class CreateAppointmentRequestImpl(
         assertRequestIsSchedulable(request, settings)
 
         requestDataSource.create(request).also {
-            eventProducer.send(AppointmentEvent.ClientVisitBooked(request.businessId, request.client.id, request.dateEnd))
+            eventProducer.send(
+                AppointmentEvent.ClientVisitBooked(request.businessId, request.client.id, request.dateEnd),
+            )
             sendRequestCreatedNotification(request)
         }
     }
 
     private suspend fun releaseOfferTokenBestEffort(offerToken: String) {
         runSuspendCatching { requestDataSource.releaseOfferToken(offerToken) }
-            .onFailure { createAppointmentRequestLogger.error("Failed to release offer token, it stays unusable until it expires", it) }
+            .onFailure {
+                createAppointmentRequestLogger.error(
+                    "Failed to release offer token, it stays unusable until it expires",
+                    it,
+                )
+            }
     }
 
     private suspend fun assertRequestIsSchedulable(request: AppointmentRequest, settings: AppointmentSettings) {
@@ -128,7 +144,11 @@ internal class CreateAppointmentRequestImpl(
         )
     }
 
-    private fun buildAppointmentRequest(userId: Uuid, draft: AppointmentRequestDraft, context: AppointmentBookingContext) = AppointmentRequest(
+    private fun buildAppointmentRequest(
+        userId: Uuid,
+        draft: AppointmentRequestDraft,
+        context: AppointmentBookingContext,
+    ) = AppointmentRequest(
         id = Uuid.random(),
         initiatorUserId = userId,
         businessId = draft.businessId,

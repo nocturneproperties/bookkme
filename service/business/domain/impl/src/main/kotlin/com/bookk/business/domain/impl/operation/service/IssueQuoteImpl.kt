@@ -31,7 +31,12 @@ internal class IssueQuoteImpl(
         }
     }
 
-    private suspend fun buildToken(quoteId: Uuid, businessId: Uuid, serviceIds: List<Uuid>, services: List<Service>): String {
+    private suspend fun buildToken(
+        quoteId: Uuid,
+        businessId: Uuid,
+        serviceIds: List<Uuid>,
+        services: List<Service>,
+    ): String {
         val total = services.map { it.price }.reduce { acc, price -> acc + price }
         val totalDuration = services.map { it.duration }.reduce { acc, duration -> acc + duration }
         return tokenIssuer.issue(QUOTE_TTL) {

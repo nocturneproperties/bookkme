@@ -75,9 +75,9 @@ fun Routing.appointmentInit() {
          */
         get<Api.Appointment.EnabledForClientBusinesses> {
             val principal = requireNotNull(call.principal<AppPrincipal>())
-            val getClientBusinessesAppointmentsStatus by application.injectScoped<GetClientBusinessesAppointmentsStatus>(AppointmentsScope)
+            val getStatus by application.injectScoped<GetClientBusinessesAppointmentsStatus>(AppointmentsScope)
 
-            call.respondWith(getClientBusinessesAppointmentsStatus(userId = principal.userId))
+            call.respondWith(getStatus(userId = principal.userId))
         }
     }
 }

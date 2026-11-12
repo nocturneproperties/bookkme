@@ -59,7 +59,8 @@ internal class ScheduleTest {
     fun `should map working hours back to the day they are keyed under`() = runUnitTest {
         given()
         val monday = listOf(WorkHour(LocalTime(10, 0), LocalTime(14, 0)))
-        val schedule = Schedule(workingDays = listOf(DayOfWeek.MONDAY), workingHours = mapOf(DayOfWeek.MONDAY to monday))
+        val schedule =
+            Schedule(workingDays = listOf(DayOfWeek.MONDAY), workingHours = mapOf(DayOfWeek.MONDAY to monday))
 
         whenn()
         val workingHours = schedule.workingHours()

@@ -68,7 +68,11 @@ internal class AppointmentDataSourceImpl : DataSource(), AppointmentDataSource {
             .map { it.domain() }
     }
 
-    override suspend fun getAllForDate(businessId: Uuid, range: ClosedRange<Instant>, employeeId: Uuid?): List<Appointment> = dbQuery {
+    override suspend fun getAllForDate(
+        businessId: Uuid,
+        range: ClosedRange<Instant>,
+        employeeId: Uuid?,
+    ): List<Appointment> = dbQuery {
         val withinRange = AppointmentTable.businessId.eq(businessId)
             .and(AppointmentTable.dateStart.greaterEq(range.start))
             .and(AppointmentTable.dateEnd.lessEq(range.endInclusive))
@@ -201,7 +205,9 @@ internal class AppointmentDataSourceImpl : DataSource(), AppointmentDataSource {
             }
     }
 
-    private fun Instant.startOfLocalDay(timeZone: TimeZone): Instant = toLocalDateTime(timeZone).date.atStartOfDayIn(timeZone)
+    private fun Instant.startOfLocalDay(timeZone: TimeZone): Instant {
+        return toLocalDateTime(timeZone).date.atStartOfDayIn(timeZone)
+    }
 
     override suspend fun markUnresolved(before: Instant) = dbQuery<Unit> {
         AppointmentTable.update(
@@ -290,18 +296,29 @@ internal class AppointmentDataSourceImpl : DataSource(), AppointmentDataSource {
     }
 
     override suspend fun reassignClient(businessId: Uuid, fromClientId: Uuid, toClientId: Uuid) = dbQuery<Unit> {
-        AppointmentTable.update(where = { (AppointmentTable.businessId eq businessId) and (AppointmentTable.clientId eq fromClientId) }) {
+        AppointmentTable.update(where = {
+            (AppointmentTable.businessId eq businessId) and
+                (AppointmentTable.clientId eq fromClientId)
+        }) {
             it[clientId] = toClientId
         }
     }
 
     override suspend fun linkClientUser(businessId: Uuid, clientId: Uuid, userId: Uuid) = dbQuery<Unit> {
-        AppointmentTable.update(where = { (AppointmentTable.businessId eq businessId) and (AppointmentTable.clientId eq clientId) }) {
+        AppointmentTable.update(where = {
+            (AppointmentTable.businessId eq businessId) and
+                (AppointmentTable.clientId eq clientId)
+        }) {
             it[clientUserId] = userId
         }
     }
 
-    override suspend fun cancelUpcomingForClient(businessId: Uuid, clientId: Uuid, startingAfter: Instant, reason: String): List<Appointment> = dbQuery {
+    override suspend fun cancelUpcomingForClient(
+        businessId: Uuid,
+        clientId: Uuid,
+        startingAfter: Instant,
+        reason: String,
+    ): List<Appointment> = dbQuery {
         val upcoming = AppointmentEntity
             .find {
                 (AppointmentTable.businessId eq businessId)
@@ -321,7 +338,10 @@ internal class AppointmentDataSourceImpl : DataSource(), AppointmentDataSource {
     }
 
     override suspend fun anonymizeClient(businessId: Uuid, clientId: Uuid) = dbQuery<Unit> {
-        AppointmentTable.update(where = { (AppointmentTable.businessId eq businessId) and (AppointmentTable.clientId eq clientId) }) {
+        AppointmentTable.update(where = {
+            (AppointmentTable.businessId eq businessId) and
+                (AppointmentTable.clientId eq clientId)
+        }) {
             it.eraseClientDetails(DELETED_CLIENT_NAME)
         }
     }

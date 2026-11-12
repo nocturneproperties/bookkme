@@ -45,9 +45,13 @@ internal class DeleteUserAppointmentDataImpl(
     }
 
     private suspend fun notifyCancellations(userId: Uuid, cancelled: List<Appointment>) {
-        cancelled.filterNot { it.isOwnBookingOf(userId) }.groupBy { it.businessId }.forEach { (businessId, appointments) ->
+        cancelled.filterNot {
+            it.isOwnBookingOf(userId)
+        }.groupBy { it.businessId }.forEach { (businessId, appointments) ->
             val business = subscriptionDataSource.getBusinessSnapshot(businessId) ?: run {
-                deleteUserAppointmentDataLogger.error("No business with id $businessId exists, nobody is notified of the cancellations")
+                deleteUserAppointmentDataLogger.error(
+                    "No business with id $businessId exists, nobody is notified of the cancellations",
+                )
                 return@forEach
             }
             appointments.forEach { appointment ->
@@ -67,7 +71,10 @@ internal class DeleteUserAppointmentDataImpl(
 
     private fun Appointment.isOwnBookingOf(userId: Uuid) = client.userId == userId && employee.userId == userId
 
-    private fun employeeNotification(appointment: Appointment, business: BusinessSnapshot) = AppointmentEvent.CancelledForDeletedClient(
+    private fun employeeNotification(
+        appointment: Appointment,
+        business: BusinessSnapshot,
+    ) = AppointmentEvent.CancelledForDeletedClient(
         employeeUserId = appointment.employee.userId,
         from = appointment.date,
         to = appointment.dateEnd,
@@ -75,7 +82,11 @@ internal class DeleteUserAppointmentDataImpl(
         businessName = business.name,
     )
 
-    private fun clientNotification(clientUserId: Uuid, appointment: Appointment, business: BusinessSnapshot) = AppointmentEvent.Cancelled(
+    private fun clientNotification(
+        clientUserId: Uuid,
+        appointment: Appointment,
+        business: BusinessSnapshot,
+    ) = AppointmentEvent.Cancelled(
         clientUserId = clientUserId,
         clientName = appointment.client.fullName,
         employeeUserId = appointment.employee.userId,

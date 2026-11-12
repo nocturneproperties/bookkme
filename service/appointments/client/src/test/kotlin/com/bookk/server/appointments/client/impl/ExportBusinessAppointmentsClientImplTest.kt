@@ -25,7 +25,12 @@ internal class ExportBusinessAppointmentsClientImplTest {
 
     private class SutFixture(status: HttpStatusCode = HttpStatusCode.OK) {
         val export = AppointmentsBusinessDataExport.stub(
-            settings = AppointmentsBusinessDataExport.SettingsExport(automaticApproval = true, automaticCompletion = true, breakBetweenAppointmentsMinutes = 10, appointmentNote = "Bring your card"),
+            settings = AppointmentsBusinessDataExport.SettingsExport(
+                automaticApproval = true,
+                automaticCompletion = true,
+                breakBetweenAppointmentsMinutes = 10,
+                appointmentNote = "Bring your card",
+            ),
             appointments = listOf(
                 AppointmentsBusinessDataExport.AppointmentExport(
                     id = Uuid.random(),
@@ -34,7 +39,13 @@ internal class ExportBusinessAppointmentsClientImplTest {
                     status = "SCHEDULED",
                     services = listOf(AppointmentsUserDataExport.ServiceExport("Haircut", "UAH 450.00", 45)),
                     employee = AppointmentsBusinessDataExport.EmployeeExport(Uuid.random(), "Olena Koval"),
-                    client = AppointmentsBusinessDataExport.ClientExport(Uuid.random(), "Ivan Petrenko", null, "ivan@example.com", hasAccount = true),
+                    client = AppointmentsBusinessDataExport.ClientExport(
+                        Uuid.random(),
+                        "Ivan Petrenko",
+                        null,
+                        "ivan@example.com",
+                        hasAccount = true,
+                    ),
                     note = "first visit",
                     cancellationReason = null,
                     priceAdjustment = null,

@@ -49,7 +49,10 @@ internal class RequestObservabilityTest {
         val scrape = fixture.registry.scrape()
 
         then()
-        val pingBuckets = scrape.lines().filter { it.startsWith("ktor_http_server_requests_seconds_bucket{") && """route="/ping"""" in it }
+        val pingBuckets = scrape.lines().filter {
+            it.startsWith("ktor_http_server_requests_seconds_bucket{") &&
+                """route="/ping"""" in it
+        }
         assertTrue(pingBuckets.any { """le="0.1"""" in it && it.endsWith(" 1") }) { scrape }
         assertTrue(pingBuckets.any { """le="+Inf"""" in it && it.endsWith(" 1") }) { scrape }
         assertFalse(scrape.contains("quantile=")) { scrape }
@@ -63,11 +66,18 @@ internal class RequestObservabilityTest {
 
         whenn()
         MultiGauge.builder("events.exhausted").register(koin.get<MeterRegistry>())
-            .register(listOf(MultiGauge.Row.of(Tags.of("consumer_group", "user_group", "topic", "auth.user_deleted"), 2)))
+            .register(
+                listOf(MultiGauge.Row.of(Tags.of("consumer_group", "user_group", "topic", "auth.user_deleted"), 2)),
+            )
         val scrape = fixture.registry.scrape()
 
         then()
-        assertTrue(scrape.lines().any { it == """events_exhausted{consumer_group="user_group",topic="auth.user_deleted"} 2.0""" }) { scrape }
+        assertTrue(
+            scrape.lines().any {
+                it ==
+                    """events_exhausted{consumer_group="user_group",topic="auth.user_deleted"} 2.0"""
+            },
+        ) { scrape }
     }
 
     @Test
@@ -90,7 +100,12 @@ internal class RequestObservabilityTest {
         }
 
         then()
-        assertTrue(fixture.appender.list.any { it.level == Level.INFO && it.formattedMessage == "[204 No Content], GET /ping" }) {
+        assertTrue(
+            fixture.appender.list.any {
+                it.level == Level.INFO &&
+                    it.formattedMessage == "[204 No Content], GET /ping"
+            },
+        ) {
             fixture.appender.list.joinToString { "${it.level} ${it.formattedMessage}" }
         }
     }

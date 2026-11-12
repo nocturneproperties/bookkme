@@ -20,7 +20,9 @@ data class BusinessPermissions(
         BusinessResource.APPOINTMENTS -> appointments
     }
 
-    fun with(grants: Map<BusinessResource, ResourcePermission>): BusinessPermissions = from(BusinessResource.entries.associateWith(::get) + grants)
+    fun with(grants: Map<BusinessResource, ResourcePermission>): BusinessPermissions = from(
+        BusinessResource.entries.associateWith(::get) + grants,
+    )
 
     companion object {
         fun from(grants: Map<BusinessResource, ResourcePermission>) = BusinessPermissions(

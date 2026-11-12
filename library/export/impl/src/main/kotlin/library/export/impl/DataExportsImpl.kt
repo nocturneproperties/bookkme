@@ -19,15 +19,24 @@ internal class DataExportsImpl(
         when {
             current == null -> dataSource.insert(ownerId, now)
             current.isQueued -> return current.view(now)
-            current.state == DataExportState.READY && now < current.availableAgainAt -> throw DataExports.Error.TooFrequent()
+            current.isReadyBefore(now) -> throw DataExports.Error.TooFrequent()
             else -> dataSource.restart(ownerId, now)
         }
-        return DataExport(DataExportStatus.RUNNING, requestedAt = now, expiresAt = null, availableAgainAt = now + DataExports.MIN_INTERVAL)
+        return DataExport(
+            DataExportStatus.RUNNING,
+            requestedAt = now,
+            expiresAt = null,
+            availableAgainAt = now + DataExports.MIN_INTERVAL,
+        )
     }
 
-    override suspend fun status(ownerId: Uuid): DataExport = dataSource.get(ownerId)?.view(clock.now()) ?: DataExport.NONE
+    override suspend fun status(ownerId: Uuid): DataExport {
+        return dataSource.get(ownerId)?.view(clock.now()) ?: DataExport.NONE
+    }
 
-    override suspend fun document(ownerId: Uuid): DataExportDocument? = dataSource.document(ownerId, clock.now())?.let(::DataExportDocument)
+    override suspend fun document(ownerId: Uuid): DataExportDocument? {
+        return dataSource.document(ownerId, clock.now())?.let(::DataExportDocument)
+    }
 
     override suspend fun discard(ownerId: Uuid) = dataSource.delete(ownerId)
 
@@ -37,10 +46,35 @@ internal class DataExportsImpl(
     private val DataExportRecord.availableAgainAt: Instant
         get() = requestedAt + DataExports.MIN_INTERVAL
 
+    private fun DataExportRecord.isReadyBefore(now: Instant): Boolean {
+        return state == DataExportState.READY && now < availableAgainAt
+    }
+
     private fun DataExportRecord.view(now: Instant): DataExport = when {
-        isQueued -> DataExport(DataExportStatus.RUNNING, requestedAt, expiresAt = null, availableAgainAt = availableAgainAt)
-        state == DataExportState.FAILED -> DataExport(DataExportStatus.FAILED, requestedAt, expiresAt = null, availableAgainAt = null)
+        isQueued -> DataExport(
+            DataExportStatus.RUNNING,
+            requestedAt,
+            expiresAt = null,
+            availableAgainAt = availableAgainAt,
+        )
+
+        state == DataExportState.FAILED -> DataExport(
+            DataExportStatus.FAILED,
+            requestedAt,
+            expiresAt = null,
+            availableAgainAt = null,
+        )
+
         expiresAt == null || expiresAt <= now -> DataExport.NONE
-        else -> DataExport(DataExportStatus.READY, requestedAt, expiresAt, availableAgainAt = availableAgainAt.takeIf { it > now })
+
+        else -> DataExport(
+            DataExportStatus.READY,
+            requestedAt,
+            expiresAt,
+            availableAgainAt = availableAgainAt.takeIf {
+                it >
+                    now
+            },
+        )
     }
 }

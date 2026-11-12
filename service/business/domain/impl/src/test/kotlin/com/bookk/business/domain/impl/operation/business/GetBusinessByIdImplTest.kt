@@ -60,7 +60,8 @@ internal class GetBusinessByIdImplTest {
         with(fixture) {
             transactionManager.mockTransaction()
             coEvery { businessDataSource.getBusinessById(id) } returns Business.stub(id = id, name = "Test")
-            coEvery { businessPermissionDataSource.getViewer(userId, id) } returns BusinessViewer.stub(permissions = permissions)
+            coEvery { businessPermissionDataSource.getViewer(userId, id) } returns
+                BusinessViewer.stub(permissions = permissions)
         }
 
         whenn()

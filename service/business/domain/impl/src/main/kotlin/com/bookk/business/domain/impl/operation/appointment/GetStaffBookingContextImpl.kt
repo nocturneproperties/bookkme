@@ -28,7 +28,8 @@ internal class GetStaffBookingContextImpl(
             val employee = employeeDataSource.getEmployee(businessId, employeeId) ?: throw Error.EmployeeNotFound()
             if (employee.isSuspended) throw Error.EmployeeSuspended()
             val client = clientDataSource.getClientById(businessId, clientId) ?: throw Error.ClientNotFound()
-            val services = serviceDataSource.getServicesExpanded(businessId, serviceIds) ?: throw Error.ServiceNotFound()
+            val services =
+                serviceDataSource.getServicesExpanded(businessId, serviceIds) ?: throw Error.ServiceNotFound()
 
             AppointmentBookingContext(employee = employee, client = client.toRemote(), services = services)
         }

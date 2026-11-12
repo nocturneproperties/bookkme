@@ -22,7 +22,10 @@ internal class UserDataExportDataSourceImpl : DataSource(), UserDataExportDataSo
 
     override suspend fun getAppointmentsOfUser(userId: Uuid): List<Appointment> = dbQuery {
         AppointmentEntity
-            .find { (AppointmentTable.clientUserId eq userId) or (AppointmentTable.employeeUserId eq userId) or (AppointmentTable.initiatorUserId eq userId) }
+            .find {
+                (AppointmentTable.clientUserId eq userId) or (AppointmentTable.employeeUserId eq userId) or
+                    (AppointmentTable.initiatorUserId eq userId)
+            }
             .orderBy(AppointmentTable.dateStart to SortOrder.ASC)
             .toList()
             .withDetails()

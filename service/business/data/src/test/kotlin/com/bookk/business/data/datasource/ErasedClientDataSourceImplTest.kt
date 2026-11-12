@@ -28,7 +28,12 @@ internal class ErasedClientDataSourceImplTest {
         val db = createTestDatabase(ErasedClientTable)
         val sut = ErasedClientDataSourceImpl()
 
-        suspend fun insertReapplyRequest(client: ErasedClient, erasedAt: Instant = Instant.fromEpochMilliseconds(0)) = suspendTransaction {
+        suspend fun insertReapplyRequest(
+            client: ErasedClient,
+            erasedAt: Instant = Instant.fromEpochMilliseconds(
+                0,
+            ),
+        ) = suspendTransaction {
             ErasedClientTable.insert {
                 it[clientId] = client.clientId
                 it[businessId] = client.businessId
@@ -44,7 +49,9 @@ internal class ErasedClientDataSourceImplTest {
         }
 
         suspend fun recorded(): Set<ErasedClient> = suspendTransaction {
-            ErasedClientTable.selectAll().map { ErasedClient(businessId = it[ErasedClientTable.businessId], clientId = it[ErasedClientTable.clientId]) }.toSet()
+            ErasedClientTable.selectAll().map {
+                ErasedClient(businessId = it[ErasedClientTable.businessId], clientId = it[ErasedClientTable.clientId])
+            }.toSet()
         }
     }
 
@@ -133,7 +140,10 @@ internal class ErasedClientDataSourceImplTest {
         suspendTransaction {
             fixture.sut.record(expired.businessId, expired.clientId)
             fixture.sut.record(recent.businessId, recent.clientId)
-            ErasedClientTable.update(where = { ErasedClientTable.clientId eq expired.clientId }) { it[erasedAt] = Instant.fromEpochMilliseconds(0) }
+            ErasedClientTable.update(where = { ErasedClientTable.clientId eq expired.clientId }) {
+                it[erasedAt] =
+                    Instant.fromEpochMilliseconds(0)
+            }
         }
 
         whenn()

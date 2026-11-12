@@ -16,7 +16,12 @@ import kotlin.uuid.Uuid
 
 internal class DeviceDataSourceImpl : DataSource(), DeviceDataSource {
 
-    override suspend fun getOrCreate(authId: Uuid, deviceUUID: Uuid, userId: Uuid, language: Language): Device = dbQuery {
+    override suspend fun getOrCreate(
+        authId: Uuid,
+        deviceUUID: Uuid,
+        userId: Uuid,
+        language: Language,
+    ): Device = dbQuery {
         DeviceTable.upsert(onUpdate = { it[DeviceTable.id] = DeviceTable.id }) {
             it[DeviceTable.authId] = authId
             it[deviceUuid] = deviceUUID

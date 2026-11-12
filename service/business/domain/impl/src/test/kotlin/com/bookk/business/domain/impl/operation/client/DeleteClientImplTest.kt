@@ -68,7 +68,10 @@ internal class DeleteClientImplTest {
         }
 
         fun grantPermission(permission: ResourcePermission) {
-            coEvery { businessPermissionDataSource.getPermission(requestUserId, businessId, BusinessResource.CLIENTS) } returns permission
+            coEvery {
+                businessPermissionDataSource.getPermission(requestUserId, businessId, BusinessResource.CLIENTS)
+            } returns
+                permission
         }
 
         fun stored(client: Client?, id: Uuid = client?.id ?: Uuid.random()): Uuid {
@@ -79,7 +82,10 @@ internal class DeleteClientImplTest {
             return id
         }
 
-        fun tokenFor(clientId: Uuid): String = confirmationTokens.tokenFor(ActionConfirmationGrant.clientDeletion(requestUserId, businessId, clientId), tokenId = TOKEN_ID)
+        fun tokenFor(clientId: Uuid): String = confirmationTokens.tokenFor(
+            ActionConfirmationGrant.clientDeletion(requestUserId, businessId, clientId),
+            tokenId = TOKEN_ID,
+        )
 
         fun makeOwner() {
             coEvery { businessDataSource.isOwner(requestUserId, businessId) } returns true
@@ -98,7 +104,12 @@ internal class DeleteClientImplTest {
         then()
         assertTrue(result.isSuccess)
         coVerify(exactly = 1) { fixture.clientDataSource.deleteClient(fixture.businessId, id) }
-        assertEquals(listOf(BusinessEvent.ClientDeleted(fixture.businessId, id, idempotencyKey = "")), fixture.sentEvents.map { it.copy(idempotencyKey = "") })
+        assertEquals(
+            listOf(BusinessEvent.ClientDeleted(fixture.businessId, id, idempotencyKey = "")),
+            fixture.sentEvents.map {
+                it.copy(idempotencyKey = "")
+            },
+        )
         assertEquals(listOf(true), fixture.sentInTransaction)
     }
 
@@ -141,7 +152,11 @@ internal class DeleteClientImplTest {
         then()
         coVerifyOrder {
             fixture.clientDataSource.getClientForUpdate(fixture.businessId, id)
-            fixture.businessPermissionDataSource.getPermission(fixture.requestUserId, fixture.businessId, BusinessResource.CLIENTS)
+            fixture.businessPermissionDataSource.getPermission(
+                fixture.requestUserId,
+                fixture.businessId,
+                BusinessResource.CLIENTS,
+            )
             fixture.clientDataSource.deleteClient(fixture.businessId, id)
         }
     }

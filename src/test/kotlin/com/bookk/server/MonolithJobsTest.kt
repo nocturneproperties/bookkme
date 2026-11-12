@@ -45,7 +45,9 @@ internal class MonolithJobsTest {
         )
     }
 
-    private fun Application.jobsRegisteredBy(register: Application.(SchedulerConfiguration) -> Unit) = SchedulerConfiguration().also { register(it) }.registeredJobs()
+    private fun Application.jobsRegisteredBy(
+        register: Application.(SchedulerConfiguration) -> Unit,
+    ) = SchedulerConfiguration().also { register(it) }.registeredJobs()
 
     @Test
     fun `should register every service's jobs in one scheduler without name clashes`() = routeTest {
@@ -81,7 +83,9 @@ internal class MonolithJobsTest {
         then()
         jobNamesByService.forEach { (serviceName, jobNames) ->
             val unprefixedJobNames = jobNames.filterNot { it.startsWith("$serviceName-") }
-            assertTrue(unprefixedJobNames.isEmpty()) { "$serviceName jobs without the '$serviceName-' prefix: $unprefixedJobNames" }
+            assertTrue(unprefixedJobNames.isEmpty()) {
+                "$serviceName jobs without the '$serviceName-' prefix: $unprefixedJobNames"
+            }
         }
     }
 

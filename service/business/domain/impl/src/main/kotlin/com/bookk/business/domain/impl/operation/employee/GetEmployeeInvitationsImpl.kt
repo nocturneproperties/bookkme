@@ -10,7 +10,10 @@ internal class GetEmployeeInvitationsImpl(
     private val invitationDataSource: EmployeeInvitationDataSource,
     private val transactionManager: TransactionManager,
 ) : GetEmployeeInvitations {
-    override suspend fun invoke(userId: Uuid, businessId: Uuid): Result<List<EmployeeInvitation>> = transactionManager.transaction {
+    override suspend fun invoke(
+        userId: Uuid,
+        businessId: Uuid,
+    ): Result<List<EmployeeInvitation>> = transactionManager.transaction {
         invitationDataSource.getInvitationsByInviter(businessId, userId)
     }
 }

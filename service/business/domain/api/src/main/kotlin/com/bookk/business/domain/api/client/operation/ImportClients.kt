@@ -8,7 +8,11 @@ import io.ktor.http.HttpStatusCode
 import kotlin.uuid.Uuid
 
 interface ImportClients {
-    suspend operator fun invoke(requestUserId: Uuid, businessId: Uuid, clients: List<Client.Detached>): Result<ClientImportResult>
+    suspend operator fun invoke(
+        requestUserId: Uuid,
+        businessId: Uuid,
+        clients: List<Client.Detached>,
+    ): Result<ClientImportResult>
 
     sealed interface Error {
         class TooManyClients :

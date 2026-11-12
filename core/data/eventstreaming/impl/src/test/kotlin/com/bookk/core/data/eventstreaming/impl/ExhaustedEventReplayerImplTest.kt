@@ -50,7 +50,9 @@ internal class ExhaustedEventReplayerImplTest {
             ?.value()
     }
 
-    private fun dltEvent(originalTopic: String = TOPIC): DltEvent = ExhaustedEvent.stub(originalTopic = originalTopic).event
+    private fun dltEvent(originalTopic: String = TOPIC): DltEvent = ExhaustedEvent.stub(
+        originalTopic = originalTopic,
+    ).event
 
     private fun TestScope.nextTick() {
         advanceTimeBy(INTERVAL)
@@ -163,7 +165,10 @@ internal class ExhaustedEventReplayerImplTest {
         given()
         val fixture = SutFixture()
         val parked = fixture.exhaustedEventDataSource.park(dltEvent())
-        coEvery { fixture.exhaustedEventDataSource.requestReplayOfAll() } throws RuntimeException("database down") andThenAnswer { callOriginal() }
+        coEvery {
+            fixture.exhaustedEventDataSource.requestReplayOfAll()
+        } throws RuntimeException("database down") andThenAnswer
+            { callOriginal() }
 
         whenn()
         fixture.sut.start(backgroundScope)
@@ -230,8 +235,16 @@ internal class ExhaustedEventReplayerImplTest {
         given()
         val fixture = SutFixture()
         coEvery { fixture.consumer.replay(any()) } returns false
-        val expired = fixture.exhaustedEventDataSource.park(dltEvent(), parkedAt = NOW - ExhaustedEventReplayerImpl.DEFAULT_RETENTION - 1.minutes)
-        val kept = fixture.exhaustedEventDataSource.park(dltEvent(originalTopic = OTHER_TOPIC), parkedAt = NOW - ExhaustedEventReplayerImpl.DEFAULT_RETENTION + 1.minutes)
+        val expired = fixture.exhaustedEventDataSource.park(
+            dltEvent(),
+            parkedAt =
+            NOW - ExhaustedEventReplayerImpl.DEFAULT_RETENTION - 1.minutes,
+        )
+        val kept = fixture.exhaustedEventDataSource.park(
+            dltEvent(originalTopic = OTHER_TOPIC),
+            parkedAt =
+            NOW - ExhaustedEventReplayerImpl.DEFAULT_RETENTION + 1.minutes,
+        )
 
         whenn()
         fixture.sut.start(backgroundScope)

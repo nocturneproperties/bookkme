@@ -59,7 +59,8 @@ internal class DeleteUserBusinessDataImplTest {
         val fixture = SutFixture()
         val userId = Uuid.random()
         fixture.stubDeletes(userId)
-        coEvery { fixture.employeeDataSource.deleteEmployeesByUserId(userId) } throws IllegalStateException("database down")
+        coEvery { fixture.employeeDataSource.deleteEmployeesByUserId(userId) } throws
+            IllegalStateException("database down")
 
         whenn()
         val result = fixture.sut(userId)

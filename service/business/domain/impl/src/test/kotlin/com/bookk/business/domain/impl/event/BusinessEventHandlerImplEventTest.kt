@@ -63,7 +63,14 @@ internal class BusinessEventHandlerImplEventTest {
             exhaustedEventDataSource = InMemoryExhaustedEventDataSource(transactionManager),
             transactionManager = transactionManager,
         )
-        val sut = BusinessEventHandlerImpl(consumer, deleteBusiness, syncUserProfile, deleteUserBusinessData, recordClientVisit)
+        val sut =
+            BusinessEventHandlerImpl(
+                consumer,
+                deleteBusiness,
+                syncUserProfile,
+                deleteUserBusinessData,
+                recordClientVisit,
+            )
 
         private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -149,7 +156,7 @@ internal class BusinessEventHandlerImplEventTest {
     }
 
     @Test
-    fun `should delete the business and the user's business data when the auth service deletes the user`() = runIntegrationTest {
+    fun `should delete the business and the user's business data when auth deletes the user`() = runIntegrationTest {
         given()
         val fixture = SutFixture()
         val userId = Uuid.random()

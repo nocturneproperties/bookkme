@@ -22,10 +22,19 @@ internal class ExportAccountDataImpl(
             createdAt = account.createdAt,
             lastActiveAt = account.lastActiveAt,
             passkeys = passKeyDataSource.getCredentialBy(account.authId).map {
-                AccountDataExport.PasskeyExport(name = it.name, createdAt = it.createdAt, lastUsedAt = it.lastUsedAt, backedUp = it.isBackedUp)
+                AccountDataExport.PasskeyExport(
+                    name = it.name,
+                    createdAt = it.createdAt,
+                    lastUsedAt = it.lastUsedAt,
+                    backedUp = it.isBackedUp,
+                )
             },
             devices = deviceDataSource.getDevices(account.authId).map {
-                AccountDataExport.DeviceExport(name = it.deviceInfo.deviceName, signedIn = it.deviceInfo.isSignedIn, lastSignInAt = it.deviceInfo.lastLogInAt)
+                AccountDataExport.DeviceExport(
+                    name = it.deviceInfo.deviceName,
+                    signedIn = it.deviceInfo.isSignedIn,
+                    lastSignInAt = it.deviceInfo.lastLogInAt,
+                )
             },
         )
     }

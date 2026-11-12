@@ -28,7 +28,8 @@ internal class DeleteBusinessImplTest {
         val sut = DeleteBusinessImpl(businessDataSource, transactionManager, eventProducer, dataExports)
 
         init {
-            coEvery { dataExports.discard(any()) } coAnswers { discardedInTransaction += firstArg<Uuid>() to transactionManager.isInTransaction() }
+            coEvery { dataExports.discard(any()) } coAnswers
+                { discardedInTransaction += firstArg<Uuid>() to transactionManager.isInTransaction() }
         }
     }
 

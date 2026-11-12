@@ -15,7 +15,11 @@ internal class ConfirmEmailChangeImpl(
     private val emailCodeRedeemer: EmailCodeRedeemer,
 ) : ConfirmEmailChange {
 
-    override suspend fun invoke(userId: Uuid, verificationId: Uuid, code: String): Result<Unit> = emailCodeRedeemer.redeem(verificationId, code, ownerId = userId) { verified ->
+    override suspend fun invoke(
+        userId: Uuid,
+        verificationId: Uuid,
+        code: String,
+    ): Result<Unit> = emailCodeRedeemer.redeem(verificationId, code, ownerId = userId) { verified ->
         if (verified.purpose != EmailPurpose.EMAIL_CHANGE) throw EmailCodeError.Invalid()
         userClient.changeEmail(userId, verified.email).getOrElse { failure ->
             throw if (failure.isAddressTaken()) EmailAlreadyExist() else failure

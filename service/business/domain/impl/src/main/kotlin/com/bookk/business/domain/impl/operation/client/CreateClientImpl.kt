@@ -18,7 +18,11 @@ internal class CreateClientImpl(
     private val clientDataSource: ClientDataSource,
     private val businessPermissionDataSource: BusinessPermissionDataSource,
 ) : CreateClient {
-    override suspend fun invoke(requestUserId: Uuid, businessId: Uuid, client: Client.Detached): Result<ClientRemote> = transactionManager.transaction {
+    override suspend fun invoke(
+        requestUserId: Uuid,
+        businessId: Uuid,
+        client: Client.Detached,
+    ): Result<ClientRemote> = transactionManager.transaction {
         businessPermissionDataSource.getPermission(requestUserId, businessId, BusinessResource.CLIENTS)
             .assert(PermissionAction.UPDATE)
         val fields = client.validatedFields()

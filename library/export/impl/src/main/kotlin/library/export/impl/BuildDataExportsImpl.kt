@@ -51,7 +51,14 @@ internal class BuildDataExportsImpl(
     private suspend fun claim(ownerId: Uuid): Claim? {
         val claim = Claim(ownerId, id = Uuid.random())
         val claimedAt = clock.now()
-        val claimed = transactionManager.transactionOrThrow { dataSource.claim(ownerId, claim.id, claimedAt, claimedAt + DataExports.BUILD_LEASE) }
+        val claimed = transactionManager.transactionOrThrow {
+            dataSource.claim(
+                ownerId,
+                claim.id,
+                claimedAt,
+                claimedAt + DataExports.BUILD_LEASE,
+            )
+        }
         return claim.takeIf { claimed }
     }
 

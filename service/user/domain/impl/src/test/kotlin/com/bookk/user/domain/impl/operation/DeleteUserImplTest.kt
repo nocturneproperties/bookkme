@@ -29,7 +29,8 @@ internal class DeleteUserImplTest {
         init {
             transactionManager.mockTransaction()
             coEvery { userDataSource.deleteUser(userId) } returns Unit
-            coEvery { dataExports.discard(userId) } coAnswers { discardedInTransaction += transactionManager.isInTransaction() }
+            coEvery { dataExports.discard(userId) } coAnswers
+                { discardedInTransaction += transactionManager.isInTransaction() }
         }
     }
 

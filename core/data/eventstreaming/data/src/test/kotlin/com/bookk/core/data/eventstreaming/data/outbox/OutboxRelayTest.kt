@@ -43,7 +43,9 @@ internal class OutboxRelayTest {
 
         fun OutboxEvent.isPublished() = assertEquals(
             1,
-            published.count { it.topic == topic && it.partitionKey == partitionKey && it.payload.contentEquals(payload) },
+            published.count {
+                it.topic == topic && it.partitionKey == partitionKey && it.payload.contentEquals(payload)
+            },
         )
     }
 
@@ -60,7 +62,13 @@ internal class OutboxRelayTest {
 
         then()
         assertEquals(2, result.getOrNull())
-        assertEquals(listOf("topic.first" to "key", "topic.second" to null), fixture.published.map { it.topic to it.partitionKey })
+        assertEquals(
+            listOf("topic.first" to "key", "topic.second" to null),
+            fixture.published.map {
+                it.topic to
+                    it.partitionKey
+            },
+        )
         assertEquals(listOf(first.payload, second.payload), fixture.published.map { it.payload })
         coVerifyOrder {
             fixture.rawProducer.publishAll(any())

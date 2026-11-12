@@ -21,7 +21,11 @@ internal class DeleteAccountImpl(
         userId: Uuid,
         confirmationToken: String,
     ): Result<Unit> = runSuspendCatching {
-        actionConfirmationGate.spend(confirmationToken, ActionConfirmationGrant.accountDeletion(userId), DeleteAccount.Error::ActionConfirmationInvalid) {
+        actionConfirmationGate.spend(
+            confirmationToken,
+            ActionConfirmationGrant.accountDeletion(userId),
+            DeleteAccount.Error::ActionConfirmationInvalid,
+        ) {
             transactionManager.transactionOrThrow {
                 val authRecord = accountDataSource.getAuthRecordByUserId(userId) ?: throw InvalidCredentials()
                 accountEraser.erase(authRecord.id, authRecord.userId)

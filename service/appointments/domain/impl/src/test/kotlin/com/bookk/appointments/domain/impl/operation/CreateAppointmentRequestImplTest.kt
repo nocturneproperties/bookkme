@@ -54,7 +54,9 @@ import kotlin.time.Duration
 import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
-private fun flattenedIds(draft: AppointmentRequestDraft): List<Uuid> = draft.services.flatMap { requested -> List(requested.count) { requested.serviceId } }
+private fun flattenedIds(draft: AppointmentRequestDraft): List<Uuid> {
+    return draft.services.flatMap { requested -> List(requested.count) { requested.serviceId } }
+}
 
 private fun distinctIds(draft: AppointmentRequestDraft): List<Uuid> = draft.services.map { it.serviceId }
 
@@ -78,7 +80,11 @@ internal class CreateAppointmentRequestImplTest {
         val tokenValidatorFactory = mockk<TokenValidatorFactory>()
         val businessClient = mockk<BusinessClient>()
         val deletedUserDataSource = mockk<DeletedUserDataSource> { coEvery { isDeletedForShare(any()) } returns false }
-        val deletedClientDataSource = mockk<DeletedClientDataSource> { coEvery { isDeletedForShare(any(), any()) } returns false }
+        val deletedClientDataSource =
+            mockk<DeletedClientDataSource> {
+                coEvery { isDeletedForShare(any(), any()) } returns
+                    false
+            }
 
         val sut = CreateAppointmentRequestImpl(
             requestDataSource,
@@ -112,21 +118,32 @@ internal class CreateAppointmentRequestImplTest {
             every { decodedJwt.getClaim(QuoteClaims.CLAIM_TOTAL) } returns totalClaim
             every { decodedJwt.getClaim(QuoteClaims.CLAIM_DURATION) } returns durationClaim
             every { decodedJwt.getClaim(QuoteClaims.CLAIM_BUSINESS_ID) } returns businessIdClaim
-            every { servicesClaim.asList(String::class.java) } returns QuoteClaims.encodeServiceCounts(flattenedIds(draft))
+            every { servicesClaim.asList(String::class.java) } returns
+                QuoteClaims.encodeServiceCounts(flattenedIds(draft))
             every { totalClaim.asString() } returns totalAmount
             every { durationClaim.asString() } returns totalDuration
             every { businessIdClaim.asString() } returns draft.businessId.toString()
         }
     }
 
-    private fun bookingContext(businessId: Uuid, employeeId: Uuid, clientId: Uuid, serviceId: Uuid): AppointmentBookingContext {
+    private fun bookingContext(
+        businessId: Uuid,
+        employeeId: Uuid,
+        clientId: Uuid,
+        serviceId: Uuid,
+    ): AppointmentBookingContext {
         val employee = Employee.stub(id = employeeId, businessId = businessId)
         val client = ClientRemote.stub(id = clientId)
         val service = Service.stub(id = serviceId, businessId = businessId)
         return AppointmentBookingContext(employee = employee, client = client, services = listOf(service))
     }
 
-    private fun bookingContext(businessId: Uuid, employeeId: Uuid, clientId: Uuid, services: List<Service>): AppointmentBookingContext {
+    private fun bookingContext(
+        businessId: Uuid,
+        employeeId: Uuid,
+        clientId: Uuid,
+        services: List<Service>,
+    ): AppointmentBookingContext {
         val employee = Employee.stub(id = employeeId, businessId = businessId)
         val client = ClientRemote.stub(id = clientId)
         return AppointmentBookingContext(employee = employee, client = client, services = services)
@@ -146,9 +163,13 @@ internal class CreateAppointmentRequestImplTest {
         offerToken = "token",
     )
 
-    private fun totalOf(services: List<Service>) = services.map { it.price }.reduce { acc, price -> acc + price }.toString()
+    private fun totalOf(
+        services: List<Service>,
+    ) = services.map { it.price }.reduce { acc, price -> acc + price }.toString()
 
-    private fun durationOf(services: List<Service>) = services.fold(Duration.ZERO) { acc, service -> acc + service.duration }.toString()
+    private fun durationOf(
+        services: List<Service>,
+    ) = services.fold(Duration.ZERO) { acc, service -> acc + service.duration }.toString()
 
     @Test
     fun `should create request successfully when valid request provided`() = runUnitTest {
@@ -672,7 +693,7 @@ internal class CreateAppointmentRequestImplTest {
     }
 
     @Test
-    fun `should return TokenAlreadyUsed without releasing the reservation when offer token is already reserved`() = runUnitTest {
+    fun `should return TokenAlreadyUsed and keep the reservation of an already reserved offer token`() = runUnitTest {
         given()
         val fixture = SutFixture()
         val userId = Uuid.random()
@@ -999,7 +1020,8 @@ internal class CreateAppointmentRequestImplTest {
             coEvery {
                 businessClient.getAppointmentBookingContext(businessId, draft.employeeId, userId, distinctIds(draft))
             } returns Result.failure(bookingFailure)
-            coEvery { requestDataSource.releaseOfferToken("token") } throws Error.UnknownError(IllegalStateException("cache unavailable"))
+            coEvery { requestDataSource.releaseOfferToken("token") } throws
+                Error.UnknownError(IllegalStateException("cache unavailable"))
         }
 
         whenn()
@@ -1156,7 +1178,11 @@ internal class CreateAppointmentRequestImplTest {
         val request = created.captured
         coVerify(exactly = 1) {
             fixture.eventProducer.send(
-                match<AppointmentEvent.ClientVisitBooked> { it.businessId == businessId && it.clientId == context.client.id && it.visitEnd == request.dateEnd },
+                match<AppointmentEvent.ClientVisitBooked> {
+                    it.businessId == businessId &&
+                        it.clientId == context.client.id &&
+                        it.visitEnd == request.dateEnd
+                },
                 any(),
             )
         }

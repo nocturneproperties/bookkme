@@ -13,7 +13,9 @@ fun Throwable.isConstraintFailure() = this is Error.UniqueConstraintFailed
 fun Throwable.isPermissionFailure() = this is Error.OperationNotAllowed
 fun Throwable.isBusinessFailure() = this is BusinessError
 
-suspend inline fun <T> Result<T>.onConstraintFailure(crossinline action: suspend () -> Nothing): Result<T> = recoverSuspendCatching {
+suspend inline fun <T> Result<T>.onConstraintFailure(
+    crossinline action: suspend () -> Nothing,
+): Result<T> = recoverSuspendCatching {
     if (it.isConstraintFailure()) {
         action()
     } else {
@@ -21,7 +23,9 @@ suspend inline fun <T> Result<T>.onConstraintFailure(crossinline action: suspend
     }
 }
 
-suspend inline fun <T> Result<T>.onPermissionsMissing(crossinline action: suspend () -> Nothing): Result<T> = recoverSuspendCatching {
+suspend inline fun <T> Result<T>.onPermissionsMissing(
+    crossinline action: suspend () -> Nothing,
+): Result<T> = recoverSuspendCatching {
     if (it.isPermissionFailure()) {
         action()
     } else {
@@ -29,7 +33,9 @@ suspend inline fun <T> Result<T>.onPermissionsMissing(crossinline action: suspen
     }
 }
 
-suspend inline fun <T> Result<T>.onBusinessFailure(crossinline action: suspend (BusinessError) -> Nothing): Result<T> = recoverSuspendCatching {
+suspend inline fun <T> Result<T>.onBusinessFailure(
+    crossinline action: suspend (BusinessError) -> Nothing,
+): Result<T> = recoverSuspendCatching {
     if (it.isBusinessFailure()) {
         action(it as BusinessError)
     } else {
@@ -37,7 +43,9 @@ suspend inline fun <T> Result<T>.onBusinessFailure(crossinline action: suspend (
     }
 }
 
-suspend inline fun <T> Result<T>.onPermissionsMissingReturn(crossinline action: suspend () -> T): Result<T> = recoverSuspendCatching {
+suspend inline fun <T> Result<T>.onPermissionsMissingReturn(
+    crossinline action: suspend () -> T,
+): Result<T> = recoverSuspendCatching {
     if (it.isPermissionFailure()) {
         action()
     } else {

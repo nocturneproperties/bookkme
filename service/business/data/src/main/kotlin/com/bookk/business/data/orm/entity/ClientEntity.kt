@@ -31,7 +31,9 @@ internal class ClientEntity(id: EntityID<Uuid>) : UuidEntity(id) {
             }
         }?.takeIf { it.businessId.value == businessId }
 
-        fun takeOver(businessId: Uuid, detachedClientId: Uuid, profile: Client.Integrated): ClientEntity? = findById(detachedClientId)
+        fun takeOver(businessId: Uuid, detachedClientId: Uuid, profile: Client.Integrated): ClientEntity? = findById(
+            detachedClientId,
+        )
             ?.takeIf { it.businessId.value == businessId && it.userId == null }
             ?.apply {
                 userId = profile.userId

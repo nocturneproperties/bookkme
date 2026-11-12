@@ -39,7 +39,13 @@ internal class MapperTest {
     @Test
     fun `should map a conflict reported by a chained cause to a transaction conflict`() = runUnitTest {
         given()
-        val exception = SQLException("batch failed", "HY000", 0, SQLException("Deadlock found when trying to get lock", "40001", 1213))
+        val exception =
+            SQLException(
+                "batch failed",
+                "HY000",
+                0,
+                SQLException("Deadlock found when trying to get lock", "40001", 1213),
+            )
 
         whenn()
         val mapped = exception.toDomain()

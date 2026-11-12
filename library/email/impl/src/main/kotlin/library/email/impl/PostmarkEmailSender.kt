@@ -38,8 +38,14 @@ internal class PostmarkEmailSender(
         }
         if (response.status.isSuccess()) return@runSuspendCatching
         val refusal = response.refusal()
-        if (response.status == HttpStatusCode.UnprocessableEntity && refusal?.errorCode in UNDELIVERABLE_ERROR_CODES) throw EmailSendError.Undeliverable()
-        throw IllegalStateException("Postmark refused the email with HTTP ${response.status.value}, error ${refusal?.errorCode}: ${refusal?.message}")
+        if (response.status == HttpStatusCode.UnprocessableEntity &&
+            refusal?.errorCode in UNDELIVERABLE_ERROR_CODES
+        ) {
+            throw EmailSendError.Undeliverable()
+        }
+        throw IllegalStateException(
+            "Postmark refused the email with HTTP ${response.status.value}, error ${refusal?.errorCode}: ${refusal?.message}",
+        )
     }
 
     private fun EmailMessage.toPostmark() = PostmarkEmail(
@@ -54,7 +60,9 @@ internal class PostmarkEmailSender(
         trackLinks = NO_LINK_TRACKING,
     )
 
-    private suspend fun HttpResponse.refusal(): PostmarkResponse? = runSuspendCatching { body<PostmarkResponse>() }.getOrNull()
+    private suspend fun HttpResponse.refusal(): PostmarkResponse? = runSuspendCatching {
+        body<PostmarkResponse>()
+    }.getOrNull()
 
     private companion object {
         const val EMAIL_URL = "https://api.postmarkapp.com/email"
@@ -77,7 +85,10 @@ internal fun postmarkHttpClient(
         json(Json { ignoreUnknownKeys = true })
     }
     install(HttpRequestRetry) {
-        retryIf(MAX_RETRIES) { _, response -> response.status == HttpStatusCode.TooManyRequests || response.status.value >= 500 }
+        retryIf(MAX_RETRIES) { _, response ->
+            response.status == HttpStatusCode.TooManyRequests ||
+                response.status.value >= 500
+        }
         retryOnException(MAX_RETRIES, retryOnTimeout = true)
         exponentialDelay()
         delay(retryDelay)

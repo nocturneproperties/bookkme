@@ -63,7 +63,8 @@ class PluginConfiguration {
     /**
      * The coroutine scope for the worker that cleans up expired responses.
      */
-    var cleanUpWorkerScope: CoroutineScope = CoroutineScope(Dispatchers.IO + CoroutineName("idempotencyCleanUpExpiredResponses"))
+    var cleanUpWorkerScope: CoroutineScope =
+        CoroutineScope(Dispatchers.IO + CoroutineName("idempotencyCleanUpExpiredResponses"))
 
     /**
      * The interval at which the worker will clean up expired responses.

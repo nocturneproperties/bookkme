@@ -80,7 +80,13 @@ internal class StartRegistrationImplTest {
 
         then()
         val code = fixture.mailbox.codeSentTo(validRequest.email)
-        val redeemed = fixture.mailbox.redeemer.redeem(response.emailVerification.verificationId, code, Uuid.parse(challenge.requestId)) { it.email }
+        val redeemed = fixture.mailbox.redeemer.redeem(
+            response.emailVerification.verificationId,
+            code,
+            Uuid.parse(challenge.requestId),
+        ) {
+            it.email
+        }
         assertEquals(validRequest.email, redeemed.getOrThrow())
     }
 
@@ -90,7 +96,8 @@ internal class StartRegistrationImplTest {
         val fixture = SutFixture()
         with(fixture) {
             emailIsFree(validRequest.email)
-            coEvery { startPasskeyRegistration(any(), any()) } returns Result.success(RegistrationChallengeResponse.stub())
+            coEvery { startPasskeyRegistration(any(), any()) } returns
+                Result.success(RegistrationChallengeResponse.stub())
         }
 
         whenn()
@@ -119,7 +126,8 @@ internal class StartRegistrationImplTest {
     fun `should return EmailAlreadyExist and send nothing when user with email already exists`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        coEvery { fixture.userClient.getUserByEmail(validRequest.email) } returns Result.success(UserSnapshot.stub(email = validRequest.email))
+        coEvery { fixture.userClient.getUserByEmail(validRequest.email) } returns
+            Result.success(UserSnapshot.stub(email = validRequest.email))
 
         whenn()
         val result = fixture.sut.invoke(validRequest, Language.EN)
@@ -149,7 +157,8 @@ internal class StartRegistrationImplTest {
         val fixture = SutFixture()
         with(fixture) {
             emailIsFree(validRequest.email)
-            coEvery { startPasskeyRegistration(any(), any()) } answers { Result.success(RegistrationChallengeResponse.stub()) }
+            coEvery { startPasskeyRegistration(any(), any()) } answers
+                { Result.success(RegistrationChallengeResponse.stub()) }
         }
         fixture.sut.invoke(validRequest, Language.EN).getOrThrow()
 
@@ -166,7 +175,8 @@ internal class StartRegistrationImplTest {
         val fixture = SutFixture()
         with(fixture) {
             emailIsFree(validRequest.email)
-            coEvery { startPasskeyRegistration(any(), any()) } returns Result.success(RegistrationChallengeResponse.stub())
+            coEvery { startPasskeyRegistration(any(), any()) } returns
+                Result.success(RegistrationChallengeResponse.stub())
             mailbox.refusesDelivery = true
         }
 
@@ -183,7 +193,8 @@ internal class StartRegistrationImplTest {
         val fixture = SutFixture()
         with(fixture) {
             emailIsFree(validRequest.email)
-            coEvery { startPasskeyRegistration(any(), any()) } returns Result.failure(IllegalStateException("no challenge"))
+            coEvery { startPasskeyRegistration(any(), any()) } returns
+                Result.failure(IllegalStateException("no challenge"))
         }
 
         whenn()

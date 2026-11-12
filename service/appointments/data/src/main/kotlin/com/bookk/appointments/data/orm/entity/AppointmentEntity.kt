@@ -150,4 +150,8 @@ internal class AppointmentEntity(id: EntityID<Uuid>) : UuidEntity(id) {
     }
 }
 
-internal fun List<AppointmentEntity>.withDetails(): List<AppointmentEntity> = this.with(AppointmentEntity::services, AppointmentEntity::priceAdjustments, PriceAdjustmentEntity::additionalServices)
+internal fun List<AppointmentEntity>.withDetails(): List<AppointmentEntity> = this.with(
+    AppointmentEntity::services,
+    AppointmentEntity::priceAdjustments,
+    PriceAdjustmentEntity::additionalServices,
+)

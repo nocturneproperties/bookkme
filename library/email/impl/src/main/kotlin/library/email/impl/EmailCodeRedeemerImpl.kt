@@ -13,7 +13,12 @@ internal class EmailCodeRedeemerImpl(
     private val hasher: EmailCodeHasher,
 ) : EmailCodeRedeemer {
 
-    override suspend fun <T> redeem(verificationId: Uuid, code: String, ownerId: Uuid, action: suspend (VerifiedEmail) -> T): Result<T> = runSuspendCatching {
+    override suspend fun <T> redeem(
+        verificationId: Uuid,
+        code: String,
+        ownerId: Uuid,
+        action: suspend (VerifiedEmail) -> T,
+    ): Result<T> = runSuspendCatching {
         val session = currentSession(verificationId, ownerId) ?: throw EmailCodeError.Expired()
         if (store.countAttempt(verificationId, CODE_LIFETIME) > MAX_ATTEMPTS) {
             store.discard(verificationId)

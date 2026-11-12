@@ -28,18 +28,35 @@ internal class DeleteClientImpl(
     private val actionConfirmationGate: ActionConfirmationGate,
     private val erasedClientDataSource: ErasedClientDataSource,
 ) : DeleteClient {
-    override suspend fun invoke(requestUserId: Uuid, businessId: Uuid, id: Uuid, confirmationToken: String): Result<Unit> = runSuspendCatching {
-        actionConfirmationGate.spend(confirmationToken, ActionConfirmationGrant.clientDeletion(requestUserId, businessId, id), DeleteClient.Error::ActionConfirmationInvalid) {
+    override suspend fun invoke(
+        requestUserId: Uuid,
+        businessId: Uuid,
+        id: Uuid,
+        confirmationToken: String,
+    ): Result<Unit> = runSuspendCatching {
+        actionConfirmationGate.spend(
+            confirmationToken,
+            ActionConfirmationGrant.clientDeletion(requestUserId, businessId, id),
+            DeleteClient.Error::ActionConfirmationInvalid,
+        ) {
             deleteClient(requestUserId, businessId, id).getOrThrow()
         }
     }
 
-    private suspend fun deleteClient(requestUserId: Uuid, businessId: Uuid, id: Uuid): Result<Unit> = transactionManager.transaction {
+    private suspend fun deleteClient(
+        requestUserId: Uuid,
+        businessId: Uuid,
+        id: Uuid,
+    ): Result<Unit> = transactionManager.transaction {
         val client = clientDataSource.getClientForUpdate(businessId, id)
         businessPermissionDataSource.getPermission(requestUserId, businessId, BusinessResource.CLIENTS)
             .assert(PermissionAction.DELETE)
         if (client == null) throw DeleteClient.Error.NotFound()
-        if (client is Client.Integrated && !businessDataSource.isOwner(requestUserId, businessId)) throw Error.OperationNotAllowed()
+        if (client is Client.Integrated &&
+            !businessDataSource.isOwner(requestUserId, businessId)
+        ) {
+            throw Error.OperationNotAllowed()
+        }
         if (!clientDataSource.deleteClient(businessId, id)) throw DeleteClient.Error.NotFound()
         erasedClientDataSource.record(businessId, id)
         eventProducer.send(BusinessEvent.ClientDeleted(businessId = businessId, clientId = id))

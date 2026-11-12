@@ -25,14 +25,18 @@ internal class UserDataExportDataSourceImplTest {
         val sut = UserDataExportDataSourceImpl()
         val userSut = UserDataSourceImpl(mockk(relaxed = true))
 
-        suspend fun user(user: User = User.stub(email = "u${Uuid.random()}@example.com")): User = suspendTransaction { userSut.insertNewUser(user) }
+        suspend fun user(user: User = User.stub(email = "u${Uuid.random()}@example.com")): User = suspendTransaction {
+            userSut.insertNewUser(user)
+        }
     }
 
     @Test
     fun `should export the user's profile with its creation time`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        val user = fixture.user(User.stub(name = "Olena", lastName = "Koval", email = "olena@example.com", phone = "+380501112233"))
+        val user = fixture.user(
+            User.stub(name = "Olena", lastName = "Koval", email = "olena@example.com", phone = "+380501112233"),
+        )
         val createdAt = Instant.fromEpochMilliseconds(1_700_000_000_000)
         suspendTransaction { UserTable.update({ UserTable.id eq user.id }) { it[this.createdAt] = createdAt } }
 

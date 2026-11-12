@@ -14,7 +14,12 @@ data class ExhaustedEvent(
             attempt: Int = DltRetry.DEFAULT_MAX_ATTEMPTS,
         ) = ExhaustedEvent(
             id = id,
-            event = DltEvent(payload = payload, originalTopic = originalTopic, attempt = attempt, topic = originalTopic),
+            event = DltEvent(
+                payload = payload,
+                originalTopic = originalTopic,
+                attempt = attempt,
+                topic = originalTopic,
+            ),
         )
     }
 }

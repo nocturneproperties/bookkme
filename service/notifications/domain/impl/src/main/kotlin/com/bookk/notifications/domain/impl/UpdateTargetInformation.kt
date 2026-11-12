@@ -11,7 +11,11 @@ internal class UpdateTargetInformation(
     private val targetDataSource: NotificationTargetDataSource,
     private val transactionManager: TransactionManager,
 ) {
-    suspend operator fun invoke(userId: Uuid, target: Target, updatedAt: Instant): Result<Unit> = transactionManager.transaction {
+    suspend operator fun invoke(
+        userId: Uuid,
+        target: Target,
+        updatedAt: Instant,
+    ): Result<Unit> = transactionManager.transaction {
         getNotificationSettings.invoke(userId).getOrThrow()
 
         when (target) {

@@ -46,7 +46,8 @@ internal class DeleteModuleImplTest {
         val businessId = Uuid.random()
         with(fixture) {
             transactionManager.mockTransaction()
-            coEvery { dataSource.detachBusiness(businessId) } answers { throw Error.DatabaseError("", IllegalStateException()) }
+            coEvery { dataSource.detachBusiness(businessId) } answers
+                { throw Error.DatabaseError("", IllegalStateException()) }
         }
 
         whenn()

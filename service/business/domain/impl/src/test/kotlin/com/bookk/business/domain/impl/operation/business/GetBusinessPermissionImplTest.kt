@@ -34,7 +34,10 @@ internal class GetBusinessPermissionImplTest {
         val permission = ResourcePermission.FULL
         with(fixture) {
             transactionManager.mockTransaction()
-            coEvery { businessPermissionDataSource.getPermission(userId, businessId, BusinessResource.BUSINESS) } returns permission
+            coEvery {
+                businessPermissionDataSource.getPermission(userId, businessId, BusinessResource.BUSINESS)
+            } returns
+                permission
         }
 
         whenn()
@@ -51,7 +54,10 @@ internal class GetBusinessPermissionImplTest {
         val fixture = SutFixture()
         with(fixture) {
             transactionManager.mockTransaction()
-            coEvery { businessPermissionDataSource.getPermission(userId, businessId, BusinessResource.BUSINESS) } returns ResourcePermission.NONE
+            coEvery {
+                businessPermissionDataSource.getPermission(userId, businessId, BusinessResource.BUSINESS)
+            } returns
+                ResourcePermission.NONE
         }
 
         whenn()

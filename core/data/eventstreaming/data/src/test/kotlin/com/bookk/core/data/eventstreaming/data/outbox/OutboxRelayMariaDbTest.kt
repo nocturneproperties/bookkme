@@ -49,7 +49,10 @@ internal class OutboxRelayMariaDbTest {
         }
     }
 
-    private class RecordingProducer(private val beforePublish: suspend () -> Unit = {}) : EventStreaming.RawProducer<String> {
+    private class RecordingProducer(
+        private val beforePublish: suspend () -> Unit = {
+        },
+    ) : EventStreaming.RawProducer<String> {
         val publishedTopics = ConcurrentLinkedQueue<String>()
 
         override suspend fun publish(topic: String, partitionKey: String?, payload: ByteArray) {
@@ -73,7 +76,11 @@ internal class OutboxRelayMariaDbTest {
             transaction(database) { SchemaUtils.create(OutboxEventTable) }
         }
 
-        fun relay(rawProducer: EventStreaming.RawProducer<String>) = OutboxRelay(outboxEventDataSource, transactionManager, rawProducer)
+        fun relay(rawProducer: EventStreaming.RawProducer<String>) = OutboxRelay(
+            outboxEventDataSource,
+            transactionManager,
+            rawProducer,
+        )
 
         suspend fun enqueue(vararg topics: String) = topics.forEach { topic ->
             suspendTransaction(db = database) {
@@ -101,7 +108,7 @@ internal class OutboxRelayMariaDbTest {
     }
 
     @Test
-    fun `should make a second relay wait for the first relay's batch and publish every event exactly once`() = runIntegrationTest {
+    fun `should make a second relay wait for the first one's batch and publish each event once`() = runIntegrationTest {
         given()
         val fixture = SutFixture()
         fixture.enqueue("topic.first", "topic.second", "topic.third")

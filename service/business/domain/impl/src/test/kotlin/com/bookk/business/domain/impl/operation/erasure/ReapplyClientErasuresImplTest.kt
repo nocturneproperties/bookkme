@@ -58,7 +58,12 @@ internal class ReapplyClientErasuresImplTest {
         then()
         assertTrue(result.isSuccess)
         coVerify(exactly = 1) { fixture.clientDataSource.deleteClient(client.businessId, client.clientId) }
-        assertEquals(listOf(client.businessId to client.clientId), fixture.sentEvents.map { it.businessId to it.clientId })
+        assertEquals(
+            listOf(client.businessId to client.clientId),
+            fixture.sentEvents.map {
+                it.businessId to it.clientId
+            },
+        )
         assertEquals(listOf(true), fixture.sentInTransaction)
     }
 

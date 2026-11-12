@@ -59,7 +59,9 @@ internal class BuildDataExportsImplTest {
             }
         }
 
-        private fun gunzip(bytes: ByteArray): String = GZIPInputStream(ByteArrayInputStream(bytes)).readBytes().decodeToString()
+        private fun gunzip(bytes: ByteArray): String = GZIPInputStream(
+            ByteArrayInputStream(bytes),
+        ).readBytes().decodeToString()
     }
 
     @Test
@@ -115,21 +117,33 @@ internal class BuildDataExportsImplTest {
     }
 
     @Test
-    fun `should claim an export with a lease before assembling it and complete it under the same claim`() = runUnitTest {
+    fun `should claim an export with a lease before assembling it and complete it under that claim`() = runUnitTest {
         given()
         val fixture = SutFixture()
         val ownerId = Uuid.random()
         fixture.queued(ownerId)
         fixture.assembles(ownerId, "{}")
         val claimIds = mutableListOf<Uuid>()
-        coEvery { fixture.dataSource.claim(ownerId, capture(claimIds), fixture.clock.now, fixture.clock.now + DataExports.BUILD_LEASE) } returns true
+        coEvery {
+            fixture.dataSource.claim(
+                ownerId,
+                capture(claimIds),
+                fixture.clock.now,
+                fixture.clock.now + DataExports.BUILD_LEASE,
+            )
+        } returns true
 
         whenn()
         fixture.sut()
 
         then()
         coVerifyOrder {
-            fixture.dataSource.claim(ownerId, claimIds.single(), fixture.clock.now, fixture.clock.now + DataExports.BUILD_LEASE)
+            fixture.dataSource.claim(
+                ownerId,
+                claimIds.single(),
+                fixture.clock.now,
+                fixture.clock.now + DataExports.BUILD_LEASE,
+            )
             fixture.assembler.assemble(ownerId)
             fixture.dataSource.complete(ownerId, claimIds.single(), any(), any(), any())
         }
@@ -168,7 +182,14 @@ internal class BuildDataExportsImplTest {
 
         then()
         assertTrue(result.isSuccess)
-        coVerify(exactly = 1) { fixture.dataSource.giveBack(failing, claimIds.single(), fixture.clock.now, fixture.clock.now + DataExports.DOCUMENT_LIFETIME) }
+        coVerify(exactly = 1) {
+            fixture.dataSource.giveBack(
+                failing,
+                claimIds.single(),
+                fixture.clock.now,
+                fixture.clock.now + DataExports.DOCUMENT_LIFETIME,
+            )
+        }
         coVerify(exactly = 0) { fixture.dataSource.complete(failing, any(), any(), any(), any()) }
         assertEquals(setOf(working), fixture.storedDocuments.keys)
     }
@@ -180,7 +201,8 @@ internal class BuildDataExportsImplTest {
         val ownerId = Uuid.random()
         fixture.queued(ownerId)
         fixture.assembles(ownerId, "{}")
-        coEvery { fixture.dataSource.complete(ownerId, any(), any(), any(), any()) } throws IllegalStateException("packet too large")
+        coEvery { fixture.dataSource.complete(ownerId, any(), any(), any(), any()) } throws
+            IllegalStateException("packet too large")
 
         whenn()
         val result = fixture.sut()

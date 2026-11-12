@@ -45,7 +45,10 @@ internal class CreateInstantAppointmentImpl(
 
     private val quoteVerifier = BookingQuoteVerifier(tokenValidatorFactory)
 
-    override suspend fun invoke(userId: Uuid, draft: InstantAppointmentDraft): Result<Appointment> = runSuspendCatching {
+    override suspend fun invoke(
+        userId: Uuid,
+        draft: InstantAppointmentDraft,
+    ): Result<Appointment> = runSuspendCatching {
         if (!requestDataSource.reserveOfferToken(draft.offerToken)) throw BookingQuoteError.TokenAlreadyUsed()
         runCleaningUpOnFailure(cleanUp = { releaseOfferTokenBestEffort(draft.offerToken) }) {
             book(userId, draft)
@@ -71,8 +74,18 @@ internal class CreateInstantAppointmentImpl(
 
         return transactionManager.transactionOrThrow {
             val clientUserId = appointment.client.userId
-            if (clientUserId != null && deletedUserDataSource.isDeletedForShare(clientUserId)) throw Error.OperationNotAllowed()
-            if (deletedClientDataSource.isDeletedForShare(appointment.businessId, appointment.client.id)) throw Error.OperationNotAllowed()
+            if (clientUserId != null &&
+                deletedUserDataSource.isDeletedForShare(clientUserId)
+            ) {
+                throw Error.OperationNotAllowed()
+            }
+            if (deletedClientDataSource.isDeletedForShare(
+                    appointment.businessId,
+                    appointment.client.id,
+                )
+            ) {
+                throw Error.OperationNotAllowed()
+            }
             requireBookable(appointment)
             appointmentDataSource.create(appointment).also {
                 eventProducer.send(AppointmentEvent.ClientVisitBooked(it.businessId, it.client.id, it.dateEnd))
@@ -84,8 +97,19 @@ internal class CreateInstantAppointmentImpl(
         val settings = settingsDataSource.getForUpdate(appointment.businessId) ?: throw Error.NotFound()
         if (appointment.date < Clock.System.now()) throw CreateInstantAppointment.Error.DateInThePastNotAllowed()
         if (!settings.isInWorkday(appointment.date)) throw CreateInstantAppointment.Error.RequestForThisDateNotAllowed()
-        if (!settings.isInWorktime(appointment.date, appointment.dateEnd)) throw CreateInstantAppointment.Error.RequestForThisTimeNotAllowed()
-        if (appointmentDataSource.hasOverlapsWith(appointment)) throw CreateInstantAppointment.Error.AppointmentForThisTimeExists()
+        if (!settings.isInWorktime(
+                appointment.date,
+                appointment.dateEnd,
+            )
+        ) {
+            throw CreateInstantAppointment.Error.RequestForThisTimeNotAllowed()
+        }
+        if (appointmentDataSource.hasOverlapsWith(
+                appointment,
+            )
+        ) {
+            throw CreateInstantAppointment.Error.AppointmentForThisTimeExists()
+        }
     }
 
     private suspend fun assertMayBookInto(userId: Uuid, businessId: Uuid, employeeUserId: Uuid) {
@@ -116,6 +140,11 @@ internal class CreateInstantAppointmentImpl(
 
     private suspend fun releaseOfferTokenBestEffort(offerToken: String) {
         runSuspendCatching { requestDataSource.releaseOfferToken(offerToken) }
-            .onFailure { createInstantAppointmentLogger.error("Failed to release offer token, it stays unusable until it expires", it) }
+            .onFailure {
+                createInstantAppointmentLogger.error(
+                    "Failed to release offer token, it stays unusable until it expires",
+                    it,
+                )
+            }
     }
 }

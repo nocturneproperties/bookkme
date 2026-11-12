@@ -38,7 +38,9 @@ internal class RunCleaningUpOnFailureTest {
         var cleanedUp = false
 
         whenn()
-        val thrown = runCatching { runCleaningUpOnFailure(cleanUp = { cleanedUp = true }) { throw failure } }.exceptionOrNull()
+        val thrown = runCatching {
+            runCleaningUpOnFailure(cleanUp = { cleanedUp = true }) { throw failure }
+        }.exceptionOrNull()
 
         then()
         assertSame(failure, thrown)
@@ -78,7 +80,9 @@ internal class RunCleaningUpOnFailureTest {
         val cleanUpFailure = IllegalArgumentException("clean up failed")
 
         whenn()
-        val thrown = runCatching { runCleaningUpOnFailure(cleanUp = { throw cleanUpFailure }) { throw failure } }.exceptionOrNull()
+        val thrown = runCatching {
+            runCleaningUpOnFailure(cleanUp = { throw cleanUpFailure }) { throw failure }
+        }.exceptionOrNull()
 
         then()
         assertSame(failure, thrown)

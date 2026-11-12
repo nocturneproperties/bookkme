@@ -31,8 +31,16 @@ internal class GetEmployeeInvitationsImplTest {
         val userId = Uuid.random()
         val businessId = Uuid.random()
         val invitations = listOf(
-            EmployeeInvitation.stub(businessId = businessId, invitedBy = userId, status = EmployeeInvitationStatus.PENDING),
-            EmployeeInvitation.stub(businessId = businessId, invitedBy = userId, status = EmployeeInvitationStatus.REDEEMED),
+            EmployeeInvitation.stub(
+                businessId = businessId,
+                invitedBy = userId,
+                status = EmployeeInvitationStatus.PENDING,
+            ),
+            EmployeeInvitation.stub(
+                businessId = businessId,
+                invitedBy = userId,
+                status = EmployeeInvitationStatus.REDEEMED,
+            ),
         )
         with(fixture) {
             transactionManager.mockTransaction()

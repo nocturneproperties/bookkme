@@ -119,7 +119,9 @@ internal class ServiceCrudTest {
 
         whenn()
         val client = createTestClient()
-        val response = client.put(BusinessRouting.Api.Service.Id(BusinessRouting.Api.Service(businessId = businessId), service.id)) {
+        val response = client.put(
+            BusinessRouting.Api.Service.Id(BusinessRouting.Api.Service(businessId = businessId), service.id),
+        ) {
             setBody(service)
         }
 
@@ -181,7 +183,9 @@ internal class ServiceCrudTest {
 
         whenn()
         val client = createTestClient()
-        val response = client.delete(BusinessRouting.Api.Service.Id(BusinessRouting.Api.Service(businessId = businessId), id))
+        val response = client.delete(
+            BusinessRouting.Api.Service.Id(BusinessRouting.Api.Service(businessId = businessId), id),
+        )
 
         then()
         assertEquals(HttpStatusCode.NoContent, response.status)
@@ -244,7 +248,10 @@ internal class ServiceCrudTest {
 
         then()
         assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
-        assertEquals(BusinessErrorCodes.BUSINESS_SERVICE_NAME_VALIDATION_ERROR, response.body<SimpleServerError>().errorCode)
+        assertEquals(
+            BusinessErrorCodes.BUSINESS_SERVICE_NAME_VALIDATION_ERROR,
+            response.body<SimpleServerError>().errorCode,
+        )
     }
 
     @Test
@@ -268,7 +275,9 @@ internal class ServiceCrudTest {
 
         whenn()
         val client = createTestClient()
-        val response = client.put(BusinessRouting.Api.Service.Id(BusinessRouting.Api.Service(businessId = businessId), service.id)) {
+        val response = client.put(
+            BusinessRouting.Api.Service.Id(BusinessRouting.Api.Service(businessId = businessId), service.id),
+        ) {
             setBody(service)
         }
 
@@ -298,13 +307,18 @@ internal class ServiceCrudTest {
 
         whenn()
         val client = createTestClient()
-        val response = client.put(BusinessRouting.Api.Service.Id(BusinessRouting.Api.Service(businessId = businessId), service.id)) {
+        val response = client.put(
+            BusinessRouting.Api.Service.Id(BusinessRouting.Api.Service(businessId = businessId), service.id),
+        ) {
             setBody(service)
         }
 
         then()
         assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
-        assertEquals(BusinessErrorCodes.BUSINESS_SERVICE_NAME_VALIDATION_ERROR, response.body<SimpleServerError>().errorCode)
+        assertEquals(
+            BusinessErrorCodes.BUSINESS_SERVICE_NAME_VALIDATION_ERROR,
+            response.body<SimpleServerError>().errorCode,
+        )
     }
 
     @Test
@@ -342,7 +356,9 @@ internal class ServiceCrudTest {
 
         whenn()
         val client = createTestClient()
-        val response = client.put(BusinessRouting.Api.Service.Id(BusinessRouting.Api.Service(businessId = businessId), service.id)) {
+        val response = client.put(
+            BusinessRouting.Api.Service.Id(BusinessRouting.Api.Service(businessId = businessId), service.id),
+        ) {
             setBody(service)
         }
 
@@ -382,7 +398,9 @@ internal class ServiceCrudTest {
 
         whenn()
         val client = createTestClient()
-        val response = client.delete(BusinessRouting.Api.Service.Id(BusinessRouting.Api.Service(businessId = businessId), Uuid.random()))
+        val response = client.delete(
+            BusinessRouting.Api.Service.Id(BusinessRouting.Api.Service(businessId = businessId), Uuid.random()),
+        )
 
         then()
         assertEquals(HttpStatusCode.Unauthorized, response.status)
@@ -415,7 +433,10 @@ internal class ServiceCrudTest {
 
         then()
         assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
-        assertEquals(BusinessErrorCodes.BUSINESS_SERVICE_PRICE_PRECISION_INVALID, response.body<SimpleServerError>().errorCode)
+        assertEquals(
+            BusinessErrorCodes.BUSINESS_SERVICE_PRICE_PRECISION_INVALID,
+            response.body<SimpleServerError>().errorCode,
+        )
     }
 
     @Test
@@ -439,13 +460,18 @@ internal class ServiceCrudTest {
 
         whenn()
         val client = createTestClient()
-        val response = client.put(BusinessRouting.Api.Service.Id(BusinessRouting.Api.Service(businessId = businessId), service.id)) {
+        val response = client.put(
+            BusinessRouting.Api.Service.Id(BusinessRouting.Api.Service(businessId = businessId), service.id),
+        ) {
             setBody(service)
         }
 
         then()
         assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
-        assertEquals(BusinessErrorCodes.BUSINESS_SERVICE_PRICE_PRECISION_INVALID, response.body<SimpleServerError>().errorCode)
+        assertEquals(
+            BusinessErrorCodes.BUSINESS_SERVICE_PRICE_PRECISION_INVALID,
+            response.body<SimpleServerError>().errorCode,
+        )
     }
 
     @Test
@@ -453,7 +479,8 @@ internal class ServiceCrudTest {
         given()
         val useCase: CreateService = mockk()
         val service = Service.stub(businessId = businessId)
-        coEvery { useCase.invoke(userId, service) } returns Result.failure(CreateService.Error.BusinessCurrencyInvalid())
+        coEvery { useCase.invoke(userId, service) } returns
+            Result.failure(CreateService.Error.BusinessCurrencyInvalid())
 
         setupApplication(
             extension = {
@@ -475,7 +502,10 @@ internal class ServiceCrudTest {
 
         then()
         assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
-        assertEquals(BusinessErrorCodes.BUSINESS_SERVICE_BUSINESS_CURRENCY_INVALID, response.body<SimpleServerError>().errorCode)
+        assertEquals(
+            BusinessErrorCodes.BUSINESS_SERVICE_BUSINESS_CURRENCY_INVALID,
+            response.body<SimpleServerError>().errorCode,
+        )
     }
 
     @Test
@@ -483,7 +513,8 @@ internal class ServiceCrudTest {
         given()
         val useCase: UpdateService = mockk()
         val service = Service.stub(businessId = businessId)
-        coEvery { useCase.invoke(userId, service) } returns Result.failure(UpdateService.Error.BusinessCurrencyInvalid())
+        coEvery { useCase.invoke(userId, service) } returns
+            Result.failure(UpdateService.Error.BusinessCurrencyInvalid())
 
         setupApplication(
             extension = {
@@ -499,13 +530,18 @@ internal class ServiceCrudTest {
 
         whenn()
         val client = createTestClient()
-        val response = client.put(BusinessRouting.Api.Service.Id(BusinessRouting.Api.Service(businessId = businessId), service.id)) {
+        val response = client.put(
+            BusinessRouting.Api.Service.Id(BusinessRouting.Api.Service(businessId = businessId), service.id),
+        ) {
             setBody(service)
         }
 
         then()
         assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
-        assertEquals(BusinessErrorCodes.BUSINESS_SERVICE_BUSINESS_CURRENCY_INVALID, response.body<SimpleServerError>().errorCode)
+        assertEquals(
+            BusinessErrorCodes.BUSINESS_SERVICE_BUSINESS_CURRENCY_INVALID,
+            response.body<SimpleServerError>().errorCode,
+        )
     }
 
     @Test
@@ -528,7 +564,9 @@ internal class ServiceCrudTest {
 
         whenn()
         val client = createTestClient()
-        val response = client.put(BusinessRouting.Api.Service.Id(BusinessRouting.Api.Service(businessId = businessId), Uuid.random())) {
+        val response = client.put(
+            BusinessRouting.Api.Service.Id(BusinessRouting.Api.Service(businessId = businessId), Uuid.random()),
+        ) {
             setBody(service)
         }
 
@@ -588,7 +626,9 @@ internal class ServiceCrudTest {
 
         whenn()
         val client = createTestClient()
-        val response = client.put(BusinessRouting.Api.Service.Id(BusinessRouting.Api.Service(businessId = businessId), service.id)) {
+        val response = client.put(
+            BusinessRouting.Api.Service.Id(BusinessRouting.Api.Service(businessId = businessId), service.id),
+        ) {
             setBody(service)
         }
 
@@ -602,7 +642,8 @@ internal class ServiceCrudTest {
         given()
         val useCase: UpdateService = mockk()
         val service = Service.stub(businessId = businessId)
-        coEvery { useCase.invoke(userId, service) } returns Result.failure(Error.TransactionConflict("conflict", SQLException()))
+        coEvery { useCase.invoke(userId, service) } returns
+            Result.failure(Error.TransactionConflict("conflict", SQLException()))
 
         setupApplication(
             extension = {
@@ -618,7 +659,9 @@ internal class ServiceCrudTest {
 
         whenn()
         val client = createTestClient()
-        val response = client.put(BusinessRouting.Api.Service.Id(BusinessRouting.Api.Service(businessId = businessId), service.id)) {
+        val response = client.put(
+            BusinessRouting.Api.Service.Id(BusinessRouting.Api.Service(businessId = businessId), service.id),
+        ) {
             setBody(service)
         }
 

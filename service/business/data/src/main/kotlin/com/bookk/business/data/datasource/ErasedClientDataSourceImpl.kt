@@ -28,7 +28,9 @@ internal class ErasedClientDataSourceImpl : DataSource(), ErasedClientDataSource
     override suspend fun getReapplyRequested(): List<ErasedClient> = dbQuery {
         ErasedClientTable.select(ErasedClientTable.businessId, ErasedClientTable.clientId)
             .where { ErasedClientTable.reapplyRequested eq true }
-            .map { ErasedClient(businessId = it[ErasedClientTable.businessId], clientId = it[ErasedClientTable.clientId]) }
+            .map {
+                ErasedClient(businessId = it[ErasedClientTable.businessId], clientId = it[ErasedClientTable.clientId])
+            }
     }
 
     override suspend fun claimReapply(clientId: Uuid): Boolean = dbQuery {

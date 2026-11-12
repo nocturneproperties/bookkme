@@ -40,7 +40,9 @@ internal class LegalDocumentDataSourceImplTest {
             }
         }
 
-        suspend fun createUser(): Uuid = suspendTransaction { userDataSource.insertNewUser(User.stub(email = "${Uuid.random()}@example.com")).id }
+        suspend fun createUser(): Uuid = suspendTransaction {
+            userDataSource.insertNewUser(User.stub(email = "${Uuid.random()}@example.com")).id
+        }
     }
 
     @Test
@@ -153,7 +155,11 @@ internal class LegalDocumentDataSourceImplTest {
         val policy = LegalDocumentVersion.stub()
         fixture.publish(policy)
         val userId = fixture.createUser()
-        val first = LegalDocumentAcceptance.stub(policy.document, policy.version, Instant.fromEpochSeconds(1_700_000_000))
+        val first = LegalDocumentAcceptance.stub(
+            policy.document,
+            policy.version,
+            Instant.fromEpochSeconds(1_700_000_000),
+        )
         val second = first.copy(acceptedAt = Instant.fromEpochSeconds(1_800_000_000))
 
         whenn()
@@ -173,8 +179,14 @@ internal class LegalDocumentDataSourceImplTest {
         val newPolicy = LegalDocumentVersion.stub(version = "2026-01-01")
         listOf(oldPolicy, newPolicy).forEach { fixture.publish(it) }
         val userId = fixture.createUser()
-        val oldAcceptance = LegalDocumentAcceptance.stub(version = oldPolicy.version, acceptedAt = Instant.fromEpochSeconds(1_700_000_000))
-        val newAcceptance = LegalDocumentAcceptance.stub(version = newPolicy.version, acceptedAt = Instant.fromEpochSeconds(1_800_000_000))
+        val oldAcceptance = LegalDocumentAcceptance.stub(
+            version = oldPolicy.version,
+            acceptedAt = Instant.fromEpochSeconds(1_700_000_000),
+        )
+        val newAcceptance = LegalDocumentAcceptance.stub(
+            version = newPolicy.version,
+            acceptedAt = Instant.fromEpochSeconds(1_800_000_000),
+        )
 
         whenn()
         suspendTransaction {
@@ -212,7 +224,9 @@ internal class LegalDocumentDataSourceImplTest {
 
         whenn()
         val result = runCatching {
-            suspendTransaction { fixture.sut.recordAcceptance(userId, LegalDocumentAcceptance.stub(version = "unpublished")) }
+            suspendTransaction {
+                fixture.sut.recordAcceptance(userId, LegalDocumentAcceptance.stub(version = "unpublished"))
+            }
         }
 
         then()

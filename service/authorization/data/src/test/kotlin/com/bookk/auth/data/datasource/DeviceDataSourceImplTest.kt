@@ -24,7 +24,9 @@ internal class DeviceDataSourceImplTest {
         val sut = DeviceDataSourceImpl()
         val accountSut = AccountDataSourceImpl()
 
-        suspend fun insertAuth(): Authentication = suspendTransaction { accountSut.createAuthorization(Authentication.stub()) }
+        suspend fun insertAuth(): Authentication = suspendTransaction {
+            accountSut.createAuthorization(Authentication.stub())
+        }
     }
 
     @Test
@@ -166,7 +168,8 @@ internal class DeviceDataSourceImplTest {
         suspendTransaction { fixture.sut.insertDevice(auth.id, deviceUuid, "iPhone", Language.EN) }
 
         whenn()
-        val duplicateId = suspendTransaction { fixture.sut.insertDevice(auth.id, deviceUuid, "iPhone duplicate", Language.EN) }
+        val duplicateId =
+            suspendTransaction { fixture.sut.insertDevice(auth.id, deviceUuid, "iPhone duplicate", Language.EN) }
 
         then()
         assertNull(duplicateId)

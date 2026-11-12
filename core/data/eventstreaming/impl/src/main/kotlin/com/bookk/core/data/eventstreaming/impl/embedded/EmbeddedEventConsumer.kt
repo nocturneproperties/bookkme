@@ -58,7 +58,13 @@ class EmbeddedEventConsumer(
         val type = types[exhausted.originalTopic]
         if (type == null || dltTopic !in receivers) return false
         val event = runCatching { decode(type, exhausted.payload) }
-            .onFailure { logger.error("Cannot replay an undecodable event, topic: {}. Error: {}", exhausted.originalTopic, it.message) }
+            .onFailure {
+                logger.error(
+                    "Cannot replay an undecodable event, topic: {}. Error: {}",
+                    exhausted.originalTopic,
+                    it.message,
+                )
+            }
             .getOrNull() ?: return false
         topicQueueHolder.publish(EmbeddedDltEvent(originalEvent = event, attempt = FIRST_ATTEMPT, topic = dltTopic))
         return true
@@ -87,10 +93,22 @@ class EmbeddedEventConsumer(
 
     private suspend fun dispatch(event: Event<String>) {
         runCatchingUnlessCancelled { decoded(event)?.let { receivers[event.topic]?.invoke(it, FIRST_ATTEMPT) } }
-            .onFailure { logger.error("Failed to handle: topic:{}, event:{}, error:{}", event.topic, event, it.stackTraceToString()) }
+            .onFailure {
+                logger.error(
+                    "Failed to handle: topic:{}, event:{}, error:{}",
+                    event.topic,
+                    event,
+                    it.stackTraceToString(),
+                )
+            }
     }
 
-    private suspend fun <T : Event<String>> deliver(topic: String, event: T, attempt: Int, onEvent: suspend (T) -> Unit) {
+    private suspend fun <T : Event<String>> deliver(
+        topic: String,
+        event: T,
+        attempt: Int,
+        onEvent: suspend (T) -> Unit,
+    ) {
         idempotentDelivery.deliver(event, onEvent)
             .onSuccess { outcome -> logger.logDelivered(event, outcome) }
             .onFailure {
@@ -100,7 +118,12 @@ class EmbeddedEventConsumer(
     }
 
     private suspend fun handleFailure(topic: String, event: Event<String>, attempt: Int) {
-        val dltEvent = EmbeddedDltEvent(originalEvent = event, attempt = attempt + 1, topic = DltRetry.dltTopic(topic, consumerGroup))
+        val dltEvent =
+            EmbeddedDltEvent(
+                originalEvent = event,
+                attempt = attempt + 1,
+                topic = DltRetry.dltTopic(topic, consumerGroup),
+            )
         if (dltEvent.isExhausted()) persistOrRequeue(dltEvent) else topicQueueHolder.publish(dltEvent)
     }
 
@@ -125,7 +148,11 @@ class EmbeddedEventConsumer(
         )
         transactionManager.transaction { exhaustedEventDataSource.save(record) }
             .onFailure {
-                logger.error("Failed to persist exhausted event for topic: {}. Retrying. Error: {}", originalEvent.topic, it.message)
+                logger.error(
+                    "Failed to persist exhausted event for topic: {}. Retrying. Error: {}",
+                    originalEvent.topic,
+                    it.message,
+                )
                 topicQueueHolder.publish(dltEvent.copy(attempt = dltEvent.attempt + 1))
             }
     }
@@ -140,14 +167,24 @@ class EmbeddedEventConsumer(
     private fun decode(event: EmbeddedEncodedEvent): Event<String>? {
         val type = types[event.topic] ?: return null
         return runCatching { decode(type, event.payload) }
-            .onFailure { logger.debug("Received unprocessable event, Topic: {}. Error: {}", event.topic, it.stackTraceToString()) }
+            .onFailure {
+                logger.debug("Received unprocessable event, Topic: {}. Error: {}", event.topic, it.stackTraceToString())
+            }
             .getOrNull()
     }
 
     @Suppress("UNCHECKED_CAST")
-    private fun decode(type: KType, payload: ByteArray): Event<String> = protoBuf.decodeFromByteArray(protoBuf.serializersModule.serializer(type), payload) as Event<String>
+    private fun decode(
+        type: KType,
+        payload: ByteArray,
+    ): Event<String> = protoBuf.decodeFromByteArray(
+        protoBuf.serializersModule.serializer(type),
+        payload,
+    ) as Event<String>
 
-    private fun encode(type: KType, event: Event<String>): ByteArray = protoBuf.encodeToByteArray(protoBuf.serializersModule.serializer(type), event)
+    private fun encode(type: KType, event: Event<String>): ByteArray {
+        return protoBuf.encodeToByteArray(protoBuf.serializersModule.serializer(type), event)
+    }
 
     private companion object {
         const val FIRST_ATTEMPT = 0

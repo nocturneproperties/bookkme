@@ -61,7 +61,8 @@ internal class EditSettingsImplTest {
         val update = AppointmentSettingsUpdate.stub(businessId = businessId)
         with(fixture) {
             transactionManager.mockTransaction()
-            coEvery { permissionsSource.getPermission(userId, businessId) } returns ResourcePermission(view = true, update = false, delete = false)
+            coEvery { permissionsSource.getPermission(userId, businessId) } returns
+                ResourcePermission(view = true, update = false, delete = false)
         }
 
         whenn()
@@ -82,7 +83,8 @@ internal class EditSettingsImplTest {
         val update = AppointmentSettingsUpdate.stub(businessId = businessId)
         with(fixture) {
             transactionManager.mockTransaction()
-            coEvery { permissionsSource.getPermission(userId, businessId) } returns ResourcePermission(view = false, update = true, delete = false)
+            coEvery { permissionsSource.getPermission(userId, businessId) } returns
+                ResourcePermission(view = false, update = true, delete = false)
             coEvery { settingsSource.update(update) } answers { throw IllegalStateException() }
         }
 

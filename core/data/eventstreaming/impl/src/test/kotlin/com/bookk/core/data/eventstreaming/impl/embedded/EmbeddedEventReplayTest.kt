@@ -41,7 +41,12 @@ internal class EmbeddedEventReplayTest {
         )
     }
 
-    private fun exhausted(event: KeyedTestEvent, payload: ByteArray = encodedEventProtoBuf.encodeToByteArray(event)) = DltEvent(
+    private fun exhausted(
+        event: KeyedTestEvent,
+        payload: ByteArray = encodedEventProtoBuf.encodeToByteArray(
+            event,
+        ),
+    ) = DltEvent(
         payload = payload,
         originalTopic = event.topic,
         attempt = DltRetry.DEFAULT_MAX_ATTEMPTS,
@@ -92,7 +97,7 @@ internal class EmbeddedEventReplayTest {
     }
 
     @Test
-    fun `should give a replayed event every attempt again and park it under a new key when it keeps failing`() = runUnitTest {
+    fun `should retry a replayed event in full and park it under a new key when it keeps failing`() = runUnitTest {
         given()
         val fixture = SutFixture()
         val attempts = AtomicInteger(0)
@@ -122,7 +127,9 @@ internal class EmbeddedEventReplayTest {
         fixture.sut.start(backgroundScope)
 
         whenn()
-        val replayed = fixture.sut.replay(exhausted(KeyedTestEvent(entityId = "entity-1", sequence = 0, topic = "embedded.replay.unknown")))
+        val replayed = fixture.sut.replay(
+            exhausted(KeyedTestEvent(entityId = "entity-1", sequence = 0, topic = "embedded.replay.unknown")),
+        )
 
         then()
         assertFalse(replayed)

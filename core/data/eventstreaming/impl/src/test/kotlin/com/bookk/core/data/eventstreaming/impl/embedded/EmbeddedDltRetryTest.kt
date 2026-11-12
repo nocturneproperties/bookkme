@@ -32,7 +32,9 @@ import kotlin.time.Duration.Companion.milliseconds
 internal class EmbeddedDltRetryTest {
 
     private class SutFixture(
-        exhaustedEventDataSourceIn: (TransactionManager) -> ExhaustedEventDataSource = ::InMemoryExhaustedEventDataSource,
+        exhaustedEventDataSourceIn: (
+            TransactionManager,
+        ) -> ExhaustedEventDataSource = ::InMemoryExhaustedEventDataSource,
     ) {
         val transactionManager = mockedTransactionManager()
         val exhaustedEventDataSource = exhaustedEventDataSourceIn(transactionManager)
@@ -138,7 +140,10 @@ internal class EmbeddedDltRetryTest {
     @Test
     fun `should retry persisting without re-invoking the business handler when the save fails`() = runUnitTest {
         given()
-        val fixture = SutFixture { transactionManager -> FlakyExhaustedEventDataSource(failuresBeforeSuccess = 2, transactionManager) }
+        val fixture =
+            SutFixture { transactionManager ->
+                FlakyExhaustedEventDataSource(failuresBeforeSuccess = 2, transactionManager)
+            }
         val topic = "embedded.dlt.retry.persist"
         val attempts = AtomicInteger(0)
         fixture.consumer.registerReceiver<KeyedTestEvent, String>(topic) {

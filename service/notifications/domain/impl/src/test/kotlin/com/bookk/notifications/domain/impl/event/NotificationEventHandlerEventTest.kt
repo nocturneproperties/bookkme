@@ -157,7 +157,9 @@ internal class NotificationEventHandlerEventTest {
         whenn()
         withContext(Dispatchers.IO) {
             fixture.start()
-            producer().send(AuthEvent.DeviceLanguageUpdated(deviceUuid = deviceUuid, language = Language.EN, authId = authId))
+            producer().send(
+                AuthEvent.DeviceLanguageUpdated(deviceUuid = deviceUuid, language = Language.EN, authId = authId),
+            )
             arrived.await(20, TimeUnit.SECONDS)
         }
         fixture.stop()

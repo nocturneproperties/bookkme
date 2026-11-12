@@ -17,7 +17,10 @@ internal class AuthEventTest {
 
     private val deviceUuid = Uuid.random()
 
-    private fun languageUpdated(device: Uuid = deviceUuid, language: Language = Language.EN) = AuthEvent.DeviceLanguageUpdated(deviceUuid = device, language = language, authId = Uuid.random())
+    private fun languageUpdated(
+        device: Uuid = deviceUuid,
+        language: Language = Language.EN,
+    ) = AuthEvent.DeviceLanguageUpdated(deviceUuid = device, language = language, authId = Uuid.random())
 
     @Test
     fun `should key the device language updated event by device id`() = runUnitTest {
@@ -111,8 +114,14 @@ internal class AuthEventTest {
         given()
         val uuid = Uuid.random()
         val protoBuf = ProtoBuf { encodeDefaults = true }
-        val deletionBytes = protoBuf.encodeToByteArray(LegacyDeviceDeleted.serializer(), LegacyDeviceDeleted(uuid, "old-delete"))
-        val updateBytes = protoBuf.encodeToByteArray(LegacyDeviceLanguageUpdated.serializer(), LegacyDeviceLanguageUpdated(uuid, Language.UK, "old-update"))
+        val deletionBytes = protoBuf.encodeToByteArray(
+            LegacyDeviceDeleted.serializer(),
+            LegacyDeviceDeleted(uuid, "old-delete"),
+        )
+        val updateBytes = protoBuf.encodeToByteArray(
+            LegacyDeviceLanguageUpdated.serializer(),
+            LegacyDeviceLanguageUpdated(uuid, Language.UK, "old-update"),
+        )
 
         whenn()
         val deleted = protoBuf.decodeFromByteArray(AuthEvent.DeviceDeleted.serializer(), deletionBytes)

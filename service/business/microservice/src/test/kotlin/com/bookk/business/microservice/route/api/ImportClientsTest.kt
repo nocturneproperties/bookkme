@@ -39,7 +39,13 @@ internal class ImportClientsTest {
     private val request = ClientImportRequest(
         clients = listOf(
             ClientImportEntry(name = "Ann", lastName = "Lee", phone = "+1111", email = null, description = "Regular"),
-            ClientImportEntry(name = "Ben", lastName = "Roe", phone = null, email = "ben@client.com", description = null),
+            ClientImportEntry(
+                name = "Ben",
+                lastName = "Roe",
+                phone = null,
+                email = "ben@client.com",
+                description = null,
+            ),
         ),
     )
 
@@ -51,7 +57,10 @@ internal class ImportClientsTest {
         }
     }
 
-    private fun ApplicationTestBuilder.setup(useCase: ImportClients, extension: Application.() -> Unit = authenticated()) {
+    private fun ApplicationTestBuilder.setup(
+        useCase: ImportClients,
+        extension: Application.() -> Unit = authenticated(),
+    ) {
         setupApplication(
             extension = extension,
             diModule = module { single { useCase } },
@@ -63,7 +72,9 @@ internal class ImportClientsTest {
     fun `should import clients and return created and rejected ones`() = routeTest {
         given()
         val useCase: ImportClients = mockk()
-        val imported = ClientImportResult.stub(rejected = listOf(RejectedClient(1, BusinessErrorCodes.BUSINESS_CLIENT_EXISTS)))
+        val imported = ClientImportResult.stub(
+            rejected = listOf(RejectedClient(1, BusinessErrorCodes.BUSINESS_CLIENT_EXISTS)),
+        )
         coEvery {
             useCase.invoke(
                 userId,
@@ -78,7 +89,9 @@ internal class ImportClientsTest {
         setup(useCase)
 
         whenn()
-        val response = createTestClient().post(BusinessRouting.Api.Clients.Import(BusinessRouting.Api.Clients(businessId = businessId))) {
+        val response = createTestClient().post(
+            BusinessRouting.Api.Clients.Import(BusinessRouting.Api.Clients(businessId = businessId)),
+        ) {
             setBody(request)
         }
 
@@ -93,11 +106,14 @@ internal class ImportClientsTest {
     fun `should return unprocessable entity when the import is too large`() = routeTest {
         given()
         val useCase: ImportClients = mockk()
-        coEvery { useCase.invoke(userId, businessId, any()) } returns Result.failure(ImportClients.Error.TooManyClients())
+        coEvery { useCase.invoke(userId, businessId, any()) } returns
+            Result.failure(ImportClients.Error.TooManyClients())
         setup(useCase)
 
         whenn()
-        val response = createTestClient().post(BusinessRouting.Api.Clients.Import(BusinessRouting.Api.Clients(businessId = businessId))) {
+        val response = createTestClient().post(
+            BusinessRouting.Api.Clients.Import(BusinessRouting.Api.Clients(businessId = businessId)),
+        ) {
             setBody(request)
         }
 
@@ -114,7 +130,9 @@ internal class ImportClientsTest {
         setup(useCase)
 
         whenn()
-        val response = createTestClient().post(BusinessRouting.Api.Clients.Import(BusinessRouting.Api.Clients(businessId = businessId))) {
+        val response = createTestClient().post(
+            BusinessRouting.Api.Clients.Import(BusinessRouting.Api.Clients(businessId = businessId)),
+        ) {
             setBody(request)
         }
 
@@ -131,7 +149,9 @@ internal class ImportClientsTest {
         setup(useCase)
 
         whenn()
-        val response = createTestClient().post(BusinessRouting.Api.Clients.Import(BusinessRouting.Api.Clients(businessId = businessId))) {
+        val response = createTestClient().post(
+            BusinessRouting.Api.Clients.Import(BusinessRouting.Api.Clients(businessId = businessId)),
+        ) {
             setBody(request)
         }
 
@@ -147,13 +167,18 @@ internal class ImportClientsTest {
         setup(useCase)
 
         whenn()
-        val response = createTestClient().post(BusinessRouting.Api.Clients.Import(BusinessRouting.Api.Clients(businessId = businessId))) {
+        val response = createTestClient().post(
+            BusinessRouting.Api.Clients.Import(BusinessRouting.Api.Clients(businessId = businessId)),
+        ) {
             setBody(request)
         }
 
         then()
         assertEquals(HttpStatusCode.Forbidden, response.status)
-        assertEquals(BusinessErrorCodes.BUSINESS_EMPLOYEE_ACCESS_SUSPENDED, response.body<SimpleServerError>().errorCode)
+        assertEquals(
+            BusinessErrorCodes.BUSINESS_EMPLOYEE_ACCESS_SUSPENDED,
+            response.body<SimpleServerError>().errorCode,
+        )
     }
 
     @Test
@@ -163,7 +188,9 @@ internal class ImportClientsTest {
         setup(useCase, extension = { install(Authentication) { bearer { authenticate { null } } } })
 
         whenn()
-        val response = createTestClient().post(BusinessRouting.Api.Clients.Import(BusinessRouting.Api.Clients(businessId = businessId))) {
+        val response = createTestClient().post(
+            BusinessRouting.Api.Clients.Import(BusinessRouting.Api.Clients(businessId = businessId)),
+        ) {
             setBody(request)
         }
 

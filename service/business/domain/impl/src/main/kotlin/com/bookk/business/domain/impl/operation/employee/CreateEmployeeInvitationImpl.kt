@@ -22,7 +22,10 @@ internal class CreateEmployeeInvitationImpl(
     private val businessPermissionDataSource: BusinessPermissionDataSource,
     private val transactionManager: TransactionManager,
 ) : CreateEmployeeInvitation {
-    override suspend fun invoke(requestUserId: Uuid, businessId: Uuid): Result<EmployeeInvitation> = transactionManager.transaction {
+    override suspend fun invoke(
+        requestUserId: Uuid,
+        businessId: Uuid,
+    ): Result<EmployeeInvitation> = transactionManager.transaction {
         businessDataSource.lockBusiness(businessId, RowLock.EXCLUSIVE) ?: throw Error.NotFound()
         businessPermissionDataSource.getPermission(requestUserId, businessId, BusinessResource.EMPLOYEES)
             .assert(PermissionAction.UPDATE)

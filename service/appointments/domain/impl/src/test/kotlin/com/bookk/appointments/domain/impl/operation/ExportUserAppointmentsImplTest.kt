@@ -62,7 +62,17 @@ internal class ExportUserAppointmentsImplTest {
             coEvery { dataSource.getRequestsOfUser(userId) } returns requests.toList()
         }
 
-        fun appointment(client: ClientSnapshot, employee: EmployeeSnapshot = EmployeeSnapshot.stub(userId = someoneElse), initiator: Uuid = someoneElse) = Appointment.stub(initiatorUserId = initiator, businessId = businessId, date = Instant.fromEpochMilliseconds(3_600_000)).copy(
+        fun appointment(
+            client: ClientSnapshot,
+            employee: EmployeeSnapshot = EmployeeSnapshot.stub(
+                userId = someoneElse,
+            ),
+            initiator: Uuid = someoneElse,
+        ) = Appointment.stub(
+            initiatorUserId = initiator,
+            businessId = businessId,
+            date = Instant.fromEpochMilliseconds(3_600_000),
+        ).copy(
             client = client,
             employee = employee,
             services = listOf(service),
@@ -70,10 +80,24 @@ internal class ExportUserAppointmentsImplTest {
             note = "allergic to latex",
             cancellationReason = "client is ill",
             completedBy = AppointmentCompletedBy.USER,
-            priceAdjustment = PriceAdjustment(additionalServices = listOf(service), price = Money.parse("UAH 500.00"), reason = "extra styling"),
+            priceAdjustment = PriceAdjustment(
+                additionalServices = listOf(service),
+                price = Money.parse("UAH 500.00"),
+                reason = "extra styling",
+            ),
         )
 
-        fun request(client: ClientSnapshot, employee: EmployeeSnapshot = EmployeeSnapshot.stub(userId = someoneElse), initiator: Uuid = someoneElse) = AppointmentRequest.stub(initiatorUserId = initiator, businessId = businessId, employee = employee).copy(
+        fun request(
+            client: ClientSnapshot,
+            employee: EmployeeSnapshot = EmployeeSnapshot.stub(
+                userId = someoneElse,
+            ),
+            initiator: Uuid = someoneElse,
+        ) = AppointmentRequest.stub(
+            initiatorUserId = initiator,
+            businessId = businessId,
+            employee = employee,
+        ).copy(
             client = client,
             services = listOf(service),
             status = AppointmentRequestStatus.DECLINED,
@@ -81,9 +105,13 @@ internal class ExportUserAppointmentsImplTest {
             declineReason = "fully booked",
         )
 
-        fun clientUser() = ClientSnapshot.stub(userId = userId).copy(fullName = "Olena Koval", phone = "+380501112233", email = "olena@example.com")
+        fun clientUser() = ClientSnapshot.stub(
+            userId = userId,
+        ).copy(fullName = "Olena Koval", phone = "+380501112233", email = "olena@example.com")
 
-        fun otherClient() = ClientSnapshot.stub(userId = someoneElse).copy(fullName = "Ivan Petrenko", phone = "+380509998877", email = "ivan@example.com")
+        fun otherClient() = ClientSnapshot.stub(
+            userId = someoneElse,
+        ).copy(fullName = "Ivan Petrenko", phone = "+380509998877", email = "ivan@example.com")
     }
 
     @Test
@@ -108,9 +136,18 @@ internal class ExportUserAppointmentsImplTest {
                 status = "CANCELLED",
                 services = listOf(ServiceExport("Haircut", "UAH 450.00", durationMinutes = 45)),
                 employeeName = appointment.employee.fullName,
-                client = ClientDetailsExport("Olena Koval", "+380501112233", "olena@example.com", note = "allergic to latex"),
+                client = ClientDetailsExport(
+                    "Olena Koval",
+                    "+380501112233",
+                    "olena@example.com",
+                    note = "allergic to latex",
+                ),
                 cancellationReason = "client is ill",
-                priceAdjustment = PriceAdjustmentExport("UAH 500.00", listOf(ServiceExport("Haircut", "UAH 450.00", durationMinutes = 45)), reason = "extra styling"),
+                priceAdjustment = PriceAdjustmentExport(
+                    "UAH 500.00",
+                    listOf(ServiceExport("Haircut", "UAH 450.00", durationMinutes = 45)),
+                    reason = "extra styling",
+                ),
                 completedBy = "USER",
             ),
             export.appointments.single(),
@@ -121,7 +158,12 @@ internal class ExportUserAppointmentsImplTest {
     fun `should leave out the client's details, notes and reasons where the user is only the employee`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        fixture.stored(fixture.appointment(client = fixture.otherClient(), employee = EmployeeSnapshot.stub(userId = fixture.userId)))
+        fixture.stored(
+            fixture.appointment(
+                client = fixture.otherClient(),
+                employee = EmployeeSnapshot.stub(userId = fixture.userId),
+            ),
+        )
 
         whenn()
         val exported = fixture.sut(fixture.userId).getOrThrow().appointments.single()
@@ -130,7 +172,10 @@ internal class ExportUserAppointmentsImplTest {
         assertEquals(listOf(Role.EMPLOYEE), exported.roles)
         assertNull(exported.client)
         assertNull(exported.cancellationReason)
-        assertEquals(PriceAdjustmentExport("UAH 500.00", listOf(ServiceExport("Haircut", "UAH 450.00", 45)), reason = null), exported.priceAdjustment)
+        assertEquals(
+            PriceAdjustmentExport("UAH 500.00", listOf(ServiceExport("Haircut", "UAH 450.00", 45)), reason = null),
+            exported.priceAdjustment,
+        )
         assertEquals(listOf(ServiceExport("Haircut", "UAH 450.00", 45)), exported.services)
         assertEquals("CANCELLED", exported.status)
     }
@@ -154,7 +199,13 @@ internal class ExportUserAppointmentsImplTest {
     fun `should name every role the user has in an appointment`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        fixture.stored(fixture.appointment(client = fixture.clientUser(), employee = EmployeeSnapshot.stub(userId = fixture.userId), initiator = fixture.userId))
+        fixture.stored(
+            fixture.appointment(
+                client = fixture.clientUser(),
+                employee = EmployeeSnapshot.stub(userId = fixture.userId),
+                initiator = fixture.userId,
+            ),
+        )
 
         whenn()
         val exported = fixture.sut(fixture.userId).getOrThrow().appointments.single()
@@ -168,7 +219,11 @@ internal class ExportUserAppointmentsImplTest {
     fun `should export empty notes and reasons as absent`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        fixture.stored(fixture.appointment(client = fixture.clientUser()).copy(note = "", cancellationReason = "", priceAdjustment = null, completedBy = null))
+        fixture.stored(
+            fixture.appointment(
+                client = fixture.clientUser(),
+            ).copy(note = "", cancellationReason = "", priceAdjustment = null, completedBy = null),
+        )
 
         whenn()
         val exported = fixture.sut(fixture.userId).getOrThrow().appointments.single()
@@ -210,10 +265,12 @@ internal class ExportUserAppointmentsImplTest {
     }
 
     @Test
-    fun `should leave out the client's details and the decline reason of a request the user only handles as employee`() = runUnitTest {
+    fun `should omit client details and decline reason of a request the user only handles as employee`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        fixture.storedRequests(fixture.request(client = fixture.otherClient(), employee = EmployeeSnapshot.stub(userId = fixture.userId)))
+        fixture.storedRequests(
+            fixture.request(client = fixture.otherClient(), employee = EmployeeSnapshot.stub(userId = fixture.userId)),
+        )
 
         whenn()
         val exported = fixture.sut(fixture.userId).getOrThrow().requests.single()
@@ -240,7 +297,8 @@ internal class ExportUserAppointmentsImplTest {
     fun `should fail when the appointments can't be read`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        coEvery { fixture.dataSource.getAppointmentsOfUser(fixture.userId) } throws IllegalStateException("database unreachable")
+        coEvery { fixture.dataSource.getAppointmentsOfUser(fixture.userId) } throws
+            IllegalStateException("database unreachable")
 
         whenn()
         val result = fixture.sut(fixture.userId)

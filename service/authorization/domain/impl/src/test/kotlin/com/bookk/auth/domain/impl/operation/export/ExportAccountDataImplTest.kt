@@ -39,7 +39,11 @@ internal class ExportAccountDataImplTest {
             transactionManager.mockTransaction()
             coEvery { accountDataSource.getAccountActivity(account.userId) } coAnswers {
                 readInTransaction += transactionManager.isInTransaction()
-                AccountActivity(account.id, createdAt = Instant.fromEpochMilliseconds(1_000), lastActiveAt = Instant.fromEpochMilliseconds(2_000))
+                AccountActivity(
+                    account.id,
+                    createdAt = Instant.fromEpochMilliseconds(1_000),
+                    lastActiveAt = Instant.fromEpochMilliseconds(2_000),
+                )
             }
             coEvery { passKeyDataSource.getCredentialBy(account.id) } returns emptyList()
             coEvery { deviceDataSource.getDevices(account.id) } returns emptyList()
@@ -60,7 +64,14 @@ internal class ExportAccountDataImplTest {
             ),
         )
         coEvery { fixture.deviceDataSource.getDevices(fixture.account.id) } returns listOf(
-            Device.stub(fixture.account, DeviceInfo.stub(deviceName = "Pixel 9", isSignedIn = false, lastLogInAt = Instant.fromEpochMilliseconds(5_000))),
+            Device.stub(
+                fixture.account,
+                DeviceInfo.stub(
+                    deviceName = "Pixel 9",
+                    isSignedIn = false,
+                    lastLogInAt = Instant.fromEpochMilliseconds(5_000),
+                ),
+            ),
         )
 
         whenn()
@@ -71,8 +82,21 @@ internal class ExportAccountDataImplTest {
             AccountDataExport(
                 createdAt = Instant.fromEpochMilliseconds(1_000),
                 lastActiveAt = Instant.fromEpochMilliseconds(2_000),
-                passkeys = listOf(AccountDataExport.PasskeyExport("iPhone", Instant.fromEpochMilliseconds(3_000), Instant.fromEpochMilliseconds(4_000), backedUp = true)),
-                devices = listOf(AccountDataExport.DeviceExport("Pixel 9", signedIn = false, lastSignInAt = Instant.fromEpochMilliseconds(5_000))),
+                passkeys = listOf(
+                    AccountDataExport.PasskeyExport(
+                        "iPhone",
+                        Instant.fromEpochMilliseconds(3_000),
+                        Instant.fromEpochMilliseconds(4_000),
+                        backedUp = true,
+                    ),
+                ),
+                devices = listOf(
+                    AccountDataExport.DeviceExport(
+                        "Pixel 9",
+                        signedIn = false,
+                        lastSignInAt = Instant.fromEpochMilliseconds(5_000),
+                    ),
+                ),
             ),
             result.getOrNull(),
         )

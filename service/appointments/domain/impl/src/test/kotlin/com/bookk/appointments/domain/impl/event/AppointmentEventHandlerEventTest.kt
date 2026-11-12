@@ -166,7 +166,12 @@ internal class AppointmentEventHandlerEventTest {
 
         then()
         coVerify(exactly = 1) {
-            fixture.updateBusinessInformation(match { it.id == businessId && it.schedule.dayOffs == dayOffs }, updatedAt)
+            fixture.updateBusinessInformation(
+                match {
+                    it.id == businessId && it.schedule.dayOffs == dayOffs
+                },
+                updatedAt,
+            )
         }
     }
 
@@ -217,12 +222,14 @@ internal class AppointmentEventHandlerEventTest {
     }
 
     @Test
-    fun `should sync employee permission when the business service publishes a permission change`() = runIntegrationTest {
+    fun `should sync employee permission when the business service publishes a change`() = runIntegrationTest {
         given()
         val fixture = SutFixture()
         val employeeUserId = Uuid.random()
         val businessId = Uuid.random()
-        val permissions = BusinessPermissions.stub(appointments = ResourcePermission(view = true, update = false, delete = false))
+        val permissions = BusinessPermissions.stub(
+            appointments = ResourcePermission(view = true, update = false, delete = false),
+        )
         val arrived = CountDownLatch(1)
         coEvery {
             fixture.syncEmployeePermission(employeeUserId, businessId, permissions.appointments, false)
@@ -240,7 +247,9 @@ internal class AppointmentEventHandlerEventTest {
         fixture.stop()
 
         then()
-        coVerify(exactly = 1) { fixture.syncEmployeePermission(employeeUserId, businessId, permissions.appointments, false) }
+        coVerify(exactly = 1) {
+            fixture.syncEmployeePermission(employeeUserId, businessId, permissions.appointments, false)
+        }
     }
 
     @Test
@@ -261,17 +270,21 @@ internal class AppointmentEventHandlerEventTest {
         whenn()
         withContext(Dispatchers.IO) {
             fixture.start()
-            producer().send(BusinessEvent.EmployeePermissionsChanged(employeeUserId, businessId, permissions, suspended = true))
+            producer().send(
+                BusinessEvent.EmployeePermissionsChanged(employeeUserId, businessId, permissions, suspended = true),
+            )
             arrived.await(20, TimeUnit.SECONDS)
         }
         fixture.stop()
 
         then()
-        coVerify(exactly = 1) { fixture.syncEmployeePermission(employeeUserId, businessId, permissions.appointments, true) }
+        coVerify(exactly = 1) {
+            fixture.syncEmployeePermission(employeeUserId, businessId, permissions.appointments, true)
+        }
     }
 
     @Test
-    fun `should merge and link the client's rows when the business service gives a client an account`() = runIntegrationTest {
+    fun `should merge and link the client's rows when the business service links a client`() = runIntegrationTest {
         given()
         val fixture = SutFixture()
         val businessId = Uuid.random()
@@ -287,7 +300,14 @@ internal class AppointmentEventHandlerEventTest {
         whenn()
         withContext(Dispatchers.IO) {
             fixture.start()
-            producer().send(BusinessEvent.ClientLinked(businessId, clientId = clientId, userId = userId, mergedClientIds = mergedClientIds))
+            producer().send(
+                BusinessEvent.ClientLinked(
+                    businessId,
+                    clientId = clientId,
+                    userId = userId,
+                    mergedClientIds = mergedClientIds,
+                ),
+            )
             arrived.await(20, TimeUnit.SECONDS)
         }
         fixture.stop()

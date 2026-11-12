@@ -49,7 +49,25 @@ data class BusinessUserDataExport(
                 whatsapp: String? = null,
                 clientDataRetentionMonths: Int = 36,
                 createdAt: Instant = Instant.fromEpochMilliseconds(0),
-            ) = OwnedBusinessExport(id, name, description, address, latitude, longitude, currency, timeZone, phone, instagram, telegram, viber, whatsapp, clientDataRetentionMonths, createdAt)
+            ): OwnedBusinessExport {
+                return OwnedBusinessExport(
+                    id,
+                    name,
+                    description,
+                    address,
+                    latitude,
+                    longitude,
+                    currency,
+                    timeZone,
+                    phone,
+                    instagram,
+                    telegram,
+                    viber,
+                    whatsapp,
+                    clientDataRetentionMonths,
+                    createdAt,
+                )
+            }
         }
     }
 
@@ -78,7 +96,20 @@ data class BusinessUserDataExport(
                 permissions: List<PermissionExport> = emptyList(),
                 workingHours: List<WorkingHoursExport> = emptyList(),
                 daysOff: List<DayOffExport> = emptyList(),
-            ) = EmploymentExport(businessId, businessName, name, lastName, phone, email, suspendedAt, permissions, workingHours, daysOff)
+            ): EmploymentExport {
+                return EmploymentExport(
+                    businessId,
+                    businessName,
+                    name,
+                    lastName,
+                    phone,
+                    email,
+                    suspendedAt,
+                    permissions,
+                    workingHours,
+                    daysOff,
+                )
+            }
         }
     }
 

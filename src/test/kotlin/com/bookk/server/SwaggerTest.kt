@@ -133,10 +133,14 @@ internal class SwaggerTest {
     fun `should publish appointment request bodies and operation documentation`() = assertSwagger(Service.APPOINTMENTS)
 
     @Test
-    fun `should publish notification request bodies and operation documentation`() = assertSwagger(Service.NOTIFICATIONS)
+    fun `should publish notification request bodies and operation documentation`() = assertSwagger(
+        Service.NOTIFICATIONS,
+    )
 
     @Test
-    fun `should preserve every service contract in the monolith swagger document`() = assertSwagger(*Service.entries.toTypedArray())
+    fun `should preserve every service contract in the monolith swagger document`() = assertSwagger(
+        *Service.entries.toTypedArray(),
+    )
 
     private val listResponses = mapOf(
         Service.APPOINTMENTS to mapOf(
@@ -191,20 +195,32 @@ internal class SwaggerTest {
         expectedRequests.forEach { operation ->
             val body = operations.getValue(operation).getValue("requestBody").jsonObject
             val content = body.getValue("content").jsonObject
-            assertTrue("application/x-protobuf" in content, "$operation must document the ProtoBuf request content type")
+            assertTrue(
+                "application/x-protobuf" in content,
+                "$operation must document the ProtoBuf request content type",
+            )
             val mediaType = content.getValue("application/x-protobuf").jsonObject
             assertTrue("schema" in mediaType, "$operation must document its request schema")
             val schema = mediaType.getValue("schema").jsonObject
             val resolved = resolveSchema(document, schema)
-            assertFalse(resolved["properties"]?.jsonObject.isNullOrEmpty(), "$operation must describe the request fields")
+            assertFalse(
+                resolved["properties"]?.jsonObject.isNullOrEmpty(),
+                "$operation must describe the request fields",
+            )
         }
-        operations.filterKeys { !it.endsWith("/healthcheck") && !it.endsWith("/jwks.json") }.forEach { (operation, metadata) ->
+        operations.filterKeys {
+            !it.endsWith("/healthcheck") && !it.endsWith("/jwks.json")
+        }.forEach { (operation, metadata) ->
             assertFalse(metadata["summary"]?.jsonPrimitive?.content.isNullOrBlank(), "$operation must have a summary")
             assertFalse(metadata["responses"]?.jsonObject.isNullOrEmpty(), "$operation must document its responses")
         }
         services.flatMap { listResponses[it].orEmpty().entries }.forEach { (operation, itemType) ->
-            val responseSchema = operations.getValue(operation).getValue("responses").jsonObject.getValue("200").jsonObject
-                .getValue("content").jsonObject.getValue("application/protobuf").jsonObject.getValue("schema").jsonObject
+            val responseSchema = operations.getValue(
+                operation,
+            ).getValue("responses").jsonObject.getValue("200").jsonObject
+                .getValue(
+                    "content",
+                ).jsonObject.getValue("application/protobuf").jsonObject.getValue("schema").jsonObject
             assertEquals("array", responseSchema.getValue("type").jsonPrimitive.content, operation)
             val items = responseSchema.getValue("items").jsonObject
             if (itemType == "Uuid") {
@@ -212,7 +228,10 @@ internal class SwaggerTest {
                 assertEquals("uuid", items.getValue("format").jsonPrimitive.content, operation)
             } else {
                 assertEquals("#/components/schemas/$itemType", items.getValue("\$ref").jsonPrimitive.content, operation)
-                assertFalse(resolveSchema(document, items)["properties"]?.jsonObject.isNullOrEmpty(), "$operation must describe the list item fields")
+                assertFalse(
+                    resolveSchema(document, items)["properties"]?.jsonObject.isNullOrEmpty(),
+                    "$operation must describe the list item fields",
+                )
             }
         }
         assertSchemaReferences(document, document)
@@ -220,18 +239,28 @@ internal class SwaggerTest {
             val appointment = operations.getValue("get /api/appointments/{id}")
             assertTrue(appointment.getValue("responses").jsonObject.keys.containsAll(setOf("200", "401", "403", "404")))
             val schema = appointment.getValue("responses").jsonObject.getValue("200").jsonObject
-                .getValue("content").jsonObject.getValue("application/x-protobuf").jsonObject.getValue("schema").jsonObject
+                .getValue(
+                    "content",
+                ).jsonObject.getValue("application/x-protobuf").jsonObject.getValue("schema").jsonObject
             assertEquals("#/components/schemas/Appointment", schema.getValue("\$ref").jsonPrimitive.content)
             assertFalse(appointment["security"]?.let { it as JsonArray }.isNullOrEmpty())
-            val notFoundContent = appointment.getValue("responses").jsonObject.getValue("404").jsonObject.getValue("content").jsonObject
+            val notFoundContent = appointment.getValue(
+                "responses",
+            ).jsonObject.getValue("404").jsonObject.getValue("content").jsonObject
             assertTrue("text/plain" in notFoundContent)
         }
         if (Service.NOTIFICATIONS in services) {
             val update = operations.getValue("put /api/notifications/settings")
             val schema = update.getValue("requestBody").jsonObject.getValue("content").jsonObject
                 .getValue("application/x-protobuf").jsonObject.getValue("schema").jsonObject
-            assertEquals("#/components/schemas/NotificationSettingsUpdate", schema.getValue("\$ref").jsonPrimitive.content)
-            assertEquals(setOf("id", "appointmentEnabled", "channels"), resolveSchema(document, schema).getValue("properties").jsonObject.keys)
+            assertEquals(
+                "#/components/schemas/NotificationSettingsUpdate",
+                schema.getValue("\$ref").jsonPrimitive.content,
+            )
+            assertEquals(
+                setOf("id", "appointmentEnabled", "channels"),
+                resolveSchema(document, schema).getValue("properties").jsonObject.keys,
+            )
         }
         if (Service.AUTH in services) {
             val signUp = operations.getValue("post /api/auth/sign_up")
@@ -240,21 +269,41 @@ internal class SwaggerTest {
             val resolved = resolveSchema(document, schema)
             assertTrue("acceptedDocuments" in resolved.getValue("properties").jsonObject)
             assertTrue(JsonPrimitive("acceptedDocuments") in (resolved.getValue("required") as JsonArray))
-            assertTrue(listOf("verificationId", "emailCode").all { JsonPrimitive(it) in (resolved.getValue("required") as JsonArray) }) { resolved.toString() }
+            assertTrue(
+                listOf("verificationId", "emailCode").all {
+                    JsonPrimitive(it) in
+                        (resolved.getValue("required") as JsonArray)
+                },
+            ) { resolved.toString() }
             val challenge = operations.getValue("post /api/auth/passkey/sign_up/challenge")
-            val challengeSchema = challenge.getValue("responses").jsonObject.getValue("200").jsonObject.getValue("content").jsonObject
+            val challengeSchema = challenge.getValue(
+                "responses",
+            ).jsonObject.getValue("200").jsonObject.getValue("content").jsonObject
                 .getValue("application/x-protobuf").jsonObject.getValue("schema").jsonObject
-            assertTrue("emailVerification" in resolveSchema(document, challengeSchema).getValue("properties").jsonObject) { challengeSchema.toString() }
+            assertTrue(
+                "emailVerification" in resolveSchema(document, challengeSchema).getValue("properties").jsonObject,
+            ) {
+                challengeSchema.toString()
+            }
             assertTrue(challenge.getValue("responses").jsonObject.keys.containsAll(setOf("200", "422", "429")))
             val confirmEmail = operations.getValue("post /api/auth/email/confirm")
             val confirmSchema = confirmEmail.getValue("requestBody").jsonObject.getValue("content").jsonObject
                 .getValue("application/x-protobuf").jsonObject.getValue("schema").jsonObject
-            assertEquals(setOf("verificationId", "code"), resolveSchema(document, confirmSchema).getValue("properties").jsonObject.keys)
+            assertEquals(
+                setOf("verificationId", "code"),
+                resolveSchema(document, confirmSchema).getValue("properties").jsonObject.keys,
+            )
             val deletion = operations.getValue("delete /api/auth/account")
             val deletionSchema = deletion.getValue("requestBody").jsonObject.getValue("content").jsonObject
                 .getValue("application/x-protobuf").jsonObject.getValue("schema").jsonObject
-            assertEquals("#/components/schemas/DeleteAccountRequest", deletionSchema.getValue("\$ref").jsonPrimitive.content)
-            assertEquals(setOf("confirmationToken"), resolveSchema(document, deletionSchema).getValue("properties").jsonObject.keys)
+            assertEquals(
+                "#/components/schemas/DeleteAccountRequest",
+                deletionSchema.getValue("\$ref").jsonPrimitive.content,
+            )
+            assertEquals(
+                setOf("confirmationToken"),
+                resolveSchema(document, deletionSchema).getValue("properties").jsonObject.keys,
+            )
             assertTrue(deletion.getValue("responses").jsonObject.keys.containsAll(setOf("204", "403", "422")))
         }
     }

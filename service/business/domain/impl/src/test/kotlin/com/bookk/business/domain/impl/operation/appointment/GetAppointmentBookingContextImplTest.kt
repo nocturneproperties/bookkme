@@ -36,7 +36,15 @@ internal class GetAppointmentBookingContextImplTest {
         val userClient = mockk<UserClient>()
         val transactionManager = mockk<TransactionManager>()
         val eventProducer = mockk<StandardEventProducer>(relaxed = true)
-        val sut = GetAppointmentBookingContextImpl(employeeDataSource, clientDataSource, serviceDataSource, userClient, transactionManager, eventProducer)
+        val sut =
+            GetAppointmentBookingContextImpl(
+                employeeDataSource,
+                clientDataSource,
+                serviceDataSource,
+                userClient,
+                transactionManager,
+                eventProducer,
+            )
 
         init {
             coEvery { clientDataSource.getClientsByEmails(any(), any()) } returns emptyList()
@@ -44,7 +52,8 @@ internal class GetAppointmentBookingContextImplTest {
 
         fun bookingByNewClient(businessId: Uuid, employeeId: Uuid, user: UserSnapshot, service: Service) {
             transactionManager.mockTransaction()
-            coEvery { employeeDataSource.getEmployee(businessId, employeeId) } returns Employee.stub(id = employeeId, businessId = businessId)
+            coEvery { employeeDataSource.getEmployee(businessId, employeeId) } returns
+                Employee.stub(id = employeeId, businessId = businessId)
             coEvery { clientDataSource.getClientByUserId(businessId, user.id) } returns null
             coEvery { userClient.getUserById(user.id) } returns Result.success(user)
             coEvery { serviceDataSource.getServicesByIds(listOf(service.id)) } returns listOf(service)
@@ -86,14 +95,26 @@ internal class GetAppointmentBookingContextImplTest {
     }
 
     @Test
-    fun `should create an integrated client from the user profile when no client exists for this user yet`() = runUnitTest {
+    fun `should create an integrated client from the user profile when the user has no client yet`() = runUnitTest {
         given()
         val businessId = Uuid.random()
         val employeeId = Uuid.random()
         val userId = Uuid.random()
         val employee = Employee.stub(id = employeeId, businessId = businessId)
-        val user = UserSnapshot.stub(id = userId, name = "Bob", lastName = "Jones", email = "bob@test.com", phone = "+123456789")
-        val createdClient = Client.Integrated.stub(name = user.name, lastName = user.lastName, phone = user.phone!!, email = user.email, userId = userId)
+        val user = UserSnapshot.stub(
+            id = userId,
+            name = "Bob",
+            lastName = "Jones",
+            email = "bob@test.com",
+            phone = "+123456789",
+        )
+        val createdClient = Client.Integrated.stub(
+            name = user.name,
+            lastName = user.lastName,
+            phone = user.phone!!,
+            email = user.email,
+            userId = userId,
+        )
         val service = Service.stub(businessId = businessId)
         val fixture = SutFixture()
         with(fixture) {
@@ -118,7 +139,11 @@ internal class GetAppointmentBookingContextImplTest {
             fixture.clientDataSource.getOrCreateIntegratedClient(
                 businessId,
                 match<Client.Integrated> {
-                    it.name == user.name && it.lastName == user.lastName && it.phone == user.phone && it.email == user.email && it.userId == userId
+                    it.name == user.name &&
+                        it.lastName == user.lastName &&
+                        it.phone == user.phone &&
+                        it.email == user.email &&
+                        it.userId == userId
                 },
             )
         }
@@ -132,7 +157,13 @@ internal class GetAppointmentBookingContextImplTest {
         val userId = Uuid.random()
         val employee = Employee.stub(id = employeeId, businessId = businessId)
         val user = UserSnapshot.stub(id = userId, phone = null)
-        val createdClient = Client.Integrated.stub(name = user.name, lastName = user.lastName, phone = null, email = user.email, userId = userId)
+        val createdClient = Client.Integrated.stub(
+            name = user.name,
+            lastName = user.lastName,
+            phone = null,
+            email = user.email,
+            userId = userId,
+        )
         val service = Service.stub(businessId = businessId)
         val fixture = SutFixture()
         with(fixture) {
@@ -153,7 +184,11 @@ internal class GetAppointmentBookingContextImplTest {
             fixture.clientDataSource.getOrCreateIntegratedClient(
                 businessId,
                 match<Client.Integrated> {
-                    it.name == user.name && it.lastName == user.lastName && it.phone == null && it.email == user.email && it.userId == userId
+                    it.name == user.name &&
+                        it.lastName == user.lastName &&
+                        it.phone == null &&
+                        it.email == user.email &&
+                        it.userId == userId
                 },
             )
         }
@@ -257,7 +292,8 @@ internal class GetAppointmentBookingContextImplTest {
             transactionManager.mockTransaction()
             coEvery { employeeDataSource.getEmployee(businessId, employeeId) } returns employee
             coEvery { clientDataSource.getClientByUserId(businessId, userId) } returns client
-            coEvery { serviceDataSource.getServicesByIds(serviceIds) } returns listOf(Service.stub(businessId = businessId))
+            coEvery { serviceDataSource.getServicesByIds(serviceIds) } returns
+                listOf(Service.stub(businessId = businessId))
         }
 
         whenn()
@@ -304,7 +340,8 @@ internal class GetAppointmentBookingContextImplTest {
         val fixture = SutFixture()
         with(fixture) {
             bookingByNewClient(businessId, employeeId, user, service)
-            coEvery { clientDataSource.getClientsByEmails(businessId, listOf("user@test.com")) } returns listOf(detached)
+            coEvery { clientDataSource.getClientsByEmails(businessId, listOf("user@test.com")) } returns
+                listOf(detached)
             coEvery { clientDataSource.takeOverClient(businessId, detached.id, any()) } returns
                 Client.Integrated.stub(id = detached.id, userId = user.id, description = detached.description)
         }
@@ -318,11 +355,15 @@ internal class GetAppointmentBookingContextImplTest {
             fixture.clientDataSource.takeOverClient(
                 businessId,
                 detached.id,
-                match { it.userId == user.id && it.name == user.name && it.email == user.email && it.phone == user.phone },
+                match {
+                    it.userId == user.id && it.name == user.name && it.email == user.email && it.phone == user.phone
+                },
             )
         }
         coVerify(exactly = 0) { fixture.clientDataSource.getOrCreateIntegratedClient(any(), any()) }
-        coVerify(exactly = 1) { fixture.eventProducer.send(match<BusinessEvent.ClientLinked> { it.mergedClientIds.isEmpty() }, any()) }
+        coVerify(exactly = 1) {
+            fixture.eventProducer.send(match<BusinessEvent.ClientLinked> { it.mergedClientIds.isEmpty() }, any())
+        }
     }
 
     @Test
@@ -349,7 +390,10 @@ internal class GetAppointmentBookingContextImplTest {
             fixture.clientDataSource.takeOverClient(businessId, detached.id, any())
             fixture.eventProducer.send(
                 match<BusinessEvent.ClientLinked> {
-                    it.businessId == businessId && it.clientId == detached.id && it.userId == user.id && it.mergedClientIds.isEmpty()
+                    it.businessId == businessId &&
+                        it.clientId == detached.id &&
+                        it.userId == user.id &&
+                        it.mergedClientIds.isEmpty()
                 },
                 any(),
             )
@@ -367,7 +411,8 @@ internal class GetAppointmentBookingContextImplTest {
         with(fixture) {
             bookingByNewClient(businessId, employeeId, user, service)
             coEvery { clientDataSource.getClientsByEmails(businessId, any()) } returns emptyList()
-            coEvery { clientDataSource.getOrCreateIntegratedClient(businessId, any()) } returns Client.Integrated.stub(userId = user.id)
+            coEvery { clientDataSource.getOrCreateIntegratedClient(businessId, any()) } returns
+                Client.Integrated.stub(userId = user.id)
         }
 
         whenn()
@@ -378,7 +423,7 @@ internal class GetAppointmentBookingContextImplTest {
     }
 
     @Test
-    fun `should create a new client instead of taking over a detached client holding only the user's phone`() = runUnitTest {
+    fun `should create a new client rather than take over a detached one with only the user's phone`() = runUnitTest {
         given()
         val businessId = Uuid.random()
         val employeeId = Uuid.random()
@@ -439,7 +484,8 @@ internal class GetAppointmentBookingContextImplTest {
         val fixture = SutFixture()
         with(fixture) {
             bookingByNewClient(businessId, employeeId, user, service)
-            coEvery { clientDataSource.getClientsByEmails(businessId, listOf("user@test.com")) } returns listOf(detached)
+            coEvery { clientDataSource.getClientsByEmails(businessId, listOf("user@test.com")) } returns
+                listOf(detached)
             coEvery { clientDataSource.takeOverClient(businessId, detached.id, any()) } returns null
             coEvery { clientDataSource.getOrCreateIntegratedClient(businessId, any()) } returns created
         }
