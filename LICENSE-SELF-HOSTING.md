@@ -1,6 +1,6 @@
 # Additional Permission: Self-Hosting for Your Own Business
 
-Copyright 2024-2026 Michael Antiufieiev
+Copyright 2024-2026 Mykhailo Antiufieiev
 
 This permission is granted in addition to the Functional Source License,
 Version 1.1, ALv2 Future License in [`LICENSE`](LICENSE) (the "License"), for

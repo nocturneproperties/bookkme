@@ -5,6 +5,8 @@
     - docker_host
     - role: ssh_hardening
       tags: [ssh]
+    - role: geoblock
+      tags: [geoblock]
 
 - name: Set up the swarm, networks and secrets
   hosts: managers:workers

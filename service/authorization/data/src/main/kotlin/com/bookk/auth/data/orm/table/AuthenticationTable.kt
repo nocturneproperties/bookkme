@@ -13,4 +13,5 @@ internal object AuthenticationTable : UuidTable("authentication") {
     val lastActiveAt = timestamp("last_active_at").clientDefault { Clock.System.now() }.index()
     val dormancyStage = enumeration("dormancy_stage", DormancyStage::class).default(DormancyStage.ACTIVE)
     val dormancyWarnedAt = timestamp("dormancy_warned_at").nullable()
+    val deletionHold = bool("deletion_hold").default(false)
 }

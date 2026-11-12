@@ -19,6 +19,7 @@ erDiagram
         timestamp last_active_at "indexed; set on every token refresh and sign-in, at most once a day"
         int dormancy_stage "ACTIVE, SENT_60_DAY_WARNING, SENT_30_DAY_WARNING, SENT_7_DAY_WARNING (days before deletion); reset to ACTIVE by activity"
         timestamp dormancy_warned_at "nullable; when the first dormancy warning went out"
+        boolean deletion_hold "default false; set by staff for a restriction or legal hold, auth-handleDormantAccounts skips the account"
     }
 
     AUTH_DEVICE {

@@ -52,6 +52,10 @@ internal class ClientDataSourceImplTest {
         suspend fun backdate(clientId: Uuid, to: Instant) = suspendTransaction {
             ClientTable.update(where = { ClientTable.id eq clientId }) { it[lastActivityAt] = to }
         }
+
+        suspend fun hold(clientId: Uuid) = suspendTransaction {
+            ClientTable.update(where = { ClientTable.id eq clientId }) { it[deletionHold] = true }
+        }
     }
 
     @Test
@@ -1111,6 +1115,25 @@ internal class ClientDataSourceImplTest {
 
         then()
         assertTrue(deleted.isEmpty())
+    }
+
+    @Test
+    fun `should keep an inactive client whose deletion is on hold`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val held = suspendTransaction { fixture.sut.createDetachedClient(fixture.businessId, Client.Detached.stub(phone = "+10000000001", email = "a@test.com")) }
+        val inactive = suspendTransaction { fixture.sut.createDetachedClient(fixture.businessId, Client.Detached.stub(phone = "+10000000002", email = "b@test.com")) }
+        fixture.backdate(held.id, Instant.fromEpochMilliseconds(0))
+        fixture.backdate(inactive.id, Instant.fromEpochMilliseconds(0))
+        fixture.hold(held.id)
+
+        whenn()
+        val deleted = suspendTransaction { fixture.sut.deleteInactiveClients(fixture.businessId, inactiveSince = Clock.System.now() - 1.days) }
+
+        then()
+        assertEquals(listOf(inactive.id), deleted)
+        assertNotNull(suspendTransaction { fixture.sut.getClientById(fixture.businessId, held.id) })
     }
 
     @Test

@@ -1,0 +1,4 @@
+geoblock_countries: [UA]
+geoblock_tcp_ports: [22]
+geoblock_udp_ports: [51820]
+geoblock_min_ranges: 1000

@@ -247,6 +247,41 @@ internal class HandleDormantAccountsImplTest {
     }
 
     @Test
+    fun `should neither warn nor delete an account whose deletion is on hold`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.dormant(
+            DormantAccount.stub(stage = DormancyStage.ACTIVE, deletionHold = true),
+            DormantAccount.stub(stage = DormancyStage.SENT_7_DAY_WARNING, warnedAt = now() - 61.days, deletionHold = true),
+        )
+
+        whenn()
+        val result = fixture.sut()
+
+        then()
+        assertTrue(result.isSuccess)
+        coVerify(exactly = 0) { fixture.accountEraser.erase(any(), any()) }
+        coVerify(exactly = 0) { fixture.accountDataSource.setDormancyStage(any(), any(), any()) }
+        assertTrue(fixture.warnings.isEmpty())
+    }
+
+    @Test
+    fun `should leave an account alone when its deletion was put on hold after it was listed`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val listed = DormantAccount.stub(stage = DormancyStage.SENT_7_DAY_WARNING, warnedAt = now() - 61.days)
+        fixture.dormant(listed)
+        coEvery { fixture.accountDataSource.getDormantAccountForUpdate(listed.userId) } returns listed.copy(deletionHold = true)
+
+        whenn()
+        fixture.sut()
+
+        then()
+        coVerify(exactly = 0) { fixture.accountEraser.erase(any(), any()) }
+        assertTrue(fixture.warnings.isEmpty())
+    }
+
+    @Test
     fun `should succeed when no account is dormant`() = runUnitTest {
         given()
         val fixture = SutFixture()

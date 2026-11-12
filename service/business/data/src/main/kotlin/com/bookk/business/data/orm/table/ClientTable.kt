@@ -15,6 +15,7 @@ internal object ClientTable : UuidTable("client") {
     val sourceUpdatedAt = timestamp("source_updated_at").nullable()
     val description = varchar("description", 1024).nullable()
     val lastActivityAt = timestamp("last_activity_at").clientDefault { Clock.System.now() }
+    val deletionHold = bool("deletion_hold").default(false)
 
     init {
         uniqueIndex(businessId, userId)

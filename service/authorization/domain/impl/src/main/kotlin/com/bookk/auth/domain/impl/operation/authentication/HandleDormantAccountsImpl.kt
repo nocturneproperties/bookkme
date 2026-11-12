@@ -51,7 +51,7 @@ internal class HandleDormantAccountsImpl(
         now: Instant,
         activeSince: Instant,
     ): Result<Unit> = runSuspendCatching {
-        if (ownsActiveBusiness(listed.userId, activeSince)) return@runSuspendCatching
+        if (listed.deletionHold || ownsActiveBusiness(listed.userId, activeSince)) return@runSuspendCatching
         transactionManager.transactionOrThrow {
             val locked = accountDataSource.getDormantAccountForUpdate(listed.userId)
             if (locked == listed) advance(locked, now)

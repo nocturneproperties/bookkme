@@ -92,6 +92,7 @@ erDiagram
         uuid user_id "logical FK -> user.profile.id, nullable; UK with business_id"
         string description "nullable; business owner's notes about the client"
         timestamp last_activity_at "latest booked visit end, or create/edit/takeover time; indexed with business_id; the business-deleteInactiveClients job deletes the row once it is older than the business retention period"
+        boolean deletion_hold "default false; set by staff on the owner's instruction, business-deleteInactiveClients skips the row"
         timestamp source_updated_at
         timestamp created_at
         timestamp updated_at
