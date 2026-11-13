@@ -33,7 +33,7 @@ flowchart TD
     Lock -- no row --> Insert[DataExportDataSource.insert userId now - PENDING]
     Lock -- PENDING or RUNNING --> Same[Return the export being built]
     Lock -- READY requested under a day ago --> R429([429 DATA_EXPORT_TOO_FREQUENT 900002 - token given back])
-    Lock -- older READY, or FAILED --> Restart[DataExportDataSource.restart userId now - PENDING, document cleared]
+    Lock -- older READY, or FAILED --> Restart["DataExportDataSource.restart userId now - PENDING, document and key_id cleared; SubjectKeys.shred old key_id"]
     Insert --> Profile
     Restart --> Profile
     Same --> Profile
@@ -49,9 +49,10 @@ flowchart TD
     Own --> Calls["Outside a transaction - GET /api/internal/export/auth, business, appointments, notifications /userId"]
     Calls -- any call fails --> GiveBack["DataExportDataSource.giveBack userId claimId - PENDING while attempts remain, else FAILED until now+72 h"]
     Calls -- all parts --> Gzip[Encode PersonalDataExport as JSON, gzip]
-    Gzip --> Store{"Transaction - DataExportDataSource.complete userId claimId document now now+72 h - only while the claim is held"}
+    Gzip --> Store{"Transaction - SubjectKeys.encryptor new random keyId, encrypt document; DataExportDataSource.complete userId claimId ciphertext keyId now now+72 h - only while the claim is held"}
     Store -- too large or database error --> GiveBack
-    Store -- row deleted or claimed by another build --> Next
+    Store -- row deleted or claimed by another build --> Shred["SubjectKeys.shred keyId - same transaction"]
+    Shred --> Next
     Store -- stored --> Ready["eventProducer.send UserEvent.DataExportReady userId expiresAt - outbox row in the same transaction"]
 ```
 

@@ -24,12 +24,13 @@ internal class DeleteBusinessImplTest {
         val transactionManager = mockk<TransactionManager>()
         val eventProducer = mockk<StandardEventProducer>(relaxed = true)
         val dataExports = mockk<DataExports>()
-        val discardedInTransaction = mutableListOf<Pair<Uuid, Boolean>>()
+        val discardedInTransaction = mutableListOf<Pair<List<Uuid>, Boolean>>()
         val sut = DeleteBusinessImpl(businessDataSource, transactionManager, eventProducer, dataExports)
 
         init {
-            coEvery { dataExports.discard(any()) } coAnswers
-                { discardedInTransaction += firstArg<Uuid>() to transactionManager.isInTransaction() }
+            coEvery { dataExports.discardAll(any()) } coAnswers {
+                discardedInTransaction += firstArg<Collection<Uuid>>().toList() to transactionManager.isInTransaction()
+            }
         }
     }
 
@@ -53,7 +54,7 @@ internal class DeleteBusinessImplTest {
     }
 
     @Test
-    fun `should delete the data export of every deleted business in the same transaction`() = runUnitTest {
+    fun `should delete the data exports of all deleted businesses at once in the same transaction`() = runUnitTest {
         given()
         val fixture = SutFixture()
         val userId = Uuid.random()
@@ -65,6 +66,6 @@ internal class DeleteBusinessImplTest {
         fixture.sut(userId)
 
         then()
-        assertEquals(deletedIds.map { it to true }, fixture.discardedInTransaction)
+        assertEquals(listOf(deletedIds to true), fixture.discardedInTransaction)
     }
 }

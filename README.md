@@ -123,6 +123,8 @@ The server is configured through environment variables. `deployment/dev/service/
 | `APPLICATION_POSTMARK_SERVER_TOKEN` | Postmark server token; `development_token` logs emails instead of sending them |
 | `APPLICATION_EMAIL_FROM` | Sender address, on your verified Postmark domain |
 | `APPLICATION_EMAIL_CODE_SECRET` | Random secret of at least 32 bytes for verification codes |
+| `APPLICATION_SUBJECT_MASTER_KEY` | Base64 of exactly 32 random bytes; wraps every person's encryption key. Keep it outside the database and never lose it: without it no encrypted field or export can be read |
+| `APPLICATION_BLIND_INDEX_KEY` | Base64 of at least 32 random bytes, for the keyed hashes that look up encrypted emails and phones |
 
 Two secrets are read from files, as Docker secrets:
 

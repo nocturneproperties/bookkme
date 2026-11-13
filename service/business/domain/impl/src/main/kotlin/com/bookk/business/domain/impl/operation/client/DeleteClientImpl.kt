@@ -15,6 +15,7 @@ import com.bookk.core.domain.entity.runSuspendCatching
 import com.bookk.server.business.client.api.event.BusinessEvent
 import library.actionconfirmation.ActionConfirmationGate
 import library.actionconfirmation.ActionConfirmationGrant
+import library.export.DataExports
 import library.permissions.PermissionAction
 import library.permissions.assert
 import kotlin.uuid.Uuid
@@ -27,6 +28,7 @@ internal class DeleteClientImpl(
     private val eventProducer: StandardEventProducer,
     private val actionConfirmationGate: ActionConfirmationGate,
     private val erasedClientDataSource: ErasedClientDataSource,
+    private val dataExports: DataExports,
 ) : DeleteClient {
     override suspend fun invoke(
         requestUserId: Uuid,
@@ -59,6 +61,7 @@ internal class DeleteClientImpl(
         }
         if (!clientDataSource.deleteClient(businessId, id)) throw DeleteClient.Error.NotFound()
         erasedClientDataSource.record(businessId, id)
+        dataExports.discard(businessId)
         eventProducer.send(BusinessEvent.ClientDeleted(businessId = businessId, clientId = id))
     }
 }

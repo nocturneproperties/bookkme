@@ -10,6 +10,7 @@ dependencies {
     api(projects.service.business.domain.api)
     implementation(projects.service.business.data.source)
     implementation(projects.library.export.impl)
+    implementation(projects.library.encryption.impl)
 
     testImplementation(testFixtures(projects.core))
     testImplementation(testFixtures(projects.library.encryption.impl))

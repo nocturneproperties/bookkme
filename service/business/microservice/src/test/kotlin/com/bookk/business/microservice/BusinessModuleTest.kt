@@ -21,6 +21,7 @@ import org.junit.jupiter.api.Test
 import org.koin.core.module.Module
 import org.koin.core.scope.Scope
 import org.koin.dsl.module
+import kotlin.io.encoding.Base64
 
 internal class BusinessModuleTest {
 
@@ -37,7 +38,7 @@ internal class BusinessModuleTest {
     @Test
     fun `should replay parked events in the standalone microservice`() = runUnitTest {
         given()
-        val fixture = SutFixture(businessModule())
+        val fixture = SutFixture(businessModule(KEY_ENVIRONMENT::get))
 
         whenn()
         val replayer = fixture.scope.getOrNull<ExhaustedEventReplayer>()
@@ -49,7 +50,7 @@ internal class BusinessModuleTest {
     @Test
     fun `should replay parked events in the monolith`() = runUnitTest {
         given()
-        val fixture = SutFixture(businessEmbeddedModule())
+        val fixture = SutFixture(businessEmbeddedModule(KEY_ENVIRONMENT::get))
 
         whenn()
         val replayer = fixture.scope.getOrNull<ExhaustedEventReplayer>()
@@ -61,7 +62,7 @@ internal class BusinessModuleTest {
     @Test
     fun `should guard client deletion with an action confirmation gate in the standalone microservice`() = runUnitTest {
         given()
-        val fixture = SutFixture(businessModule())
+        val fixture = SutFixture(businessModule(KEY_ENVIRONMENT::get))
 
         whenn()
         val resolve = { fixture.scope.get<DeleteClient>() }
@@ -73,7 +74,7 @@ internal class BusinessModuleTest {
     @Test
     fun `should guard client deletion with an action confirmation gate in the monolith`() = runUnitTest {
         given()
-        val fixture = SutFixture(businessEmbeddedModule())
+        val fixture = SutFixture(businessEmbeddedModule(KEY_ENVIRONMENT::get))
 
         whenn()
         val resolve = { fixture.scope.get<DeleteClient>() }
@@ -85,7 +86,7 @@ internal class BusinessModuleTest {
     @Test
     fun `should wire the business data export in the standalone microservice`() = runUnitTest {
         given()
-        val fixture = SutFixture(businessModule())
+        val fixture = SutFixture(businessModule(KEY_ENVIRONMENT::get))
 
         whenn()
         val resolve = {
@@ -103,7 +104,7 @@ internal class BusinessModuleTest {
     @Test
     fun `should wire the business data export in the monolith`() = runUnitTest {
         given()
-        val fixture = SutFixture(businessEmbeddedModule())
+        val fixture = SutFixture(businessEmbeddedModule(KEY_ENVIRONMENT::get))
 
         whenn()
         val resolve = {
@@ -113,5 +114,12 @@ internal class BusinessModuleTest {
 
         then()
         assertDoesNotThrow(resolve)
+    }
+
+    private companion object {
+        val KEY_ENVIRONMENT = mapOf(
+            "APPLICATION_SUBJECT_MASTER_KEY" to Base64.encode(ByteArray(32)),
+            "APPLICATION_BLIND_INDEX_KEY" to Base64.encode(ByteArray(32)),
+        )
     }
 }

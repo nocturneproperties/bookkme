@@ -26,10 +26,10 @@ import org.koin.dsl.module
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
 
-fun userModule() = module {
+fun userModule(environment: (String) -> String? = System::getenv) = module {
     includes(
         userDomainModule(),
-        userDataModule(),
+        userDataModule(environment),
         actionConfirmationModule(UserScope),
         cacheModule(),
         eventStreamingTransportModule(UserScope, USER_SERVICE_NAME),
@@ -37,10 +37,10 @@ fun userModule() = module {
     )
 }
 
-fun userEmbeddedModule() = module {
+fun userEmbeddedModule(environment: (String) -> String? = System::getenv) = module {
     includes(
         userDomainModule(),
-        userDataModule(),
+        userDataModule(environment),
         actionConfirmationModule(UserScope),
         cacheModule(),
         embeddedEventStreamingTransportModule(UserScope, USER_SERVICE_NAME),

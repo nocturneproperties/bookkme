@@ -8,4 +8,6 @@ interface SubjectKeys {
     suspend fun decryptor(subjectIds: Collection<Uuid>): Decryptor
 
     suspend fun shred(subjectId: Uuid)
+
+    suspend fun shredAll(subjectIds: Collection<Uuid>)
 }

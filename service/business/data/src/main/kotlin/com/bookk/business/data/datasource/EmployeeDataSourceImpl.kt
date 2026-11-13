@@ -104,8 +104,13 @@ internal class EmployeeDataSourceImpl : DataSource(), EmployeeDataSource {
             .map { it[EmployeeCanProvideServiceTable.serviceId].value }
     }
 
-    override suspend fun deleteEmployeesByUserId(userId: Uuid) = dbQuery<Unit> {
+    override suspend fun deleteEmployeesByUserId(userId: Uuid): List<Uuid> = dbQuery {
+        val businessIds = EmployeeTable.select(EmployeeTable.businessId)
+            .where { EmployeeTable.userId eq userId }
+            .forUpdate()
+            .map { it[EmployeeTable.businessId].value }
         EmployeeTable.deleteWhere { EmployeeTable.userId eq userId }
+        businessIds.distinct()
     }
 
     override suspend fun getEmployeesByService(serviceId: Uuid): List<Employee> = dbQuery {

@@ -2,14 +2,13 @@ package library.encryption.impl
 
 import com.bookk.core.data.DataSource
 import library.encryption.impl.orm.SubjectKeyTable
+import org.jetbrains.exposed.v1.core.Coalesce
 import org.jetbrains.exposed.v1.core.ResultRow
-import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.inList
-import org.jetbrains.exposed.v1.core.isNull
+import org.jetbrains.exposed.v1.jdbc.batchUpsert
 import org.jetbrains.exposed.v1.jdbc.insertIgnore
 import org.jetbrains.exposed.v1.jdbc.selectAll
-import org.jetbrains.exposed.v1.jdbc.update
 import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
@@ -39,17 +38,21 @@ internal class SubjectKeyDataSource(private val table: SubjectKeyTable) : DataSo
         }
     }
 
-    suspend fun shred(subjectId: Uuid, at: Instant) {
+    suspend fun shred(subjectIds: Set<Uuid>, at: Instant) {
+        if (subjectIds.isEmpty()) return
+        val keys = table
         dbQuery {
-            table.insertIgnore {
-                it[table.subjectId] = subjectId
-                it[createdAt] = at
-                it[shreddedAt] = at
-            }
-            table.update({ (table.subjectId eq subjectId) and table.shreddedAt.isNull() }) {
-                it[wrappedKey] = null
-                it[masterKeyVersion] = null
-                it[shreddedAt] = at
+            keys.batchUpsert(
+                subjectIds,
+                onUpdate = {
+                    it[keys.wrappedKey] = null
+                    it[keys.masterKeyVersion] = null
+                    it[keys.shreddedAt] = Coalesce(keys.shreddedAt, insertValue(keys.shreddedAt))
+                },
+            ) { subjectId ->
+                this[keys.subjectId] = subjectId
+                this[keys.createdAt] = at
+                this[keys.shreddedAt] = at
             }
         }
     }

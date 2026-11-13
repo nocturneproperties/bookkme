@@ -8,16 +8,21 @@ import com.bookk.user.data.datasource.LegalDocumentDataSourceImpl
 import com.bookk.user.data.datasource.UserDataExportDataSourceImpl
 import com.bookk.user.data.datasource.UserDataSourceImpl
 import com.bookk.user.domain.api.USER_SCHEMA
+import com.bookk.user.domain.api.USER_SHORT_RETENTION_SCHEMA
 import com.bookk.user.domain.datasource.LegalDocumentDataSource
 import com.bookk.user.domain.datasource.UserDataExportDataSource
 import com.bookk.user.domain.datasource.UserDataSource
+import library.encryption.impl.di.subjectKeysModule
 import library.export.impl.di.dataExportModule
 import library.outbox.datasource.ExhaustedEventDataSourceImpl
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
 
-fun userDataModule() = module {
-    includes(dataExportModule(named(USER_SCHEMA)))
+fun userDataModule(environment: (String) -> String? = System::getenv) = module {
+    includes(
+        dataExportModule(named(USER_SCHEMA)),
+        subjectKeysModule(named(USER_SCHEMA), USER_SHORT_RETENTION_SCHEMA, environment),
+    )
     scope(named(USER_SCHEMA)) {
         scoped<UserDataSource> { UserDataSourceImpl(get()) }
         scoped<LegalDocumentDataSource> { LegalDocumentDataSourceImpl() }

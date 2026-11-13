@@ -25,6 +25,7 @@ import org.junit.jupiter.api.Test
 import org.koin.core.module.Module
 import org.koin.core.scope.Scope
 import org.koin.dsl.module
+import kotlin.io.encoding.Base64
 
 internal class UserModuleTest {
 
@@ -41,7 +42,7 @@ internal class UserModuleTest {
     @Test
     fun `should send events through the outbox in the standalone microservice`() = runUnitTest {
         given()
-        val fixture = SutFixture(userModule())
+        val fixture = SutFixture(userModule(KEY_ENVIRONMENT::get))
 
         whenn()
         val producer = fixture.scope.get<StandardEventProducer>()
@@ -53,7 +54,7 @@ internal class UserModuleTest {
     @Test
     fun `should start the outbox relay with event handling in the standalone microservice`() = runUnitTest {
         given()
-        val fixture = SutFixture(userModule())
+        val fixture = SutFixture(userModule(KEY_ENVIRONMENT::get))
 
         whenn()
         val handlers = fixture.scope.getAll<EventHandler>()
@@ -65,7 +66,7 @@ internal class UserModuleTest {
     @Test
     fun `should send events through the outbox in the monolith`() = runUnitTest {
         given()
-        val fixture = SutFixture(userEmbeddedModule())
+        val fixture = SutFixture(userEmbeddedModule(KEY_ENVIRONMENT::get))
 
         whenn()
         val producer = fixture.scope.get<StandardEventProducer>()
@@ -77,7 +78,7 @@ internal class UserModuleTest {
     @Test
     fun `should start the outbox relay with event handling in the monolith`() = runUnitTest {
         given()
-        val fixture = SutFixture(userEmbeddedModule())
+        val fixture = SutFixture(userEmbeddedModule(KEY_ENVIRONMENT::get))
 
         whenn()
         val handlers = fixture.scope.getAll<EventHandler>()
@@ -89,7 +90,7 @@ internal class UserModuleTest {
     @Test
     fun `should replay parked events in the standalone microservice`() = runUnitTest {
         given()
-        val fixture = SutFixture(userModule())
+        val fixture = SutFixture(userModule(KEY_ENVIRONMENT::get))
 
         whenn()
         val replayer = fixture.scope.getOrNull<ExhaustedEventReplayer>()
@@ -101,7 +102,7 @@ internal class UserModuleTest {
     @Test
     fun `should replay parked events in the monolith`() = runUnitTest {
         given()
-        val fixture = SutFixture(userEmbeddedModule())
+        val fixture = SutFixture(userEmbeddedModule(KEY_ENVIRONMENT::get))
 
         whenn()
         val replayer = fixture.scope.getOrNull<ExhaustedEventReplayer>()
@@ -113,7 +114,7 @@ internal class UserModuleTest {
     @Test
     fun `should wire the personal data export in the standalone microservice`() = runUnitTest {
         given()
-        val fixture = SutFixture(userModule())
+        val fixture = SutFixture(userModule(KEY_ENVIRONMENT::get))
 
         whenn()
         val resolve = {
@@ -131,7 +132,7 @@ internal class UserModuleTest {
     @Test
     fun `should wire the personal data export in the monolith`() = runUnitTest {
         given()
-        val fixture = SutFixture(userEmbeddedModule())
+        val fixture = SutFixture(userEmbeddedModule(KEY_ENVIRONMENT::get))
 
         whenn()
         val resolve = {
@@ -141,5 +142,12 @@ internal class UserModuleTest {
 
         then()
         assertDoesNotThrow(resolve)
+    }
+
+    private companion object {
+        val KEY_ENVIRONMENT = mapOf(
+            "APPLICATION_SUBJECT_MASTER_KEY" to Base64.encode(ByteArray(32)),
+            "APPLICATION_BLIND_INDEX_KEY" to Base64.encode(ByteArray(32)),
+        )
     }
 }

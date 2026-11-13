@@ -10,6 +10,7 @@ import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.greater
 import org.jetbrains.exposed.v1.core.greaterEq
+import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.core.less
 import org.jetbrains.exposed.v1.core.lessEq
 import org.jetbrains.exposed.v1.core.or
@@ -51,6 +52,7 @@ internal class DataExportDataSource : DataSource() {
             it[finishedAt] = null
             it[expiresAt] = null
             it[document] = null
+            it[keyId] = null
             it.clearClaim()
         }
     }
@@ -76,12 +78,14 @@ internal class DataExportDataSource : DataSource() {
         ownerId: Uuid,
         claimId: Uuid,
         document: ByteArray,
+        keyId: Uuid,
         finishedAt: Instant,
         expiresAt: Instant,
     ): Boolean = dbQuery {
         DataExportTable.update({ heldBy(ownerId, claimId) }) {
             it[state] = DataExportState.READY
             it[this.document] = ExposedBlob(document)
+            it[this.keyId] = keyId
             it[this.finishedAt] = finishedAt
             it[this.expiresAt] = expiresAt
             it.clearClaim()
@@ -109,24 +113,42 @@ internal class DataExportDataSource : DataSource() {
         }) { it.markFailed(now, expiresAt) }
     }
 
-    suspend fun document(ownerId: Uuid, now: Instant): ByteArray? = dbQuery {
-        DataExportTable.select(DataExportTable.document)
+    suspend fun document(ownerId: Uuid, now: Instant): StoredDataExportDocument? = dbQuery {
+        val row = DataExportTable.select(DataExportTable.document, DataExportTable.keyId)
             .where {
                 (DataExportTable.ownerId eq ownerId) and
                     (DataExportTable.state eq DataExportState.READY) and
                     (DataExportTable.expiresAt greater now)
             }
             .singleOrNull()
-            ?.get(DataExportTable.document)
-            ?.bytes
+        row?.get(DataExportTable.document)?.let { StoredDataExportDocument(it.bytes, row[DataExportTable.keyId]) }
     }
 
-    suspend fun delete(ownerId: Uuid) = dbQuery<Unit> {
-        DataExportTable.deleteWhere { DataExportTable.ownerId eq ownerId }
+    suspend fun delete(ownerIds: Set<Uuid>): List<Uuid> {
+        if (ownerIds.isEmpty()) return emptyList()
+        return dbQuery {
+            val existing = DataExportTable.select(DataExportTable.ownerId, DataExportTable.keyId)
+                .where { DataExportTable.ownerId inList ownerIds }
+                .forUpdate()
+                .toList()
+            if (existing.isNotEmpty()) {
+                DataExportTable.deleteWhere {
+                    DataExportTable.ownerId inList
+                        existing.map { it[DataExportTable.ownerId] }
+                }
+            }
+            existing.mapNotNull { it[DataExportTable.keyId] }
+        }
     }
 
-    suspend fun deleteExpired(now: Instant) = dbQuery<Unit> {
-        DataExportTable.deleteWhere { DataExportTable.expiresAt lessEq now }
+    suspend fun deleteExpired(now: Instant): List<Uuid> = dbQuery {
+        val expired = DataExportTable.select(DataExportTable.ownerId, DataExportTable.keyId)
+            .where { DataExportTable.expiresAt lessEq now }
+            .forUpdate()
+            .toList()
+        val ownerIds = expired.map { it[DataExportTable.ownerId] }
+        if (ownerIds.isNotEmpty()) DataExportTable.deleteWhere { DataExportTable.ownerId inList ownerIds }
+        expired.mapNotNull { it[DataExportTable.keyId] }
     }
 
     private fun claimableAt(
@@ -158,6 +180,7 @@ internal class DataExportDataSource : DataSource() {
         requestedAt = this[DataExportTable.requestedAt],
         attempts = this[DataExportTable.attempts],
         expiresAt = this[DataExportTable.expiresAt],
+        keyId = this[DataExportTable.keyId],
     )
 
     private companion object {

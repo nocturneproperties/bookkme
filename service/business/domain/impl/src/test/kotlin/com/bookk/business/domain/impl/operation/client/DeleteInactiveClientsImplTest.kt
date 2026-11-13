@@ -19,6 +19,7 @@ import io.mockk.slot
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.minus
+import library.export.DataExports
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -37,6 +38,8 @@ internal class DeleteInactiveClientsImplTest {
         val recordedInTransaction = mutableListOf<Boolean>()
         val transactionManager = mockk<TransactionManager>()
         val eventProducer = mockk<StandardEventProducer>()
+        val dataExports = mockk<DataExports>()
+        val discardedInTransaction = mutableMapOf<Uuid, Boolean>()
         val sentEvents = mutableListOf<BusinessEvent.ClientDeleted>()
         val sentInTransaction = mutableListOf<Boolean>()
         val sut =
@@ -46,6 +49,7 @@ internal class DeleteInactiveClientsImplTest {
                 erasedClientDataSource,
                 transactionManager,
                 eventProducer,
+                dataExports,
             )
 
         init {
@@ -53,6 +57,9 @@ internal class DeleteInactiveClientsImplTest {
             coEvery { erasedClientDataSource.record(any(), any()) } coAnswers {
                 recorded += firstArg<Uuid>() to secondArg<Uuid>()
                 recordedInTransaction += transactionManager.isInTransaction()
+            }
+            coEvery { dataExports.discard(any()) } coAnswers {
+                discardedInTransaction[firstArg()] = transactionManager.isInTransaction()
             }
             coEvery { eventProducer.send(any<BusinessEvent.ClientDeleted>(), any()) } coAnswers {
                 sentEvents += firstArg<BusinessEvent.ClientDeleted>()
@@ -62,6 +69,29 @@ internal class DeleteInactiveClientsImplTest {
     }
 
     private fun Instant.monthsEarlier(months: Int) = minus(months, DateTimeUnit.MONTH, TimeZone.UTC)
+
+    @Test
+    fun `should discard the data export only of businesses that lost a client in this run`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val lostClients = Uuid.random()
+        val keptClients = Uuid.random()
+        with(fixture) {
+            coEvery { businessDataSource.getClientDataRetentionMonths() } returns
+                mapOf(lostClients to 12, keptClients to 12)
+            coEvery { clientDataSource.deleteInactiveClients(lostClients, any()) } returns
+                listOf(Uuid.random(), Uuid.random())
+            coEvery { clientDataSource.deleteInactiveClients(keptClients, any()) } returns emptyList()
+        }
+
+        whenn()
+        val result = fixture.sut()
+
+        then()
+        assertTrue(result.isSuccess)
+        assertEquals(mapOf(lostClients to true), fixture.discardedInTransaction)
+        coVerify(exactly = 1) { fixture.dataExports.discard(lostClients) }
+    }
 
     @Test
     fun `should delete each business's clients inactive for longer than its retention period`() = runUnitTest {

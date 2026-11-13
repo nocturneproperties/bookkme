@@ -1,5 +1,6 @@
 package library.encryption.impl
 
+import com.bookk.core.data.test.countStatements
 import com.bookk.core.data.test.createTestDatabase
 import com.bookk.core.test.given
 import com.bookk.core.test.runUnitTest
@@ -104,8 +105,8 @@ internal class SubjectKeyDataSourceTest {
         val shredded = Uuid.random()
         suspendTransaction {
             listOf(first, second, fixture.key()).forEach { fixture.sut.insertIfAbsent(it) }
-            fixture.sut.shred(shredded, fixture.shreddedAt)
-            fixture.sut.shred(Uuid.random(), fixture.shreddedAt)
+            fixture.sut.shred(setOf(shredded), fixture.shreddedAt)
+            fixture.sut.shred(setOf(Uuid.random()), fixture.shreddedAt)
         }
 
         whenn()
@@ -140,7 +141,7 @@ internal class SubjectKeyDataSourceTest {
         suspendTransaction { listOf(shredded, kept).forEach { fixture.sut.insertIfAbsent(it) } }
 
         whenn()
-        suspendTransaction { fixture.sut.shred(shredded.subjectId, fixture.shreddedAt) }
+        suspendTransaction { fixture.sut.shred(setOf(shredded.subjectId), fixture.shreddedAt) }
 
         then()
         val tombstone = fixture.read(shredded.subjectId)
@@ -156,7 +157,7 @@ internal class SubjectKeyDataSourceTest {
         val subjectId = Uuid.random()
 
         whenn()
-        suspendTransaction { fixture.sut.shred(subjectId, fixture.shreddedAt) }
+        suspendTransaction { fixture.sut.shred(setOf(subjectId), fixture.shreddedAt) }
 
         then()
         val tombstone = fixture.read(subjectId)
@@ -171,14 +172,54 @@ internal class SubjectKeyDataSourceTest {
         val key = fixture.key()
         suspendTransaction {
             fixture.sut.insertIfAbsent(key)
-            fixture.sut.shred(key.subjectId, fixture.shreddedAt)
+            fixture.sut.shred(setOf(key.subjectId), fixture.shreddedAt)
         }
 
         whenn()
-        suspendTransaction { fixture.sut.shred(key.subjectId, fixture.shreddedAt + 1.hours) }
+        suspendTransaction { fixture.sut.shred(setOf(key.subjectId), fixture.shreddedAt + 1.hours) }
 
         then()
         assertEquals(fixture.shreddedAt, (fixture.read(key.subjectId) as StoredSubjectKey.Shredded).shreddedAt)
+    }
+
+    @Test
+    fun `should shred several subjects in one statement whatever their state`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val live = fixture.key()
+        val kept = fixture.key()
+        val alreadyShredded = Uuid.random()
+        val neverKeyed = Uuid.random()
+        suspendTransaction {
+            listOf(live, kept).forEach { fixture.sut.insertIfAbsent(it) }
+            fixture.sut.shred(setOf(alreadyShredded), fixture.shreddedAt)
+        }
+        val later = fixture.shreddedAt + 1.hours
+
+        whenn()
+        val statements = suspendTransaction {
+            countStatements { fixture.sut.shred(setOf(live.subjectId, alreadyShredded, neverKeyed), later) }
+        }
+
+        then()
+        assertEquals(1, statements)
+        val shreddedAt = listOf(live.subjectId, alreadyShredded, neverKeyed).map {
+            (fixture.read(it) as StoredSubjectKey.Shredded).shreddedAt
+        }
+        assertEquals(listOf(later, fixture.shreddedAt, later), shreddedAt)
+        assertTrue(fixture.read(kept.subjectId) is StoredSubjectKey.Live)
+    }
+
+    @Test
+    fun `should run no statement when shredding no subjects`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+
+        whenn()
+        val statements = suspendTransaction { countStatements { fixture.sut.shred(emptySet(), fixture.shreddedAt) } }
+
+        then()
+        assertEquals(0, statements)
     }
 
     @Test
@@ -186,7 +227,7 @@ internal class SubjectKeyDataSourceTest {
         given()
         val fixture = SutFixture()
         val key = fixture.key()
-        suspendTransaction { fixture.sut.shred(key.subjectId, fixture.shreddedAt) }
+        suspendTransaction { fixture.sut.shred(setOf(key.subjectId), fixture.shreddedAt) }
 
         whenn()
         val stored = suspendTransaction { fixture.sut.insertIfAbsent(key) }

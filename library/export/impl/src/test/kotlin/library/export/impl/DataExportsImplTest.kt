@@ -9,6 +9,9 @@ import com.bookk.core.test.whenn
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
+import library.encryption.Decrypted
+import library.encryption.Decryptor
+import library.encryption.SubjectKeys
 import library.export.DataExport
 import library.export.DataExportStatus
 import library.export.DataExports
@@ -26,9 +29,19 @@ internal class DataExportsImplTest {
 
     private class SutFixture {
         val dataSource = mockk<DataExportDataSource>(relaxUnitFun = true)
+        val subjectKeys = mockk<SubjectKeys>(relaxUnitFun = true)
+        val decryptor = mockk<Decryptor>()
         val clock = TestClock()
         val ownerId = Uuid.random()
-        val sut = DataExportsImpl(dataSource, clock)
+        val keyId = Uuid.random()
+        val sut = DataExportsImpl(dataSource, subjectKeys, clock)
+
+        fun storedDocument(ciphertext: ByteArray, decrypted: Decrypted<ByteArray>) {
+            val document = StoredDataExportDocument(ciphertext, keyId)
+            coEvery { dataSource.document(ownerId, clock.now) } returns document
+            coEvery { subjectKeys.decryptor(listOf(keyId)) } returns decryptor
+            coEvery { decryptor.decrypt(keyId, ciphertext) } returns decrypted
+        }
 
         fun stored(record: DataExportRecord?) {
             coEvery { dataSource.getForUpdate(ownerId) } returns record
@@ -39,7 +52,7 @@ internal class DataExportsImplTest {
             state: DataExportState,
             requestedAgo: kotlin.time.Duration,
             expiresAt: Instant? = null,
-        ) = DataExportRecord(ownerId, state, clock.now - requestedAgo, attempts = 1, expiresAt = expiresAt)
+        ) = DataExportRecord.stub(ownerId, state, clock.now - requestedAgo, attempts = 1, expiresAt = expiresAt)
     }
 
     @Test
@@ -175,6 +188,40 @@ internal class DataExportsImplTest {
     }
 
     @Test
+    fun `should shred the previous document's key when a new export starts`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val previous = DataExportRecord.stub(
+            fixture.ownerId,
+            DataExportState.READY,
+            requestedAt = fixture.clock.now - 1.days,
+            expiresAt = fixture.clock.now + 48.hours,
+            keyId = fixture.keyId,
+        )
+        fixture.stored(previous)
+
+        whenn()
+        fixture.sut.start(fixture.ownerId)
+
+        then()
+        coVerify(exactly = 1) { fixture.subjectKeys.shred(fixture.keyId) }
+    }
+
+    @Test
+    fun `should shred no key when the restarted export has no document`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.stored(DataExportRecord.stub(fixture.ownerId, DataExportState.FAILED, keyId = null))
+
+        whenn()
+        fixture.sut.start(fixture.ownerId)
+
+        then()
+        coVerify(exactly = 1) { fixture.dataSource.restart(fixture.ownerId, fixture.clock.now) }
+        coVerify(exactly = 0) { fixture.subjectKeys.shred(any()) }
+    }
+
+    @Test
     fun `should let a failed export be started again at once`() = runUnitTest {
         given()
         val fixture = SutFixture()
@@ -305,16 +352,58 @@ internal class DataExportsImplTest {
     }
 
     @Test
-    fun `should hand out the stored document as of now`() = runUnitTest {
+    fun `should hand out the stored document decrypted with its key`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        coEvery { fixture.dataSource.document(fixture.ownerId, fixture.clock.now) } returns byteArrayOf(4, 2)
+        fixture.storedDocument(byteArrayOf(9, 9, 9), Decrypted.Plain(byteArrayOf(4, 2)))
 
         whenn()
         val document = fixture.sut.document(fixture.ownerId)
 
         then()
         assertArrayEquals(byteArrayOf(4, 2), document?.gzippedJson)
+    }
+
+    @Test
+    fun `should hand out nothing when the document's key was shredded`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.storedDocument(byteArrayOf(9, 9, 9), Decrypted.Shredded)
+
+        whenn()
+        val document = fixture.sut.document(fixture.ownerId)
+
+        then()
+        assertNull(document)
+    }
+
+    @Test
+    fun `should hand out nothing when the document's key is missing`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.storedDocument(byteArrayOf(9, 9, 9), Decrypted.Missing)
+
+        whenn()
+        val document = fixture.sut.document(fixture.ownerId)
+
+        then()
+        assertNull(document)
+    }
+
+    @Test
+    fun `should never hand out a document stored without a key`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        coEvery {
+            fixture.dataSource.document(fixture.ownerId, fixture.clock.now)
+        } returns StoredDataExportDocument(byteArrayOf(4, 2), keyId = null)
+
+        whenn()
+        val document = fixture.sut.document(fixture.ownerId)
+
+        then()
+        assertNull(document)
+        coVerify(exactly = 0) { fixture.subjectKeys.decryptor(any()) }
     }
 
     @Test
@@ -331,14 +420,58 @@ internal class DataExportsImplTest {
     }
 
     @Test
-    fun `should discard the owner's export`() = runUnitTest {
+    fun `should discard the owner's export and shred its document's key`() = runUnitTest {
         given()
         val fixture = SutFixture()
+        coEvery { fixture.dataSource.delete(setOf(fixture.ownerId)) } returns listOf(fixture.keyId)
 
         whenn()
         fixture.sut.discard(fixture.ownerId)
 
         then()
-        coVerify(exactly = 1) { fixture.dataSource.delete(fixture.ownerId) }
+        coVerify(exactly = 1) { fixture.dataSource.delete(setOf(fixture.ownerId)) }
+        coVerify(exactly = 1) { fixture.subjectKeys.shredAll(listOf(fixture.keyId)) }
+    }
+
+    @Test
+    fun `should discard several owners' exports with one delete and one shred`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val other = Uuid.random()
+        val keyIds = listOf(Uuid.random(), Uuid.random())
+        coEvery { fixture.dataSource.delete(setOf(fixture.ownerId, other)) } returns keyIds
+
+        whenn()
+        fixture.sut.discardAll(listOf(fixture.ownerId, other, fixture.ownerId))
+
+        then()
+        coVerify(exactly = 1) { fixture.dataSource.delete(any()) }
+        coVerify(exactly = 1) { fixture.subjectKeys.shredAll(keyIds) }
+    }
+
+    @Test
+    fun `should touch nothing when discarding no exports`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+
+        whenn()
+        fixture.sut.discardAll(emptyList())
+
+        then()
+        coVerify(exactly = 0) { fixture.dataSource.delete(any()) }
+        coVerify(exactly = 0) { fixture.subjectKeys.shredAll(any()) }
+    }
+
+    @Test
+    fun `should shred no key when the discarded export had no document`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        coEvery { fixture.dataSource.delete(setOf(fixture.ownerId)) } returns emptyList()
+
+        whenn()
+        fixture.sut.discard(fixture.ownerId)
+
+        then()
+        coVerify(exactly = 0) { fixture.subjectKeys.shredAll(any()) }
     }
 }

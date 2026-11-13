@@ -58,3 +58,10 @@ suspend inline fun <R> runCleaningUpOnFailure(crossinline cleanUp: suspend () ->
     }
     throw failure
 }
+
+fun Iterable<Result<*>>.throwIfAnyFailed() {
+    val failures = mapNotNull { it.exceptionOrNull() }
+    val first = failures.firstOrNull() ?: return
+    failures.drop(1).forEach(first::addSuppressed)
+    throw first
+}

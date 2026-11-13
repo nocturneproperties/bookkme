@@ -1,5 +1,6 @@
 package com.bookk.business.domain.impl.operation.user
 
+import com.bookk.business.domain.api.client.entity.ErasedClient
 import com.bookk.business.domain.datasource.ClientDataSource
 import com.bookk.business.domain.datasource.EmployeeDataSource
 import com.bookk.core.domain.datasource.transaction.TransactionManager
@@ -11,6 +12,7 @@ import com.bookk.core.test.whenn
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
+import library.export.DataExports
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -22,17 +24,27 @@ internal class DeleteUserBusinessDataImplTest {
         val clientDataSource = mockk<ClientDataSource>()
         val employeeDataSource = mockk<EmployeeDataSource>()
         val transactionManager = mockk<TransactionManager>()
+        val dataExports = mockk<DataExports>()
         val deletesInTransaction = mutableListOf<Boolean>()
-        val sut = DeleteUserBusinessDataImpl(transactionManager, clientDataSource, employeeDataSource)
+        val discardedInTransaction = mutableListOf<Pair<Set<Uuid>, Boolean>>()
+        val sut = DeleteUserBusinessDataImpl(transactionManager, clientDataSource, employeeDataSource, dataExports)
 
-        fun stubDeletes(userId: Uuid) {
+        fun stubDeletes(
+            userId: Uuid,
+            erasedClients: List<ErasedClient> = emptyList(),
+            employeeBusinessIds: List<Uuid> = emptyList(),
+        ) {
             transactionManager.mockTransaction()
             coEvery { clientDataSource.deleteClientsByUserId(userId) } coAnswers {
                 deletesInTransaction += transactionManager.isInTransaction()
-                emptyList()
+                erasedClients
             }
             coEvery { employeeDataSource.deleteEmployeesByUserId(userId) } coAnswers {
                 deletesInTransaction += transactionManager.isInTransaction()
+                employeeBusinessIds
+            }
+            coEvery { dataExports.discardAll(any()) } coAnswers {
+                discardedInTransaction += firstArg<Collection<Uuid>>().toSet() to transactionManager.isInTransaction()
             }
         }
     }
@@ -52,6 +64,43 @@ internal class DeleteUserBusinessDataImplTest {
         coVerify(exactly = 1) { fixture.clientDataSource.deleteClientsByUserId(userId) }
         coVerify(exactly = 1) { fixture.employeeDataSource.deleteEmployeesByUserId(userId) }
         assertEquals(listOf(true, true), fixture.deletesInTransaction)
+    }
+
+    @Test
+    fun `should discard the data exports of every business that held the user's data at once`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val clientBusiness = Uuid.random()
+        val employeeBusiness = Uuid.random()
+        val bothBusiness = Uuid.random()
+        fixture.stubDeletes(
+            userId,
+            erasedClients = listOf(ErasedClient.stub(businessId = clientBusiness), ErasedClient.stub(bothBusiness)),
+            employeeBusinessIds = listOf(employeeBusiness, bothBusiness),
+        )
+
+        whenn()
+        val result = fixture.sut(userId)
+
+        then()
+        assertTrue(result.isSuccess)
+        val expected = listOf(setOf(clientBusiness, bothBusiness, employeeBusiness) to true)
+        assertEquals(expected, fixture.discardedInTransaction)
+    }
+
+    @Test
+    fun `should discard no data export when the user had no client or employee rows`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        fixture.stubDeletes(userId)
+
+        whenn()
+        fixture.sut(userId)
+
+        then()
+        coVerify(exactly = 0) { fixture.dataExports.discardAll(any()) }
     }
 
     @Test

@@ -36,7 +36,11 @@ internal class SubjectKeysImpl(
     }
 
     override suspend fun shred(subjectId: Uuid) {
-        dataSource.shred(subjectId, clock.now())
+        shredAll(listOf(subjectId))
+    }
+
+    override suspend fun shredAll(subjectIds: Collection<Uuid>) {
+        dataSource.shred(subjectIds.toSet(), clock.now())
     }
 
     private fun newKey(subjectId: Uuid): StoredSubjectKey.Live {

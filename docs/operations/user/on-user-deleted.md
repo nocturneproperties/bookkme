@@ -20,7 +20,7 @@ flowchart TD
     Dedup -- Yes --> Skip([Skip - already handled])
     Dedup -- No --> Tx[[Begin transaction]]
     Tx --> Delete[UserDataSource.deleteUser userId]
-    Delete --> Discard[DataExports.discard userId - DELETE data_export row]
+    Delete --> Discard["DataExports.discard userId - DELETE data_export row, SubjectKeys.shred its key_id"]
     Discard -- throws --> Dlt([Sent to AuthEvent.UserDeleted_dlt topic, logged - no auto-retry])
     Delete -- throws --> Dlt
     Discard -- ok --> Ack([Marked processed])

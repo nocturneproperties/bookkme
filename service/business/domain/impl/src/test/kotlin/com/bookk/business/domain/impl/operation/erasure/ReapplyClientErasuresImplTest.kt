@@ -15,10 +15,12 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.coVerifyOrder
 import io.mockk.mockk
+import library.export.DataExports
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import kotlin.uuid.Uuid
 
 internal class ReapplyClientErasuresImplTest {
 
@@ -27,12 +29,23 @@ internal class ReapplyClientErasuresImplTest {
         val clientDataSource = mockk<ClientDataSource>()
         val eventProducer = mockk<StandardEventProducer>()
         val transactionManager = mockk<TransactionManager>().apply { mockTransaction() }
+        val dataExports = mockk<DataExports>()
         val sentEvents = mutableListOf<BusinessEvent.ClientDeleted>()
         val sentInTransaction = mutableListOf<Boolean>()
-        val sut = ReapplyClientErasuresImpl(erasedClientDataSource, clientDataSource, eventProducer, transactionManager)
+        val discardedInTransaction = mutableMapOf<Uuid, Boolean>()
+        val sut = ReapplyClientErasuresImpl(
+            erasedClientDataSource,
+            clientDataSource,
+            eventProducer,
+            transactionManager,
+            dataExports,
+        )
 
         init {
             coEvery { clientDataSource.deleteClient(any(), any()) } returns true
+            coEvery { dataExports.discard(any()) } coAnswers {
+                discardedInTransaction[firstArg()] = transactionManager.isInTransaction()
+            }
             coEvery { eventProducer.send(any<BusinessEvent.ClientDeleted>(), any()) } coAnswers {
                 sentEvents += firstArg<BusinessEvent.ClientDeleted>()
                 sentInTransaction += transactionManager.isInTransaction()
@@ -68,6 +81,21 @@ internal class ReapplyClientErasuresImplTest {
     }
 
     @Test
+    fun `should discard the data export of the erased client's business inside the transaction`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val client = ErasedClient.stub()
+        fixture.requested(client)
+        coEvery { fixture.clientDataSource.deleteClient(client.businessId, client.clientId) } returns false
+
+        whenn()
+        fixture.sut()
+
+        then()
+        assertEquals(mapOf(client.businessId to true), fixture.discardedInTransaction)
+    }
+
+    @Test
     fun `should still announce the deletion when the client row is already gone`() = runUnitTest {
         given()
         val fixture = SutFixture()
@@ -97,6 +125,7 @@ internal class ReapplyClientErasuresImplTest {
         then()
         assertTrue(result.isSuccess)
         coVerify(exactly = 0) { fixture.clientDataSource.deleteClient(any(), any()) }
+        coVerify(exactly = 0) { fixture.dataExports.discard(any()) }
         assertEquals(emptyList<BusinessEvent.ClientDeleted>(), fixture.sentEvents)
     }
 

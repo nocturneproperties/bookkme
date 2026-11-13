@@ -9,6 +9,7 @@ import com.bookk.core.domain.datasource.transaction.transactionOrThrow
 import com.bookk.core.domain.entity.BusinessError
 import com.bookk.core.domain.entity.Error
 import com.bookk.core.domain.entity.runSuspendCatching
+import com.bookk.core.domain.entity.throwIfAnyFailed
 import com.bookk.server.business.client.api.BusinessClient
 import kotlin.uuid.Uuid
 
@@ -20,10 +21,7 @@ internal class FillBusinessOwnersImpl(
 ) : FillBusinessOwners {
     override suspend fun invoke(): Result<Unit> = runSuspendCatching {
         val missing = transactionManager.transactionOrThrow { subscriptionDataSource.getBusinessIdsWithoutOwner() }
-        missing
-            .mapNotNull { fillOwner(it).exceptionOrNull() }
-            .reduceOrNull { first, next -> first.apply { addSuppressed(next) } }
-            ?.let { throw it }
+        missing.map { fillOwner(it) }.throwIfAnyFailed()
     }
 
     private suspend fun fillOwner(businessId: Uuid): Result<Unit> {

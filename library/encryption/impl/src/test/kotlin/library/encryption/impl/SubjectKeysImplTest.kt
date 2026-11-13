@@ -257,7 +257,20 @@ internal class SubjectKeysImplTest {
         fixture.sut.shred(fixture.subjectId)
 
         then()
-        coVerify(exactly = 1) { fixture.dataSource.shred(fixture.subjectId, fixture.now) }
+        coVerify(exactly = 1) { fixture.dataSource.shred(setOf(fixture.subjectId), fixture.now) }
+    }
+
+    @Test
+    fun `should shred several subjects with one datasource call`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val other = Uuid.random()
+
+        whenn()
+        fixture.sut.shredAll(listOf(fixture.subjectId, other, fixture.subjectId))
+
+        then()
+        coVerify(exactly = 1) { fixture.dataSource.shred(setOf(fixture.subjectId, other), fixture.now) }
     }
 
     private companion object {

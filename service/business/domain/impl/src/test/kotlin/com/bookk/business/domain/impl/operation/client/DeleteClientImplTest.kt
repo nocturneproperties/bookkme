@@ -22,6 +22,7 @@ import io.mockk.coVerifyOrder
 import io.mockk.mockk
 import library.actionconfirmation.ActionConfirmationGrant
 import library.actionconfirmation.test.ActionConfirmationTestTokens
+import library.export.DataExports
 import library.permissions.ResourcePermission
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -34,7 +35,9 @@ internal class DeleteClientImplTest {
     private class SutFixture(val businessId: Uuid = Uuid.random(), val requestUserId: Uuid = Uuid.random()) {
         val clientDataSource = mockk<ClientDataSource>()
         val erasedClientDataSource = mockk<ErasedClientDataSource>()
+        val dataExports = mockk<DataExports>()
         val recordedInTransaction = mutableListOf<Boolean>()
+        val discardedInTransaction = mutableListOf<Boolean>()
         val businessPermissionDataSource = mockk<BusinessPermissionDataSource>()
         val businessDataSource = mockk<BusinessDataSource>()
         val eventProducer = mockk<StandardEventProducer>()
@@ -51,6 +54,7 @@ internal class DeleteClientImplTest {
             eventProducer,
             confirmationTokens.gate,
             erasedClientDataSource,
+            dataExports,
         )
 
         init {
@@ -60,6 +64,9 @@ internal class DeleteClientImplTest {
             coEvery { clientDataSource.deleteClient(businessId, any()) } returns true
             coEvery { erasedClientDataSource.record(businessId, any()) } coAnswers {
                 recordedInTransaction += transactionManager.isInTransaction()
+            }
+            coEvery { dataExports.discard(businessId) } coAnswers {
+                discardedInTransaction += transactionManager.isInTransaction()
             }
             coEvery { eventProducer.send(any<BusinessEvent.ClientDeleted>(), any()) } coAnswers {
                 sentEvents += firstArg<BusinessEvent.ClientDeleted>()
@@ -125,6 +132,33 @@ internal class DeleteClientImplTest {
         then()
         coVerify(exactly = 1) { fixture.erasedClientDataSource.record(fixture.businessId, id) }
         assertEquals(listOf(true), fixture.recordedInTransaction)
+    }
+
+    @Test
+    fun `should discard the business's data export inside the transaction`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val id = fixture.stored(Client.Detached.stub())
+
+        whenn()
+        fixture.sut(fixture.requestUserId, fixture.businessId, id, fixture.tokenFor(id))
+
+        then()
+        coVerify(exactly = 1) { fixture.dataExports.discard(fixture.businessId) }
+        assertEquals(listOf(true), fixture.discardedInTransaction)
+    }
+
+    @Test
+    fun `should discard no data export when the client does not exist`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val id = fixture.stored(null)
+
+        whenn()
+        fixture.sut(fixture.requestUserId, fixture.businessId, id, fixture.tokenFor(id))
+
+        then()
+        coVerify(exactly = 0) { fixture.dataExports.discard(any()) }
     }
 
     @Test

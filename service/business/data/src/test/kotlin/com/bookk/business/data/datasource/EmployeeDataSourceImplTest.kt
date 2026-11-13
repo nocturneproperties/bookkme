@@ -752,9 +752,10 @@ internal class EmployeeDataSourceImplTest {
         }
 
         whenn()
-        suspendTransaction { fixture.sut.deleteEmployeesByUserId(userId) }
+        val businessIds = suspendTransaction { fixture.sut.deleteEmployeesByUserId(userId) }
 
         then()
+        assertEquals(listOf(fixture.businessId), businessIds)
         assertNull(suspendTransaction { fixture.sut.getEmployee(fixture.businessId, created.id) })
         assertEquals(0L, fixture.rowsOf(created.id))
     }
@@ -767,9 +768,10 @@ internal class EmployeeDataSourceImplTest {
         val other = suspendTransaction { fixture.sut.createEmployee(Employee.stub(businessId = fixture.businessId)) }
 
         whenn()
-        suspendTransaction { fixture.sut.deleteEmployeesByUserId(Uuid.random()) }
+        val businessIds = suspendTransaction { fixture.sut.deleteEmployeesByUserId(Uuid.random()) }
 
         then()
+        assertEquals(emptyList<Uuid>(), businessIds)
         assertNotNull(suspendTransaction { fixture.sut.getEmployee(fixture.businessId, other.id) })
     }
 

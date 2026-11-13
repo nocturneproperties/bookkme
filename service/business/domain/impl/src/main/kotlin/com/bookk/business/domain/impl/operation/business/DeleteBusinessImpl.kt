@@ -16,9 +16,8 @@ internal class DeleteBusinessImpl(
     private val dataExports: DataExports,
 ) : DeleteBusiness {
     override suspend fun invoke(userId: Uuid): Result<Unit> = transactionManager.transaction {
-        businessDataSource.deleteUserBusinesses(userId).forEach {
-            dataExports.discard(it)
-            eventProducer.send(BusinessEvent.Deleted(it))
-        }
+        val deletedBusinessIds = businessDataSource.deleteUserBusinesses(userId)
+        if (deletedBusinessIds.isNotEmpty()) dataExports.discardAll(deletedBusinessIds)
+        deletedBusinessIds.forEach { eventProducer.send(BusinessEvent.Deleted(it)) }
     }
 }

@@ -36,10 +36,10 @@ import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
 
-fun businessModule() = module {
+fun businessModule(environment: (String) -> String? = System::getenv) = module {
     includes(
         businessDomainModule(),
-        businessDataModule(),
+        businessDataModule(environment),
         actionConfirmationModule(BusinessScope),
         cacheModule(),
         eventStreamingTransportModule(BusinessScope, BUSINESS_SERVICE_NAME),
@@ -48,10 +48,10 @@ fun businessModule() = module {
     )
 }
 
-fun businessEmbeddedModule() = module {
+fun businessEmbeddedModule(environment: (String) -> String? = System::getenv) = module {
     includes(
         businessDomainModule(),
-        businessDataModule(),
+        businessDataModule(environment),
         actionConfirmationModule(BusinessScope),
         cacheModule(),
         embeddedEventStreamingTransportModule(BusinessScope, BUSINESS_SERVICE_NAME),

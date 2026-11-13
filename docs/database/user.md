@@ -53,7 +53,8 @@ erDiagram
         timestamp claimed_until "nullable; lease end"
         timestamp finished_at "nullable"
         timestamp expires_at "nullable; finished_at + 72 h, indexed"
-        longblob document "nullable; gzipped JSON, only while READY"
+        longblob document "nullable; gzipped JSON encrypted under key_id, only while READY"
+        uuid key_id "nullable; the document's own key in <svc>_short_retention.subject_key"
     }
 
     OUTBOX_EVENT {
@@ -74,7 +75,7 @@ erDiagram
 
 `LEGAL_DOCUMENT_VERSION` holds the published versions of each legal document; the operator inserts them by hand (see [Legal documents](../legal-documents.md)), and the current version of a document is its row with the latest `effective_at` that has passed. `LEGAL_DOCUMENT_ACCEPTANCE` is append-only: one row per user and version accepted, never updated (a repeat is ignored, keeping the first time), deleted with the profile. A version that someone accepted can't be deleted (`ON DELETE RESTRICT`).
 
-`DATA_EXPORT` holds the user's personal data export (one row per user) from the moment it is requested until 72 hours after its document was built. It is the shared `library/export` table, so it has no foreign key to `PROFILE`; account deletion deletes the row in the same transaction as the profile. It holds a copy of the user's data from every service, so it is not readable in NocoDB. See [Data export](../data-export.md).
+`DATA_EXPORT` holds the user's personal data export (one row per user) from the moment it is requested until 72 hours after its document was built. It is the shared `library/export` table, so it has no foreign key to `PROFILE`; account deletion deletes the row in the same transaction as the profile. It holds a copy of the user's data from every service, so it is not readable in NocoDB, and the document is encrypted under a random key of its own (`key_id`), shredded when the row loses its document. See [Data export](../data-export.md).
 
 `EXHAUSTED_EVENT` is not part of the user domain model — it's the shared DLT landing table (`library/outbox`, one instance per service schema) that `KafkaEventConsumer`/`EmbeddedEventConsumer` write to when an event exhausts its retry budget, so a failed event survives a process restart or crash instead of being lost. Every start, and every row an operator sets `replay_requested` on, is replayed through the consumer group's DLT topic by `ExhaustedEventReplayer`, which also exports the parked rows as the `events_exhausted` metric. See [Exhausted events](../exhausted-events.md).
 

@@ -11,6 +11,7 @@ dependencies {
     api(projects.service.user.domain.api)
     implementation(projects.service.user.data.source)
     implementation(projects.library.export.impl)
+    implementation(projects.library.encryption.impl)
 
     testImplementation(testFixtures(projects.core))
     testImplementation(testFixtures(projects.library.encryption.impl))

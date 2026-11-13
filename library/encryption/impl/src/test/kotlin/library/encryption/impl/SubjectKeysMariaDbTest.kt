@@ -27,6 +27,7 @@ import org.testcontainers.containers.GenericContainer
 import org.testcontainers.containers.wait.strategy.Wait
 import org.testcontainers.utility.DockerImageName
 import java.security.SecureRandom
+import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.uuid.Uuid
 
@@ -90,11 +91,12 @@ internal class SubjectKeysMariaDbTest {
     private class SutFixture {
         val subjectId = Uuid.random()
         val transactionManager = ExposedTransactionManager(database)
+        val clock = TestClock()
         val sut = SubjectKeysImpl(
             dataSource = SubjectKeyDataSource(SubjectKeyTable(KEY_SCHEMA)),
             masterKey = MasterKey.fromBase64(version = 1, encoded = randomBase64Key()),
             random = SecureRandom(),
-            clock = TestClock(),
+            clock = clock,
         )
 
         suspend fun keyRows(): Long {
@@ -189,6 +191,27 @@ internal class SubjectKeysMariaDbTest {
         assertEquals(1L, fixture.keyRows())
         assertEquals(0L, fixture.liveKeyRows())
         assertEquals(Decrypted.Shredded, fixture.decrypt(ciphertext))
+    }
+
+    @Test
+    fun `should shred several subjects at once and keep an earlier shredding time`() = runIntegrationTest {
+        given()
+        val fixture = SutFixture()
+        val other = Uuid.random()
+        fixture.encrypt("jane@example.com").getOrThrow()
+        fixture.transactionManager.transaction { fixture.sut.shred(fixture.subjectId) }.getOrThrow()
+        val firstShreddedAt = fixture.clock.now
+        fixture.clock += 1.hours
+
+        whenn()
+        fixture.transactionManager.transaction { fixture.sut.shredAll(listOf(fixture.subjectId, other)) }.getOrThrow()
+
+        then()
+        val shreddedAt = fixture.transactionManager.transaction {
+            SubjectKeyDataSource(SubjectKeyTable(KEY_SCHEMA)).getAll(setOf(fixture.subjectId, other))
+        }.getOrThrow().associate { it.subjectId to (it as StoredSubjectKey.Shredded).shreddedAt }
+        assertEquals(mapOf(fixture.subjectId to firstShreddedAt, other to fixture.clock.now), shreddedAt)
+        assertEquals(0L, fixture.liveKeyRows())
     }
 
     @Test
