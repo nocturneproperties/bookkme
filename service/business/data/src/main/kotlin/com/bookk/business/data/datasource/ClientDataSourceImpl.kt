@@ -5,6 +5,7 @@ import com.bookk.business.data.orm.table.ClientTable
 import com.bookk.business.domain.api.client.entity.Client
 import com.bookk.business.domain.api.client.entity.ClientMerge
 import com.bookk.business.domain.api.client.entity.ClientUpdateModel
+import com.bookk.business.domain.api.client.entity.ErasedClient
 import com.bookk.business.domain.datasource.ClientDataSource
 import com.bookk.core.data.DataSource
 import com.bookk.core.data.map.toDomain
@@ -179,8 +180,15 @@ internal class ClientDataSourceImpl : DataSource(), ClientDataSource {
         }
     }
 
-    override suspend fun deleteClientsByUserId(userId: Uuid) = dbQuery<Unit> {
-        ClientTable.deleteWhere { ClientTable.userId eq userId }
+    override suspend fun deleteClientsByUserId(userId: Uuid): List<ErasedClient> = dbQuery {
+        val erased = ClientTable.select(ClientTable.businessId, ClientTable.id)
+            .where { ClientTable.userId eq userId }
+            .forUpdate()
+            .map { ErasedClient(businessId = it[ClientTable.businessId].value, clientId = it[ClientTable.id].value) }
+        if (erased.isNotEmpty()) {
+            ClientTable.deleteWhere { ClientTable.id inList erased.map { it.clientId } }
+        }
+        erased
     }
 
     override suspend fun getBusinessIdsByUserId(userId: Uuid): List<Uuid> = dbQuery {

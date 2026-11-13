@@ -6,11 +6,9 @@ import com.bookk.core.test.runUnitTest
 import com.bookk.core.test.then
 import com.bookk.core.test.whenn
 import com.bookk.server.business.client.api.BusinessDTO
-import kotlinx.datetime.TimeZone
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.protobuf.ProtoBuf
 import kotlinx.serialization.protobuf.ProtoNumber
-import library.schedule.Schedule
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Test
@@ -33,18 +31,10 @@ internal class BusinessEventTest {
 
     private val businessId = Uuid.random()
 
-    private fun businessDto(id: Uuid = businessId) = BusinessDTO(
-        id = id,
-        name = "Business name",
-        address = "Business address",
-        timeZone = TimeZone.UTC,
-        schedule = Schedule(),
-    )
-
     @Test
     fun `should key the updated event by business id`() = runUnitTest {
         given()
-        val event = BusinessEvent.Updated(businessDto(), Instant.fromEpochMilliseconds(1000))
+        val event = BusinessEvent.Updated(BusinessDTO.stub(id = businessId), Instant.fromEpochMilliseconds(1000))
 
         whenn()
         val partitionKey = event.partitionKey
@@ -68,8 +58,8 @@ internal class BusinessEventTest {
     @Test
     fun `should route consecutive updates of one business to the same partition key`() = runUnitTest {
         given()
-        val first = BusinessEvent.Updated(businessDto(), Instant.fromEpochMilliseconds(1000))
-        val second = BusinessEvent.Updated(businessDto(), Instant.fromEpochMilliseconds(2000))
+        val first = BusinessEvent.Updated(BusinessDTO.stub(id = businessId), Instant.fromEpochMilliseconds(1000))
+        val second = BusinessEvent.Updated(BusinessDTO.stub(id = businessId), Instant.fromEpochMilliseconds(2000))
 
         whenn()
         val keys = setOf(first.partitionKey, second.partitionKey)
@@ -81,8 +71,8 @@ internal class BusinessEventTest {
     @Test
     fun `should route updates of different businesses to different partition keys`() = runUnitTest {
         given()
-        val mine = BusinessEvent.Updated(businessDto(), Instant.fromEpochMilliseconds(1000))
-        val other = BusinessEvent.Updated(businessDto(id = Uuid.random()), Instant.fromEpochMilliseconds(1000))
+        val mine = BusinessEvent.Updated(BusinessDTO.stub(id = businessId), Instant.fromEpochMilliseconds(1000))
+        val other = BusinessEvent.Updated(BusinessDTO.stub(), Instant.fromEpochMilliseconds(1000))
 
         whenn()
         val keys = setOf(mine.partitionKey, other.partitionKey)

@@ -157,7 +157,7 @@ Run it before deploying a version with new migrations: `make fetch-backups && ma
 The new version doesn't start, and the deploy rolls back to the old one, which keeps serving: it starts with only a warning about the failed future migration. The failed script's earlier statements stay applied (MariaDB can't roll back DDL), and the schema history holds the version with `success = 0`, which every later start of the new version refuses.
 
 1. Fix the script so it can run again on the half-migrated schema (the idempotent statements in the root `AGENTS.md`), and check it with `make migration-rehearsal`.
-2. Remove the failed row. On the worker: `docker exec -it $(docker ps -qf name=monolith_database) sh -c 'mariadb -uroot -p"$MARIADB_ROOT_PASSWORD"'`, then `DELETE FROM <schema>.flyway_schema_history WHERE success = 0;`. That is what `flyway repair` does for a failed migration.
+2. Remove the failed row. On the worker: `docker exec -it $(docker ps -qf label=com.docker.swarm.service.name=monolith_database) sh -c 'mariadb -uroot -p"$MARIADB_ROOT_PASSWORD"'`, then `DELETE FROM <schema>.flyway_schema_history WHERE success = 0;`. That is what `flyway repair` does for a failed migration.
 3. Deploy the fixed version. Its start runs the script from the first statement again.
 
 Restore a backup only when the failed script destroyed data. A migration that fails without losing anything needs only these three steps.
@@ -176,16 +176,16 @@ Finding the records needs the binlogs up to the latest point. When they can't be
 
 1. `make fetch-backups`, then `make restore-drill until='YYYY-MM-DD HH:MM:SS'` to see what the restore will give. It ends with how many deleted accounts and clients the restore brings back, which the app deletes again.
 2. Stop everything that writes: `docker --context swarm-manager service scale monolith_monolith=0 backup_binlog=0 backup_dump=0`.
-3. If the database volume still exists, drop the five schemas in it. On the worker, open a client with `docker exec -it $(docker ps -qf name=monolith_database) sh -c 'mariadb -uroot -p"$MARIADB_ROOT_PASSWORD"'`, then run `DROP DATABASE` for each schema. A new, empty volume already has the schemas from `init-schemas.sh`.
+3. If the database volume still exists, drop the five schemas in it. On the worker, open a client with `docker exec -it $(docker ps -qf label=com.docker.swarm.service.name=monolith_database) sh -c 'mariadb -uroot -p"$MARIADB_ROOT_PASSWORD"'`, then run `DROP DATABASE` for each schema. A new, empty volume already has the schemas from `init-schemas.sh`.
 4. Stream the restore into the database. The decrypted SQL goes through the SSH connection only and never touches a disk:
    ```sh
-   scripts/backup-restore.sh sql backups [--until 'YYYY-MM-DD HH:MM:SS'] | ssh root@<worker> "docker exec -i \$(docker ps -qf name=monolith_database) sh -c 'mariadb --binary-mode -uroot -p\"\$MARIADB_ROOT_PASSWORD\"'"
+   scripts/backup-restore.sh sql backups [--until 'YYYY-MM-DD HH:MM:SS'] | ssh root@<worker> "docker exec -i \$(docker ps -qf label=com.docker.swarm.service.name=monolith_database) sh -c 'mariadb --binary-mode -uroot -p\"\$MARIADB_ROOT_PASSWORD\"'"
    ```
    With `--until` it logs how many deletion records it appended.
 5. Empty Valkey. Everything in it expires within an hour, so nothing is lost, but its markers would make the app skip events the restore undid (an outbox event still waiting at T but handled afterwards counts as already handled for an hour), and a retried request could get a stored answer for work the restore undid. `FLUSHALL` is renamed away, so delete every key on the worker, with `vault_monolith_redis_password` from `make vault-view`:
    ```sh
    read -rs REDISCLI_AUTH && export REDISCLI_AUTH
-   docker exec -e REDISCLI_AUTH $(docker ps -qf name=monolith_redis) sh -c 'valkey-cli --scan | xargs -r -n 500 valkey-cli del; valkey-cli DBSIZE'
+   docker exec -e REDISCLI_AUTH $(docker ps -qf label=com.docker.swarm.service.name=monolith_redis) sh -c 'valkey-cli --scan | xargs -r -n 500 valkey-cli del; valkey-cli DBSIZE'
    unset REDISCLI_AUTH
    ```
    It prints `0` at the end.

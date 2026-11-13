@@ -24,6 +24,7 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import kotlin.time.Instant
+import kotlin.uuid.Uuid
 
 internal class AppointmentSubscriptionDataSourceImplTest {
 
@@ -197,5 +198,118 @@ internal class AppointmentSubscriptionDataSourceImplTest {
 
         then()
         assertNull(found)
+    }
+
+    @Test
+    fun `should keep the business owner`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val ownerUserId = Uuid.random()
+        val snapshot = BusinessSnapshot.stub(ownerUserId = ownerUserId)
+
+        whenn()
+        suspendTransaction { fixture.sut.attachBusiness(snapshot) }
+        val found = suspendTransaction { fixture.sut.getBusinessSnapshot(snapshot.id) }
+
+        then()
+        assertEquals(ownerUserId, found!!.ownerUserId)
+    }
+
+    @Test
+    fun `should move the business to a new owner with an update`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val snapshot = BusinessSnapshot.stub()
+        val newOwner = Uuid.random()
+        suspendTransaction { fixture.sut.attachBusiness(snapshot) }
+
+        whenn()
+        suspendTransaction {
+            fixture.sut.updateBusiness(snapshot.copy(ownerUserId = newOwner), Instant.fromEpochMilliseconds(1000))
+        }
+
+        then()
+        assertEquals(newOwner, suspendTransaction { fixture.sut.getBusinessSnapshot(snapshot.id) }!!.ownerUserId)
+    }
+
+    @Test
+    fun `should detach every business of the owner and keep other owners' businesses`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val ownerUserId = Uuid.random()
+        val first = BusinessSnapshot.stub(ownerUserId = ownerUserId)
+        val second = BusinessSnapshot.stub(ownerUserId = ownerUserId)
+        val other = BusinessSnapshot.stub()
+        suspendTransaction { listOf(first, second, other).forEach { fixture.sut.attachBusiness(it) } }
+
+        whenn()
+        suspendTransaction { fixture.sut.detachBusinessesOwnedBy(ownerUserId) }
+
+        then()
+        assertNull(suspendTransaction { fixture.sut.getBusinessSnapshot(first.id) })
+        assertNull(suspendTransaction { fixture.sut.getBusinessSnapshot(second.id) })
+        assertNotNull(suspendTransaction { fixture.sut.getBusinessSnapshot(other.id) })
+    }
+
+    @Test
+    fun `should keep the stored owner when an update carries none`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val snapshot = BusinessSnapshot.stub()
+        suspendTransaction { fixture.sut.attachBusiness(snapshot) }
+
+        whenn()
+        suspendTransaction {
+            fixture.sut.updateBusiness(snapshot.copy(ownerUserId = null), Instant.fromEpochMilliseconds(1000))
+        }
+
+        then()
+        val found = suspendTransaction { fixture.sut.getBusinessSnapshot(snapshot.id) }
+        assertEquals(snapshot.ownerUserId, found!!.ownerUserId)
+    }
+
+    @Test
+    fun `should list only the businesses whose owner is missing`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val withoutOwner = BusinessSnapshot.stub(ownerUserId = null)
+        val withOwner = BusinessSnapshot.stub()
+        suspendTransaction { listOf(withoutOwner, withOwner).forEach { fixture.sut.attachBusiness(it) } }
+
+        whenn()
+        val missing = suspendTransaction { fixture.sut.getBusinessIdsWithoutOwner() }
+
+        then()
+        assertEquals(listOf(withoutOwner.id), missing)
+    }
+
+    @Test
+    fun `should fill a missing owner`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val snapshot = BusinessSnapshot.stub(ownerUserId = null)
+        val ownerUserId = Uuid.random()
+        suspendTransaction { fixture.sut.attachBusiness(snapshot) }
+
+        whenn()
+        suspendTransaction { fixture.sut.fillMissingOwner(snapshot.id, ownerUserId) }
+
+        then()
+        assertEquals(ownerUserId, suspendTransaction { fixture.sut.getBusinessSnapshot(snapshot.id) }!!.ownerUserId)
+    }
+
+    @Test
+    fun `should not replace an owner that is already set`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val snapshot = BusinessSnapshot.stub()
+        suspendTransaction { fixture.sut.attachBusiness(snapshot) }
+
+        whenn()
+        suspendTransaction { fixture.sut.fillMissingOwner(snapshot.id, Uuid.random()) }
+
+        then()
+        val found = suspendTransaction { fixture.sut.getBusinessSnapshot(snapshot.id) }
+        assertEquals(snapshot.ownerUserId, found!!.ownerUserId)
     }
 }

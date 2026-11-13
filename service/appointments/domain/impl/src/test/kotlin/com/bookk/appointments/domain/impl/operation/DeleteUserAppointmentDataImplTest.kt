@@ -76,6 +76,9 @@ internal class DeleteUserAppointmentDataImplTest {
             coEvery { appointmentPermissionDataSource.deleteForUser(userId) } coAnswers {
                 writesInTransaction += transactionManager.isInTransaction()
             }
+            coEvery { subscriptionDataSource.detachBusinessesOwnedBy(userId) } coAnswers {
+                writesInTransaction += transactionManager.isInTransaction()
+            }
             coEvery { eventProducer.send(any<AppointmentEvent>(), any()) } coAnswers {
                 sentEvents += firstArg<AppointmentEvent>()
                 sentInTransaction += transactionManager.isInTransaction()
@@ -117,7 +120,7 @@ internal class DeleteUserAppointmentDataImplTest {
         coVerify(exactly = 1) { fixture.appointmentDataSource.unlinkInitiator(userId) }
         coVerify(exactly = 1) { fixture.requestDataSource.deleteForUser(userId) }
         coVerify(exactly = 1) { fixture.appointmentPermissionDataSource.deleteForUser(userId) }
-        assertEquals(listOf(true, true, true, true, true, true, true), fixture.writesInTransaction)
+        assertEquals(listOf(true, true, true, true, true, true, true, true), fixture.writesInTransaction)
     }
 
     @Test
@@ -316,4 +319,40 @@ internal class DeleteUserAppointmentDataImplTest {
         then()
         assertTrue(result.isFailure)
     }
+
+    @Test
+    fun `should drop the businesses the user owned`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        fixture.stubWrites(userId)
+
+        whenn()
+        val result = fixture.sut(userId)
+
+        then()
+        assertTrue(result.isSuccess)
+        coVerify(exactly = 1) { fixture.subscriptionDataSource.detachBusinessesOwnedBy(userId) }
+    }
+
+    @Test
+    fun `should tell clients of the owner's cancelled appointments before dropping the owner's businesses`() =
+        runUnitTest {
+            given()
+            val fixture = SutFixture()
+            val userId = Uuid.random()
+            val business = BusinessSnapshot.stub(ownerUserId = userId)
+            fixture.stubWrites(userId, cancelled = listOf(assignedTo(userId, business.id)))
+            coEvery { fixture.subscriptionDataSource.getBusinessSnapshot(business.id) } returns business
+
+            whenn()
+            fixture.sut(userId)
+
+            then()
+            coVerifyOrder {
+                fixture.subscriptionDataSource.getBusinessSnapshot(business.id)
+                fixture.eventProducer.send(any<AppointmentEvent.Cancelled>(), any())
+                fixture.subscriptionDataSource.detachBusinessesOwnedBy(userId)
+            }
+        }
 }

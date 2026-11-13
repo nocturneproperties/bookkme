@@ -42,6 +42,7 @@ internal class DeleteUserAppointmentDataImpl(
         requestDataSource.deleteForUser(userId)
         appointmentPermissionDataSource.deleteForUser(userId)
         notifyCancellations(userId, cancelled)
+        subscriptionDataSource.detachBusinessesOwnedBy(userId)
     }
 
     private suspend fun notifyCancellations(userId: Uuid, cancelled: List<Appointment>) {

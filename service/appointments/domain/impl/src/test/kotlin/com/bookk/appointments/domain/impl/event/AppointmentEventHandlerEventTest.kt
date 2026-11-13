@@ -98,14 +98,6 @@ internal class AppointmentEventHandlerEventTest {
 
     private val updatedAt = Instant.fromEpochMilliseconds(1_700_000_000_000)
 
-    private fun businessDto(businessId: Uuid, schedule: Schedule) = BusinessDTO(
-        id = businessId,
-        name = "Salon",
-        address = "1 Main St",
-        timeZone = TimeZone.of("Europe/Kyiv"),
-        schedule = schedule,
-    )
-
     @Test
     fun `should replicate a business schedule published by the business service`() = runIntegrationTest {
         given()
@@ -127,7 +119,12 @@ internal class AppointmentEventHandlerEventTest {
         whenn()
         withContext(Dispatchers.IO) {
             fixture.start()
-            producer().send(BusinessEvent.Updated(businessDto(businessId, schedule), updatedAt))
+            producer().send(
+                BusinessEvent.Updated(
+                    BusinessDTO.stub(id = businessId, timeZone = TimeZone.of("Europe/Kyiv"), schedule = schedule),
+                    updatedAt,
+                ),
+            )
             arrived.await(20, TimeUnit.SECONDS)
         }
         fixture.stop()
@@ -159,7 +156,12 @@ internal class AppointmentEventHandlerEventTest {
         whenn()
         withContext(Dispatchers.IO) {
             fixture.start()
-            producer().send(BusinessEvent.Updated(businessDto(businessId, schedule), updatedAt))
+            producer().send(
+                BusinessEvent.Updated(
+                    BusinessDTO.stub(id = businessId, timeZone = TimeZone.of("Europe/Kyiv"), schedule = schedule),
+                    updatedAt,
+                ),
+            )
             arrived.await(20, TimeUnit.SECONDS)
         }
         fixture.stop()

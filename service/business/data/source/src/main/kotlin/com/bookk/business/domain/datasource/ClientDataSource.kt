@@ -3,6 +3,7 @@ package com.bookk.business.domain.datasource
 import com.bookk.business.domain.api.client.entity.Client
 import com.bookk.business.domain.api.client.entity.ClientMerge
 import com.bookk.business.domain.api.client.entity.ClientUpdateModel
+import com.bookk.business.domain.api.client.entity.ErasedClient
 import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
@@ -27,7 +28,7 @@ interface ClientDataSource {
         phone: String?,
         updatedAt: Instant,
     ): Int
-    suspend fun deleteClientsByUserId(userId: Uuid)
+    suspend fun deleteClientsByUserId(userId: Uuid): List<ErasedClient>
     suspend fun getBusinessIdsByUserId(userId: Uuid): List<Uuid>
     suspend fun recordVisit(businessId: Uuid, clientId: Uuid, visitEnd: Instant)
     suspend fun deleteInactiveClients(businessId: Uuid, inactiveSince: Instant): List<Uuid>

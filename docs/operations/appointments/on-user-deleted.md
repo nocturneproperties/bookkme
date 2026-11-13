@@ -29,6 +29,15 @@ this user's appointment footprint in every role, in one transaction:
 - **Requests** where they are the client or were assigned are deleted;
   requests they only booked for someone else get the nil UUID as initiator.
   Their permission grants are deleted.
+- **As the owner** (`business_has_appointments.owner_user_id`, indexed):
+  every business they own is dropped last, after the notifications above
+  (they read the business snapshot), and its appointments, requests,
+  settings, working hours, days off and grants go with it by
+  `ON DELETE CASCADE`. Appointments doesn't wait for
+  `BusinessEvent.Deleted` for this; [React to business
+  deletion](on-business-deleted.md) still runs, and covers a business
+  created before 0.18.0 whose owner the `appointments-fillBusinessOwners`
+  job hasn't filled in yet.
 
 Recording the user in `deleted_user` comes first, then cancelling, which is
 the only locking read on appointments (`SELECT … FOR UPDATE`). It finds both
@@ -66,10 +75,11 @@ flowchart TD
     Role -- yes --> Send["eventProducer.send AppointmentEvent.CancelledForDeletedClient employeeUserId from to timeZone businessName"]
     Role -- "no, its employee" --> HasAccount{client.userId set?}
     HasAccount -- yes --> SendClient["eventProducer.send AppointmentEvent.Cancelled clientUserId employeeName 'Deleted User' reason 'Employee deleted their account'"]
-    HasAccount -- no --> Processed
-    Send --> Processed([markProcessed - kept 1 hour])
-    SendClient --> Processed
-    Log --> Processed
+    Send --> Owned
+    SendClient --> Owned
+    Log --> Owned
+    HasAccount -- no --> Owned
+    Owned["AppointmentSubscriptionDataSource.detachBusinessesOwnedBy userId - DELETE business_has_appointments WHERE owner_user_id, everything under it by ON DELETE CASCADE"] --> Processed([markProcessed - kept 1 hour])
     DelPerm -- any step throws, rolled back --> Release[Release the claim] --> Dlt["Retried through auth.user_deleted_appointments_dlt, up to 3 attempts"]
     Dlt -- every attempt failed --> Parked(["Saved to exhausted_event - EventsExhausted alert, replayed on the next start or when replay_requested is set"])
 ```

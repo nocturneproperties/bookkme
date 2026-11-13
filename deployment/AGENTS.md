@@ -20,6 +20,8 @@ Swarm counts restarts in a sliding `window`, and once a task reaches `max_attemp
 
 The `monolith` service therefore has its own `restart_policy` (10 s delay, 5 within 10 m) on top of `createDatabase`'s ~3-minute connect retry. During a database outage of any length that allows at most 3 restarts in 10 minutes, so Swarm never gives up. Only a crash right after startup (configuration, migration) stops after 5. If any of these change, keep `window` ÷ (retry budget + `delay` + JVM start, ≈ 3.3 min today) below `max_attempts`.
 
+A command that targets one service's container finds it with `docker ps -qf label=com.docker.swarm.service.name=<stack>_<service>`, never `name=<stack>_<service>`: the name filter matches substrings, so `name=monolith_database` also returns `monolith_database-exporter` (and `monolith_redis` returns `redis-exporter`), and `docker exec $(…)` then runs the second id as the command (`exec: "<id>": executable file not found`).
+
 ## Memory sizing and placement
 
 The worker's memory limits are sized together with it: MariaDB 3G (a full 2G pool measured 2.17G), Valkey 768M with `--maxmemory 512mb --maxmemory-policy noeviction` (a full cache rejects writes with an error instead of OOM-killing the container or evicting idempotency and claim keys, and the headroom covers the AOF rewrite fork), the app 1536M with `JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=70 -XX:+ExitOnOutOfMemoryError` (≈1.05G heap; without it the JVM takes 25% of the limit).

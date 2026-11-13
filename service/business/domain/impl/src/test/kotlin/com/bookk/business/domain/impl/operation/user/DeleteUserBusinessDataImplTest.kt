@@ -29,6 +29,7 @@ internal class DeleteUserBusinessDataImplTest {
             transactionManager.mockTransaction()
             coEvery { clientDataSource.deleteClientsByUserId(userId) } coAnswers {
                 deletesInTransaction += transactionManager.isInTransaction()
+                emptyList()
             }
             coEvery { employeeDataSource.deleteEmployeesByUserId(userId) } coAnswers {
                 deletesInTransaction += transactionManager.isInTransaction()

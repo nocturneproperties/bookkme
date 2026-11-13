@@ -26,7 +26,7 @@ flowchart TD
     Loop -- consumed by --> Downstream[[See appointments/on-business-deleted.md]]
     Loop -- deleteBusiness throws --> Dlt([Sent to AuthEvent.UserDeleted_dlt topic, logged - no auto-retry])
     Loop --> DeleteData[[DeleteUserBusinessData userId - one transaction]]
-    DeleteData --> DelClients["ClientDataSource.deleteClientsByUserId userId - DELETE client WHERE user_id, in every business"]
+    DeleteData --> DelClients["ClientDataSource.deleteClientsByUserId userId - SELECT business_id, id FOR UPDATE WHERE user_id, then DELETE them, in every business; returns the erased ids"]
     DelClients --> DelEmployees["EmployeeDataSource.deleteEmployeesByUserId userId - DELETE employee WHERE user_id; services, working hours, days off and permission grants go by ON DELETE CASCADE"]
     DelEmployees -- throws --> Dlt
     DelEmployees -- ok --> Ack([Marked processed])

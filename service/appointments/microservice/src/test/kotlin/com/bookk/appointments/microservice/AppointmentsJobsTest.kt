@@ -3,6 +3,7 @@ package com.bookk.appointments.microservice
 import com.bookk.appointments.domain.api.operation.DeleteExpiredRequests
 import com.bookk.appointments.domain.api.operation.DeleteExpiredTombstones
 import com.bookk.appointments.domain.api.operation.DeleteOutdatedRequests
+import com.bookk.appointments.domain.api.operation.FillBusinessOwners
 import com.bookk.appointments.domain.api.operation.MarkAppointmentsCompleted
 import com.bookk.appointments.domain.impl.di.AppointmentsScope
 import com.bookk.core.service.test.routeTest
@@ -31,6 +32,7 @@ internal class AppointmentsJobsTest {
         val deleteOutdatedRequests = mockk<DeleteOutdatedRequests>()
         val deleteExpiredRequests = mockk<DeleteExpiredRequests>()
         val deleteExpiredTombstones = mockk<DeleteExpiredTombstones>()
+        val fillBusinessOwners = mockk<FillBusinessOwners>()
         val scheduler = SchedulerConfiguration()
 
         suspend fun registerJobs(builder: ApplicationTestBuilder) {
@@ -39,6 +41,7 @@ internal class AppointmentsJobsTest {
                 scoped { deleteOutdatedRequests }
                 scoped { deleteExpiredRequests }
                 scoped { deleteExpiredTombstones }
+                scoped { fillBusinessOwners }
             }
             application.registerAppointmentsJobs(scheduler)
         }
@@ -59,6 +62,7 @@ internal class AppointmentsJobsTest {
                 "appointments-deleteOutdatedRequests" to 1.hours,
                 "appointments-deleteExpiredRequests" to 1.days,
                 "appointments-deleteExpiredTombstones" to 1.days,
+                "appointments-fillBusinessOwners" to 1.hours,
             ),
             fixture.scheduler.registeredJobs(),
         )
@@ -175,6 +179,35 @@ internal class AppointmentsJobsTest {
 
         whenn()
         val result = runCatching { fixture.scheduler.runJob("appointments-deleteExpiredTombstones") }
+
+        then()
+        assertSame(error, result.exceptionOrNull())
+    }
+
+    @Test
+    fun `should fill missing business owners`() = routeTest {
+        given()
+        val fixture = SutFixture()
+        coEvery { fixture.fillBusinessOwners.invoke() } returns Result.success(Unit)
+        fixture.registerJobs(this)
+
+        whenn()
+        fixture.scheduler.runJob("appointments-fillBusinessOwners")
+
+        then()
+        coVerify(exactly = 1) { fixture.fillBusinessOwners.invoke() }
+    }
+
+    @Test
+    fun `should surface a failed filling of business owners`() = routeTest {
+        given()
+        val fixture = SutFixture()
+        val error = RuntimeException("fillBusinessOwners failed")
+        coEvery { fixture.fillBusinessOwners.invoke() } returns Result.failure(error)
+        fixture.registerJobs(this)
+
+        whenn()
+        val result = runCatching { fixture.scheduler.runJob("appointments-fillBusinessOwners") }
 
         then()
         assertSame(error, result.exceptionOrNull())

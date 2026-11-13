@@ -10,6 +10,9 @@ interface AppointmentSubscriptionDataSource {
 
     suspend fun updateBusiness(snapshot: BusinessSnapshot, updatedAt: Instant)
     suspend fun detachBusiness(businessId: Uuid)
+    suspend fun detachBusinessesOwnedBy(ownerUserId: Uuid)
+    suspend fun getBusinessIdsWithoutOwner(): List<Uuid>
+    suspend fun fillMissingOwner(businessId: Uuid, ownerUserId: Uuid)
     suspend fun enableBusiness(businessId: Uuid)
     suspend fun isBusinessEnabled(businessId: Uuid): Boolean
     suspend fun disableBusiness(businessId: Uuid)

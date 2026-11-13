@@ -16,6 +16,7 @@ Changes since `monolith/0.17.0`. Sign-up verifies the email with a code before t
 - `GET`/`PUT /api/notification/settings` now include the `EMAIL` channel (off by default); turning it on emails every notification the user gets, in the language of the device they signed in to last.
 - Account notices (dormancy warnings, data export ready) are always emailed to the account's address, even with the email channel off.
 - `POST /api/user/contactus` is removed (404); link users to the support email instead. The data export no longer has `contactMessages`.
+- `POST /api/appointments/enabled/{businessId}` answers 404 when the business's owner has deleted their account.
 - Prod nginx limits each IP to 6 code sends at once, then one per 30 s (`sign_up/challenge` and `POST /api/auth/email` together), to 11 code checks, then one per 6 s (`sign_up` and `email/confirm`), and to 21 `GET /api/auth/passkey/sign_in/challenge`, then one per 6 s; beyond that it answers 429 with an HTML body, so treat any 429 as "try again later".
 
 ### Services
@@ -23,6 +24,7 @@ Changes since `monolith/0.17.0`. Sign-up verifies the email with a code before t
 - Every email now goes to Postmark with open and link tracking off (`TrackOpens=false`, `TrackLinks=None`), whatever the Postmark server or stream settings say.
 - New internal route `POST /api/internal/user/{id}/email`, the only writer of a user's email after sign-up. The unused `UserClient.deleteUser` is gone.
 - `BusinessEvent.ClientLinked` from a booking now always has empty `mergedClientIds`; only a profile email change still merges.
+- `BusinessDTO` (in `BusinessEvent.Updated` and `getBusinessById`) has a new `ownerUserId` (6); appointments now drops the businesses of a deleted account on `AuthEvent.UserDeleted` itself, and `BusinessEvent.Deleted` still covers businesses whose owner it hasn't filled in yet.
 - `POST /api/internal/user` now publishes `UserEvent.Updated` for the new user, so notifications learns the sign-up email.
 - New `deletion_hold` flag on `authorization.authentication` and `business.client`, set by staff in the database: `auth-handleDormantAccounts` neither warns nor deletes a held account, and `business-deleteInactiveClients` skips a held client.
 
@@ -33,6 +35,7 @@ Changes since `monolith/0.17.0`. Sign-up verifies the email with a code before t
 - User migration `V6` drops `contact_form` and every stored contact message; save any you still need before deploying.
 - Business migration `V18` drops the client phone indexes `client_business_id_phone_unique` and `client_phone` and adds `client.deletion_hold`; authorization migration `V5` adds `authentication.deletion_hold`. Neither can fail on existing data.
 - User `V6`, business `V18`, notifications `V5` and new appointments `V11` create the empty key schemas `user_short_retention`, `business_short_retention`, `notifications_short_retention` and `appointments_short_retention` (a `subject_key` table each), which the app's database user needs `ALL PRIVILEGES` on, or the first of them fails with `Access denied … to database '<schema>_short_retention'` and leaves a failed Flyway row to delete.
+- Appointments `V11` adds `business_has_appointments.owner_user_id` (nullable); the new `appointments-fillBusinessOwners` job (hourly, first run at start) fills it from business and drops businesses that no longer exist or whose owner is deleted. Nothing to do; 0.19.0 makes it NOT NULL.
 - Set `APPLICATION_POSTMARK_SERVER_TOKEN`, `APPLICATION_EMAIL_FROM` and `APPLICATION_EMAIL_CODE_SECRET` (at least 32 bytes) for auth (the monolith in prod), or every sign-up and email change fails with 500. A standalone notifications service now needs the first two as well, or its event handling fails to start.
 - Prod: run `make vault-update` (generates `vault_email_code_secret`), then set `vault_postmark_server_token` and `vault_stack_env.EMAIL_DOMAIN_NAME` with `make vault-edit`; the deploy refuses either one unset. The sender is `notifications@<EMAIL_DOMAIN_NAME>`, not the app's domain: verify that domain in Postmark and add its DKIM and Return-Path records in Cloudflare before deploying. The deploy refuses `CHANGE_ME` and `development_token`, which only dev uses: it logs every email, codes included, instead of sending it.
 - Prod: after the vault steps, run `make deploy v=0.17.0` from this checkout first, so the database restarts once with `monolith-mariadb-users-init-v4` and grants them; a self-hosted or dev database needs the grants by hand (`deployment/dev/db/init.sql`).

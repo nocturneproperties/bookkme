@@ -14,7 +14,6 @@ import io.mockk.mockk
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalTime
-import kotlinx.datetime.TimeZone
 import library.schedule.DayOffRange
 import library.schedule.Schedule
 import library.schedule.WorkHour
@@ -33,23 +32,17 @@ internal class UpdateBusinessInformationTest {
 
     private val updatedAt = Instant.fromEpochMilliseconds(1000)
 
-    private fun makeBusinessDTO(id: Uuid = Uuid.random()): BusinessDTO = BusinessDTO(
-        id = id,
-        name = "Test Salon",
-        address = "123 Main St",
-        timeZone = TimeZone.UTC,
-        schedule = Schedule(
-            workingDays = listOf(DayOfWeek.SATURDAY),
-            workingHours = mapOf(DayOfWeek.SATURDAY to listOf(WorkHour(LocalTime(10, 0), LocalTime(14, 0)))),
-            dayOffs = listOf(DayOffRange(LocalDate(2099, 12, 30), LocalDate(2099, 12, 31))),
-        ),
+    private val saturdaySchedule = Schedule(
+        workingDays = listOf(DayOfWeek.SATURDAY),
+        workingHours = mapOf(DayOfWeek.SATURDAY to listOf(WorkHour(LocalTime(10, 0), LocalTime(14, 0)))),
+        dayOffs = listOf(DayOffRange(LocalDate(2099, 12, 30), LocalDate(2099, 12, 31))),
     )
 
     @Test
     fun `should update business information and schedule from event`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        val dto = makeBusinessDTO()
+        val dto = BusinessDTO.stub(schedule = saturdaySchedule)
         with(fixture) {
             transactionManager.mockTransaction()
             coEvery { subscriptionDataSource.updateBusiness(any(), any()) } returns Unit
@@ -82,7 +75,7 @@ internal class UpdateBusinessInformationTest {
     fun `should return failure when datasource throws`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        val dto = makeBusinessDTO()
+        val dto = BusinessDTO.stub(schedule = saturdaySchedule)
         with(fixture) {
             transactionManager.mockTransaction()
             coEvery { subscriptionDataSource.updateBusiness(any(), any()) } throws RuntimeException("db error")
@@ -93,5 +86,45 @@ internal class UpdateBusinessInformationTest {
 
         then()
         assertTrue(result.isFailure)
+    }
+
+    @Test
+    fun `should keep the owner the business sends`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val ownerUserId = Uuid.random()
+        val dto = BusinessDTO.stub(ownerUserId = ownerUserId)
+        with(fixture) {
+            transactionManager.mockTransaction()
+            coEvery { subscriptionDataSource.updateBusiness(any(), any()) } returns Unit
+        }
+
+        whenn()
+        fixture.sut.invoke(dto, updatedAt)
+
+        then()
+        coVerify(exactly = 1) {
+            fixture.subscriptionDataSource.updateBusiness(match { it.ownerUserId == ownerUserId }, updatedAt)
+        }
+    }
+
+    @Test
+    fun `should pass no owner on when an update from before the owner field has none`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val dto = BusinessDTO.stub(ownerUserId = null)
+        with(fixture) {
+            transactionManager.mockTransaction()
+            coEvery { subscriptionDataSource.updateBusiness(any(), any()) } returns Unit
+        }
+
+        whenn()
+        val result = fixture.sut.invoke(dto, updatedAt)
+
+        then()
+        assertTrue(result.isSuccess)
+        coVerify(exactly = 1) {
+            fixture.subscriptionDataSource.updateBusiness(match { it.ownerUserId == null }, updatedAt)
+        }
     }
 }

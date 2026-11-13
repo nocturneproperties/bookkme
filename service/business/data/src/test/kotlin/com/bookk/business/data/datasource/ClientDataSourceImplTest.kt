@@ -9,6 +9,7 @@ import com.bookk.business.data.orm.table.ClientTable
 import com.bookk.business.domain.api.client.entity.Client
 import com.bookk.business.domain.api.client.entity.ClientMerge
 import com.bookk.business.domain.api.client.entity.ClientUpdateModel
+import com.bookk.business.domain.api.client.entity.ErasedClient
 import com.bookk.core.data.map.toDomain
 import com.bookk.core.data.test.createTestDatabase
 import com.bookk.core.domain.entity.Error
@@ -585,19 +586,23 @@ internal class ClientDataSourceImplTest {
         val otherBusinessId = suspendTransaction {
             fixture.businessSut.createBusiness(Uuid.random(), "Other Business", "USD", TimeZone.UTC)
         }.id
-        suspendTransaction {
+        val first = suspendTransaction {
             fixture.sut.getOrCreateIntegratedClient(fixture.businessId, Client.Integrated.stub(userId = userId))
         }
-        suspendTransaction {
+        val second = suspendTransaction {
             fixture.sut.getOrCreateIntegratedClient(otherBusinessId, Client.Integrated.stub(userId = userId))
         }
 
         whenn()
-        suspendTransaction { fixture.sut.deleteClientsByUserId(userId) }
+        val erased = suspendTransaction { fixture.sut.deleteClientsByUserId(userId) }
 
         then()
         assertTrue(suspendTransaction { fixture.sut.getClients(fixture.businessId) }.isEmpty())
         assertTrue(suspendTransaction { fixture.sut.getClients(otherBusinessId) }.isEmpty())
+        assertEquals(
+            setOf(ErasedClient(fixture.businessId, first.id), ErasedClient(otherBusinessId, second.id)),
+            erased.toSet(),
+        )
     }
 
     @Test
@@ -615,9 +620,10 @@ internal class ClientDataSourceImplTest {
         }
 
         whenn()
-        suspendTransaction { fixture.sut.deleteClientsByUserId(Uuid.random()) }
+        val erased = suspendTransaction { fixture.sut.deleteClientsByUserId(Uuid.random()) }
 
         then()
+        assertTrue(erased.isEmpty())
         val remaining = suspendTransaction { fixture.sut.getClients(fixture.businessId) }.map { it.id }.toSet()
         assertEquals(setOf(otherUser.id, detached.id), remaining)
     }
