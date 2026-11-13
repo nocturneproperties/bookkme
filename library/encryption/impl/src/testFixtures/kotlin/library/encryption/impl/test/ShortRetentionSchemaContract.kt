@@ -7,6 +7,8 @@ import com.bookk.core.test.given
 import com.bookk.core.test.runIntegrationTest
 import com.bookk.core.test.then
 import com.bookk.core.test.whenn
+import library.encryption.Decrypted
+import library.encryption.Encryptor
 import library.encryption.SubjectKeys
 import library.encryption.impl.di.subjectKeysModule
 import org.jetbrains.exposed.v1.jdbc.Database
@@ -67,10 +69,21 @@ abstract class ShortRetentionSchemaContract(
         val sut = koin.createScope("keys", SCOPE).get<SubjectKeys>()
 
         suspend fun encrypt(plaintext: String): String {
-            return transactionManager.transactionOrThrow { sut.encryptor(subjectId).encrypt(plaintext) }
+            return transactionManager.transactionOrThrow {
+                val encryptor = requireNotNull(sut.encryptor(subjectId)) { "Subject $subjectId has no live key" }
+                encryptor.encrypt(plaintext)
+            }
         }
 
-        suspend fun decrypt(ciphertext: String): String? {
+        suspend fun shred() {
+            transactionManager.transactionOrThrow { sut.shred(subjectId) }
+        }
+
+        suspend fun encryptor(): Encryptor? {
+            return transactionManager.transactionOrThrow { sut.encryptor(subjectId) }
+        }
+
+        suspend fun decrypt(ciphertext: String): Decrypted<String> {
             return transactionManager.transactionOrThrow {
                 sut.decryptor(listOf(subjectId)).decrypt(subjectId, ciphertext)
             }
@@ -116,7 +129,7 @@ abstract class ShortRetentionSchemaContract(
         val plaintext = fixture.decrypt(ciphertext)
 
         then()
-        assertEquals("jane@example.com", plaintext)
+        assertEquals("jane@example.com", (plaintext as Decrypted.Plain).value)
     }
 
     @Test
@@ -126,10 +139,23 @@ abstract class ShortRetentionSchemaContract(
         val ciphertext = fixture.encrypt("jane@example.com")
 
         whenn()
-        fixture.transactionManager.transactionOrThrow { fixture.sut.shred(fixture.subjectId) }
+        fixture.shred()
 
         then()
-        assertNull(fixture.decrypt(ciphertext))
+        assertEquals(Decrypted.Shredded, fixture.decrypt(ciphertext))
+    }
+
+    @Test
+    fun `should refuse a new key for a subject shredded before it had one`() = runIntegrationTest {
+        given()
+        val fixture = SutFixture()
+        fixture.shred()
+
+        whenn()
+        val encryptor = fixture.encryptor()
+
+        then()
+        assertNull(encryptor)
     }
 
     private companion object {

@@ -8,6 +8,9 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
 import io.mockk.slot
+import library.encryption.Decrypted
+import library.encryption.Encryptor
+import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertNull
@@ -32,13 +35,21 @@ internal class SubjectKeysImplTest {
         val sut = SubjectKeysImpl(dataSource, masterKey, SecureRandom(), clock)
         val subjectId = Uuid.random()
 
-        fun storedKey(subjectId: Uuid = this.subjectId): StoredSubjectKey {
-            return StoredSubjectKey(
+        fun storedKey(subjectId: Uuid = this.subjectId): StoredSubjectKey.Live {
+            return StoredSubjectKey.Live(
                 subjectId = subjectId,
                 wrappedKey = masterKey.wrap(subjectId, randomSecretKey()),
                 masterKeyVersion = masterKey.version,
                 createdAt = now,
             )
+        }
+
+        fun tombstone(subjectId: Uuid = this.subjectId): StoredSubjectKey.Shredded {
+            return StoredSubjectKey.Shredded(subjectId = subjectId, shreddedAt = now)
+        }
+
+        suspend fun liveEncryptor(subjectId: Uuid = this.subjectId): Encryptor {
+            return requireNotNull(sut.encryptor(subjectId)) { "Subject $subjectId has no live key" }
         }
     }
 
@@ -46,14 +57,14 @@ internal class SubjectKeysImplTest {
     fun `should create a wrapped key for a subject that has none`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        val inserted = slot<StoredSubjectKey>()
+        val inserted = slot<StoredSubjectKey.Live>()
         with(fixture) {
             coEvery { dataSource.get(subjectId) } returns null
             coEvery { dataSource.insertIfAbsent(capture(inserted)) } answers { inserted.captured }
         }
 
         whenn()
-        val ciphertext = fixture.sut.encryptor(fixture.subjectId).encrypt(PLAINTEXT)
+        val ciphertext = fixture.liveEncryptor().encrypt(PLAINTEXT)
 
         then()
         assertEquals(fixture.subjectId, inserted.captured.subjectId)
@@ -74,7 +85,7 @@ internal class SubjectKeysImplTest {
         }
 
         whenn()
-        val ciphertext = fixture.sut.encryptor(fixture.subjectId).encrypt(PLAINTEXT)
+        val ciphertext = fixture.liveEncryptor().encrypt(PLAINTEXT)
 
         then()
         assertEquals(PLAINTEXT, FieldCipher.decrypt(fixture.masterKey.unwrap(winner), fixture.subjectId, ciphertext))
@@ -88,11 +99,41 @@ internal class SubjectKeysImplTest {
         coEvery { fixture.dataSource.get(fixture.subjectId) } returns existing
 
         whenn()
-        val ciphertext = fixture.sut.encryptor(fixture.subjectId).encrypt(PLAINTEXT)
+        val ciphertext = fixture.liveEncryptor().encrypt(PLAINTEXT)
 
         then()
         coVerify(exactly = 0) { fixture.dataSource.insertIfAbsent(any()) }
         assertEquals(PLAINTEXT, FieldCipher.decrypt(fixture.masterKey.unwrap(existing), fixture.subjectId, ciphertext))
+    }
+
+    @Test
+    fun `should give no encryptor for a shredded subject`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        coEvery { fixture.dataSource.get(fixture.subjectId) } returns fixture.tombstone()
+
+        whenn()
+        val encryptor = fixture.sut.encryptor(fixture.subjectId)
+
+        then()
+        assertNull(encryptor)
+        coVerify(exactly = 0) { fixture.dataSource.insertIfAbsent(any()) }
+    }
+
+    @Test
+    fun `should give no encryptor when the subject was shredded before its first key was stored`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        with(fixture) {
+            coEvery { dataSource.get(subjectId) } returns null
+            coEvery { dataSource.insertIfAbsent(any()) } returns tombstone()
+        }
+
+        whenn()
+        val encryptor = fixture.sut.encryptor(fixture.subjectId)
+
+        then()
+        assertNull(encryptor)
     }
 
     @Test
@@ -103,32 +144,65 @@ internal class SubjectKeysImplTest {
         val keys = listOf(fixture.storedKey(), fixture.storedKey(other))
         coEvery { fixture.dataSource.get(any()) } answers { keys.single { it.subjectId == firstArg() } }
         coEvery { fixture.dataSource.getAll(setOf(fixture.subjectId, other)) } returns keys
-        val mine = fixture.sut.encryptor(fixture.subjectId).encrypt(PLAINTEXT)
-        val theirs = fixture.sut.encryptor(other).encrypt("john@example.com")
+        val mine = fixture.liveEncryptor().encrypt(PLAINTEXT)
+        val theirs = fixture.liveEncryptor(other).encrypt("john@example.com")
 
         whenn()
         val decryptor = fixture.sut.decryptor(listOf(fixture.subjectId, other, fixture.subjectId))
 
         then()
-        assertEquals(PLAINTEXT, decryptor.decrypt(fixture.subjectId, mine))
-        assertEquals("john@example.com", decryptor.decrypt(other, theirs))
+        assertEquals(PLAINTEXT, (decryptor.decrypt(fixture.subjectId, mine) as Decrypted.Plain).value)
+        assertEquals("john@example.com", (decryptor.decrypt(other, theirs) as Decrypted.Plain).value)
         coVerify(exactly = 1) { fixture.dataSource.getAll(any()) }
     }
 
     @Test
-    fun `should read a shredded subject's field as missing`() = runUnitTest {
+    fun `should decrypt a document back to its bytes`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        val existing = fixture.storedKey()
-        coEvery { fixture.dataSource.get(fixture.subjectId) } returns existing
-        val ciphertext = fixture.sut.encryptor(fixture.subjectId).encrypt(PLAINTEXT)
+        val key = fixture.storedKey()
+        val document = "{\"name\":\"Jane\"}".encodeToByteArray()
+        coEvery { fixture.dataSource.get(fixture.subjectId) } returns key
+        coEvery { fixture.dataSource.getAll(setOf(fixture.subjectId)) } returns listOf(key)
+        val ciphertext = fixture.liveEncryptor().encrypt(document)
+
+        whenn()
+        val decrypted = fixture.sut.decryptor(listOf(fixture.subjectId)).decrypt(fixture.subjectId, ciphertext)
+
+        then()
+        assertArrayEquals(document, (decrypted as Decrypted.Plain).value)
+    }
+
+    @Test
+    fun `should read a shredded subject's field as shredded`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        coEvery { fixture.dataSource.get(fixture.subjectId) } returns fixture.storedKey()
+        val ciphertext = fixture.liveEncryptor().encrypt(PLAINTEXT)
+        coEvery { fixture.dataSource.getAll(setOf(fixture.subjectId)) } returns listOf(fixture.tombstone())
+
+        whenn()
+        val decryptor = fixture.sut.decryptor(listOf(fixture.subjectId))
+
+        then()
+        assertEquals(Decrypted.Shredded, decryptor.decrypt(fixture.subjectId, ciphertext))
+        assertEquals(Decrypted.Shredded, decryptor.decrypt(fixture.subjectId, ciphertext.encodeToByteArray()))
+    }
+
+    @Test
+    fun `should read a field whose subject has no key row as missing`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        coEvery { fixture.dataSource.get(fixture.subjectId) } returns fixture.storedKey()
+        val ciphertext = fixture.liveEncryptor().encrypt(PLAINTEXT)
         coEvery { fixture.dataSource.getAll(setOf(fixture.subjectId)) } returns emptyList()
 
         whenn()
-        val plaintext = fixture.sut.decryptor(listOf(fixture.subjectId)).decrypt(fixture.subjectId, ciphertext)
+        val decryptor = fixture.sut.decryptor(listOf(fixture.subjectId))
 
         then()
-        assertNull(plaintext)
+        assertEquals(Decrypted.Missing, decryptor.decrypt(fixture.subjectId, ciphertext))
+        assertEquals(Decrypted.Missing, decryptor.decrypt(fixture.subjectId, ciphertext.encodeToByteArray()))
     }
 
     @Test
@@ -161,13 +235,13 @@ internal class SubjectKeysImplTest {
     fun `should give different subjects different keys`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        val inserted = mutableListOf<StoredSubjectKey>()
+        val inserted = mutableListOf<StoredSubjectKey.Live>()
         coEvery { fixture.dataSource.get(any()) } returns null
         coEvery { fixture.dataSource.insertIfAbsent(capture(inserted)) } answers { inserted.last() }
 
         whenn()
-        fixture.sut.encryptor(fixture.subjectId)
-        fixture.sut.encryptor(Uuid.random())
+        fixture.liveEncryptor()
+        fixture.liveEncryptor(Uuid.random())
 
         then()
         val (first, second) = inserted.map { fixture.masterKey.unwrap(it).encoded.toList() }
@@ -175,7 +249,7 @@ internal class SubjectKeysImplTest {
     }
 
     @Test
-    fun `should delete the shredded subject's key`() = runUnitTest {
+    fun `should leave a tombstone in place of the shredded subject's key`() = runUnitTest {
         given()
         val fixture = SutFixture()
 
@@ -183,7 +257,7 @@ internal class SubjectKeysImplTest {
         fixture.sut.shred(fixture.subjectId)
 
         then()
-        coVerify(exactly = 1) { fixture.dataSource.delete(fixture.subjectId) }
+        coVerify(exactly = 1) { fixture.dataSource.shred(fixture.subjectId, fixture.now) }
     }
 
     private companion object {

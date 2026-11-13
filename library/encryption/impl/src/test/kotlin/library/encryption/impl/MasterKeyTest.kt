@@ -20,8 +20,12 @@ internal class MasterKeyTest {
         val subjectId = Uuid.random()
         val subjectKey = randomSecretKey()
 
-        fun stored(wrapped: ByteArray, subjectId: Uuid = this.subjectId, version: Int = sut.version): StoredSubjectKey {
-            return StoredSubjectKey(subjectId, wrapped, version, Instant.fromEpochMilliseconds(0))
+        fun stored(
+            wrapped: ByteArray,
+            subjectId: Uuid = this.subjectId,
+            version: Int = sut.version,
+        ): StoredSubjectKey.Live {
+            return StoredSubjectKey.Live(subjectId, wrapped, version, Instant.fromEpochMilliseconds(0))
         }
     }
 

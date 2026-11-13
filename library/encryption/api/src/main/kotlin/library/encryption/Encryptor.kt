@@ -1,5 +1,7 @@
 package library.encryption
 
-fun interface Encryptor {
+interface Encryptor {
     fun encrypt(plaintext: String): String
+
+    fun encrypt(plaintext: ByteArray): ByteArray
 }

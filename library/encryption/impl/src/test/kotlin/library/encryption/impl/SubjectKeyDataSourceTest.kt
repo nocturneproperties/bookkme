@@ -13,8 +13,10 @@ import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.security.SecureRandom
+import kotlin.time.Duration.Companion.hours
 import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
@@ -29,14 +31,19 @@ internal class SubjectKeyDataSourceTest {
             }
         }
         val sut = SubjectKeyDataSource(table)
+        val shreddedAt = Instant.fromEpochMilliseconds(1_900_000_000_000)
 
-        fun key(subjectId: Uuid = Uuid.random(), version: Int = 1): StoredSubjectKey {
-            return StoredSubjectKey(
+        fun key(subjectId: Uuid = Uuid.random(), version: Int = 1): StoredSubjectKey.Live {
+            return StoredSubjectKey.Live(
                 subjectId = subjectId,
                 wrappedKey = ByteArray(StoredSubjectKey.WRAPPED_KEY_LENGTH).also(SecureRandom()::nextBytes),
                 masterKeyVersion = version,
                 createdAt = Instant.fromEpochMilliseconds(1_800_000_000_000),
             )
+        }
+
+        suspend fun read(subjectId: Uuid): StoredSubjectKey? {
+            return suspendTransaction { sut.get(subjectId) }
         }
     }
 
@@ -50,8 +57,10 @@ internal class SubjectKeyDataSourceTest {
         val stored = suspendTransaction { fixture.sut.insertIfAbsent(key) }
 
         then()
-        val read = suspendTransaction { fixture.sut.get(key.subjectId) }!!
+        val read = fixture.read(key.subjectId)
         listOf(stored, read).forEach {
+            assertTrue(it is StoredSubjectKey.Live) { it.toString() }
+            it as StoredSubjectKey.Live
             assertEquals(key.subjectId, it.subjectId)
             assertArrayEquals(key.wrappedKey, it.wrappedKey)
             assertEquals(3, it.masterKeyVersion)
@@ -70,8 +79,8 @@ internal class SubjectKeyDataSourceTest {
         val stored = suspendTransaction { fixture.sut.insertIfAbsent(fixture.key(subjectId = existing.subjectId)) }
 
         then()
-        assertArrayEquals(existing.wrappedKey, stored.wrappedKey)
-        assertArrayEquals(existing.wrappedKey, suspendTransaction { fixture.sut.get(existing.subjectId) }!!.wrappedKey)
+        assertArrayEquals(existing.wrappedKey, (stored as StoredSubjectKey.Live).wrappedKey)
+        assertArrayEquals(existing.wrappedKey, (fixture.read(existing.subjectId) as StoredSubjectKey.Live).wrappedKey)
     }
 
     @Test
@@ -80,25 +89,33 @@ internal class SubjectKeyDataSourceTest {
         val fixture = SutFixture()
 
         whenn()
-        val read = suspendTransaction { fixture.sut.get(Uuid.random()) }
+        val read = fixture.read(Uuid.random())
 
         then()
         assertNull(read)
     }
 
     @Test
-    fun `should read only the requested subjects' keys`() = runUnitTest {
+    fun `should read only the requested subjects' keys and tombstones`() = runUnitTest {
         given()
         val fixture = SutFixture()
         val first = fixture.key()
         val second = fixture.key()
-        suspendTransaction { listOf(first, second, fixture.key()).forEach { fixture.sut.insertIfAbsent(it) } }
+        val shredded = Uuid.random()
+        suspendTransaction {
+            listOf(first, second, fixture.key()).forEach { fixture.sut.insertIfAbsent(it) }
+            fixture.sut.shred(shredded, fixture.shreddedAt)
+            fixture.sut.shred(Uuid.random(), fixture.shreddedAt)
+        }
 
         whenn()
-        val read = suspendTransaction { fixture.sut.getAll(setOf(first.subjectId, second.subjectId, Uuid.random())) }
+        val read = suspendTransaction {
+            fixture.sut.getAll(setOf(first.subjectId, second.subjectId, shredded, Uuid.random()))
+        }
 
         then()
-        assertEquals(setOf(first.subjectId, second.subjectId), read.map { it.subjectId }.toSet())
+        assertEquals(setOf(first.subjectId, second.subjectId, shredded), read.map { it.subjectId }.toSet())
+        assertTrue(read.single { it.subjectId == shredded } is StoredSubjectKey.Shredded)
     }
 
     @Test
@@ -115,7 +132,7 @@ internal class SubjectKeyDataSourceTest {
     }
 
     @Test
-    fun `should delete only the shredded subject's key`() = runUnitTest {
+    fun `should replace only the shredded subject's key with a tombstone`() = runUnitTest {
         given()
         val fixture = SutFixture()
         val shredded = fixture.key()
@@ -123,11 +140,60 @@ internal class SubjectKeyDataSourceTest {
         suspendTransaction { listOf(shredded, kept).forEach { fixture.sut.insertIfAbsent(it) } }
 
         whenn()
-        suspendTransaction { fixture.sut.delete(shredded.subjectId) }
+        suspendTransaction { fixture.sut.shred(shredded.subjectId, fixture.shreddedAt) }
 
         then()
-        assertNull(suspendTransaction { fixture.sut.get(shredded.subjectId) })
-        assertEquals(kept.subjectId, suspendTransaction { fixture.sut.get(kept.subjectId) }?.subjectId)
+        val tombstone = fixture.read(shredded.subjectId)
+        assertTrue(tombstone is StoredSubjectKey.Shredded) { tombstone.toString() }
+        assertEquals(fixture.shreddedAt, (tombstone as StoredSubjectKey.Shredded).shreddedAt)
+        assertArrayEquals(kept.wrappedKey, (fixture.read(kept.subjectId) as StoredSubjectKey.Live).wrappedKey)
+    }
+
+    @Test
+    fun `should leave a tombstone for a subject that never had a key`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val subjectId = Uuid.random()
+
+        whenn()
+        suspendTransaction { fixture.sut.shred(subjectId, fixture.shreddedAt) }
+
+        then()
+        val tombstone = fixture.read(subjectId)
+        assertTrue(tombstone is StoredSubjectKey.Shredded) { tombstone.toString() }
+        assertEquals(fixture.shreddedAt, (tombstone as StoredSubjectKey.Shredded).shreddedAt)
+    }
+
+    @Test
+    fun `should keep the first shredding time when a subject is shredded again`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val key = fixture.key()
+        suspendTransaction {
+            fixture.sut.insertIfAbsent(key)
+            fixture.sut.shred(key.subjectId, fixture.shreddedAt)
+        }
+
+        whenn()
+        suspendTransaction { fixture.sut.shred(key.subjectId, fixture.shreddedAt + 1.hours) }
+
+        then()
+        assertEquals(fixture.shreddedAt, (fixture.read(key.subjectId) as StoredSubjectKey.Shredded).shreddedAt)
+    }
+
+    @Test
+    fun `should not store a new key for a shredded subject`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val key = fixture.key()
+        suspendTransaction { fixture.sut.shred(key.subjectId, fixture.shreddedAt) }
+
+        whenn()
+        val stored = suspendTransaction { fixture.sut.insertIfAbsent(key) }
+
+        then()
+        assertTrue(stored is StoredSubjectKey.Shredded) { stored.toString() }
+        assertTrue(fixture.read(key.subjectId) is StoredSubjectKey.Shredded)
     }
 
     private companion object {

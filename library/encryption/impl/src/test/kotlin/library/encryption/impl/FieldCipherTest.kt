@@ -4,6 +4,7 @@ import com.bookk.core.test.given
 import com.bookk.core.test.runUnitTest
 import com.bookk.core.test.then
 import com.bookk.core.test.whenn
+import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotEquals
@@ -111,6 +112,47 @@ internal class FieldCipherTest {
 
         then()
         assertEquals(plaintext, FieldCipher.decrypt(fixture.key, fixture.subjectId, ciphertext))
+    }
+
+    @Test
+    fun `should decrypt a document back to its bytes`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val document = ByteArray(4096) { (it % 251).toByte() }
+
+        whenn()
+        val ciphertext = FieldCipher.encrypt(fixture.key, fixture.subjectId, document)
+
+        then()
+        assertFalse(ciphertext.contentEquals(document))
+        assertArrayEquals(document, FieldCipher.decrypt(fixture.key, fixture.subjectId, ciphertext))
+    }
+
+    @Test
+    fun `should refuse a document copied onto another subject`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val ciphertext = FieldCipher.encrypt(fixture.key, fixture.subjectId, PLAINTEXT.encodeToByteArray())
+
+        whenn()
+        val result = runCatching { FieldCipher.decrypt(fixture.key, Uuid.random(), ciphertext) }
+
+        then()
+        assertTrue(result.exceptionOrNull() is AEADBadTagException) { result.toString() }
+    }
+
+    @Test
+    fun `should refuse a document in an unknown format`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val ciphertext = FieldCipher.encrypt(fixture.key, fixture.subjectId, PLAINTEXT.encodeToByteArray())
+        ciphertext[0] = 99
+
+        whenn()
+        val result = runCatching { FieldCipher.decrypt(fixture.key, fixture.subjectId, ciphertext) }
+
+        then()
+        assertTrue(result.exceptionOrNull() is IllegalArgumentException) { result.toString() }
     }
 
     private companion object {

@@ -12,6 +12,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+import library.encryption.Decrypted
+import library.encryption.Encryptor
 import library.encryption.impl.orm.SubjectKeyTable
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
@@ -59,9 +61,10 @@ internal class SubjectKeysMariaDbTest {
                 exec(
                     "CREATE TABLE IF NOT EXISTS $KEY_SCHEMA.subject_key (" +
                         "subject_id BINARY(16) NOT NULL PRIMARY KEY, " +
-                        "wrapped_key VARBINARY(60) NOT NULL, " +
-                        "master_key_version INT NOT NULL, " +
-                        "created_at TIMESTAMP(6) NOT NULL)",
+                        "wrapped_key VARBINARY(60) NULL, " +
+                        "master_key_version INT NULL, " +
+                        "created_at TIMESTAMP(6) NOT NULL, " +
+                        "shredded_at TIMESTAMP(6) NULL)",
                 )
             }
         }
@@ -95,21 +98,35 @@ internal class SubjectKeysMariaDbTest {
         )
 
         suspend fun keyRows(): Long {
-            val subjectHex = subjectId.toHexString()
-            return countRows("SELECT COUNT(*) FROM $KEY_SCHEMA.subject_key WHERE subject_id = UNHEX('$subjectHex')")
+            return countRows("SELECT COUNT(*) FROM $KEY_SCHEMA.subject_key WHERE $subjectRow")
+        }
+
+        suspend fun liveKeyRows(): Long {
+            return countRows(
+                "SELECT COUNT(*) FROM $KEY_SCHEMA.subject_key WHERE $subjectRow AND wrapped_key IS NOT NULL",
+            )
         }
 
         suspend fun encrypt(plaintext: String): Result<String> {
             return transactionManager.transaction {
-                sut.encryptor(subjectId).encrypt(plaintext)
+                liveEncryptor().encrypt(plaintext)
             }
         }
 
-        suspend fun decrypt(ciphertext: String): String? {
+        suspend fun liveEncryptor(): Encryptor {
+            return requireNotNull(sut.encryptor(subjectId)) { "Subject $subjectId has no live key" }
+        }
+
+        suspend fun decrypt(ciphertext: String): Decrypted<String> {
             return transactionManager.transaction {
                 sut.decryptor(listOf(subjectId)).decrypt(subjectId, ciphertext)
             }.getOrThrow()
         }
+
+        private val subjectRow: String
+            get() {
+                return "subject_id = UNHEX('${subjectId.toHexString()}')"
+            }
     }
 
     @Test
@@ -123,7 +140,7 @@ internal class SubjectKeysMariaDbTest {
         val results = withContext(Dispatchers.IO) {
             val first = async {
                 fixture.transactionManager.transaction {
-                    fixture.sut.encryptor(fixture.subjectId).encrypt("first").also {
+                    fixture.liveEncryptor().encrypt("first").also {
                         firstEncrypted.complete(Unit)
                         commitFirst.await()
                     }
@@ -139,7 +156,8 @@ internal class SubjectKeysMariaDbTest {
         then()
         assertTrue(results.all { it.isSuccess }) { results.joinToString { it.exceptionOrNull().toString() } }
         assertEquals(1L, fixture.keyRows())
-        assertEquals(listOf("first", "second"), results.map { fixture.decrypt(it.getOrThrow()) })
+        val decrypted = results.map { (fixture.decrypt(it.getOrThrow()) as Decrypted.Plain).value }
+        assertEquals(listOf("first", "second"), decrypted)
     }
 
     @Test
@@ -149,7 +167,7 @@ internal class SubjectKeysMariaDbTest {
 
         whenn()
         val result = fixture.transactionManager.transaction {
-            fixture.sut.encryptor(fixture.subjectId).encrypt("note")
+            fixture.liveEncryptor().encrypt("note")
             throw IllegalStateException("the service write failed")
         }
 
@@ -168,7 +186,22 @@ internal class SubjectKeysMariaDbTest {
         fixture.transactionManager.transaction { fixture.sut.shred(fixture.subjectId) }.getOrThrow()
 
         then()
-        assertEquals(0L, fixture.keyRows())
-        assertNull(fixture.decrypt(ciphertext))
+        assertEquals(1L, fixture.keyRows())
+        assertEquals(0L, fixture.liveKeyRows())
+        assertEquals(Decrypted.Shredded, fixture.decrypt(ciphertext))
+    }
+
+    @Test
+    fun `should not create a new key for a shredded subject`() = runIntegrationTest {
+        given()
+        val fixture = SutFixture()
+        fixture.transactionManager.transaction { fixture.sut.shred(fixture.subjectId) }.getOrThrow()
+
+        whenn()
+        val encryptor = fixture.transactionManager.transaction { fixture.sut.encryptor(fixture.subjectId) }
+
+        then()
+        assertNull(encryptor.getOrThrow())
+        assertEquals(0L, fixture.liveKeyRows())
     }
 }

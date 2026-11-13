@@ -14,18 +14,25 @@ internal object FieldCipher {
     private val random = SecureRandom()
 
     fun encrypt(key: SecretKey, subjectId: Uuid, plaintext: String): String {
-        val iv = ByteArray(IV_LENGTH_BYTES).also(random::nextBytes)
-        val sealed = AesGcm.seal(key, iv, plaintext.encodeToByteArray(), associatedData(subjectId))
-        return Base64.encode(byteArrayOf(FORMAT_V1) + iv + sealed)
+        return Base64.encode(encrypt(key, subjectId, plaintext.encodeToByteArray()))
     }
 
     fun decrypt(key: SecretKey, subjectId: Uuid, ciphertext: String): String {
-        val bytes = Base64.decode(ciphertext)
+        return decrypt(key, subjectId, Base64.decode(ciphertext)).decodeToString()
+    }
+
+    fun encrypt(key: SecretKey, subjectId: Uuid, plaintext: ByteArray): ByteArray {
+        val iv = ByteArray(IV_LENGTH_BYTES).also(random::nextBytes)
+        val sealed = AesGcm.seal(key, iv, plaintext, associatedData(subjectId))
+        return byteArrayOf(FORMAT_V1) + iv + sealed
+    }
+
+    fun decrypt(key: SecretKey, subjectId: Uuid, bytes: ByteArray): ByteArray {
         val isKnownFormat = bytes.size > HEADER_LENGTH + IV_LENGTH_BYTES && bytes[0] == FORMAT_V1
         require(isKnownFormat) { "Not an encrypted field in a known format" }
         val iv = bytes.copyOfRange(HEADER_LENGTH, HEADER_LENGTH + IV_LENGTH_BYTES)
         val sealed = bytes.copyOfRange(HEADER_LENGTH + IV_LENGTH_BYTES, bytes.size)
-        return AesGcm.open(key, iv, sealed, associatedData(subjectId)).decodeToString()
+        return AesGcm.open(key, iv, sealed, associatedData(subjectId))
     }
 
     private fun associatedData(subjectId: Uuid): ByteArray {

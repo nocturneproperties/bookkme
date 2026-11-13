@@ -14,7 +14,7 @@ internal class MasterKey private constructor(val version: Int, private val key: 
         return iv + AesGcm.seal(key, iv, subjectKey.encoded, associatedData(subjectId))
     }
 
-    fun unwrap(stored: StoredSubjectKey): SecretKey {
+    fun unwrap(stored: StoredSubjectKey.Live): SecretKey {
         check(stored.masterKeyVersion == version) {
             val storedVersion = stored.masterKeyVersion
             "The key of subject ${stored.subjectId} is wrapped by master key version $storedVersion, not $version"
