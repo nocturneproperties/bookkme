@@ -3,9 +3,6 @@ package com.bookk.user.microservice
 import com.bookk.core.data.eventstreaming.EventHandler
 import com.bookk.core.data.eventstreaming.ExhaustedEventReplayer
 import com.bookk.core.data.eventstreaming.StandardEventProducer
-import com.bookk.core.data.eventstreaming.data.outbox.OutboxEventProducer
-import com.bookk.core.data.eventstreaming.data.outbox.OutboxRelay
-import com.bookk.core.data.eventstreaming.data.test.serviceScopeWithMockedInfrastructure
 import com.bookk.core.test.given
 import com.bookk.core.test.runUnitTest
 import com.bookk.core.test.then
@@ -17,6 +14,9 @@ import com.bookk.user.domain.impl.di.UserScope
 import io.mockk.mockk
 import library.export.BuildDataExports
 import library.export.DeleteExpiredDataExports
+import library.outbox.OutboxEventProducer
+import library.outbox.OutboxRelay
+import library.outbox.test.serviceScopeWithMockedInfrastructure
 import library.signing.TokenValidatorFactory
 import org.junit.jupiter.api.Assertions.assertDoesNotThrow
 import org.junit.jupiter.api.Assertions.assertNotNull

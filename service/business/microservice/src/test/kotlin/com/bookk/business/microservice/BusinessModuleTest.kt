@@ -6,7 +6,6 @@ import com.bookk.business.domain.api.export.GetBusinessDataExport
 import com.bookk.business.domain.api.export.StartBusinessDataExport
 import com.bookk.business.domain.impl.di.BusinessScope
 import com.bookk.core.data.eventstreaming.ExhaustedEventReplayer
-import com.bookk.core.data.eventstreaming.data.test.serviceScopeWithMockedInfrastructure
 import com.bookk.core.test.given
 import com.bookk.core.test.runUnitTest
 import com.bookk.core.test.then
@@ -14,6 +13,7 @@ import com.bookk.core.test.whenn
 import io.mockk.mockk
 import library.export.BuildDataExports
 import library.export.DeleteExpiredDataExports
+import library.outbox.test.serviceScopeWithMockedInfrastructure
 import library.signing.TokenValidatorFactory
 import org.junit.jupiter.api.Assertions.assertDoesNotThrow
 import org.junit.jupiter.api.Assertions.assertNotNull

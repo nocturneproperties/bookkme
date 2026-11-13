@@ -6,7 +6,7 @@ Modular monolith split into Ktor microservices. Kotlin + Ktor (CIO) + Koin DI + 
 
 ```
 core/                    shared infra: domain Result/Error types, service (Ktor server, auth, respondWith), data (Exposed, event streaming, cache)
-library/                 money, idempotency, permissions, validation
+library/                 money, idempotency, permissions, validation, outbox (transactional outbox + parked-event persistence), …
 service/<svc>/
   domain/api/            operation interfaces + entities + <Svc>ErrorCodes   (package com.bookk.<svc>.domain.api.{operation,entity})
   domain/impl/           <Operation>Impl + di/DI.kt + tests                  (package com.bookk.<svc>.domain.impl.{operation,di})

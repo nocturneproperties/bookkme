@@ -10,7 +10,6 @@ import com.bookk.auth.domain.impl.di.AuthScope
 import com.bookk.auth.domain.impl.di.authDomainModule
 import com.bookk.auth.microservice.route.authRoute
 import com.bookk.core.data.cache.impl.di.cacheModule
-import com.bookk.core.data.eventstreaming.data.di.outboxModule
 import com.bookk.core.data.eventstreaming.di.embeddedEventStreamingTransportModule
 import com.bookk.core.data.eventstreaming.di.eventStreamingTransportModule
 import com.bookk.core.data.eventstreaming.startEventHandling
@@ -24,6 +23,7 @@ import io.ktor.server.application.install
 import io.ktor.server.routing.application
 import library.actionconfirmation.impl.di.actionConfirmationModule
 import library.email.impl.di.emailModule
+import library.outbox.di.outboxModule
 import library.scheduler.Scheduler
 import library.scheduler.SchedulerConfiguration
 import library.signing.RotateSigningKeys

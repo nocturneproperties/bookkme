@@ -14,7 +14,7 @@ and a background `OutboxRelay` publishes committed rows afterwards.
 - Delivery is **at-least-once**: a relay that publishes and then fails before
   committing its delete publishes the batch again on the next pass.
 
-Code: `core/data/eventstreaming/data` (`OutboxEventProducer`, `OutboxRelay`,
+Code: `library/outbox` (`OutboxEventProducer`, `OutboxRelay`,
 `OutboxEventDataSourceImpl`, `OutboxEventTable`, `outboxModule`) and
 `core/data/eventstreaming/impl` (transports). Schema: `OUTBOX_EVENT` in
 [business](database/business.md),

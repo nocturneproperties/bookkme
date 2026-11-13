@@ -5,7 +5,7 @@ plugins {
 dependencies {
     api(projects.core.data)
     implementation(projects.core.data.eventstreaming.api)
-    implementation(projects.core.data.eventstreaming.data)
+    implementation(projects.library.outbox)
     implementation(projects.core.domain.datasource)
     api(projects.service.business.domain.api)
     implementation(projects.service.business.data.source)

@@ -14,8 +14,8 @@ import com.bookk.auth.domain.repository.CacheableCredentialRepository
 import com.bookk.core.data.ExposedTransactionManager
 import com.bookk.core.data.database.createDatabase
 import com.bookk.core.data.eventstreaming.ExhaustedEventDataSource
-import com.bookk.core.data.eventstreaming.data.datasource.ExhaustedEventDataSourceImpl
 import com.bookk.core.domain.datasource.transaction.TransactionManager
+import library.outbox.datasource.ExhaustedEventDataSourceImpl
 import org.koin.core.module.dsl.scopedOf
 import org.koin.core.qualifier.Qualifier
 import org.koin.core.qualifier.named

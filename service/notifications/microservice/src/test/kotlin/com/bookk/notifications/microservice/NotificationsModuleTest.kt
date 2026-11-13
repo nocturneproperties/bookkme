@@ -2,13 +2,13 @@ package com.bookk.notifications.microservice
 
 import com.bookk.core.data.eventstreaming.ExhaustedEventReplayer
 import com.bookk.core.data.eventstreaming.StandardEventProducer
-import com.bookk.core.data.eventstreaming.data.test.serviceScopeWithMockedInfrastructure
 import com.bookk.core.test.given
 import com.bookk.core.test.runUnitTest
 import com.bookk.core.test.then
 import com.bookk.core.test.whenn
 import com.bookk.notifications.domain.impl.di.NotificationsScope
 import library.email.EmailSender
+import library.outbox.test.serviceScopeWithMockedInfrastructure
 import org.junit.jupiter.api.Assertions.assertDoesNotThrow
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull

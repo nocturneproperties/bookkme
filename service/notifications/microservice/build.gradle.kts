@@ -30,6 +30,6 @@ dependencies {
     implementation(projects.service.notifications.domain.impl)
     implementation(projects.library.email.impl)
     testImplementation(testFixtures(projects.core))
-    testImplementation(testFixtures(projects.core.data.eventstreaming.data))
+    testImplementation(testFixtures(projects.library.outbox))
     testImplementation(testFixtures(projects.core.service))
 }
