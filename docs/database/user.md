@@ -65,7 +65,7 @@ erDiagram
     }
 
     SUBJECT_KEY {
-        uuid subject_id PK "the person the key encrypts for; in schema user_keys, not user"
+        uuid subject_id PK "the person the key encrypts for; in schema user_short_retention, not user"
         varbinary wrapped_key "60 bytes; the AES-256 key wrapped by the vault master key"
         int master_key_version
         timestamp created_at
@@ -80,4 +80,4 @@ erDiagram
 
 `OUTBOX_EVENT` is not part of the user domain model either — it's the shared transactional outbox (`core/data/eventstreaming/data`, one instance per service schema). `eventProducer.send` inserts the encoded event in the same transaction as the user write, so an event exists exactly when its write committed; `OutboxRelay` then locks the oldest rows (`SELECT … FOR UPDATE`), publishes them to Kafka (or the embedded transport in the monolith) and deletes them. Delivery is at-least-once, deduplicated by consumers through the event's idempotency key. See [Transactional outbox](../transactional-outbox.md).
 
-`SUBJECT_KEY` lives in its own schema, `user_keys`, created by the same migration: it holds one AES-GCM key per person whose fields this service encrypts, wrapped by the master key from the vault (`library/encryption`). Erasing a person deletes their row in the erasure's transaction, so their encrypted fields become unreadable in the live database at once, and in backups once the last key backup holding the row expires after 7 days. That is why the key schema is separate: it stays out of the binary log and the 30-day dump and gets its own short-lived backup. No foreign keys; NocoDB can't read it.
+`SUBJECT_KEY` lives in its own schema, `user_short_retention`, created by the same migration: it holds one AES-GCM key per person whose fields this service encrypts, wrapped by the master key from the vault (`library/encryption`). Erasing a person deletes their row in the erasure's transaction, so their encrypted fields become unreadable in the live database at once, and in backups once the last key backup holding the row expires after 7 days. That is why the key schema is separate: it stays out of the binary log and the 30-day dump and gets its own short-lived backup. It holds keys only: the outbox, parked events and exports stay in `user`, and any personal data they copy is encrypted under the person's key. No foreign keys; NocoDB can't read it.

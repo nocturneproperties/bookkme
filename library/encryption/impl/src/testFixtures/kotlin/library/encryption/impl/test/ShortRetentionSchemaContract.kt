@@ -27,7 +27,11 @@ import kotlin.io.encoding.Base64
 import kotlin.uuid.Uuid
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-abstract class SubjectKeySchemaContract(private val serviceSchema: String, private val keySchema: String) {
+abstract class ShortRetentionSchemaContract(
+    private val serviceSchema: String,
+    private val shortRetentionSchema: String,
+    private val serviceTables: Set<String>,
+) {
 
     private val container = GenericContainer(DockerImageName.parse("mariadb:11.8.3-ubi9"))
         .withEnv("MARIADB_ROOT_PASSWORD", PASSWORD)
@@ -55,7 +59,9 @@ abstract class SubjectKeySchemaContract(private val serviceSchema: String, priva
 
     private inner class SutFixture {
         private val environment = mapOf(MASTER_KEY to randomBase64Key(), BLIND_INDEX_KEY to randomBase64Key())
-        private val koin = koinApplication { modules(subjectKeysModule(SCOPE, keySchema, environment::get)) }.koin
+        private val koin = koinApplication {
+            modules(subjectKeysModule(SCOPE, shortRetentionSchema, environment::get))
+        }.koin
         val subjectId = Uuid.random()
         val transactionManager = ExposedTransactionManager(database)
         val sut = koin.createScope("keys", SCOPE).get<SubjectKeys>()
@@ -72,21 +78,36 @@ abstract class SubjectKeySchemaContract(private val serviceSchema: String, priva
     }
 
     @Test
-    fun `should keep subject keys only in the service's key schema`() = runIntegrationTest {
+    fun `should keep only subject keys in the short-retention schema`() = runIntegrationTest {
         given()
-        val query = "SELECT table_schema FROM information_schema.tables WHERE table_name = 'subject_key'"
+        val query = "SELECT table_name FROM information_schema.tables WHERE table_schema = '$shortRetentionSchema'"
 
         whenn()
-        val schemas = suspendTransaction(db = database) {
+        val tables = suspendTransaction(db = database) {
             exec(query) { rows -> buildList { while (rows.next()) add(rows.getString(1)) } }
         }
 
         then()
-        assertEquals(listOf(keySchema), schemas)
+        assertEquals(listOf("subject_key"), tables)
     }
 
     @Test
-    fun `should read back a field encrypted with a key stored in the key schema`() = runIntegrationTest {
+    fun `should keep the outbox, parked events and exports in the service schema`() = runIntegrationTest {
+        given()
+        val names = serviceTables.joinToString { "'$it'" }
+        val query = "SELECT table_name, table_schema FROM information_schema.tables WHERE table_name IN ($names)"
+
+        whenn()
+        val schemasByTable = suspendTransaction(db = database) {
+            exec(query) { rows -> buildList { while (rows.next()) add(rows.getString(1) to rows.getString(2)) } }
+        }.orEmpty().groupBy({ it.first }, { it.second })
+
+        then()
+        assertEquals(serviceTables.associateWith { listOf(serviceSchema) }, schemasByTable)
+    }
+
+    @Test
+    fun `should read back a field encrypted with a key from the short-retention schema`() = runIntegrationTest {
         given()
         val fixture = SutFixture()
         val ciphertext = fixture.encrypt("jane@example.com")
@@ -116,7 +137,7 @@ abstract class SubjectKeySchemaContract(private val serviceSchema: String, priva
         const val PORT = 3306
         const val MASTER_KEY = "APPLICATION_SUBJECT_MASTER_KEY"
         const val BLIND_INDEX_KEY = "APPLICATION_BLIND_INDEX_KEY"
-        val SCOPE = named("SubjectKeySchemaContract")
+        val SCOPE = named("ShortRetentionSchemaContract")
 
         fun randomBase64Key(): String {
             return Base64.encode(ByteArray(32).also(SecureRandom()::nextBytes))

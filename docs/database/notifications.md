@@ -66,7 +66,7 @@ erDiagram
     }
 
     SUBJECT_KEY {
-        uuid subject_id PK "the person the key encrypts for; in schema notifications_keys, not notifications"
+        uuid subject_id PK "the person the key encrypts for; in schema notifications_short_retention, not notifications"
         varbinary wrapped_key "60 bytes; the AES-256 key wrapped by the vault master key"
         int master_key_version
         timestamp created_at
@@ -81,4 +81,4 @@ user's settings at query time via the shared `user_id`.
 
 `device` is unique on `(auth_id, device_uuid)`, matching authorization. One installation UUID can belong to several accounts, with independent tokens and languages. Repeated `DeviceCreated` events preserve the existing association and reject a conflicting `user_id`.
 
-`SUBJECT_KEY` lives in its own schema, `notifications_keys`, created by the same migration: it holds one AES-GCM key per person whose fields this service encrypts, wrapped by the master key from the vault (`library/encryption`). Erasing a person deletes their row in the erasure's transaction, so their encrypted fields become unreadable in the live database at once, and in backups once the last key backup holding the row expires after 7 days. That is why the key schema is separate: it stays out of the binary log and the 30-day dump and gets its own short-lived backup. No foreign keys; NocoDB can't read it.
+`SUBJECT_KEY` lives in its own schema, `notifications_short_retention`, created by the same migration: it holds one AES-GCM key per person whose fields this service encrypts, wrapped by the master key from the vault (`library/encryption`). Erasing a person deletes their row in the erasure's transaction, so their encrypted fields become unreadable in the live database at once, and in backups once the last key backup holding the row expires after 7 days. That is why the key schema is separate: it stays out of the binary log and the 30-day dump and gets its own short-lived backup. It holds keys only: parked events stay in `notifications`, and any personal data they copy is encrypted under the person's key. No foreign keys; NocoDB can't read it.
