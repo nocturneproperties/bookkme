@@ -70,17 +70,10 @@ internal class CreateAppointmentImpl(
     private suspend fun verifyAppointment(appointment: AppointmentRepresentation, settings: AppointmentSettings) {
         if (appointment.date < Clock.System.now()) throw CreateAppointment.Error.DateInThePastNotAllowed()
         if (!settings.isInWorkday(appointment.date)) throw CreateAppointment.Error.RequestForThisDateNotAllowed()
-        if (!settings.isInWorktime(
-                appointment.date,
-                appointment.dateEnd,
-            )
-        ) {
+        if (!settings.isInWorktime(appointment.date, appointment.dateEnd)) {
             throw CreateAppointment.Error.RequestForThisTimeNotAllowed()
         }
-        if (appointmentDataSource.hasOverlapsWith(
-                appointment,
-            )
-        ) {
+        if (appointmentDataSource.hasOverlapsWith(appointment)) {
             throw CreateAppointment.Error.AppointmentForThisTimeExists()
         }
     }
@@ -93,9 +86,7 @@ internal class CreateAppointmentImpl(
         eventProducer.send(
             AppointmentEvent.RequestApproved(
                 clientUserId = request.client.userId,
-                clientName = request.client.fullName,
                 employeeUserId = request.employee.userId,
-                employeeName = request.employee.fullName,
                 from = request.date,
                 to = request.dateEnd,
                 timeZone = business.timeZone,

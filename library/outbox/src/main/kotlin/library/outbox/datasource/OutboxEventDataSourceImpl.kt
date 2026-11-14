@@ -1,8 +1,6 @@
 package library.outbox.datasource
 
 import com.bookk.core.data.DataSource
-import com.bookk.core.data.eventstreaming.OutboxEvent
-import com.bookk.core.data.eventstreaming.OutboxEventDataSource
 import library.outbox.orm.table.OutboxEventTable
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.SortOrder
@@ -14,12 +12,18 @@ import org.jetbrains.exposed.v1.jdbc.selectAll
 
 class OutboxEventDataSourceImpl : DataSource(), OutboxEventDataSource {
 
-    override suspend fun enqueue(topic: String, partitionKey: String?, payload: ByteArray) {
+    override suspend fun enqueue(
+        topic: String,
+        partitionKey: String?,
+        payload: ByteArray,
+        personalDataEncrypted: Boolean,
+    ) {
         dbQuery {
             OutboxEventTable.insert {
                 it[OutboxEventTable.topic] = topic
                 it[OutboxEventTable.partitionKey] = partitionKey
                 it[OutboxEventTable.payload] = ExposedBlob(payload)
+                it[OutboxEventTable.personalDataEncrypted] = personalDataEncrypted
             }
         }
     }
@@ -42,5 +46,6 @@ class OutboxEventDataSourceImpl : DataSource(), OutboxEventDataSource {
         topic = this[OutboxEventTable.topic],
         partitionKey = this[OutboxEventTable.partitionKey],
         payload = this[OutboxEventTable.payload].bytes,
+        personalDataEncrypted = this[OutboxEventTable.personalDataEncrypted],
     )
 }

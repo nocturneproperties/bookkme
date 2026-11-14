@@ -48,13 +48,11 @@ internal class CancelAppointmentImpl(
         eventProducer.send(
             AppointmentEvent.Cancelled(
                 clientUserId = appointment.client.userId,
-                clientName = appointment.client.fullName,
                 from = appointment.date,
                 to = appointment.dateEnd,
                 timeZone = business.timeZone,
                 businessName = business.name,
                 employeeUserId = appointment.employee.userId,
-                employeeName = appointment.employee.fullName,
                 address = business.address,
                 price = moneyFormatter.print(appointment.totalAmount),
                 reason = appointment.cancellationReason,

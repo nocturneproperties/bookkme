@@ -9,8 +9,11 @@ import com.bookk.core.test.given
 import com.bookk.core.test.runUnitTest
 import com.bookk.core.test.then
 import com.bookk.core.test.whenn
+import library.encryption.impl.test.subjectKeyTestEnvironment
 import library.outbox.OutboxEventProducer
 import library.outbox.OutboxRelay
+import library.outbox.personal.PersonalDataCipher
+import library.outbox.personal.SubjectKeysPersonalDataCipher
 import library.outbox.test.serviceScopeWithMockedInfrastructure
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -27,7 +30,7 @@ internal class AppointmentsModuleTest {
     @Test
     fun `should send events through the outbox in the standalone microservice`() = runUnitTest {
         given()
-        val fixture = SutFixture(appointmentsModule())
+        val fixture = SutFixture(appointmentsModule(subjectKeyTestEnvironment::get))
 
         whenn()
         val producer = fixture.scope.get<StandardEventProducer>()
@@ -39,7 +42,7 @@ internal class AppointmentsModuleTest {
     @Test
     fun `should start the outbox relay with event handling in the standalone microservice`() = runUnitTest {
         given()
-        val fixture = SutFixture(appointmentsModule())
+        val fixture = SutFixture(appointmentsModule(subjectKeyTestEnvironment::get))
 
         whenn()
         val handlers = fixture.scope.getAll<EventHandler>()
@@ -51,7 +54,7 @@ internal class AppointmentsModuleTest {
     @Test
     fun `should send events through the outbox in the monolith`() = runUnitTest {
         given()
-        val fixture = SutFixture(appointmentsEmbeddedModule())
+        val fixture = SutFixture(appointmentsEmbeddedModule(subjectKeyTestEnvironment::get))
 
         whenn()
         val producer = fixture.scope.get<StandardEventProducer>()
@@ -63,7 +66,7 @@ internal class AppointmentsModuleTest {
     @Test
     fun `should start the outbox relay with event handling in the monolith`() = runUnitTest {
         given()
-        val fixture = SutFixture(appointmentsEmbeddedModule())
+        val fixture = SutFixture(appointmentsEmbeddedModule(subjectKeyTestEnvironment::get))
 
         whenn()
         val handlers = fixture.scope.getAll<EventHandler>()
@@ -75,7 +78,7 @@ internal class AppointmentsModuleTest {
     @Test
     fun `should replay parked events in the standalone microservice`() = runUnitTest {
         given()
-        val fixture = SutFixture(appointmentsModule())
+        val fixture = SutFixture(appointmentsModule(subjectKeyTestEnvironment::get))
 
         whenn()
         val replayer = fixture.scope.getOrNull<ExhaustedEventReplayer>()
@@ -87,7 +90,7 @@ internal class AppointmentsModuleTest {
     @Test
     fun `should replay parked events in the monolith`() = runUnitTest {
         given()
-        val fixture = SutFixture(appointmentsEmbeddedModule())
+        val fixture = SutFixture(appointmentsEmbeddedModule(subjectKeyTestEnvironment::get))
 
         whenn()
         val replayer = fixture.scope.getOrNull<ExhaustedEventReplayer>()
@@ -99,7 +102,7 @@ internal class AppointmentsModuleTest {
     @Test
     fun `should resolve get appointment in the standalone microservice`() = runUnitTest {
         given()
-        val fixture = SutFixture(appointmentsModule())
+        val fixture = SutFixture(appointmentsModule(subjectKeyTestEnvironment::get))
 
         whenn()
         val operation = fixture.scope.get<GetAppointment>()
@@ -111,12 +114,24 @@ internal class AppointmentsModuleTest {
     @Test
     fun `should resolve get appointment in the monolith`() = runUnitTest {
         given()
-        val fixture = SutFixture(appointmentsEmbeddedModule())
+        val fixture = SutFixture(appointmentsEmbeddedModule(subjectKeyTestEnvironment::get))
 
         whenn()
         val operation = fixture.scope.get<GetAppointment>()
 
         then()
         assertNotNull(operation)
+    }
+
+    @Test
+    fun `should encrypt personal event data with the service's subject keys in the monolith`() = runUnitTest {
+        given()
+        val fixture = SutFixture(appointmentsEmbeddedModule(subjectKeyTestEnvironment::get))
+
+        whenn()
+        val cipher = fixture.scope.get<PersonalDataCipher>()
+
+        then()
+        assertTrue(cipher is SubjectKeysPersonalDataCipher)
     }
 }

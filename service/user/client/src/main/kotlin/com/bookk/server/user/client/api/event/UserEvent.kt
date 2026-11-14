@@ -1,6 +1,8 @@
 package com.bookk.server.user.client.api.event
 
+import com.bookk.core.data.eventstreaming.DataSubject
 import com.bookk.core.data.eventstreaming.EventStreaming
+import com.bookk.core.data.eventstreaming.PersonalEvent
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.protobuf.ProtoNumber
 import kotlin.time.Instant
@@ -16,10 +18,11 @@ sealed interface UserEvent : EventStreaming.Event<String> {
         @ProtoNumber(5) val phone: String?,
         @ProtoNumber(6) val updatedAt: Instant,
         @ProtoNumber(7) override val idempotencyKey: String = Uuid.random().toString(),
-    ) : UserEvent {
+    ) : UserEvent, PersonalEvent {
         @ProtoNumber(8)
         override val topic: String = TOPIC
         override val partitionKey: String get() = userId.toString()
+        override val dataSubject: DataSubject get() = DataSubject.User(userId)
 
         companion object {
             const val TOPIC = "user.updated"

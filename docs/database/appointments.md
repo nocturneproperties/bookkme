@@ -111,7 +111,7 @@ erDiagram
         uuid employee_user_id "indexed; logical FK -> user.profile.id (employee's own userId); what account deletion cancels and renames by"
         string employee_name
         uuid client_id "logical FK -> business.client.id"
-        uuid client_user_id "nullable, indexed; logical FK -> user.profile.id of the client's own account, empty for a client without one or once erased; who client notifications go to, and what account deletion erases by"
+        uuid client_user_id "NOT NULL, indexed; logical FK -> user.profile.id of the client's own account, the user who booked the request (only a client books one, for themselves); who client notifications go to, and what account deletion deletes the request by"
         string client_name
         string client_phone
         string client_email
@@ -187,6 +187,7 @@ erDiagram
         int attempt
         blob payload
         bool replay_requested
+        bool personal_data_encrypted "payload sealed under a person's key"
         timestamp createdAt
         timestamp updatedAt
     }
@@ -197,6 +198,7 @@ erDiagram
         string partition_key "nullable"
         blob payload "ProtoBuf-encoded event, idempotency key included"
         timestamp createdAt
+        bool personal_data_encrypted "payload sealed under a person's key"
     }
 
     DELETED_USER {

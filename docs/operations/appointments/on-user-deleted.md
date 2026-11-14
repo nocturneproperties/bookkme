@@ -74,7 +74,7 @@ flowchart TD
     Each -- found --> Role{Was the user its client?}
     Role -- yes --> Send["eventProducer.send AppointmentEvent.CancelledForDeletedClient employeeUserId from to timeZone businessName"]
     Role -- "no, its employee" --> HasAccount{client.userId set?}
-    HasAccount -- yes --> SendClient["eventProducer.send AppointmentEvent.Cancelled clientUserId employeeName 'Deleted User' reason 'Employee deleted their account'"]
+    HasAccount -- yes --> SendClient["eventProducer.send AppointmentEvent.Cancelled clientUserId reason 'Employee deleted their account'"]
     Send --> Owned
     SendClient --> Owned
     Log --> Owned

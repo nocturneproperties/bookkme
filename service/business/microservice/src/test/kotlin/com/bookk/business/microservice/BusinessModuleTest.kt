@@ -11,17 +11,20 @@ import com.bookk.core.test.runUnitTest
 import com.bookk.core.test.then
 import com.bookk.core.test.whenn
 import io.mockk.mockk
+import library.encryption.impl.test.subjectKeyTestEnvironment
 import library.export.BuildDataExports
 import library.export.DeleteExpiredDataExports
+import library.outbox.personal.PersonalDataCipher
+import library.outbox.personal.SubjectKeysPersonalDataCipher
 import library.outbox.test.serviceScopeWithMockedInfrastructure
 import library.signing.TokenValidatorFactory
 import org.junit.jupiter.api.Assertions.assertDoesNotThrow
 import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.koin.core.module.Module
 import org.koin.core.scope.Scope
 import org.koin.dsl.module
-import kotlin.io.encoding.Base64
 
 internal class BusinessModuleTest {
 
@@ -38,7 +41,7 @@ internal class BusinessModuleTest {
     @Test
     fun `should replay parked events in the standalone microservice`() = runUnitTest {
         given()
-        val fixture = SutFixture(businessModule(KEY_ENVIRONMENT::get))
+        val fixture = SutFixture(businessModule(subjectKeyTestEnvironment::get))
 
         whenn()
         val replayer = fixture.scope.getOrNull<ExhaustedEventReplayer>()
@@ -50,7 +53,7 @@ internal class BusinessModuleTest {
     @Test
     fun `should replay parked events in the monolith`() = runUnitTest {
         given()
-        val fixture = SutFixture(businessEmbeddedModule(KEY_ENVIRONMENT::get))
+        val fixture = SutFixture(businessEmbeddedModule(subjectKeyTestEnvironment::get))
 
         whenn()
         val replayer = fixture.scope.getOrNull<ExhaustedEventReplayer>()
@@ -62,7 +65,7 @@ internal class BusinessModuleTest {
     @Test
     fun `should guard client deletion with an action confirmation gate in the standalone microservice`() = runUnitTest {
         given()
-        val fixture = SutFixture(businessModule(KEY_ENVIRONMENT::get))
+        val fixture = SutFixture(businessModule(subjectKeyTestEnvironment::get))
 
         whenn()
         val resolve = { fixture.scope.get<DeleteClient>() }
@@ -74,7 +77,7 @@ internal class BusinessModuleTest {
     @Test
     fun `should guard client deletion with an action confirmation gate in the monolith`() = runUnitTest {
         given()
-        val fixture = SutFixture(businessEmbeddedModule(KEY_ENVIRONMENT::get))
+        val fixture = SutFixture(businessEmbeddedModule(subjectKeyTestEnvironment::get))
 
         whenn()
         val resolve = { fixture.scope.get<DeleteClient>() }
@@ -86,7 +89,7 @@ internal class BusinessModuleTest {
     @Test
     fun `should wire the business data export in the standalone microservice`() = runUnitTest {
         given()
-        val fixture = SutFixture(businessModule(KEY_ENVIRONMENT::get))
+        val fixture = SutFixture(businessModule(subjectKeyTestEnvironment::get))
 
         whenn()
         val resolve = {
@@ -104,7 +107,7 @@ internal class BusinessModuleTest {
     @Test
     fun `should wire the business data export in the monolith`() = runUnitTest {
         given()
-        val fixture = SutFixture(businessEmbeddedModule(KEY_ENVIRONMENT::get))
+        val fixture = SutFixture(businessEmbeddedModule(subjectKeyTestEnvironment::get))
 
         whenn()
         val resolve = {
@@ -116,10 +119,15 @@ internal class BusinessModuleTest {
         assertDoesNotThrow(resolve)
     }
 
-    private companion object {
-        val KEY_ENVIRONMENT = mapOf(
-            "APPLICATION_SUBJECT_MASTER_KEY" to Base64.encode(ByteArray(32)),
-            "APPLICATION_BLIND_INDEX_KEY" to Base64.encode(ByteArray(32)),
-        )
+    @Test
+    fun `should encrypt personal event data with the service's subject keys in the monolith`() = runUnitTest {
+        given()
+        val fixture = SutFixture(businessEmbeddedModule(subjectKeyTestEnvironment::get))
+
+        whenn()
+        val cipher = fixture.scope.get<PersonalDataCipher>()
+
+        then()
+        assertTrue(cipher is SubjectKeysPersonalDataCipher)
     }
 }

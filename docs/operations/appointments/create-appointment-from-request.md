@@ -50,7 +50,7 @@ flowchart TD
     Approve --> Snapshot[AppointmentSubscriptionDataSource.getBusinessSnapshot businessId]
     Snapshot -- missing --> R404d([404 Error.NotFound - logged as data inconsistency])
     Snapshot -- found --> Visit[eventProducer.send AppointmentEvent.ClientVisitBooked businessId client.id dateEnd]
-    Visit --> Event["eventProducer.send AppointmentEvent.RequestApproved - clientUserId = request.client.userId, empty for a client without an account"]
+    Visit --> Event["eventProducer.send AppointmentEvent.RequestApproved - clientUserId = request.client.userId"]
     Event --> R200([200 Created Appointment])
 ```
 

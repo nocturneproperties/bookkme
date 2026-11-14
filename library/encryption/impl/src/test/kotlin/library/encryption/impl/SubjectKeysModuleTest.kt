@@ -6,16 +6,18 @@ import com.bookk.core.test.then
 import com.bookk.core.test.whenn
 import library.encryption.BlindIndex
 import library.encryption.SubjectKeys
-import library.encryption.impl.di.subjectKeysModule
+import library.encryption.impl.di.subjectKeys
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.koin.core.qualifier.named
 import org.koin.dsl.koinApplication
+import org.koin.dsl.module
 
 internal class SubjectKeysModuleTest {
 
     private class SutFixture(environment: Map<String, String>) {
-        private val koin = koinApplication { modules(subjectKeysModule(SCOPE, "test_keys", environment::get)) }.koin
+        private val keys = module { scope(SCOPE) { subjectKeys("test_keys", environment::get) } }
+        private val koin = koinApplication { modules(keys) }.koin
         val scope = koin.createScope("keys", SCOPE)
     }
 

@@ -113,54 +113,11 @@ internal class NotificationEventHandlerTest {
     private val to = Instant.fromEpochMilliseconds(1_700_003_600_000)
 
     @Test
-    fun `should notify nobody when an approved request's client has no account`() = runUnitTest {
-        given()
-        val fixture = SutFixture()
-        val event = AppointmentEvent.RequestApproved(
-            clientUserId = null,
-            clientName = "Client",
-            employeeUserId = Uuid.random(),
-            employeeName = "Employee",
-            from = from,
-            to = to,
-            timeZone = TimeZone.UTC,
-            businessName = "Salon",
-            address = "1 Main St",
-            price = "10 USD",
-        )
-        fixture.start(this)
-
-        whenn()
-        fixture.dispatch(AppointmentEvent.RequestApproved.TOPIC, event)
-
-        then()
-        coVerify(exactly = 0) { fixture.sendNotification.invoke(any(), any()) }
-    }
-
-    @Test
-    fun `should notify nobody when a rejected request's client has no account`() = runUnitTest {
-        given()
-        val fixture = SutFixture()
-        val event = AppointmentEvent.RequestRejected(
-            clientUserId = null, clientName = "Client", employeeUserId = Uuid.random(), employeeName = "Employee",
-            from = from, to = to, timeZone = TimeZone.UTC, address = "1 Main St", businessName = "Salon",
-            price = "10 USD", declineReason = "busy",
-        )
-        fixture.start(this)
-
-        whenn()
-        fixture.dispatch(AppointmentEvent.RequestRejected.TOPIC, event)
-
-        then()
-        coVerify(exactly = 0) { fixture.sendNotification.invoke(any(), any()) }
-    }
-
-    @Test
     fun `should notify nobody when a cancelled appointment's client has no account`() = runUnitTest {
         given()
         val fixture = SutFixture()
         val event = AppointmentEvent.Cancelled(
-            clientUserId = null, clientName = "Client", employeeUserId = Uuid.random(), employeeName = "Employee",
+            clientUserId = null, employeeUserId = Uuid.random(),
             from = from, to = to, timeZone = TimeZone.UTC, address = "1 Main St", businessName = "Salon",
             price = "10 USD", reason = "changed plans",
         )

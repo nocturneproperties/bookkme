@@ -15,6 +15,7 @@ import com.bookk.appointments.domain.api.entity.AppointmentRequest
 import com.bookk.appointments.domain.api.entity.BusinessSnapshot
 import com.bookk.appointments.domain.api.entity.ClientSnapshot
 import com.bookk.appointments.domain.api.entity.EmployeeSnapshot
+import com.bookk.appointments.domain.api.entity.RequestClientSnapshot
 import com.bookk.core.data.cache.test.InMemoryCacheClient
 import com.bookk.core.data.test.createTestDatabase
 import com.bookk.core.test.given
@@ -111,7 +112,7 @@ internal class UserDataExportDataSourceImplTest {
             AppointmentRequest.stub(
                 initiatorUserId = other,
                 businessId = businessId,
-            ).copy(client = ClientSnapshot.stub(userId = fixture.userId)),
+            ).copy(client = RequestClientSnapshot.stub(userId = fixture.userId)),
         )
         val asEmployee = fixture.request(
             AppointmentRequest.stub(
@@ -124,7 +125,7 @@ internal class UserDataExportDataSourceImplTest {
             AppointmentRequest.stub(
                 initiatorUserId = fixture.userId,
                 businessId = businessId,
-            ).copy(client = ClientSnapshot.stub(userId = other)),
+            ).copy(client = RequestClientSnapshot.stub(userId = other)),
         )
         fixture.request(AppointmentRequest.stub(initiatorUserId = other, businessId = businessId))
 

@@ -22,20 +22,20 @@ import com.bookk.business.domain.datasource.ServiceDataSource
 import com.bookk.business.domain.datasource.UserDataExportDataSource
 import com.bookk.core.data.ExposedTransactionManager
 import com.bookk.core.data.database.createDatabase
-import com.bookk.core.data.eventstreaming.ExhaustedEventDataSource
 import com.bookk.core.domain.datasource.transaction.TransactionManager
-import library.encryption.impl.di.subjectKeysModule
+import library.encryption.impl.di.subjectKeys
 import library.export.impl.di.dataExportModule
-import library.outbox.datasource.ExhaustedEventDataSourceImpl
+import library.outbox.di.exhaustedEventDataSource
+import library.outbox.di.personalDataCipher
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
 
 fun businessDataModule(environment: (String) -> String? = System::getenv) = module {
-    includes(
-        dataExportModule(named(BUSINESS_SCHEMA)),
-        subjectKeysModule(named(BUSINESS_SCHEMA), BUSINESS_SHORT_RETENTION_SCHEMA, environment),
-    )
+    includes(dataExportModule(named(BUSINESS_SCHEMA)))
     scope(named(BUSINESS_SCHEMA)) {
+        subjectKeys(BUSINESS_SHORT_RETENTION_SCHEMA, environment)
+        personalDataCipher()
+        exhaustedEventDataSource()
         scoped<BusinessDataSource> { BusinessDataSourceImpl() }
         scoped<BusinessPermissionDataSource> { BusinessPermissionDataSourceImpl() }
         scoped<ClientDataSource> { ClientDataSourceImpl() }
@@ -45,7 +45,6 @@ fun businessDataModule(environment: (String) -> String? = System::getenv) = modu
         scoped<BusinessDataExportDataSource> { BusinessDataExportDataSourceImpl() }
         scoped<EmployeeDataSource> { EmployeeDataSourceImpl() }
         scoped<EmployeeInvitationDataSource> { EmployeeInvitationDataSourceImpl() }
-        scoped<ExhaustedEventDataSource> { ExhaustedEventDataSourceImpl() }
         scoped { createDatabase(schemaName = BUSINESS_SCHEMA) }
         scoped<TransactionManager> { ExposedTransactionManager(get()) }
     }

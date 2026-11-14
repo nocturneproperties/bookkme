@@ -1,7 +1,6 @@
 package com.bookk.core.data.eventstreaming.impl.embedded
 
 import com.bookk.core.data.eventstreaming.DltRetry
-import com.bookk.core.data.eventstreaming.ExhaustedEventDataSource
 import com.bookk.core.data.eventstreaming.impl.FlakyExhaustedEventDataSource
 import com.bookk.core.data.eventstreaming.impl.InMemoryExhaustedEventDataSource
 import com.bookk.core.data.eventstreaming.impl.inMemoryEventIdempotencyStorage
@@ -34,7 +33,7 @@ internal class EmbeddedDltRetryTest {
     private class SutFixture(
         exhaustedEventDataSourceIn: (
             TransactionManager,
-        ) -> ExhaustedEventDataSource = ::InMemoryExhaustedEventDataSource,
+        ) -> InMemoryExhaustedEventDataSource = ::InMemoryExhaustedEventDataSource,
     ) {
         val transactionManager = mockedTransactionManager()
         val exhaustedEventDataSource = exhaustedEventDataSourceIn(transactionManager)
@@ -215,7 +214,7 @@ internal class EmbeddedDltRetryTest {
         given()
         val fixture = SutFixture { transactionManager ->
             spyk(InMemoryExhaustedEventDataSource(transactionManager)).apply {
-                coEvery { save(any()) } throws CancellationException("stray")
+                coEvery { save(any(), any()) } throws CancellationException("stray")
             }
         }
         val topic = "embedded.dlt.retry.stray"
@@ -237,7 +236,7 @@ internal class EmbeddedDltRetryTest {
         advanceThroughRetries()
 
         then()
-        coVerify(exactly = 1) { fixture.exhaustedEventDataSource.save(any()) }
+        coVerify(exactly = 1) { fixture.exhaustedEventDataSource.save(any(), any()) }
         assertEquals(listOf("flaky"), received.map(KeyedTestEvent::entityId))
     }
 }

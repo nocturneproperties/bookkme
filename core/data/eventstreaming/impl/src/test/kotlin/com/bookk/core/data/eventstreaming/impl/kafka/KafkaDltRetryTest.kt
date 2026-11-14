@@ -1,10 +1,12 @@
 package com.bookk.core.data.eventstreaming.impl.kafka
 
-import com.bookk.core.data.eventstreaming.DltEvent
 import com.bookk.core.data.eventstreaming.DltRetry
+import com.bookk.core.data.eventstreaming.ExhaustedEvent
 import com.bookk.core.data.eventstreaming.ExhaustedEventDataSource
+import com.bookk.core.data.eventstreaming.ParkedPayload
 import com.bookk.core.data.eventstreaming.impl.FlakyExhaustedEventDataSource
 import com.bookk.core.data.eventstreaming.impl.InMemoryExhaustedEventDataSource
+import com.bookk.core.data.eventstreaming.impl.PersonalTestEvent
 import com.bookk.core.data.eventstreaming.impl.inMemoryEventIdempotencyStorage
 import com.bookk.core.data.eventstreaming.registerReceiver
 import com.bookk.core.data.eventstreaming.send
@@ -134,6 +136,34 @@ internal class KafkaDltRetryTest {
     }
 
     @Test
+    fun `should hand an always-failing event to the exhausted store with its plaintext payload`() = runIntegrationTest {
+        given()
+        val topic = "dlt.retry.personal.${Uuid.random()}"
+        prepareTopics(topic)
+        val transactionManager = mockedTransactionManager()
+        val exhaustedEventDataSource = InMemoryExhaustedEventDataSource(transactionManager)
+        val sut = consumer(topic, transactionManager, exhaustedEventDataSource)
+        sut.registerReceiver<PersonalTestEvent, String>(topic) { throw RuntimeException("boom") }
+        val event = PersonalTestEvent(userId = Uuid.random(), name = "Alice", topic = topic)
+        var job: Job? = null
+
+        whenn()
+        withContext(Dispatchers.IO) {
+            producer().send(event)
+            job = sut.start(CoroutineScope(SupervisorJob() + Dispatchers.IO))
+            awaitUntil { exhaustedEventDataSource.parked().isNotEmpty() }
+        }
+
+        then()
+        val parked = exhaustedEventDataSource.findByOriginalTopic(topic).single()
+        assertEquals(
+            event,
+            KafkaTestBroker.protoBuf.decodeFromByteArray(PersonalTestEvent.serializer(), parked.payload),
+        )
+        job?.cancel()
+    }
+
+    @Test
     fun `should retry persisting without re-invoking the business handler when the save fails`() = runIntegrationTest {
         given()
         val topic = "dlt.retry.persist.${Uuid.random()}"
@@ -206,12 +236,10 @@ internal class KafkaDltRetryTest {
         val received = ConcurrentLinkedQueue<KeyedTestEvent>()
         val sut = consumer(topic)
         sut.registerReceiver<KeyedTestEvent, String>(topic) { received += it }
-        val exhausted = DltEvent(
-            payload = KafkaTestBroker.protoBuf.encodeToByteArray(KeyedTestEvent.serializer(), event),
-            originalTopic = topic,
-            attempt = DltRetry.DEFAULT_MAX_ATTEMPTS,
-            topic = topic,
+        val payload = ParkedPayload.Readable(
+            KafkaTestBroker.protoBuf.encodeToByteArray(KeyedTestEvent.serializer(), event),
         )
+        val exhausted = ExhaustedEvent.stub(originalTopic = topic, payload = payload)
         var job: Job? = null
 
         whenn()

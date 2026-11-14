@@ -71,7 +71,7 @@ internal class ExportBusinessAppointmentsImpl(
         end = dateEnd,
         services = services.map { it.toExport() },
         employee = employee.toExport(),
-        client = client.toExport(),
+        client = client.toClientSnapshot().toExport(),
         note = note.ifBlank { null },
     )
 

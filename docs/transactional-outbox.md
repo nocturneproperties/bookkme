@@ -26,6 +26,17 @@ through the outbox. Notifications sends no events, so it has no outbox:
 it wires only the transport (`eventStreamingTransportModule` /
 `embeddedEventStreamingTransportModule`) for its consumer.
 
+## Personal data
+
+A `PersonalEvent`'s whole encoded payload is sealed with the producing
+service's key for its `dataSubject` before the row is written
+(`personal_data_encrypted = true`), so `outbox_event` (binlogged and backed up)
+never holds it readable. The relay opens sealed rows before publishing without
+knowing their type, and drops a row whose data subject was erased meanwhile (or
+whose key is missing, logged as an error) or whose payload can't be opened.
+Every other row, including those written before 0.18.0, is published as stored.
+See `docs/agents/personal-data.md`.
+
 ## Overview
 
 The write side is identical in both deployments. Only the transport the

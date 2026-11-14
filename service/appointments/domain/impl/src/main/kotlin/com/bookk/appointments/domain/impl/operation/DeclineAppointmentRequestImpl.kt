@@ -47,9 +47,7 @@ internal class DeclineAppointmentRequestImpl(
         eventProducer.send(
             AppointmentEvent.RequestRejected(
                 clientUserId = appointment.client.userId,
-                clientName = appointment.client.fullName,
                 employeeUserId = appointment.employee.userId,
-                employeeName = appointment.employee.fullName,
                 from = appointment.date,
                 to = appointment.dateEnd,
                 timeZone = business.timeZone,

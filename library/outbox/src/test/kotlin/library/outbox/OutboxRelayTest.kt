@@ -1,9 +1,9 @@
 package library.outbox
 
+import com.bookk.core.data.eventstreaming.DataSubject
 import com.bookk.core.data.eventstreaming.EventStreaming
 import com.bookk.core.data.eventstreaming.EventStreaming.RawRecord
-import com.bookk.core.data.eventstreaming.OutboxEvent
-import com.bookk.core.data.eventstreaming.OutboxEventDataSource
+import com.bookk.core.data.eventstreaming.impl.PersonalTestEvent
 import com.bookk.core.domain.datasource.transaction.TransactionManager
 import com.bookk.core.domain.datasource.transaction.mockTransaction
 import com.bookk.core.test.given
@@ -18,11 +18,16 @@ import io.mockk.mockk
 import io.mockk.runs
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
+import kotlinx.serialization.protobuf.ProtoBuf
+import library.outbox.datasource.OutboxEvent
+import library.outbox.datasource.OutboxEventDataSource
+import library.outbox.personal.MarkingPersonalDataCipher
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
+import kotlin.uuid.Uuid
 
 internal class OutboxRelayTest {
 
@@ -32,13 +37,46 @@ internal class OutboxRelayTest {
         val rawProducer = mockk<EventStreaming.RawProducer<String>>()
         val batchSize = 2
         val idleDelay = 1.seconds
-        val sut = OutboxRelay(outboxEventDataSource, transactionManager, rawProducer, batchSize, idleDelay)
+        val protoBuf = ProtoBuf { encodeDefaults = true }
+        val cipher = MarkingPersonalDataCipher()
+        val sut = OutboxRelay(
+            outboxEventDataSource = outboxEventDataSource,
+            transactionManager = transactionManager,
+            rawProducer = rawProducer,
+            personalDataCipher = cipher,
+            batchSize = batchSize,
+            idleDelay = idleDelay,
+        )
         val published = mutableListOf<RawRecord<String>>()
 
         init {
             transactionManager.mockTransaction()
             coEvery { rawProducer.publishAll(any()) } coAnswers { published += firstArg<List<RawRecord<String>>>() }
             coEvery { outboxEventDataSource.delete(any()) } just runs
+        }
+
+        fun plaintextOf(event: PersonalTestEvent): ByteArray {
+            return protoBuf.encodeToByteArray(PersonalTestEvent.serializer(), event)
+        }
+
+        fun sealedRow(event: PersonalTestEvent) = OutboxEvent.stub(
+            id = 1,
+            topic = event.topic,
+            partitionKey = event.partitionKey,
+            payload = MarkingPersonalDataCipher.sealed(event.dataSubject, plaintextOf(event)),
+            personalDataEncrypted = true,
+        )
+
+        fun plaintextRow(event: PersonalTestEvent) = OutboxEvent.stub(
+            id = 1,
+            topic = event.topic,
+            partitionKey = event.partitionKey,
+            payload = plaintextOf(event),
+            personalDataEncrypted = false,
+        )
+
+        fun publishedPersonalEvents() = published.map {
+            protoBuf.decodeFromByteArray(PersonalTestEvent.serializer(), it.payload)
         }
 
         fun OutboxEvent.isPublished() = assertEquals(
@@ -88,6 +126,78 @@ internal class OutboxRelayTest {
         then()
         assertEquals(0, result.getOrNull())
         assertTrue(fixture.published.isEmpty())
+    }
+
+    @Test
+    fun `should publish a sealed event opened`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val event = PersonalTestEvent(userId = Uuid.random(), name = "Alice", topic = PERSONAL_TOPIC)
+        val row = fixture.sealedRow(event)
+        coEvery { fixture.outboxEventDataSource.lockPending(fixture.batchSize) } returns listOf(row)
+
+        whenn()
+        fixture.sut.relayBatch()
+
+        then()
+        assertEquals(listOf(event), fixture.publishedPersonalEvents())
+        coVerify(exactly = 1) { fixture.outboxEventDataSource.delete(listOf(row.id)) }
+    }
+
+    @Test
+    fun `should publish a plaintext event as it was stored`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val event = PersonalTestEvent(userId = Uuid.random(), name = "Alice", topic = PERSONAL_TOPIC)
+        coEvery {
+            fixture.outboxEventDataSource.lockPending(fixture.batchSize)
+        } returns listOf(fixture.plaintextRow(event))
+
+        whenn()
+        fixture.sut.relayBatch()
+
+        then()
+        assertEquals(listOf(event), fixture.publishedPersonalEvents())
+    }
+
+    @Test
+    fun `should drop a sealed event whose data subject was erased since it was stored`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val row = fixture.sealedRow(PersonalTestEvent(userId = userId, name = "Alice", topic = PERSONAL_TOPIC))
+        fixture.cipher.erase(DataSubject.User(userId))
+        coEvery { fixture.outboxEventDataSource.lockPending(fixture.batchSize) } returns listOf(row)
+
+        whenn()
+        val result = fixture.sut.relayBatch()
+
+        then()
+        assertEquals(1, result.getOrNull())
+        assertTrue(fixture.published.isEmpty())
+        coVerify(exactly = 1) { fixture.outboxEventDataSource.delete(listOf(row.id)) }
+    }
+
+    @Test
+    fun `should drop a sealed event that cannot be opened and relay the rest of the batch`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val broken = OutboxEvent.stub(
+            id = 1,
+            topic = PERSONAL_TOPIC,
+            payload = byteArrayOf(0x7f, 0x7f, 0x7f),
+            personalDataEncrypted = true,
+        )
+        val plain = OutboxEvent.stub(id = 2, topic = "topic.plain", payload = byteArrayOf(2))
+        coEvery { fixture.outboxEventDataSource.lockPending(fixture.batchSize) } returns listOf(broken, plain)
+
+        whenn()
+        val result = fixture.sut.relayBatch()
+
+        then()
+        assertEquals(2, result.getOrNull())
+        assertEquals(listOf("topic.plain"), fixture.published.map { it.topic })
+        coVerify(exactly = 1) { fixture.outboxEventDataSource.delete(listOf(1L, 2L)) }
     }
 
     @Test
@@ -173,5 +283,9 @@ internal class OutboxRelayTest {
 
         then()
         with(fixture) { event.isPublished() }
+    }
+
+    private companion object {
+        const val PERSONAL_TOPIC = "personal.topic"
     }
 }

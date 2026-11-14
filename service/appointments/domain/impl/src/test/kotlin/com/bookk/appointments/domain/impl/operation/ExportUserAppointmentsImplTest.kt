@@ -8,6 +8,7 @@ import com.bookk.appointments.domain.api.entity.AppointmentStatus
 import com.bookk.appointments.domain.api.entity.ClientSnapshot
 import com.bookk.appointments.domain.api.entity.EmployeeSnapshot
 import com.bookk.appointments.domain.api.entity.PriceAdjustment
+import com.bookk.appointments.domain.api.entity.RequestClientSnapshot
 import com.bookk.appointments.domain.api.entity.ServiceSnapshot
 import com.bookk.appointments.domain.datasource.UserDataExportDataSource
 import com.bookk.core.domain.datasource.transaction.TransactionManager
@@ -88,7 +89,7 @@ internal class ExportUserAppointmentsImplTest {
         )
 
         fun request(
-            client: ClientSnapshot,
+            client: RequestClientSnapshot,
             employee: EmployeeSnapshot = EmployeeSnapshot.stub(
                 userId = someoneElse,
             ),
@@ -110,6 +111,14 @@ internal class ExportUserAppointmentsImplTest {
         ).copy(fullName = "Olena Koval", phone = "+380501112233", email = "olena@example.com")
 
         fun otherClient() = ClientSnapshot.stub(
+            userId = someoneElse,
+        ).copy(fullName = "Ivan Petrenko", phone = "+380509998877", email = "ivan@example.com")
+
+        fun requestingClientUser() = RequestClientSnapshot.stub(
+            userId = userId,
+        ).copy(fullName = "Olena Koval", phone = "+380501112233", email = "olena@example.com")
+
+        fun otherRequestingClient() = RequestClientSnapshot.stub(
             userId = someoneElse,
         ).copy(fullName = "Ivan Petrenko", phone = "+380509998877", email = "ivan@example.com")
     }
@@ -239,7 +248,7 @@ internal class ExportUserAppointmentsImplTest {
     fun `should export the user's own request as a client in full`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        val request = fixture.request(client = fixture.clientUser())
+        val request = fixture.request(client = fixture.requestingClientUser())
         fixture.storedRequests(request)
 
         whenn()
@@ -269,7 +278,10 @@ internal class ExportUserAppointmentsImplTest {
         given()
         val fixture = SutFixture()
         fixture.storedRequests(
-            fixture.request(client = fixture.otherClient(), employee = EmployeeSnapshot.stub(userId = fixture.userId)),
+            fixture.request(
+                client = fixture.otherRequestingClient(),
+                employee = EmployeeSnapshot.stub(userId = fixture.userId),
+            ),
         )
 
         whenn()

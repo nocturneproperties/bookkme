@@ -30,10 +30,10 @@ import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
 
-fun appointmentsModule() = module {
+fun appointmentsModule(environment: (String) -> String? = System::getenv) = module {
     includes(
         appointmentsDomainModule(),
-        appointmentsDataModule(),
+        appointmentsDataModule(environment),
         cacheModule(),
         eventStreamingTransportModule(AppointmentsScope, APPOINTMENTS_SERVICE_NAME),
         outboxModule(AppointmentsScope),
@@ -41,10 +41,10 @@ fun appointmentsModule() = module {
     )
 }
 
-fun appointmentsEmbeddedModule() = module {
+fun appointmentsEmbeddedModule(environment: (String) -> String? = System::getenv) = module {
     includes(
         appointmentsDomainModule(),
-        appointmentsDataModule(),
+        appointmentsDataModule(environment),
         cacheModule(),
         embeddedEventStreamingTransportModule(AppointmentsScope, APPOINTMENTS_SERVICE_NAME),
         outboxModule(AppointmentsScope),

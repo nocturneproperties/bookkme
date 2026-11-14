@@ -201,9 +201,7 @@ internal class DeleteClientAppointmentDataImplTest {
         assertTrue(result.isSuccess)
         val expected = AppointmentEvent.Cancelled(
             clientUserId = appointment.client.userId,
-            clientName = appointment.client.fullName,
             employeeUserId = appointment.employee.userId,
-            employeeName = appointment.employee.fullName,
             from = appointment.date,
             to = appointment.dateEnd,
             timeZone = business.timeZone,

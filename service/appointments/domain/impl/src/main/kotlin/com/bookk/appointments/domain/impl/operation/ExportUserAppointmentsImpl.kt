@@ -63,6 +63,7 @@ internal class ExportUserAppointmentsImpl(
     }
 
     private fun AppointmentRequest.toExport(userId: Uuid, businessName: String): AppointmentRequestExport {
+        val client = client.toClientSnapshot()
         val roles = rolesOf(userId, client, employee, initiatorUserId)
         val isClient = Role.CLIENT in roles
         return AppointmentRequestExport(

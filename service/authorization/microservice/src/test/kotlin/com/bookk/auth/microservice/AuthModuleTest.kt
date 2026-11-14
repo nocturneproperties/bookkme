@@ -16,6 +16,8 @@ import com.bookk.core.test.whenn
 import io.mockk.mockk
 import library.outbox.OutboxEventProducer
 import library.outbox.OutboxRelay
+import library.outbox.personal.NoPersonalDataCipher
+import library.outbox.personal.PersonalDataCipher
 import library.outbox.test.serviceScopeWithMockedInfrastructure
 import library.signing.GetVerificationKeys
 import library.signing.RotateSigningKeys
@@ -23,6 +25,7 @@ import library.signing.TokenIssuer
 import library.signing.TokenValidatorFactory
 import org.junit.jupiter.api.Assertions.assertDoesNotThrow
 import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.koin.core.module.Module
@@ -201,6 +204,18 @@ internal class AuthModuleTest {
 
         then()
         assertDoesNotThrow(resolve)
+    }
+
+    @Test
+    fun `should refuse personal event data since the service keeps no subject keys`() = runUnitTest {
+        given()
+        val fixture = SutFixture(authEmbeddedModule())
+
+        whenn()
+        val cipher = fixture.scope.get<PersonalDataCipher>()
+
+        then()
+        assertSame(NoPersonalDataCipher, cipher)
     }
 
     private companion object {

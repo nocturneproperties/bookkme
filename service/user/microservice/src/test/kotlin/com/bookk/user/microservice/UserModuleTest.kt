@@ -12,10 +12,13 @@ import com.bookk.user.domain.api.operation.GetPersonalDataExport
 import com.bookk.user.domain.api.operation.StartPersonalDataExport
 import com.bookk.user.domain.impl.di.UserScope
 import io.mockk.mockk
+import library.encryption.impl.test.subjectKeyTestEnvironment
 import library.export.BuildDataExports
 import library.export.DeleteExpiredDataExports
 import library.outbox.OutboxEventProducer
 import library.outbox.OutboxRelay
+import library.outbox.personal.PersonalDataCipher
+import library.outbox.personal.SubjectKeysPersonalDataCipher
 import library.outbox.test.serviceScopeWithMockedInfrastructure
 import library.signing.TokenValidatorFactory
 import org.junit.jupiter.api.Assertions.assertDoesNotThrow
@@ -25,7 +28,6 @@ import org.junit.jupiter.api.Test
 import org.koin.core.module.Module
 import org.koin.core.scope.Scope
 import org.koin.dsl.module
-import kotlin.io.encoding.Base64
 
 internal class UserModuleTest {
 
@@ -42,7 +44,7 @@ internal class UserModuleTest {
     @Test
     fun `should send events through the outbox in the standalone microservice`() = runUnitTest {
         given()
-        val fixture = SutFixture(userModule(KEY_ENVIRONMENT::get))
+        val fixture = SutFixture(userModule(subjectKeyTestEnvironment::get))
 
         whenn()
         val producer = fixture.scope.get<StandardEventProducer>()
@@ -54,7 +56,7 @@ internal class UserModuleTest {
     @Test
     fun `should start the outbox relay with event handling in the standalone microservice`() = runUnitTest {
         given()
-        val fixture = SutFixture(userModule(KEY_ENVIRONMENT::get))
+        val fixture = SutFixture(userModule(subjectKeyTestEnvironment::get))
 
         whenn()
         val handlers = fixture.scope.getAll<EventHandler>()
@@ -66,7 +68,7 @@ internal class UserModuleTest {
     @Test
     fun `should send events through the outbox in the monolith`() = runUnitTest {
         given()
-        val fixture = SutFixture(userEmbeddedModule(KEY_ENVIRONMENT::get))
+        val fixture = SutFixture(userEmbeddedModule(subjectKeyTestEnvironment::get))
 
         whenn()
         val producer = fixture.scope.get<StandardEventProducer>()
@@ -78,7 +80,7 @@ internal class UserModuleTest {
     @Test
     fun `should start the outbox relay with event handling in the monolith`() = runUnitTest {
         given()
-        val fixture = SutFixture(userEmbeddedModule(KEY_ENVIRONMENT::get))
+        val fixture = SutFixture(userEmbeddedModule(subjectKeyTestEnvironment::get))
 
         whenn()
         val handlers = fixture.scope.getAll<EventHandler>()
@@ -90,7 +92,7 @@ internal class UserModuleTest {
     @Test
     fun `should replay parked events in the standalone microservice`() = runUnitTest {
         given()
-        val fixture = SutFixture(userModule(KEY_ENVIRONMENT::get))
+        val fixture = SutFixture(userModule(subjectKeyTestEnvironment::get))
 
         whenn()
         val replayer = fixture.scope.getOrNull<ExhaustedEventReplayer>()
@@ -102,7 +104,7 @@ internal class UserModuleTest {
     @Test
     fun `should replay parked events in the monolith`() = runUnitTest {
         given()
-        val fixture = SutFixture(userEmbeddedModule(KEY_ENVIRONMENT::get))
+        val fixture = SutFixture(userEmbeddedModule(subjectKeyTestEnvironment::get))
 
         whenn()
         val replayer = fixture.scope.getOrNull<ExhaustedEventReplayer>()
@@ -114,7 +116,7 @@ internal class UserModuleTest {
     @Test
     fun `should wire the personal data export in the standalone microservice`() = runUnitTest {
         given()
-        val fixture = SutFixture(userModule(KEY_ENVIRONMENT::get))
+        val fixture = SutFixture(userModule(subjectKeyTestEnvironment::get))
 
         whenn()
         val resolve = {
@@ -132,7 +134,7 @@ internal class UserModuleTest {
     @Test
     fun `should wire the personal data export in the monolith`() = runUnitTest {
         given()
-        val fixture = SutFixture(userEmbeddedModule(KEY_ENVIRONMENT::get))
+        val fixture = SutFixture(userEmbeddedModule(subjectKeyTestEnvironment::get))
 
         whenn()
         val resolve = {
@@ -144,10 +146,15 @@ internal class UserModuleTest {
         assertDoesNotThrow(resolve)
     }
 
-    private companion object {
-        val KEY_ENVIRONMENT = mapOf(
-            "APPLICATION_SUBJECT_MASTER_KEY" to Base64.encode(ByteArray(32)),
-            "APPLICATION_BLIND_INDEX_KEY" to Base64.encode(ByteArray(32)),
-        )
+    @Test
+    fun `should encrypt personal event data with the service's subject keys in the monolith`() = runUnitTest {
+        given()
+        val fixture = SutFixture(userEmbeddedModule(subjectKeyTestEnvironment::get))
+
+        whenn()
+        val cipher = fixture.scope.get<PersonalDataCipher>()
+
+        then()
+        assertTrue(cipher is SubjectKeysPersonalDataCipher)
     }
 }

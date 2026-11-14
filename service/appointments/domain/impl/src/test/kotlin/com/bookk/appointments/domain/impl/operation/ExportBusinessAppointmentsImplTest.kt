@@ -8,6 +8,7 @@ import com.bookk.appointments.domain.api.entity.AppointmentStatus
 import com.bookk.appointments.domain.api.entity.ClientSnapshot
 import com.bookk.appointments.domain.api.entity.EmployeeSnapshot
 import com.bookk.appointments.domain.api.entity.PriceAdjustment
+import com.bookk.appointments.domain.api.entity.RequestClientSnapshot
 import com.bookk.appointments.domain.api.entity.ServiceSnapshot
 import com.bookk.appointments.domain.datasource.AppointmentDataSource
 import com.bookk.appointments.domain.datasource.AppointmentRequestDataSource
@@ -57,6 +58,8 @@ internal class ExportBusinessAppointmentsImplTest {
         val client = ClientSnapshot.stub(
             userId = Uuid.random(),
         ).copy(fullName = "Ivan Petrenko", phone = "+380509998877", email = "ivan@example.com")
+        val requestingClient = RequestClientSnapshot.stub()
+            .copy(fullName = "Ivan Petrenko", phone = "+380509998877", email = "ivan@example.com")
 
         init {
             transactionManager.mockTransaction()
@@ -127,7 +130,7 @@ internal class ExportBusinessAppointmentsImplTest {
         given()
         val fixture = SutFixture()
         val request = AppointmentRequest.stub(businessId = fixture.businessId, employee = fixture.employee).copy(
-            client = fixture.client.copy(userId = null),
+            client = fixture.requestingClient,
             services = listOf(fixture.service),
             note = "",
         )
@@ -146,11 +149,11 @@ internal class ExportBusinessAppointmentsImplTest {
                     services = listOf(ServiceExport("Haircut", "UAH 450.00", 45)),
                     employee = EmployeeExport(fixture.employee.id, "Olena Koval"),
                     client = ClientExport(
-                        fixture.client.id,
+                        fixture.requestingClient.id,
                         "Ivan Petrenko",
                         "+380509998877",
                         "ivan@example.com",
-                        hasAccount = false,
+                        hasAccount = true,
                     ),
                     note = null,
                 ),

@@ -1,10 +1,11 @@
-package com.bookk.core.data.eventstreaming
+package library.outbox.datasource
 
 class OutboxEvent(
     val id: Long,
     val topic: String,
     val partitionKey: String?,
     val payload: ByteArray,
+    val personalDataEncrypted: Boolean,
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -12,7 +13,8 @@ class OutboxEvent(
         return id == other.id &&
             topic == other.topic &&
             partitionKey == other.partitionKey &&
-            payload.contentEquals(other.payload)
+            payload.contentEquals(other.payload) &&
+            personalDataEncrypted == other.personalDataEncrypted
     }
 
     override fun hashCode(): Int {
@@ -20,6 +22,7 @@ class OutboxEvent(
         result = 31 * result + topic.hashCode()
         result = 31 * result + (partitionKey?.hashCode() ?: 0)
         result = 31 * result + payload.contentHashCode()
+        result = 31 * result + personalDataEncrypted.hashCode()
         return result
     }
 
@@ -29,6 +32,13 @@ class OutboxEvent(
             topic: String = "topic",
             partitionKey: String? = null,
             payload: ByteArray = byteArrayOf(),
-        ) = OutboxEvent(id = id, topic = topic, partitionKey = partitionKey, payload = payload)
+            personalDataEncrypted: Boolean = false,
+        ) = OutboxEvent(
+            id = id,
+            topic = topic,
+            partitionKey = partitionKey,
+            payload = payload,
+            personalDataEncrypted = personalDataEncrypted,
+        )
     }
 }

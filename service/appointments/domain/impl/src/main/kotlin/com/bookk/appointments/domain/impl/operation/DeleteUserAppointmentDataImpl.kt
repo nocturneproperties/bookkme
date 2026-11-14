@@ -89,9 +89,7 @@ internal class DeleteUserAppointmentDataImpl(
         business: BusinessSnapshot,
     ) = AppointmentEvent.Cancelled(
         clientUserId = clientUserId,
-        clientName = appointment.client.fullName,
         employeeUserId = appointment.employee.userId,
-        employeeName = DELETED_EMPLOYEE_NAME,
         from = appointment.date,
         to = appointment.dateEnd,
         timeZone = business.timeZone,
@@ -104,6 +102,5 @@ internal class DeleteUserAppointmentDataImpl(
     companion object {
         const val ACCOUNT_DELETED_CANCELLATION_REASON = "User deleted their account"
         const val EMPLOYEE_DELETED_CANCELLATION_REASON = "Employee deleted their account"
-        private const val DELETED_EMPLOYEE_NAME = "Deleted User"
     }
 }

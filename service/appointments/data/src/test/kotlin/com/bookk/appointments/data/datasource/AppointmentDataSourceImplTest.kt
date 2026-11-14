@@ -747,10 +747,11 @@ internal class AppointmentDataSourceImplTest {
         given()
         val fixture = SutFixture()
         fixture.setup()
-        val request = fixture.buildRequest().let { it.copy(client = it.client.copy(userId = null)) }
+        val appointment = Appointment.stub(businessId = fixture.businessId)
+            .let { it.copy(client = it.client.copy(userId = null)) }
 
         whenn()
-        val created = suspendTransaction { fixture.sut.create(request) }
+        val created = suspendTransaction { fixture.sut.create(appointment) }
         val found = suspendTransaction { fixture.sut.get(created.id) }
 
         then()
@@ -1324,8 +1325,9 @@ internal class AppointmentDataSourceImplTest {
         fixture.setup()
         val clientId = Uuid.random()
         val userId = Uuid.random()
-        val request = fixture.buildRequest().let { it.copy(client = it.client.copy(id = clientId, userId = null)) }
-        val created = suspendTransaction { fixture.sut.create(request) }
+        val appointment = Appointment.stub(businessId = fixture.businessId)
+            .let { it.copy(client = it.client.copy(id = clientId, userId = null)) }
+        val created = suspendTransaction { fixture.sut.create(appointment) }
 
         whenn()
         suspendTransaction { fixture.sut.linkClientUser(fixture.businessId, clientId, userId) }
@@ -1341,15 +1343,15 @@ internal class AppointmentDataSourceImplTest {
         fixture.setup()
         val otherBusinessId = fixture.attachBusiness(automaticCompletion = true)
         val clientId = Uuid.random()
-        val request = fixture.buildRequest()
+        val appointment = Appointment.stub(businessId = fixture.businessId)
         val otherClient =
-            suspendTransaction { fixture.sut.create(request.copy(client = request.client.copy(userId = null))) }
+            suspendTransaction { fixture.sut.create(appointment.copy(client = appointment.client.copy(userId = null))) }
         val otherBusiness = suspendTransaction {
             fixture.sut.create(
-                request.copy(
+                appointment.copy(
                     id = Uuid.random(),
                     businessId = otherBusinessId,
-                    client = request.client.copy(id = clientId, userId = null),
+                    client = appointment.client.copy(id = clientId, userId = null),
                 ),
             )
         }
@@ -1478,7 +1480,8 @@ internal class AppointmentDataSourceImplTest {
         val otherBusinessId = fixture.attachBusiness(automaticCompletion = true)
         val otherBusiness = suspendTransaction {
             fixture.sut.create(
-                fixture.buildRequest(date = now + 24.hours).copy(businessId = otherBusinessId, client = deleted.client),
+                fixture.buildRequest(date = now + 24.hours)
+                    .let { it.copy(businessId = otherBusinessId, client = it.client.copy(id = deleted.client.id)) },
             )
         }
 
@@ -1538,10 +1541,12 @@ internal class AppointmentDataSourceImplTest {
         val otherBusinessId = fixture.attachBusiness(automaticCompletion = true)
         val otherBusiness = suspendTransaction {
             fixture.sut.create(
-                fixture.buildRequest().copy(
-                    businessId = otherBusinessId,
-                    client = deleted.client.copy(fullName = "Bob"),
-                ),
+                fixture.buildRequest().let {
+                    it.copy(
+                        businessId = otherBusinessId,
+                        client = it.client.copy(id = deleted.client.id, fullName = "Bob"),
+                    )
+                },
             )
         }
 

@@ -31,6 +31,7 @@ dependencies {
     testImplementation(libs.joda.money)
     testImplementation(testFixtures(projects.core))
     testImplementation(testFixtures(projects.library.outbox))
+    testImplementation(testFixtures(projects.library.encryption.impl))
     testImplementation(testFixtures(projects.core.service))
     testImplementation(testFixtures(projects.library.scheduler))
 }

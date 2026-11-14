@@ -14,6 +14,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import library.outbox.datasource.OutboxEventDataSourceImpl
 import library.outbox.orm.table.OutboxEventTable
+import library.outbox.personal.NoPersonalDataCipher
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.SchemaUtils
 import org.jetbrains.exposed.v1.jdbc.selectAll
@@ -77,20 +78,31 @@ internal class OutboxRelayMariaDbTest {
         }
 
         fun relay(rawProducer: EventStreaming.RawProducer<String>) = OutboxRelay(
-            outboxEventDataSource,
-            transactionManager,
-            rawProducer,
+            outboxEventDataSource = outboxEventDataSource,
+            transactionManager = transactionManager,
+            rawProducer = rawProducer,
+            personalDataCipher = NoPersonalDataCipher,
         )
 
         suspend fun enqueue(vararg topics: String) = topics.forEach { topic ->
             suspendTransaction(db = database) {
-                outboxEventDataSource.enqueue(topic = topic, partitionKey = null, payload = byteArrayOf(1))
+                outboxEventDataSource.enqueue(
+                    topic = topic,
+                    partitionKey = null,
+                    payload = byteArrayOf(1),
+                    personalDataEncrypted = false,
+                )
             }
         }
 
         suspend fun enqueueFailingFastOnLockWait(topic: String) = suspendTransaction(db = database) {
             exec("SET SESSION innodb_lock_wait_timeout = 1")
-            outboxEventDataSource.enqueue(topic = topic, partitionKey = null, payload = byteArrayOf(1))
+            outboxEventDataSource.enqueue(
+                topic = topic,
+                partitionKey = null,
+                payload = byteArrayOf(1),
+                personalDataEncrypted = false,
+            )
         }
 
         suspend fun remainingEvents(): Long = suspendTransaction(db = database) { OutboxEventTable.selectAll().count() }

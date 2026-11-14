@@ -533,19 +533,16 @@ internal class AppointmentRequestDataSourceImplTest {
         fixture.setup()
         val clientId = Uuid.random()
         val userId = Uuid.random()
-        val request = fixture.buildRequest().let { it.copy(client = it.client.copy(id = clientId, userId = null)) }
+        val request = fixture.buildRequest().let { it.copy(client = it.client.copy(id = clientId)) }
         val created = suspendTransaction { fixture.sut.create(request) }
-        val other =
-            suspendTransaction {
-                fixture.sut.create(fixture.buildRequest().let { it.copy(client = it.client.copy(userId = null)) })
-            }
+        val other = suspendTransaction { fixture.sut.create(fixture.buildRequest()) }
 
         whenn()
         suspendTransaction { fixture.sut.linkClientUser(fixture.businessId, clientId, userId) }
 
         then()
         assertEquals(userId, suspendTransaction { fixture.sut.get(created.id) }?.client?.userId)
-        assertNull(suspendTransaction { fixture.sut.get(other.id) }?.client?.userId)
+        assertEquals(other.client.userId, suspendTransaction { fixture.sut.get(other.id) }?.client?.userId)
     }
 
     @Test

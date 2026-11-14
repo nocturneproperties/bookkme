@@ -7,9 +7,7 @@ import library.encryption.impl.MasterKey
 import library.encryption.impl.SubjectKeyDataSource
 import library.encryption.impl.SubjectKeysImpl
 import library.encryption.impl.orm.SubjectKeyTable
-import org.koin.core.module.Module
-import org.koin.core.qualifier.Qualifier
-import org.koin.dsl.module
+import org.koin.dsl.ScopeDSL
 import java.security.SecureRandom
 import kotlin.time.Clock
 
@@ -17,21 +15,13 @@ private const val MASTER_KEY = "APPLICATION_SUBJECT_MASTER_KEY"
 private const val BLIND_INDEX_KEY = "APPLICATION_BLIND_INDEX_KEY"
 private const val MASTER_KEY_VERSION = 1
 
-fun subjectKeysModule(
-    qualifier: Qualifier,
-    keySchema: String,
-    environment: (String) -> String? = System::getenv,
-): Module {
-    return module {
-        scope(qualifier) {
-            scoped { SubjectKeyDataSource(SubjectKeyTable(keySchema)) }
-            scoped<SubjectKeys> {
-                val masterKey = environment.parse(MASTER_KEY) { MasterKey.fromBase64(MASTER_KEY_VERSION, it) }
-                SubjectKeysImpl(get(), masterKey, SecureRandom(), Clock.System)
-            }
-            scoped<BlindIndex> { environment.parse(BLIND_INDEX_KEY, HmacBlindIndex::fromBase64) }
-        }
+fun ScopeDSL.subjectKeys(keySchema: String, environment: (String) -> String? = System::getenv) {
+    scoped { SubjectKeyDataSource(SubjectKeyTable(keySchema)) }
+    scoped<SubjectKeys> {
+        val masterKey = environment.parse(MASTER_KEY) { MasterKey.fromBase64(MASTER_KEY_VERSION, it) }
+        SubjectKeysImpl(get(), masterKey, SecureRandom(), Clock.System)
     }
+    scoped<BlindIndex> { environment.parse(BLIND_INDEX_KEY, HmacBlindIndex::fromBase64) }
 }
 
 private fun <T> ((String) -> String?).parse(variable: String, parse: (String) -> T): T {

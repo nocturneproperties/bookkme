@@ -196,25 +196,30 @@ internal class NotificationEventHandlerEventTest {
 
     private fun requestCreated(clientUserId: Uuid, employeeUserId: Uuid) = AppointmentEvent.RequestCreated(
         clientUserId = clientUserId, clientName = "Client", employeeUserId = employeeUserId,
-        employeeName = "Employee", from = from, to = to, timeZone = TimeZone.UTC,
+        from = from, to = to, timeZone = TimeZone.UTC,
         businessName = "Salon", address = "1 Main St", price = "10 USD",
     )
 
     private fun requestApproved(clientUserId: Uuid, employeeUserId: Uuid) = AppointmentEvent.RequestApproved(
-        clientUserId = clientUserId, clientName = "Client", employeeUserId = employeeUserId,
-        employeeName = "Employee", from = from, to = to, timeZone = TimeZone.UTC,
-        businessName = "Salon", address = "1 Main St", price = "10 USD",
+        clientUserId = clientUserId,
+        employeeUserId = employeeUserId,
+        from = from,
+        to = to,
+        timeZone = TimeZone.UTC,
+        businessName = "Salon",
+        address = "1 Main St",
+        price = "10 USD",
     )
 
     private fun requestRejected(clientUserId: Uuid, employeeUserId: Uuid) = AppointmentEvent.RequestRejected(
-        clientUserId = clientUserId, clientName = "Client", employeeUserId = employeeUserId,
-        employeeName = "Employee", from = from, to = to, timeZone = TimeZone.UTC,
+        clientUserId = clientUserId, employeeUserId = employeeUserId,
+        from = from, to = to, timeZone = TimeZone.UTC,
         address = "1 Main St", businessName = "Salon", price = "10 USD", declineReason = "busy",
     )
 
     private fun cancelled(clientUserId: Uuid, employeeUserId: Uuid) = AppointmentEvent.Cancelled(
-        clientUserId = clientUserId, clientName = "Client", employeeUserId = employeeUserId,
-        employeeName = "Employee", from = from, to = to, timeZone = TimeZone.UTC,
+        clientUserId = clientUserId, employeeUserId = employeeUserId,
+        from = from, to = to, timeZone = TimeZone.UTC,
         address = "1 Main St", businessName = "Salon", price = "10 USD", reason = "changed plans",
     )
 

@@ -65,6 +65,7 @@ erDiagram
         int attempt
         blob payload
         bool replay_requested
+        bool personal_data_encrypted "payload sealed under a person's key"
         timestamp createdAt
         timestamp updatedAt
     }
@@ -75,6 +76,7 @@ erDiagram
         string partition_key "nullable"
         blob payload "ProtoBuf-encoded event, idempotency key included"
         timestamp createdAt
+        bool personal_data_encrypted "payload sealed under a person's key"
     }
 
     ERASED_ACCOUNT {

@@ -12,7 +12,7 @@ object AppointmentRequestTable : BaseUUIDTable("appointment_request") {
     val employeeUserId = uuid("employee_user_id").index()
     val employeeName = varchar("employee_name", 1024)
     val clientId = uuid("client_id").index()
-    val clientUserId = uuid("client_user_id").nullable().index()
+    val clientUserId = uuid("client_user_id").index()
     val clientName = varchar("client_name", 1024)
     val clientPhone = varchar("client_phone", 24).nullable()
     val clientEmail = varchar("client_email", 512).nullable()

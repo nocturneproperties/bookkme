@@ -789,14 +789,13 @@ internal class CreateAppointmentRequestImplTest {
     }
 
     @Test
-    fun `should record and announce the booking context client's account on the request`() = runUnitTest {
+    fun `should record and announce the booking context client and its account on the request`() = runUnitTest {
         given()
         val fixture = SutFixture()
         val userId = Uuid.random()
         val businessId = Uuid.random()
-        val clientUserId = Uuid.random()
         val context = bookingContext(businessId, Uuid.random(), Uuid.random(), Uuid.random())
-            .let { it.copy(client = ClientRemote.stub(id = it.client.id, userId = clientUserId)) }
+            .let { it.copy(client = ClientRemote.stub(id = it.client.id, userId = userId)) }
         val created = slot<AppointmentRequest>()
         val draft = draftFor(context, businessId, futureDate)
         val settings = mockk<AppointmentSettings>()
@@ -825,8 +824,48 @@ internal class CreateAppointmentRequestImplTest {
 
         then()
         assertTrue(result.isSuccess)
-        assertEquals(clientUserId, created.captured.client.userId)
-        assertEquals(clientUserId, eventSlot.captured.clientUserId)
+        assertEquals(userId, created.captured.client.userId)
+        assertEquals(userId, eventSlot.captured.clientUserId)
+        assertEquals(context.client.id, eventSlot.captured.clientId)
+    }
+
+    @Test
+    fun `should store and announce the requesting user as the client account of a new request`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val businessId = Uuid.random()
+        val context = bookingContext(businessId, Uuid.random(), Uuid.random(), Uuid.random())
+        val draft = draftFor(context, businessId, futureDate)
+        val settings = mockk<AppointmentSettings>()
+        val created = slot<AppointmentRequest>()
+        val eventSlot = slot<AppointmentEvent.RequestCreated>()
+
+        with(fixture) {
+            coEvery {
+                businessClient.getAppointmentBookingContext(businessId, draft.employeeId, userId, distinctIds(draft))
+            } returns Result.success(context)
+            coEvery { settingsDataSource.getForUpdate(businessId) } returns settings
+            coEvery { settings.automaticApproval } returns false
+            coEvery { settings.isInWorkday(draft.date) } returns true
+            coEvery { settings.isInWorktime(any(), any()) } returns true
+            coEvery { requestDataSource.hasOverlapsWith(any()) } returns false
+            coEvery { appointmentDataSource.hasOverlapsWith(any()) } returns false
+            coEvery { requestDataSource.create(capture(created)) } answers { firstArg() }
+            coEvery { subscriptionDataSource.getBusinessSnapshot(any()) } returns BusinessSnapshot.stub()
+            coEvery { eventProducer.send(capture(eventSlot), any()) } returns Unit
+            coEvery { eventProducer.send(any<AppointmentEvent.ClientVisitBooked>(), any()) } returns Unit
+            mockValidToken(draft, totalOf(expand(context, draft)), durationOf(expand(context, draft)))
+            transactionManager.mockTransaction()
+        }
+
+        whenn()
+        val result = fixture.sut.invoke(userId, draft)
+
+        then()
+        assertTrue(result.isSuccess)
+        assertEquals(userId, created.captured.client.userId)
+        assertEquals(userId, eventSlot.captured.clientUserId)
     }
 
     @Test

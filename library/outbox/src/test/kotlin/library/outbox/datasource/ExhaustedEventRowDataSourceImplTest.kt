@@ -1,7 +1,6 @@
 package library.outbox.datasource
 
 import com.bookk.core.data.eventstreaming.DltEvent
-import com.bookk.core.data.eventstreaming.ExhaustedEvent
 import com.bookk.core.data.test.createTestDatabase
 import com.bookk.core.test.given
 import com.bookk.core.test.runUnitTest
@@ -9,9 +8,12 @@ import com.bookk.core.test.then
 import com.bookk.core.test.whenn
 import library.outbox.orm.table.ExhaustedEventTable
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.statements.api.ExposedBlob
+import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
 import org.jetbrains.exposed.v1.jdbc.update
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import kotlin.time.Clock
@@ -19,11 +21,11 @@ import kotlin.time.Duration.Companion.days
 import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
-internal class ExhaustedEventDataSourceImplTest {
+internal class ExhaustedEventRowDataSourceImplTest {
 
     private class SutFixture {
         val db = createTestDatabase(ExhaustedEventTable)
-        val sut = ExhaustedEventDataSourceImpl()
+        val sut = ExhaustedEventRowDataSourceImpl()
     }
 
     private fun dltEvent(originalTopic: String = "topic.one", attempt: Int = 3) = DltEvent(
@@ -41,7 +43,7 @@ internal class ExhaustedEventDataSourceImplTest {
         val event = dltEvent()
 
         whenn()
-        suspendTransaction { fixture.sut.save(event) }
+        suspendTransaction { fixture.sut.save(event, personalDataEncrypted = false) }
         val found = suspendTransaction { fixture.sut.findByOriginalTopic(event.originalTopic) }
 
         then()
@@ -65,7 +67,7 @@ internal class ExhaustedEventDataSourceImplTest {
     fun `should not find events saved under a different original topic`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        suspendTransaction { fixture.sut.save(dltEvent(originalTopic = "topic.other")) }
+        suspendTransaction { fixture.sut.save(dltEvent(originalTopic = "topic.other"), personalDataEncrypted = false) }
 
         whenn()
         val found = suspendTransaction { fixture.sut.findByOriginalTopic("topic.one") }
@@ -79,10 +81,10 @@ internal class ExhaustedEventDataSourceImplTest {
         given()
         val fixture = SutFixture()
         val event = dltEvent()
-        suspendTransaction { fixture.sut.save(event) }
+        suspendTransaction { fixture.sut.save(event, personalDataEncrypted = false) }
 
         whenn()
-        suspendTransaction { fixture.sut.save(event) }
+        suspendTransaction { fixture.sut.save(event, personalDataEncrypted = false) }
         val found = suspendTransaction { fixture.sut.findByOriginalTopic(event.originalTopic) }
 
         then()
@@ -93,7 +95,7 @@ internal class ExhaustedEventDataSourceImplTest {
     fun `should not request a replay of a newly parked event`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        suspendTransaction { fixture.sut.save(dltEvent()) }
+        suspendTransaction { fixture.sut.save(dltEvent(), personalDataEncrypted = false) }
 
         whenn()
         val locked = suspendTransaction { fixture.sut.lockReplayRequested(limit = 10) }
@@ -109,8 +111,8 @@ internal class ExhaustedEventDataSourceImplTest {
         val first = dltEvent(originalTopic = "topic.one")
         val second = dltEvent(originalTopic = "topic.two")
         suspendTransaction {
-            fixture.sut.save(first)
-            fixture.sut.save(second)
+            fixture.sut.save(first, personalDataEncrypted = false)
+            fixture.sut.save(second, personalDataEncrypted = false)
         }
 
         whenn()
@@ -118,7 +120,48 @@ internal class ExhaustedEventDataSourceImplTest {
         val locked = suspendTransaction { fixture.sut.lockReplayRequested(limit = 10) }
 
         then()
-        assertEquals(setOf(first, second), locked.map(ExhaustedEvent::event).toSet())
+        assertEquals(setOf(first, second), locked.map(ExhaustedEventRow::event).toSet())
+    }
+
+    @Test
+    fun `should keep whether a parked event's payload is sealed`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        suspendTransaction {
+            fixture.sut.save(dltEvent(originalTopic = "sealed"), personalDataEncrypted = true)
+            fixture.sut.save(dltEvent(originalTopic = "plain"), personalDataEncrypted = false)
+            fixture.sut.requestReplayOfAll()
+        }
+
+        whenn()
+        val locked = suspendTransaction { fixture.sut.lockReplayRequested(limit = 10) }
+
+        then()
+        assertEquals(
+            mapOf("sealed" to true, "plain" to false),
+            locked.associate { it.event.originalTopic to it.personalDataEncrypted },
+        )
+    }
+
+    @Test
+    fun `should read an event parked before personal data encryption as plaintext`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        suspendTransaction {
+            ExhaustedEventTable.insert {
+                it[originalTopic] = "topic.one"
+                it[idempotencyKey] = Uuid.random().toString()
+                it[attempt] = 3
+                it[payload] = ExposedBlob("payload".toByteArray())
+                it[replayRequested] = true
+            }
+        }
+
+        whenn()
+        val locked = suspendTransaction { fixture.sut.lockReplayRequested(limit = 10) }
+
+        then()
+        assertFalse(locked.single().personalDataEncrypted)
     }
 
     @Test
@@ -126,7 +169,7 @@ internal class ExhaustedEventDataSourceImplTest {
         given()
         val fixture = SutFixture()
         suspendTransaction {
-            repeat(3) { fixture.sut.save(dltEvent()) }
+            repeat(3) { fixture.sut.save(dltEvent(), personalDataEncrypted = false) }
             fixture.sut.requestReplayOfAll()
         }
 
@@ -143,16 +186,16 @@ internal class ExhaustedEventDataSourceImplTest {
         val fixture = SutFixture()
         val requested = dltEvent()
         suspendTransaction {
-            fixture.sut.save(requested)
+            fixture.sut.save(requested, personalDataEncrypted = false)
             fixture.sut.requestReplayOfAll()
-            fixture.sut.save(dltEvent())
+            fixture.sut.save(dltEvent(), personalDataEncrypted = false)
         }
 
         whenn()
         val locked = suspendTransaction { fixture.sut.lockReplayRequested(limit = 10) }
 
         then()
-        assertEquals(listOf(requested), locked.map(ExhaustedEvent::event))
+        assertEquals(listOf(requested), locked.map(ExhaustedEventRow::event))
     }
 
     @Test
@@ -162,8 +205,8 @@ internal class ExhaustedEventDataSourceImplTest {
         val deleted = dltEvent()
         val kept = dltEvent()
         suspendTransaction {
-            fixture.sut.save(deleted)
-            fixture.sut.save(kept)
+            fixture.sut.save(deleted, personalDataEncrypted = false)
+            fixture.sut.save(kept, personalDataEncrypted = false)
             fixture.sut.requestReplayOfAll()
         }
         val deletedId = suspendTransaction {
@@ -183,7 +226,7 @@ internal class ExhaustedEventDataSourceImplTest {
         val fixture = SutFixture()
         val event = dltEvent()
         suspendTransaction {
-            fixture.sut.save(event)
+            fixture.sut.save(event, personalDataEncrypted = false)
             fixture.sut.requestReplayOfAll()
         }
         val id = suspendTransaction { fixture.sut.lockReplayRequested(limit = 10) }.single().id
@@ -201,7 +244,7 @@ internal class ExhaustedEventDataSourceImplTest {
         given()
         val fixture = SutFixture()
         val event = dltEvent()
-        suspendTransaction { fixture.sut.save(event) }
+        suspendTransaction { fixture.sut.save(event, personalDataEncrypted = false) }
 
         whenn()
         suspendTransaction {
@@ -218,8 +261,8 @@ internal class ExhaustedEventDataSourceImplTest {
         given()
         val fixture = SutFixture()
         suspendTransaction {
-            repeat(2) { fixture.sut.save(dltEvent(originalTopic = "topic.one")) }
-            fixture.sut.save(dltEvent(originalTopic = "topic.two"))
+            repeat(2) { fixture.sut.save(dltEvent(originalTopic = "topic.one"), personalDataEncrypted = false) }
+            fixture.sut.save(dltEvent(originalTopic = "topic.two"), personalDataEncrypted = false)
         }
 
         whenn()
@@ -248,8 +291,8 @@ internal class ExhaustedEventDataSourceImplTest {
         val expired = dltEvent(originalTopic = "topic.expired")
         val recent = dltEvent(originalTopic = "topic.recent")
         suspendTransaction {
-            fixture.sut.save(expired)
-            fixture.sut.save(recent)
+            fixture.sut.save(expired, personalDataEncrypted = false)
+            fixture.sut.save(recent, personalDataEncrypted = false)
             ExhaustedEventTable.update(where = { ExhaustedEventTable.originalTopic eq expired.originalTopic }) {
                 it[createdAt] = Instant.fromEpochMilliseconds(0)
             }

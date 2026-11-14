@@ -2,8 +2,6 @@ package library.outbox.datasource
 
 import com.bookk.core.data.DataSource
 import com.bookk.core.data.eventstreaming.DltEvent
-import com.bookk.core.data.eventstreaming.ExhaustedEvent
-import com.bookk.core.data.eventstreaming.ExhaustedEventDataSource
 import com.bookk.core.data.map.toDomain
 import com.bookk.core.domain.entity.Error
 import library.outbox.orm.entity.ExhaustedEventEntity
@@ -21,9 +19,9 @@ import org.jetbrains.exposed.v1.jdbc.update
 import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
-class ExhaustedEventDataSourceImpl : DataSource(), ExhaustedEventDataSource {
+internal class ExhaustedEventRowDataSourceImpl : DataSource(), ExhaustedEventRowDataSource {
 
-    override suspend fun save(dltEvent: DltEvent) {
+    override suspend fun save(dltEvent: DltEvent, personalDataEncrypted: Boolean) {
         dbQuery {
             runCatching {
                 ExhaustedEventTable.insertAndGetId {
@@ -31,6 +29,7 @@ class ExhaustedEventDataSourceImpl : DataSource(), ExhaustedEventDataSource {
                     it[idempotencyKey] = dltEvent.idempotencyKey
                     it[attempt] = dltEvent.attempt
                     it[payload] = ExposedBlob(dltEvent.payload)
+                    it[ExhaustedEventTable.personalDataEncrypted] = personalDataEncrypted
                 }
             }.onFailure { failure -> if (failure.toDomain() !is Error.UniqueConstraintFailed) throw failure }
         }
@@ -45,12 +44,12 @@ class ExhaustedEventDataSourceImpl : DataSource(), ExhaustedEventDataSource {
         dbQuery { ExhaustedEventTable.update { it[replayRequested] = true } }
     }
 
-    override suspend fun lockReplayRequested(limit: Int): List<ExhaustedEvent> = dbQuery {
+    override suspend fun lockReplayRequested(limit: Int): List<ExhaustedEventRow> = dbQuery {
         ExhaustedEventEntity.find { ExhaustedEventTable.replayRequested eq true }
             .orderBy(ExhaustedEventTable.createdAt to SortOrder.ASC, ExhaustedEventTable.id to SortOrder.ASC)
             .limit(limit)
             .forUpdate()
-            .map { it.exhaustedEvent() }
+            .map { it.row() }
     }
 
     override suspend fun delete(ids: List<Uuid>) {

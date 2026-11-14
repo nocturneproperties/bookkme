@@ -11,6 +11,8 @@ import com.bookk.core.test.whenn
 import io.mockk.mockk
 import library.outbox.OutboxEventProducer
 import library.outbox.OutboxRelay
+import library.outbox.personal.NoPersonalDataCipher
+import library.outbox.personal.PersonalDataCipher
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -26,6 +28,7 @@ internal class OutboxModuleTest {
             scope(qualifier) {
                 scoped<TransactionManager> { mockk() }
                 scoped<EventStreaming.RawProducer<String>> { mockk() }
+                scoped<PersonalDataCipher> { NoPersonalDataCipher }
             }
         }
         val scope = koinApplication { modules(transportModule, outboxModule(qualifier)) }

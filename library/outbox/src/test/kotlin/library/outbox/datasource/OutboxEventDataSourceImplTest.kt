@@ -6,9 +6,12 @@ import com.bookk.core.test.runUnitTest
 import com.bookk.core.test.then
 import com.bookk.core.test.whenn
 import library.outbox.orm.table.OutboxEventTable
+import org.jetbrains.exposed.v1.core.statements.api.ExposedBlob
+import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
 import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -27,7 +30,14 @@ internal class OutboxEventDataSourceImplTest {
         val payload = byteArrayOf(1, 2, 3)
 
         whenn()
-        suspendTransaction { fixture.sut.enqueue(topic = "topic.one", partitionKey = "key", payload = payload) }
+        suspendTransaction {
+            fixture.sut.enqueue(
+                topic = "topic.one",
+                partitionKey = "key",
+                payload = payload,
+                personalDataEncrypted = false,
+            )
+        }
         val pending = suspendTransaction { fixture.sut.lockPending(limit = 10) }
 
         then()
@@ -38,12 +48,68 @@ internal class OutboxEventDataSourceImplTest {
     }
 
     @Test
+    fun `should keep whether an enqueued event's payload is sealed`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+
+        whenn()
+        suspendTransaction {
+            fixture.sut.enqueue(
+                topic = "sealed",
+                partitionKey = null,
+                payload = byteArrayOf(1),
+                personalDataEncrypted = true,
+            )
+            fixture.sut.enqueue(
+                topic = "plain",
+                partitionKey = null,
+                payload = byteArrayOf(2),
+                personalDataEncrypted = false,
+            )
+        }
+        val pending = suspendTransaction { fixture.sut.lockPending(limit = 10) }
+
+        then()
+        assertEquals(
+            mapOf("sealed" to true, "plain" to false),
+            pending.associate {
+                it.topic to it.personalDataEncrypted
+            },
+        )
+    }
+
+    @Test
+    fun `should read an event stored before personal data encryption as plaintext`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        suspendTransaction {
+            OutboxEventTable.insert {
+                it[topic] = "topic.one"
+                it[payload] = ExposedBlob(byteArrayOf(1))
+            }
+        }
+
+        whenn()
+        val pending = suspendTransaction { fixture.sut.lockPending(limit = 10) }
+
+        then()
+        assertFalse(pending.single().personalDataEncrypted)
+    }
+
+    @Test
     fun `should keep a missing partition key as null`() = runUnitTest {
         given()
         val fixture = SutFixture()
 
         whenn()
-        suspendTransaction { fixture.sut.enqueue(topic = "topic.one", partitionKey = null, payload = byteArrayOf(1)) }
+        suspendTransaction {
+            fixture.sut.enqueue(
+                topic = "topic.one",
+                partitionKey = null,
+                payload = byteArrayOf(1),
+                personalDataEncrypted = false,
+            )
+        }
         val pending = suspendTransaction { fixture.sut.lockPending(limit = 10) }
 
         then()
@@ -58,7 +124,14 @@ internal class OutboxEventDataSourceImplTest {
 
         whenn()
         topics.forEach { topic ->
-            suspendTransaction { fixture.sut.enqueue(topic = topic, partitionKey = null, payload = byteArrayOf(1)) }
+            suspendTransaction {
+                fixture.sut.enqueue(
+                    topic = topic,
+                    partitionKey = null,
+                    payload = byteArrayOf(1),
+                    personalDataEncrypted = false,
+                )
+            }
         }
         val pending = suspendTransaction { fixture.sut.lockPending(limit = 10) }
 
@@ -71,7 +144,14 @@ internal class OutboxEventDataSourceImplTest {
         given()
         val fixture = SutFixture()
         listOf("topic.first", "topic.second", "topic.third").forEach { topic ->
-            suspendTransaction { fixture.sut.enqueue(topic = topic, partitionKey = null, payload = byteArrayOf(1)) }
+            suspendTransaction {
+                fixture.sut.enqueue(
+                    topic = topic,
+                    partitionKey = null,
+                    payload = byteArrayOf(1),
+                    personalDataEncrypted = false,
+                )
+            }
         }
 
         whenn()
@@ -98,7 +178,14 @@ internal class OutboxEventDataSourceImplTest {
         given()
         val fixture = SutFixture()
         listOf("topic.first", "topic.second", "topic.third").forEach { topic ->
-            suspendTransaction { fixture.sut.enqueue(topic = topic, partitionKey = null, payload = byteArrayOf(1)) }
+            suspendTransaction {
+                fixture.sut.enqueue(
+                    topic = topic,
+                    partitionKey = null,
+                    payload = byteArrayOf(1),
+                    personalDataEncrypted = false,
+                )
+            }
         }
         val enqueued = suspendTransaction { fixture.sut.lockPending(limit = 10) }
 
@@ -118,7 +205,12 @@ internal class OutboxEventDataSourceImplTest {
         whenn()
         runCatching {
             suspendTransaction {
-                fixture.sut.enqueue(topic = "topic.one", partitionKey = null, payload = byteArrayOf(1))
+                fixture.sut.enqueue(
+                    topic = "topic.one",
+                    partitionKey = null,
+                    payload = byteArrayOf(1),
+                    personalDataEncrypted = false,
+                )
                 throw IllegalStateException("business write failed")
             }
         }

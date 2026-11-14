@@ -1,7 +1,6 @@
 package com.bookk.core.data.eventstreaming.impl
 
 import com.bookk.core.data.eventstreaming.DltEvent
-import com.bookk.core.data.eventstreaming.ExhaustedEvent
 import com.bookk.core.data.eventstreaming.StandardEventConsumer
 import com.bookk.core.domain.datasource.transaction.TransactionIsolation
 import com.bookk.core.domain.datasource.transaction.mockedTransactionManager
@@ -50,9 +49,9 @@ internal class ExhaustedEventReplayerImplTest {
             ?.value()
     }
 
-    private fun dltEvent(originalTopic: String = TOPIC): DltEvent = ExhaustedEvent.stub(
-        originalTopic = originalTopic,
-    ).event
+    private fun dltEvent(originalTopic: String = TOPIC): DltEvent {
+        return DltEvent.stub(originalTopic = originalTopic)
+    }
 
     private fun TestScope.nextTick() {
         advanceTimeBy(INTERVAL)
@@ -71,8 +70,8 @@ internal class ExhaustedEventReplayerImplTest {
         runCurrent()
 
         then()
-        coVerify(exactly = 1) { fixture.consumer.replay(first.event) }
-        coVerify(exactly = 1) { fixture.consumer.replay(second.event) }
+        coVerify(exactly = 1) { fixture.consumer.replay(first) }
+        coVerify(exactly = 1) { fixture.consumer.replay(second) }
         assertTrue(fixture.exhaustedEventDataSource.parked().isEmpty())
     }
 
@@ -106,7 +105,7 @@ internal class ExhaustedEventReplayerImplTest {
         nextTick()
 
         then()
-        coVerify(exactly = 1) { fixture.consumer.replay(requested.event) }
+        coVerify(exactly = 1) { fixture.consumer.replay(requested) }
         assertTrue(fixture.exhaustedEventDataSource.parked().isEmpty())
     }
 
@@ -115,7 +114,7 @@ internal class ExhaustedEventReplayerImplTest {
         given()
         val fixture = SutFixture()
         val unreplayable = fixture.exhaustedEventDataSource.park(dltEvent())
-        coEvery { fixture.consumer.replay(unreplayable.event) } returns false
+        coEvery { fixture.consumer.replay(unreplayable) } returns false
 
         whenn()
         fixture.sut.start(backgroundScope)
@@ -123,7 +122,7 @@ internal class ExhaustedEventReplayerImplTest {
         nextTick()
 
         then()
-        coVerify(exactly = 1) { fixture.consumer.replay(unreplayable.event) }
+        coVerify(exactly = 1) { fixture.consumer.replay(unreplayable) }
         assertEquals(listOf(unreplayable), fixture.exhaustedEventDataSource.parked())
         assertTrue(fixture.exhaustedEventDataSource.replayRequested().isEmpty())
     }
@@ -148,7 +147,7 @@ internal class ExhaustedEventReplayerImplTest {
         given()
         val fixture = SutFixture()
         val parked = fixture.exhaustedEventDataSource.park(dltEvent())
-        coEvery { fixture.consumer.replay(parked.event) } throws RuntimeException("broker down") andThen true
+        coEvery { fixture.consumer.replay(parked) } throws RuntimeException("broker down") andThen true
 
         whenn()
         fixture.sut.start(backgroundScope)
@@ -177,7 +176,7 @@ internal class ExhaustedEventReplayerImplTest {
         then()
         assertEquals(listOf(parked), fixture.exhaustedEventDataSource.parked())
         nextTick()
-        coVerify(exactly = 1) { fixture.consumer.replay(parked.event) }
+        coVerify(exactly = 1) { fixture.consumer.replay(parked) }
         assertTrue(fixture.exhaustedEventDataSource.parked().isEmpty())
     }
 

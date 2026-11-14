@@ -9,4 +9,5 @@ object OutboxEventTable : LongIdTable("outbox_event") {
     val partitionKey = varchar("partition_key", 255).nullable()
     val payload = blob("payload")
     val createdAt = timestamp("createdAt").clientDefault { Clock.System.now() }
+    val personalDataEncrypted = bool("personal_data_encrypted").default(false)
 }

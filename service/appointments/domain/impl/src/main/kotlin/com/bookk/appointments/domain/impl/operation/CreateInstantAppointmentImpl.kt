@@ -70,20 +70,14 @@ internal class CreateInstantAppointmentImpl(
         assertMayBookInto(userId, draft.businessId, context.employee.userId)
 
         val appointment = buildAppointment(userId, draft, context)
-        quoteVerifier.requireUnchanged(quoteOffer, appointment.totalAmount, appointment.dateEnd - appointment.date)
+        quoteVerifier.verifyOfferUnchanged(quoteOffer, appointment.totalAmount, appointment.dateEnd - appointment.date)
 
         return transactionManager.transactionOrThrow {
             val clientUserId = appointment.client.userId
-            if (clientUserId != null &&
-                deletedUserDataSource.isDeletedForShare(clientUserId)
-            ) {
+            if (clientUserId != null && deletedUserDataSource.isDeletedForShare(clientUserId)) {
                 throw Error.OperationNotAllowed()
             }
-            if (deletedClientDataSource.isDeletedForShare(
-                    appointment.businessId,
-                    appointment.client.id,
-                )
-            ) {
+            if (deletedClientDataSource.isDeletedForShare(appointment.businessId, appointment.client.id)) {
                 throw Error.OperationNotAllowed()
             }
             requireBookable(appointment)
@@ -97,17 +91,10 @@ internal class CreateInstantAppointmentImpl(
         val settings = settingsDataSource.getForUpdate(appointment.businessId) ?: throw Error.NotFound()
         if (appointment.date < Clock.System.now()) throw CreateInstantAppointment.Error.DateInThePastNotAllowed()
         if (!settings.isInWorkday(appointment.date)) throw CreateInstantAppointment.Error.RequestForThisDateNotAllowed()
-        if (!settings.isInWorktime(
-                appointment.date,
-                appointment.dateEnd,
-            )
-        ) {
+        if (!settings.isInWorktime(appointment.date, appointment.dateEnd)) {
             throw CreateInstantAppointment.Error.RequestForThisTimeNotAllowed()
         }
-        if (appointmentDataSource.hasOverlapsWith(
-                appointment,
-            )
-        ) {
+        if (appointmentDataSource.hasOverlapsWith(appointment)) {
             throw CreateInstantAppointment.Error.AppointmentForThisTimeExists()
         }
     }

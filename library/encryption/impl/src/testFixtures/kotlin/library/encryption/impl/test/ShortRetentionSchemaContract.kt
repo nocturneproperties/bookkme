@@ -10,7 +10,7 @@ import com.bookk.core.test.whenn
 import library.encryption.Decrypted
 import library.encryption.Encryptor
 import library.encryption.SubjectKeys
-import library.encryption.impl.di.subjectKeysModule
+import library.encryption.impl.di.subjectKeys
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
 import org.junit.jupiter.api.AfterAll
@@ -21,6 +21,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.koin.core.qualifier.named
 import org.koin.dsl.koinApplication
+import org.koin.dsl.module
 import org.testcontainers.containers.GenericContainer
 import org.testcontainers.containers.wait.strategy.Wait
 import org.testcontainers.utility.DockerImageName
@@ -62,7 +63,7 @@ abstract class ShortRetentionSchemaContract(
     private inner class SutFixture {
         private val environment = mapOf(MASTER_KEY to randomBase64Key(), BLIND_INDEX_KEY to randomBase64Key())
         private val koin = koinApplication {
-            modules(subjectKeysModule(SCOPE, shortRetentionSchema, environment::get))
+            modules(module { scope(SCOPE) { subjectKeys(shortRetentionSchema, environment::get) } })
         }.koin
         val subjectId = Uuid.random()
         val transactionManager = ExposedTransactionManager(database)

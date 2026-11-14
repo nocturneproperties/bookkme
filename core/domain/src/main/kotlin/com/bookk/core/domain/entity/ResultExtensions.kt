@@ -48,8 +48,11 @@ inline fun <R, T : R> Result<T>.recoverSuspendCatching(
     else -> runSuspendCatching { transform(failure) }
 }
 
-suspend inline fun <R> runCleaningUpOnFailure(crossinline cleanUp: suspend () -> Unit, block: () -> R): R = try {
-    block()
+suspend inline fun <R> runCleaningUpOnFailure(
+    crossinline cleanUp: suspend () -> Unit,
+    action: () -> R
+): R = try {
+    action()
 } catch (failure: Throwable) {
     try {
         withContext(NonCancellable) { cleanUp() }

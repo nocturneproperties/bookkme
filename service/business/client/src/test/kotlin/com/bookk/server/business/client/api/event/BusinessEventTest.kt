@@ -1,6 +1,7 @@
 package com.bookk.server.business.client.api.event
 
 import com.bookk.business.domain.api.business.entity.BusinessPermissions
+import com.bookk.core.data.eventstreaming.DataSubject
 import com.bookk.core.test.given
 import com.bookk.core.test.runUnitTest
 import com.bookk.core.test.then
@@ -237,6 +238,25 @@ internal class BusinessEventTest {
         assertEquals(event, decoded)
         assertEquals(businessId.toString(), decoded.partitionKey)
         assertEquals(BusinessEvent.ExportReady.TOPIC, decoded.topic)
+    }
+
+    @Test
+    fun `should name the employee as the data subject of a redeemed invitation`() = runUnitTest {
+        given()
+        val employeeUserId = Uuid.random()
+        val event = BusinessEvent.EmployeeInvitationRedeemed(
+            inviterUserId = Uuid.random(),
+            employeeUserId = employeeUserId,
+            employeeName = "Alice",
+            businessId = businessId,
+            businessName = "Barbershop",
+        )
+
+        whenn()
+        val subject = event.dataSubject
+
+        then()
+        assertEquals(DataSubject.User(employeeUserId), subject)
     }
 }
 

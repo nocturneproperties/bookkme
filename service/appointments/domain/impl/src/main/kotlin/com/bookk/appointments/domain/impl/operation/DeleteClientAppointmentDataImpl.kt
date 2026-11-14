@@ -69,9 +69,7 @@ internal class DeleteClientAppointmentDataImpl(
 
     private fun clientNotification(appointment: Appointment, business: BusinessSnapshot) = AppointmentEvent.Cancelled(
         clientUserId = appointment.client.userId,
-        clientName = appointment.client.fullName,
         employeeUserId = appointment.employee.userId,
-        employeeName = appointment.employee.fullName,
         from = appointment.date,
         to = appointment.dateEnd,
         timeZone = business.timeZone,

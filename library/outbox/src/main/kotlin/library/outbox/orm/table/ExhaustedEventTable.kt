@@ -8,4 +8,5 @@ object ExhaustedEventTable : BaseUUIDTable("exhausted_event") {
     val attempt = integer("attempt")
     val payload = blob("payload")
     val replayRequested = bool("replay_requested").default(false)
+    val personalDataEncrypted = bool("personal_data_encrypted").default(false)
 }

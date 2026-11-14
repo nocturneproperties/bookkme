@@ -5,8 +5,8 @@ import com.bookk.appointments.data.orm.table.AppointmentRequestServicesTable
 import com.bookk.appointments.data.orm.table.AppointmentRequestTable
 import com.bookk.appointments.domain.api.entity.AppointmentRequest
 import com.bookk.appointments.domain.api.entity.AppointmentRequestStatus
-import com.bookk.appointments.domain.api.entity.ClientSnapshot
 import com.bookk.appointments.domain.api.entity.EmployeeSnapshot
+import com.bookk.appointments.domain.api.entity.RequestClientSnapshot
 import com.bookk.appointments.domain.api.entity.ServiceSnapshot
 import com.bookk.core.data.DecoratorUuidEntityClass
 import org.jetbrains.exposed.v1.core.dao.id.EntityID
@@ -48,7 +48,7 @@ internal class AppointmentRequestEntity(id: EntityID<Uuid>) : UuidEntity(id) {
             userId = employeeUserId,
             fullName = employeeName,
         ),
-        client = ClientSnapshot(
+        client = RequestClientSnapshot(
             id = clientId,
             fullName = clientName,
             phone = clientPhone,
