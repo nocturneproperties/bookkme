@@ -1,9 +1,11 @@
 package library.encryption.impl.di
 
 import library.encryption.BlindIndex
+import library.encryption.MissingKeys
 import library.encryption.SubjectKeys
 import library.encryption.impl.HmacBlindIndex
 import library.encryption.impl.MasterKey
+import library.encryption.impl.MeteredMissingKeys
 import library.encryption.impl.SubjectKeyDataSource
 import library.encryption.impl.SubjectKeysImpl
 import library.encryption.impl.orm.SubjectKeyTable
@@ -22,6 +24,7 @@ fun ScopeDSL.subjectKeys(keySchema: String, environment: (String) -> String? = S
         SubjectKeysImpl(get(), masterKey, SecureRandom(), Clock.System)
     }
     scoped<BlindIndex> { environment.parse(BLIND_INDEX_KEY, HmacBlindIndex::fromBase64) }
+    scoped<MissingKeys> { MeteredMissingKeys(get()) }
 }
 
 private fun <T> ((String) -> String?).parse(variable: String, parse: (String) -> T): T {

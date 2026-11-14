@@ -4,6 +4,7 @@ import com.bookk.core.data.ExposedTransactionManager
 import com.bookk.core.data.database.createDatabase
 import com.bookk.core.domain.datasource.transaction.TransactionManager
 import com.bookk.user.data.datasource.LegalDocumentDataSourceImpl
+import com.bookk.user.data.datasource.ProfileCipher
 import com.bookk.user.data.datasource.UserDataExportDataSourceImpl
 import com.bookk.user.data.datasource.UserDataSourceImpl
 import com.bookk.user.domain.api.USER_SCHEMA
@@ -24,9 +25,10 @@ fun userDataModule(environment: (String) -> String? = System::getenv) = module {
         subjectKeys(USER_SHORT_RETENTION_SCHEMA, environment)
         personalDataCipher()
         exhaustedEventDataSource()
-        scoped<UserDataSource> { UserDataSourceImpl(get()) }
+        scoped { ProfileCipher(get(), get(), get()) }
+        scoped<UserDataSource> { UserDataSourceImpl(get(), get()) }
         scoped<LegalDocumentDataSource> { LegalDocumentDataSourceImpl() }
-        scoped<UserDataExportDataSource> { UserDataExportDataSourceImpl() }
+        scoped<UserDataExportDataSource> { UserDataExportDataSourceImpl(get()) }
         scoped { createDatabase(schemaName = USER_SCHEMA) }
         scoped<TransactionManager> { ExposedTransactionManager(get()) }
     }

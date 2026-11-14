@@ -1,4 +1,4 @@
-package library.outbox.personal
+package library.encryption.test
 
 import library.encryption.Decrypted
 import library.encryption.Decryptor
@@ -8,7 +8,7 @@ import java.util.concurrent.ConcurrentHashMap
 import javax.crypto.AEADBadTagException
 import kotlin.uuid.Uuid
 
-internal class InMemorySubjectKeys : SubjectKeys {
+class InMemorySubjectKeys : SubjectKeys {
     private val live = ConcurrentHashMap.newKeySet<Uuid>()
     private val shredded = ConcurrentHashMap.newKeySet<Uuid>()
     private val tampered = ConcurrentHashMap.newKeySet<Uuid>()

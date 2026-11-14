@@ -9,7 +9,11 @@ import com.bookk.user.data.orm.table.UserTable
 import com.bookk.user.domain.api.entity.User
 import com.bookk.user.domain.api.export.ProfileExport
 import io.mockk.mockk
+import library.encryption.test.InMemorySubjectKeys
+import library.encryption.test.RecordingMissingKeys
+import library.encryption.test.UnkeyedBlindIndex
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
 import org.jetbrains.exposed.v1.jdbc.update
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -22,8 +26,9 @@ internal class UserDataExportDataSourceImplTest {
 
     private class SutFixture {
         val db = createTestDatabase(UserTable)
-        val sut = UserDataExportDataSourceImpl()
-        val userSut = UserDataSourceImpl(mockk(relaxed = true))
+        val profileCipher = ProfileCipher(InMemorySubjectKeys(), UnkeyedBlindIndex(), RecordingMissingKeys())
+        val sut = UserDataExportDataSourceImpl(profileCipher)
+        val userSut = UserDataSourceImpl(mockk(relaxed = true), profileCipher)
 
         suspend fun user(user: User = User.stub(email = "u${Uuid.random()}@example.com")): User = suspendTransaction {
             userSut.insertNewUser(user)
@@ -45,6 +50,29 @@ internal class UserDataExportDataSourceImplTest {
 
         then()
         assertEquals(ProfileExport(user.id, "Olena", "Koval", "olena@example.com", "+380501112233", createdAt), profile)
+    }
+
+    @Test
+    fun `should export a profile stored as plaintext before encryption`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val user = User.stub(name = "Olena", lastName = "Koval", email = "olena@example.com")
+        val createdAt = Instant.fromEpochMilliseconds(1_700_000_000_000)
+        suspendTransaction {
+            UserTable.insert {
+                it[id] = user.id
+                it[name] = user.name
+                it[lastName] = user.lastName
+                it[email] = user.email
+                it[this.createdAt] = createdAt
+            }
+        }
+
+        whenn()
+        val profile = suspendTransaction { fixture.sut.getProfile(user.id) }
+
+        then()
+        assertEquals(ProfileExport(user.id, "Olena", "Koval", "olena@example.com", null, createdAt), profile)
     }
 
     @Test

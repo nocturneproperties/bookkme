@@ -7,6 +7,7 @@ dependencies {
     api(projects.library.encryption.api)
     implementation(projects.core.domain)
     implementation(projects.core.data)
+    implementation(libs.micrometer.core)
 
     testFixturesApi(testFixtures(projects.core))
     testFixturesApi(libs.testcontainers.junit)

@@ -13,6 +13,9 @@ import com.bookk.user.domain.api.entity.LegalDocument
 import com.bookk.user.domain.api.entity.LegalDocumentAcceptance
 import com.bookk.user.domain.api.entity.LegalDocumentVersion
 import com.bookk.user.domain.api.entity.User
+import library.encryption.test.InMemorySubjectKeys
+import library.encryption.test.RecordingMissingKeys
+import library.encryption.test.UnkeyedBlindIndex
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -28,7 +31,8 @@ internal class LegalDocumentDataSourceImplTest {
 
     private class SutFixture {
         val db = createTestDatabase(UserTable, LegalDocumentVersionTable, LegalDocumentAcceptanceTable)
-        val userDataSource = UserDataSourceImpl(InMemoryCacheClient())
+        val profileCipher = ProfileCipher(InMemorySubjectKeys(), UnkeyedBlindIndex(), RecordingMissingKeys())
+        val userDataSource = UserDataSourceImpl(InMemoryCacheClient(), profileCipher)
         val sut = LegalDocumentDataSourceImpl()
 
         suspend fun publish(version: LegalDocumentVersion) = suspendTransaction {

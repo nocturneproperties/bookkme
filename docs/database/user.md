@@ -11,10 +11,16 @@ erDiagram
 
     PROFILE {
         uuid id PK
-        string name
-        string last_name
-        string email UK
-        string phone UK "nullable; blank stored as NULL"
+        string name "nullable; plaintext rows from before 0.18.0 only"
+        string last_name "nullable; plaintext rows from before 0.18.0 only"
+        string email UK "nullable; plaintext rows from before 0.18.0 only"
+        string phone UK "nullable; plaintext rows from before 0.18.0 only"
+        bytes name_encrypted "nullable until 0.19.0"
+        bytes last_name_encrypted "nullable until 0.19.0"
+        bytes email_encrypted "nullable until 0.19.0; NULL marks a plaintext row"
+        bytes phone_encrypted "nullable; blank stored as NULL"
+        string email_index UK "HMAC of the trimmed, lowercased email"
+        string phone_index UK "nullable; HMAC of the trimmed, lowercased phone"
         timestamp created_at
         timestamp updated_at
     }
@@ -74,6 +80,8 @@ erDiagram
         timestamp created_at
     }
 ```
+
+`PROFILE` holds the name, last name, email and phone encrypted under the user's own key (`*_encrypted`, `library/encryption`, keyed by `id`), so deleting the account and shredding that key leaves nothing readable in backups. Email and phone stay unique and the email searchable through `email_index` and `phone_index`, keyed HMACs of the trimmed, lowercased value. Rows written before 0.18.0 keep their plaintext columns until the `user-encryptPlaintextProfiles` job encrypts them and sets those columns to NULL; until then a write to such a row encrypts it too, and a new contact is also checked against the plaintext columns, which the blind-index constraints can't see. 0.19.0 drops the plaintext columns.
 
 `LEGAL_DOCUMENT_VERSION` holds the published versions of each legal document; the operator inserts them by hand (see [Legal documents](../legal-documents.md)), and the current version of a document is its row with the latest `effective_at` that has passed. `LEGAL_DOCUMENT_ACCEPTANCE` is append-only: one row per user and version accepted, never updated (a repeat is ignored, keeping the first time), deleted with the profile. A version that someone accepted can't be deleted (`ON DELETE RESTRICT`).
 

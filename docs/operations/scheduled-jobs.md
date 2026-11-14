@@ -128,6 +128,7 @@ Registered in `registerBusinessJobs` (`BusinessMicroservice.kt`).
 |---|---|---|---|
 | `user-buildDataExports` | 1 minute | `BuildDataExports` (`library/export`, with `PersonalDataExportAssembler`) | Builds the queued personal data exports: fails abandoned builds that used up their 3 attempts, claims each queued row with a conditional `UPDATE` and a 10-minute lease (one instance per row), gathers the user's data from every service outside a transaction, then stores the gzipped document, encrypted under a new random key (`key_id`), under the claim and sends `UserEvent.DataExportReady` in the same transaction. A failed build goes back to the queue, and is `FAILED` after the third attempt. See [Start personal data export](user/start-personal-data-export.md) and [Data export](../data-export.md). |
 | `user-deleteExpiredDataExports` | 1 hour | `DeleteExpiredDataExports` (`library/export`) | Deletes `user.data_export` rows whose `expires_at` passed (72 hours after the document was built or the export failed) and shreds their documents' keys in the same transaction. |
+| `user-encryptPlaintextProfiles` | 10 minutes | `EncryptPlaintextProfiles` | Encrypts the `user.profile` rows still stored as plaintext from before 0.18.0, 100 per transaction (locked with `FOR UPDATE`), under each user's key, fills `email_index`/`phone_index` and sets the plaintext columns to NULL. Once none are left each run is one query; removed in 0.19.0 with the plaintext columns. |
 
 ## Adding a new job
 

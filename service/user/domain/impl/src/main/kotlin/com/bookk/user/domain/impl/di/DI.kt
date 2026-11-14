@@ -13,6 +13,7 @@ import com.bookk.user.domain.api.operation.CreateUser
 import com.bookk.user.domain.api.operation.DeleteUser
 import com.bookk.user.domain.api.operation.DownloadPersonalDataExport
 import com.bookk.user.domain.api.operation.EditUser
+import com.bookk.user.domain.api.operation.EncryptPlaintextProfiles
 import com.bookk.user.domain.api.operation.GetLegalDocumentStatus
 import com.bookk.user.domain.api.operation.GetLegalDocuments
 import com.bookk.user.domain.api.operation.GetPersonalDataExport
@@ -27,6 +28,7 @@ import com.bookk.user.domain.impl.operation.CreateUserImpl
 import com.bookk.user.domain.impl.operation.DeleteUserImpl
 import com.bookk.user.domain.impl.operation.DownloadPersonalDataExportImpl
 import com.bookk.user.domain.impl.operation.EditUserImpl
+import com.bookk.user.domain.impl.operation.EncryptPlaintextProfilesImpl
 import com.bookk.user.domain.impl.operation.GetLegalDocumentStatusImpl
 import com.bookk.user.domain.impl.operation.GetLegalDocumentsImpl
 import com.bookk.user.domain.impl.operation.GetPersonalDataExportImpl
@@ -65,6 +67,7 @@ fun userDomainModule() = module {
         scopedOf(::StartPersonalDataExportImpl) bind StartPersonalDataExport::class
         scopedOf(::GetPersonalDataExportImpl) bind GetPersonalDataExport::class
         scopedOf(::DownloadPersonalDataExportImpl) bind DownloadPersonalDataExport::class
+        scopedOf(::EncryptPlaintextProfilesImpl) bind EncryptPlaintextProfiles::class
         scoped<DataExportAssembler> {
             PersonalDataExportAssembler(get(), get(), get(), get(), get(), get(), get(), get(), Clock.System)
         }

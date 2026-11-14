@@ -7,7 +7,8 @@ import com.bookk.core.test.given
 import com.bookk.core.test.runUnitTest
 import com.bookk.core.test.then
 import com.bookk.core.test.whenn
-import io.micrometer.core.instrument.simple.SimpleMeterRegistry
+import library.encryption.test.InMemorySubjectKeys
+import library.encryption.test.RecordingMissingKeys
 import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -37,12 +38,8 @@ internal class SubjectKeysPersonalDataCipherTest {
 
     private class SutFixture(clientKey: ClientKey = ClientKey.CLIENT_ID) {
         val subjectKeys = InMemorySubjectKeys()
-        val meterRegistry = SimpleMeterRegistry()
-        val sut = SubjectKeysPersonalDataCipher(subjectKeys, clientKey, meterRegistry)
-
-        fun missingKeyCount(): Double {
-            return meterRegistry.find(SubjectKeysPersonalDataCipher.KEY_MISSING_METRIC).counter()?.count() ?: 0.0
-        }
+        val missingKeys = RecordingMissingKeys()
+        val sut = SubjectKeysPersonalDataCipher(subjectKeys, clientKey, missingKeys)
 
         suspend fun sealed(event: PersonalEvent): ByteArray {
             return requireNotNull(sut.seal(event, PAYLOAD))
@@ -171,7 +168,7 @@ internal class SubjectKeysPersonalDataCipherTest {
 
             then()
             assertNull(opened)
-            assertEquals(0.0, fixture.missingKeyCount())
+            assertEquals(emptyList<String>(), fixture.missingKeys.reported)
         }
 
     @Test
@@ -187,7 +184,7 @@ internal class SubjectKeysPersonalDataCipherTest {
 
         then()
         assertNull(opened)
-        assertEquals(1.0, fixture.missingKeyCount())
+        assertEquals(listOf(TOPIC), fixture.missingKeys.reported)
     }
 
     @Test

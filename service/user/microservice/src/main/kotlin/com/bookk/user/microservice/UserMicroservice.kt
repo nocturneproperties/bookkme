@@ -10,6 +10,7 @@ import com.bookk.core.service.installNegotiation
 import com.bookk.core.service.startServer
 import com.bookk.user.data.di.userDataModule
 import com.bookk.user.domain.api.USER_SERVICE_NAME
+import com.bookk.user.domain.api.operation.EncryptPlaintextProfiles
 import com.bookk.user.domain.impl.di.UserScope
 import com.bookk.user.domain.impl.di.userDomainModule
 import com.bookk.user.microservice.route.userRoute
@@ -69,5 +70,8 @@ fun Application.registerUserJobs(scheduler: SchedulerConfiguration) {
     }
     scheduler.job("$USER_SERVICE_NAME-deleteExpiredDataExports", interval = 1.hours) {
         scope.get<DeleteExpiredDataExports>().invoke().getOrThrow()
+    }
+    scheduler.job("$USER_SERVICE_NAME-encryptPlaintextProfiles", interval = 10.minutes) {
+        scope.get<EncryptPlaintextProfiles>().invoke().getOrThrow()
     }
 }

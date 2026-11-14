@@ -4,9 +4,8 @@ import com.bookk.core.test.given
 import com.bookk.core.test.runUnitTest
 import com.bookk.core.test.then
 import com.bookk.core.test.whenn
-import io.micrometer.core.instrument.MeterRegistry
-import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import io.mockk.mockk
+import library.encryption.MissingKeys
 import library.encryption.SubjectKeys
 import library.outbox.personal.NoPersonalDataCipher
 import library.outbox.personal.PersonalDataCipher
@@ -24,9 +23,9 @@ internal class PersonalDataModuleTest {
     private class SutFixture(personalData: ScopeDSL.() -> Unit) {
         val qualifier = named("personal-data-test")
         val infrastructure = module {
-            single<MeterRegistry> { SimpleMeterRegistry() }
             scope(qualifier) {
                 scoped<SubjectKeys> { mockk() }
+                scoped<MissingKeys> { mockk() }
                 personalData()
             }
         }
