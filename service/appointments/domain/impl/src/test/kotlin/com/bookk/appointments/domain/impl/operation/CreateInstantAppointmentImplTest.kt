@@ -136,7 +136,8 @@ internal class CreateInstantAppointmentImplTest {
 
         fun bookAnotherEmployee() {
             val anotherEmployee = context.employee.copy(userId = Uuid.random())
-            coEvery { businessClient.getStaffBookingContext(any(), any(), any(), any()) } returns Result.success(context.copy(employee = anotherEmployee))
+            coEvery { businessClient.getStaffBookingContext(any(), any(), any(), any()) } returns
+                Result.success(context.copy(employee = anotherEmployee))
         }
 
         fun acceptQuote(total: String, duration: String, businessIdClaim: String = businessId.toString()) {
@@ -150,7 +151,8 @@ internal class CreateInstantAppointmentImplTest {
             every { decoded.getClaim(QuoteClaims.CLAIM_TOTAL) } returns claim(total)
             every { decoded.getClaim(QuoteClaims.CLAIM_DURATION) } returns claim(duration)
             every { decoded.getClaim(QuoteClaims.CLAIM_SERVICES) } returns mockk {
-                every { asList(String::class.java) } returns QuoteClaims.encodeServiceCounts(listOf(service.id, service.id))
+                every { asList(String::class.java) } returns
+                    QuoteClaims.encodeServiceCounts(listOf(service.id, service.id))
             }
         }
 
@@ -178,12 +180,28 @@ internal class CreateInstantAppointmentImplTest {
         assertEquals(listOf(appointment), fixture.stored)
         assertEquals(fixture.callerId, appointment.initiatorUserId)
         assertEquals(fixture.businessId, appointment.businessId)
-        assertEquals(EmployeeSnapshot(fixture.context.employee.id, fixture.callerId, "stub-name stub-lastname"), appointment.employee)
         assertEquals(
-            ClientSnapshot(fixture.context.client.id, "stub-name stub-lastname", "+10000000000", "stub@client.com", fixture.clientUserId),
+            EmployeeSnapshot(fixture.context.employee.id, fixture.callerId, "stub-name stub-lastname"),
+            appointment.employee,
+        )
+        assertEquals(
+            ClientSnapshot(
+                fixture.context.client.id,
+                "stub-name stub-lastname",
+                "+10000000000",
+                "stub@client.com",
+                fixture.clientUserId,
+            ),
             appointment.client,
         )
-        val serviceSnapshot = ServiceSnapshot(fixture.service.id, fixture.service.name, fixture.service.group.id, fixture.service.price, fixture.service.duration)
+        val serviceSnapshot =
+            ServiceSnapshot(
+                fixture.service.id,
+                fixture.service.name,
+                fixture.service.group.id,
+                fixture.service.price,
+                fixture.service.duration,
+            )
         assertEquals(listOf(serviceSnapshot, serviceSnapshot), appointment.services)
         assertEquals(AppointmentStatus.SCHEDULED, appointment.status)
         assertEquals(fixture.draft.date, appointment.date)
@@ -239,7 +257,8 @@ internal class CreateInstantAppointmentImplTest {
     fun `should refuse a suspended employee`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        coEvery { fixture.appointmentPermissionDataSource.getPermission(fixture.callerId, fixture.businessId) } throws EmployeeAccessSuspended()
+        coEvery { fixture.appointmentPermissionDataSource.getPermission(fixture.callerId, fixture.businessId) } throws
+            EmployeeAccessSuspended()
 
         whenn()
         val result = fixture.sut(fixture.callerId, fixture.draft)
@@ -300,7 +319,11 @@ internal class CreateInstantAppointmentImplTest {
     fun `should refuse a quote token issued for another business`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        fixture.acceptQuote(total = "UAH 500.00", duration = 90.minutes.toString(), businessIdClaim = Uuid.random().toString())
+        fixture.acceptQuote(
+            total = "UAH 500.00",
+            duration = 90.minutes.toString(),
+            businessIdClaim = Uuid.random().toString(),
+        )
 
         whenn()
         val result = fixture.sut(fixture.callerId, fixture.draft)
@@ -371,7 +394,10 @@ internal class CreateInstantAppointmentImplTest {
     fun `should reject a booking for a client the business deleted`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        coEvery { fixture.deletedClientDataSource.isDeletedForShare(fixture.businessId, fixture.context.client.id) } returns true
+        coEvery {
+            fixture.deletedClientDataSource.isDeletedForShare(fixture.businessId, fixture.context.client.id)
+        } returns
+            true
 
         whenn()
         val result = fixture.sut(fixture.callerId, fixture.draft)
@@ -387,7 +413,10 @@ internal class CreateInstantAppointmentImplTest {
         val fixture = SutFixture()
         coEvery {
             fixture.businessClient.getStaffBookingContext(any(), any(), any(), any())
-        } returns Result.success(fixture.context.copy(client = ClientRemote.stub(id = fixture.context.client.id, userId = null)))
+        } returns
+            Result.success(
+                fixture.context.copy(client = ClientRemote.stub(id = fixture.context.client.id, userId = null)),
+            )
 
         whenn()
         val result = fixture.sut(fixture.callerId, fixture.draft)

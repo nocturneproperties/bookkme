@@ -41,13 +41,18 @@ suspend inline fun <R> runCatchingUnlessCancelled(block: () -> R): Result<R> = t
     Result.failure(failure)
 }
 
-inline fun <R, T : R> Result<T>.recoverSuspendCatching(transform: (Throwable) -> R): Result<R> = when (val failure = exceptionOrNull()) {
+inline fun <R, T : R> Result<T>.recoverSuspendCatching(
+    transform: (Throwable) -> R,
+): Result<R> = when (val failure = exceptionOrNull()) {
     null -> this
     else -> runSuspendCatching { transform(failure) }
 }
 
-suspend inline fun <R> runCleaningUpOnFailure(crossinline cleanUp: suspend () -> Unit, block: () -> R): R = try {
-    block()
+suspend inline fun <R> runCleaningUpOnFailure(
+    crossinline cleanUp: suspend () -> Unit,
+    action: () -> R,
+): R = try {
+    action()
 } catch (failure: Throwable) {
     try {
         withContext(NonCancellable) { cleanUp() }
@@ -55,4 +60,11 @@ suspend inline fun <R> runCleaningUpOnFailure(crossinline cleanUp: suspend () ->
         failure.addSuppressed(cleanUpFailure)
     }
     throw failure
+}
+
+fun Iterable<Result<*>>.throwIfAnyFailed() {
+    val failures = mapNotNull { it.exceptionOrNull() }
+    val first = failures.firstOrNull() ?: return
+    failures.drop(1).forEach(first::addSuppressed)
+    throw first
 }

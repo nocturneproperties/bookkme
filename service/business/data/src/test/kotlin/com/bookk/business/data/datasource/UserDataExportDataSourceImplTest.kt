@@ -42,14 +42,24 @@ internal class UserDataExportDataSourceImplTest {
 
     private class SutFixture {
         val db = createTestDatabase(
-            BusinessTable, BusinessDashboardTable, BusinessPermissionGrantsTable, BusinessWorkingHoursTable, BusinessDayOffTable,
-            ServiceGroupTable, ServiceTable, EmployeeTable, EmployeeCanProvideServiceTable, EmployeeWorkingHoursTable, EmployeeDayOffTable,
+            BusinessTable,
+            BusinessDashboardTable,
+            BusinessPermissionGrantsTable,
+            BusinessWorkingHoursTable,
+            BusinessDayOffTable,
+            ServiceGroupTable,
+            ServiceTable,
+            EmployeeTable,
+            EmployeeCanProvideServiceTable,
+            EmployeeWorkingHoursTable,
+            EmployeeDayOffTable,
             ClientTable,
         )
-        val sut = UserDataExportDataSourceImpl()
+        val contactCipher = testContactCipher()
+        val sut = UserDataExportDataSourceImpl(contactCipher)
         val businessSut = BusinessDataSourceImpl()
-        val employeeSut = EmployeeDataSourceImpl()
-        val clientSut = ClientDataSourceImpl()
+        val employeeSut = EmployeeDataSourceImpl(contactCipher)
+        val clientSut = ClientDataSourceImpl(contactCipher)
         val permissionSut = BusinessPermissionDataSourceImpl()
         val userId = Uuid.random()
 
@@ -106,7 +116,7 @@ internal class UserDataExportDataSourceImplTest {
     }
 
     @Test
-    fun `should export the user's employee rows with permissions, hours and days off, suspended ones included`() = runUnitTest {
+    fun `should export the user's employee rows, suspended too, with permissions, hours and days off`() = runUnitTest {
         given()
         val fixture = SutFixture()
         val workplace = fixture.business(name = "Barber")
@@ -129,7 +139,10 @@ internal class UserDataExportDataSourceImplTest {
             )
         }
         suspendTransaction {
-            fixture.permissionSut.setPermissions(employee, mapOf(BusinessResource.CLIENTS to ResourcePermission(view = true, update = true, delete = false)))
+            fixture.permissionSut.setPermissions(
+                employee,
+                mapOf(BusinessResource.CLIENTS to ResourcePermission(view = true, update = true, delete = false)),
+            )
             fixture.employeeSut.setSuspendedAt(employee.id, suspendedAt)
         }
 
@@ -148,7 +161,9 @@ internal class UserDataExportDataSourceImplTest {
                 email = "olena@example.com",
                 suspendedAt = suspendedAt,
                 permissions = employment.permissions,
-                workingHours = listOf(BusinessUserDataExport.WorkingHoursExport("MONDAY", LocalTime(9, 0), LocalTime(13, 0))),
+                workingHours = listOf(
+                    BusinessUserDataExport.WorkingHoursExport("MONDAY", LocalTime(9, 0), LocalTime(13, 0)),
+                ),
                 daysOff = listOf(BusinessUserDataExport.DayOffExport(LocalDate(2026, 12, 24), LocalDate(2026, 12, 26))),
             ),
             employment,
@@ -167,18 +182,29 @@ internal class UserDataExportDataSourceImplTest {
         suspendTransaction {
             fixture.clientSut.getOrCreateIntegratedClient(
                 salon.id,
-                Client.Integrated.stub(userId = fixture.userId, name = "Olena", lastName = "Koval", phone = "+380501112233", email = "olena@example.com"),
+                Client.Integrated.stub(
+                    userId = fixture.userId,
+                    name = "Olena",
+                    lastName = "Koval",
+                    phone = "+380501112233",
+                    email = "olena@example.com",
+                    description = "allergic to latex",
+                ),
             )
         }
         val clientId = suspendTransaction { fixture.clientSut.getClientByUserId(salon.id, fixture.userId) }!!.id
         val lastActivityAt = Instant.fromEpochMilliseconds(1_700_000_000_000)
         suspendTransaction {
             ClientTable.update({ ClientTable.id eq clientId }) {
-                it[description] = "allergic to latex"
                 it[this.lastActivityAt] = lastActivityAt
             }
         }
-        suspendTransaction { fixture.clientSut.createDetachedClient(salon.id, Client.Detached.stub(phone = "+380509998877", email = "other@example.com")) }
+        suspendTransaction {
+            fixture.clientSut.createDetachedClient(
+                salon.id,
+                Client.Detached.stub(phone = "+380509998877", email = "other@example.com"),
+            )
+        }
 
         whenn()
         val export = fixture.export()
@@ -221,8 +247,12 @@ internal class UserDataExportDataSourceImplTest {
         val fixture = SutFixture()
         val other = Uuid.random()
         val business = fixture.business(ownerId = other)
-        suspendTransaction { fixture.employeeSut.createEmployee(Employee.stub(businessId = business.id, userId = other)) }
-        suspendTransaction { fixture.clientSut.getOrCreateIntegratedClient(business.id, Client.Integrated.stub(userId = other)) }
+        suspendTransaction {
+            fixture.employeeSut.createEmployee(Employee.stub(businessId = business.id, userId = other))
+        }
+        suspendTransaction {
+            fixture.clientSut.getOrCreateIntegratedClient(business.id, Client.Integrated.stub(userId = other))
+        }
 
         whenn()
         val export = fixture.export()

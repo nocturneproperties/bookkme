@@ -750,7 +750,9 @@ internal class BusinessCrudTest {
 
         whenn()
         val client = createTestClient()
-        val response = client.put(BusinessRouting.Api.Business.Id.Dashboard(parent = BusinessRouting.Api.Business.Id(id = businessId)))
+        val response = client.put(
+            BusinessRouting.Api.Business.Id.Dashboard(parent = BusinessRouting.Api.Business.Id(id = businessId)),
+        )
 
         then()
         assertEquals(HttpStatusCode.NoContent, response.status)
@@ -776,7 +778,9 @@ internal class BusinessCrudTest {
 
         whenn()
         val client = createTestClient()
-        val response = client.put(BusinessRouting.Api.Business.Id.Dashboard(parent = BusinessRouting.Api.Business.Id(id = businessId)))
+        val response = client.put(
+            BusinessRouting.Api.Business.Id.Dashboard(parent = BusinessRouting.Api.Business.Id(id = businessId)),
+        )
 
         then()
         assertEquals(HttpStatusCode.NotFound, response.status)
@@ -795,7 +799,9 @@ internal class BusinessCrudTest {
 
         whenn()
         val client = createTestClient()
-        val response = client.put(BusinessRouting.Api.Business.Id.Dashboard(parent = BusinessRouting.Api.Business.Id(id = businessId)))
+        val response = client.put(
+            BusinessRouting.Api.Business.Id.Dashboard(parent = BusinessRouting.Api.Business.Id(id = businessId)),
+        )
 
         then()
         assertEquals(HttpStatusCode.Unauthorized, response.status)

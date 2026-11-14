@@ -19,7 +19,11 @@ internal class DataExportReadyNotificationTest {
 
     private val expiresAt = Instant.parse("2026-11-06T14:30:00Z")
     private val personal = UserEvent.DataExportReady(userId = Uuid.random(), expiresAt = expiresAt)
-    private val business = BusinessEvent.ExportReady(businessId = Uuid.random(), ownerUserId = Uuid.random(), expiresAt = expiresAt)
+    private val business = BusinessEvent.ExportReady(
+        businessId = Uuid.random(),
+        ownerUserId = Uuid.random(),
+        expiresAt = expiresAt,
+    )
 
     @Test
     fun `should be account notifications the user cannot switch off`() = runUnitTest {

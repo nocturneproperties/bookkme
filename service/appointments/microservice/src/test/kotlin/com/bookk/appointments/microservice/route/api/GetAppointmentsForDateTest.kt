@@ -95,7 +95,9 @@ internal class GetAppointmentsForDateTest {
 
         whenn()
         val client = createTestClient()
-        val response = client.get(AppointmentsRouting.Api.Appointments(businessId = businessId, date = date, employeeId = employeeId))
+        val response = client.get(
+            AppointmentsRouting.Api.Appointments(businessId = businessId, date = date, employeeId = employeeId),
+        )
 
         then()
         assertEquals(HttpStatusCode.OK, response.status)

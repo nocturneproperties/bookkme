@@ -4,6 +4,7 @@ plugins {
 
 dependencies {
     api(projects.library.export.api)
+    implementation(projects.library.encryption.api)
     implementation(projects.core.domain)
     implementation(projects.core.domain.datasource)
     implementation(projects.core.data)

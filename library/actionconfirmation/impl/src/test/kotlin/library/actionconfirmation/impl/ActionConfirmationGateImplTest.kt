@@ -28,10 +28,20 @@ internal class ActionConfirmationGateImplTest {
 
     private class SutFixture {
         val tokens = ActionConfirmationTestTokens()
-        val grant = ActionConfirmationGrant.clientDeletion(userId = Uuid.random(), businessId = Uuid.random(), clientId = Uuid.random())
+        val grant = ActionConfirmationGrant.clientDeletion(
+            userId = Uuid.random(),
+            businessId = Uuid.random(),
+            clientId = Uuid.random(),
+        )
         var actionRuns = 0
 
-        suspend fun spend(token: String, grant: ActionConfirmationGrant = this.grant, action: suspend () -> String = { "done" }): Result<String> = runSuspendCatching {
+        suspend fun spend(
+            token: String,
+            grant: ActionConfirmationGrant = this.grant,
+            action: suspend () -> String = {
+                "done"
+            },
+        ): Result<String> = runSuspendCatching {
             tokens.gate.spend(token, grant, ::Rejected) {
                 actionRuns++
                 action()
@@ -40,7 +50,7 @@ internal class ActionConfirmationGateImplTest {
     }
 
     @Test
-    fun `should run the action for an action confirmation token naming the caller, the action, the business and the target`() = runUnitTest {
+    fun `should run the action for a confirmation token naming caller, action, business and target`() = runUnitTest {
         given()
         val fixture = SutFixture()
 

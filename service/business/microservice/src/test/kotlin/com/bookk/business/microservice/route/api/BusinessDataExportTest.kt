@@ -5,7 +5,6 @@ import com.bookk.business.domain.api.export.DownloadBusinessDataExport
 import com.bookk.business.domain.api.export.GetBusinessDataExport
 import com.bookk.business.domain.api.export.StartBusinessDataExport
 import com.bookk.business.microservice.route.BusinessRouting
-import com.bookk.core.domain.entity.CoreErrorCodes
 import com.bookk.core.domain.entity.Error
 import com.bookk.core.domain.entity.SimpleServerError
 import com.bookk.core.service.test.createTestClient
@@ -33,6 +32,7 @@ import library.export.DataExport
 import library.export.DataExportDocument
 import library.export.DataExportStatus
 import library.export.DataExports
+import library.export.ExportErrorCodes
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.koin.dsl.module
@@ -49,7 +49,9 @@ internal class BusinessDataExportTest {
     private val download: DownloadBusinessDataExport = mockk()
     private val running = DataExport.stub(status = DataExportStatus.RUNNING)
 
-    private fun exportResource() = BusinessRouting.Api.Business.Id.Export(BusinessRouting.Api.Business.Id(id = businessId))
+    private fun exportResource() = BusinessRouting.Api.Business.Id.Export(
+        BusinessRouting.Api.Business.Id(id = businessId),
+    )
 
     private fun ApplicationTestBuilder.serve(authenticated: Boolean = true) = setupApplication(
         extension = { if (authenticated) authenticateAs(userId) else rejectEveryToken() },
@@ -68,7 +70,9 @@ internal class BusinessDataExportTest {
         serve()
 
         whenn()
-        val response = createTestClient().post(exportResource()) { setBody(DataExportRequest(confirmationToken = "action-confirmation-token")) }
+        val response = createTestClient().post(exportResource()) {
+            setBody(DataExportRequest(confirmationToken = "action-confirmation-token"))
+        }
 
         then()
         assertEquals(HttpStatusCode.OK, response.status)
@@ -78,7 +82,8 @@ internal class BusinessDataExportTest {
     @Test
     fun `should refuse to start without action confirmation`() = routeTest {
         given()
-        coEvery { start(userId, businessId, "") } returns Result.failure(StartBusinessDataExport.Error.ActionConfirmationInvalid())
+        coEvery { start(userId, businessId, "") } returns
+            Result.failure(StartBusinessDataExport.Error.ActionConfirmationInvalid())
         serve()
 
         whenn()
@@ -86,27 +91,34 @@ internal class BusinessDataExportTest {
 
         then()
         assertEquals(HttpStatusCode.Forbidden, response.status)
-        assertEquals(BusinessErrorCodes.BUSINESS_ACTION_CONFIRMATION_INVALID, response.body<SimpleServerError>().errorCode)
+        assertEquals(
+            BusinessErrorCodes.BUSINESS_ACTION_CONFIRMATION_INVALID,
+            response.body<SimpleServerError>().errorCode,
+        )
     }
 
     @Test
     fun `should refuse a second export within a day`() = routeTest {
         given()
-        coEvery { start(userId, businessId, "action-confirmation-token") } returns Result.failure(DataExports.Error.TooFrequent())
+        coEvery { start(userId, businessId, "action-confirmation-token") } returns
+            Result.failure(DataExports.Error.TooFrequent())
         serve()
 
         whenn()
-        val response = createTestClient().post(exportResource()) { setBody(DataExportRequest(confirmationToken = "action-confirmation-token")) }
+        val response = createTestClient().post(exportResource()) {
+            setBody(DataExportRequest(confirmationToken = "action-confirmation-token"))
+        }
 
         then()
         assertEquals(HttpStatusCode.TooManyRequests, response.status)
-        assertEquals(CoreErrorCodes.DATA_EXPORT_TOO_FREQUENT, response.body<SimpleServerError>().errorCode)
+        assertEquals(ExportErrorCodes.DATA_EXPORT_TOO_FREQUENT, response.body<SimpleServerError>().errorCode)
     }
 
     @Test
     fun `should answer 404 to anyone but the owner`() = routeTest {
         given()
-        coEvery { start(userId, businessId, "action-confirmation-token") } returns Result.failure(Error.OperationNotAllowed())
+        coEvery { start(userId, businessId, "action-confirmation-token") } returns
+            Result.failure(Error.OperationNotAllowed())
         coEvery { status(userId, businessId) } returns Result.failure(Error.OperationNotAllowed())
         coEvery { download(userId, businessId) } returns Result.failure(Error.OperationNotAllowed())
         serve()
@@ -114,7 +126,9 @@ internal class BusinessDataExportTest {
         whenn()
         val client = createTestClient()
         val statuses = listOf(
-            client.post(exportResource()) { setBody(DataExportRequest(confirmationToken = "action-confirmation-token")) }.status,
+            client.post(exportResource()) {
+                setBody(DataExportRequest(confirmationToken = "action-confirmation-token"))
+            }.status,
             client.get(exportResource()).status,
             client.get(BusinessRouting.Api.Business.Id.Export.Download(exportResource())).status,
         )
@@ -140,7 +154,8 @@ internal class BusinessDataExportTest {
     @Test
     fun `should download the ready document as JSON`() = routeTest {
         given()
-        coEvery { download(userId, businessId) } returns Result.success(DataExportDocument(gzip("""{"businessId":"$businessId"}""")))
+        coEvery { download(userId, businessId) } returns
+            Result.success(DataExportDocument(gzip("""{"businessId":"$businessId"}""")))
         serve()
 
         whenn()

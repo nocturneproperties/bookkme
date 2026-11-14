@@ -10,6 +10,7 @@ import com.bookk.core.data.eventstreaming.send
 import com.bookk.core.domain.datasource.transaction.TransactionManager
 import com.bookk.core.domain.datasource.transaction.transactionOrThrow
 import com.bookk.core.domain.entity.runSuspendCatching
+import com.bookk.core.domain.entity.throwIfAnyFailed
 import com.bookk.server.auth.client.AuthEvent
 import com.bookk.server.business.client.api.BusinessClient
 import kotlinx.datetime.DateTimeUnit
@@ -33,17 +34,7 @@ internal class HandleDormantAccountsImpl(
         val candidates = transactionManager.transactionOrThrow {
             accountDataSource.getDormantAccounts(activeSince + FIRST_WARNING_LEAD)
         }
-        val failures = mutableListOf<Throwable>()
-        for (candidate in candidates) {
-            handle(candidate, now, activeSince)
-                .onFailure { failures.add(it) }
-        }
-
-        failures
-            .reduceOrNull { acc, throwable ->
-                acc.apply { addSuppressed(throwable) }
-            }
-            ?.let { throw it }
+        candidates.map { handle(it, now, activeSince) }.throwIfAnyFailed()
     }
 
     private suspend fun handle(
@@ -51,7 +42,7 @@ internal class HandleDormantAccountsImpl(
         now: Instant,
         activeSince: Instant,
     ): Result<Unit> = runSuspendCatching {
-        if (ownsActiveBusiness(listed.userId, activeSince)) return@runSuspendCatching
+        if (listed.deletionHold || ownsActiveBusiness(listed.userId, activeSince)) return@runSuspendCatching
         transactionManager.transactionOrThrow {
             val locked = accountDataSource.getDormantAccountForUpdate(listed.userId)
             if (locked == listed) advance(locked, now)

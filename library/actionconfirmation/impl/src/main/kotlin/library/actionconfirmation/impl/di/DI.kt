@@ -9,6 +9,8 @@ import org.koin.dsl.module
 
 fun actionConfirmationModule(qualifier: Qualifier) = module {
     scope(qualifier) {
-        scoped<ActionConfirmationGate> { ActionConfirmationGateImpl(ActionConfirmationVerifier(get()), ActionConfirmationTokenStore(get())) }
+        scoped<ActionConfirmationGate> {
+            ActionConfirmationGateImpl(ActionConfirmationVerifier(get()), ActionConfirmationTokenStore(get()))
+        }
     }
 }

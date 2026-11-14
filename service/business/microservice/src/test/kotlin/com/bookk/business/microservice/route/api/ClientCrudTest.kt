@@ -82,7 +82,8 @@ internal class ClientCrudTest {
         given()
         val useCase: CreateClient = mockk()
         val clientRemote = ClientRemote.stub(userId = Uuid.random())
-        coEvery { useCase.invoke(userId, businessId, any()) } returns Result.success(ClientRemote.stub(id = clientRemote.id))
+        coEvery { useCase.invoke(userId, businessId, any()) } returns
+            Result.success(ClientRemote.stub(id = clientRemote.id))
 
         setupApplication(
             extension = {
@@ -176,7 +177,11 @@ internal class ClientCrudTest {
 
         whenn()
         val httpClient = createTestClient()
-        val response = httpClient.delete(BusinessRouting.Api.Clients.Id(BusinessRouting.Api.Clients(businessId = businessId), id)) { setBody(DeleteClientRequest(ACTION_CONFIRMATION_TOKEN)) }
+        val response = httpClient.delete(
+            BusinessRouting.Api.Clients.Id(BusinessRouting.Api.Clients(businessId = businessId), id),
+        ) {
+            setBody(DeleteClientRequest(ACTION_CONFIRMATION_TOKEN))
+        }
 
         then()
         assertEquals(HttpStatusCode.NoContent, response.status)
@@ -189,7 +194,14 @@ internal class ClientCrudTest {
         phone: String? = null,
         email: String? = null,
         description: String? = null,
-    ) = ClientUpdateModel(id = id, name = name, lastName = lastName, phone = phone, email = email, description = description)
+    ) = ClientUpdateModel(
+        id = id,
+        name = name,
+        lastName = lastName,
+        phone = phone,
+        email = email,
+        description = description,
+    )
 
     @Test
     fun `should update client`() = routeTest {
@@ -215,7 +227,9 @@ internal class ClientCrudTest {
 
         whenn()
         val httpClient = createTestClient()
-        val response = httpClient.patch(BusinessRouting.Api.Clients.Id(BusinessRouting.Api.Clients(businessId = businessId), id)) {
+        val response = httpClient.patch(
+            BusinessRouting.Api.Clients.Id(BusinessRouting.Api.Clients(businessId = businessId), id),
+        ) {
             setBody(body)
         }
 
@@ -245,7 +259,9 @@ internal class ClientCrudTest {
 
         whenn()
         val httpClient = createTestClient()
-        val response = httpClient.patch(BusinessRouting.Api.Clients.Id(BusinessRouting.Api.Clients(businessId = businessId), id)) {
+        val response = httpClient.patch(
+            BusinessRouting.Api.Clients.Id(BusinessRouting.Api.Clients(businessId = businessId), id),
+        ) {
             setBody(body)
         }
 
@@ -275,7 +291,9 @@ internal class ClientCrudTest {
 
         whenn()
         val httpClient = createTestClient()
-        val response = httpClient.patch(BusinessRouting.Api.Clients.Id(BusinessRouting.Api.Clients(businessId = businessId), id)) {
+        val response = httpClient.patch(
+            BusinessRouting.Api.Clients.Id(BusinessRouting.Api.Clients(businessId = businessId), id),
+        ) {
             setBody(body)
         }
 
@@ -290,7 +308,8 @@ internal class ClientCrudTest {
         val useCase: UpdateClient = mockk()
         val id = Uuid.random()
         val body = updateModel(id = id, name = "New Name")
-        coEvery { useCase.invoke(userId, businessId, body) } returns Result.failure(UpdateClient.Error.PersonalInfoNotEditable())
+        coEvery { useCase.invoke(userId, businessId, body) } returns
+            Result.failure(UpdateClient.Error.PersonalInfoNotEditable())
 
         setupApplication(
             extension = {
@@ -306,13 +325,18 @@ internal class ClientCrudTest {
 
         whenn()
         val httpClient = createTestClient()
-        val response = httpClient.patch(BusinessRouting.Api.Clients.Id(BusinessRouting.Api.Clients(businessId = businessId), id)) {
+        val response = httpClient.patch(
+            BusinessRouting.Api.Clients.Id(BusinessRouting.Api.Clients(businessId = businessId), id),
+        ) {
             setBody(body)
         }
 
         then()
         assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
-        assertEquals(BusinessErrorCodes.BUSINESS_CLIENT_PERSONAL_INFO_NOT_EDITABLE, response.body<SimpleServerError>().errorCode)
+        assertEquals(
+            BusinessErrorCodes.BUSINESS_CLIENT_PERSONAL_INFO_NOT_EDITABLE,
+            response.body<SimpleServerError>().errorCode,
+        )
     }
 
     @Test
@@ -337,7 +361,9 @@ internal class ClientCrudTest {
 
         whenn()
         val httpClient = createTestClient()
-        val response = httpClient.patch(BusinessRouting.Api.Clients.Id(BusinessRouting.Api.Clients(businessId = businessId), id)) {
+        val response = httpClient.patch(
+            BusinessRouting.Api.Clients.Id(BusinessRouting.Api.Clients(businessId = businessId), id),
+        ) {
             setBody(body)
         }
 
@@ -352,7 +378,8 @@ internal class ClientCrudTest {
         val useCase: UpdateClient = mockk()
         val id = Uuid.random()
         val body = updateModel(id = id, phone = "not-a-phone")
-        coEvery { useCase.invoke(userId, businessId, body) } returns Result.failure(UpdateClient.Error.ClientValidationError())
+        coEvery { useCase.invoke(userId, businessId, body) } returns
+            Result.failure(UpdateClient.Error.ClientValidationError())
 
         setupApplication(
             extension = {
@@ -368,13 +395,18 @@ internal class ClientCrudTest {
 
         whenn()
         val httpClient = createTestClient()
-        val response = httpClient.patch(BusinessRouting.Api.Clients.Id(BusinessRouting.Api.Clients(businessId = businessId), id)) {
+        val response = httpClient.patch(
+            BusinessRouting.Api.Clients.Id(BusinessRouting.Api.Clients(businessId = businessId), id),
+        ) {
             setBody(body)
         }
 
         then()
         assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
-        assertEquals(BusinessErrorCodes.BUSINESS_CLIENT_NAME_VALIDATION_ERROR, response.body<SimpleServerError>().errorCode)
+        assertEquals(
+            BusinessErrorCodes.BUSINESS_CLIENT_NAME_VALIDATION_ERROR,
+            response.body<SimpleServerError>().errorCode,
+        )
     }
 
     @Test
@@ -399,7 +431,9 @@ internal class ClientCrudTest {
 
         whenn()
         val client = createTestClient()
-        val response = client.patch(BusinessRouting.Api.Clients.Id(BusinessRouting.Api.Clients(businessId = businessId), id)) {
+        val response = client.patch(
+            BusinessRouting.Api.Clients.Id(BusinessRouting.Api.Clients(businessId = businessId), id),
+        ) {
             setBody(body)
         }
 
@@ -421,7 +455,9 @@ internal class ClientCrudTest {
 
         whenn()
         val httpClient = createTestClient()
-        val response = httpClient.patch(BusinessRouting.Api.Clients.Id(BusinessRouting.Api.Clients(businessId = businessId), id)) {
+        val response = httpClient.patch(
+            BusinessRouting.Api.Clients.Id(BusinessRouting.Api.Clients(businessId = businessId), id),
+        ) {
             setBody(updateModel(id = id, description = "notes"))
         }
 
@@ -434,7 +470,8 @@ internal class ClientCrudTest {
         given()
         val useCase: CreateClient = mockk()
         val clientRemote = ClientRemote.stub()
-        coEvery { useCase.invoke(userId, businessId, clientRemote.toDetachedClient()) } returns Result.failure(CreateClient.Error.ClientExist())
+        coEvery { useCase.invoke(userId, businessId, clientRemote.toDetachedClient()) } returns
+            Result.failure(CreateClient.Error.ClientExist())
 
         setupApplication(
             extension = {
@@ -464,7 +501,8 @@ internal class ClientCrudTest {
         given()
         val useCase: CreateClient = mockk()
         val clientRemote = ClientRemote.stub()
-        coEvery { useCase.invoke(userId, businessId, clientRemote.toDetachedClient()) } returns Result.failure(CreateClient.Error.ClientValidationError())
+        coEvery { useCase.invoke(userId, businessId, clientRemote.toDetachedClient()) } returns
+            Result.failure(CreateClient.Error.ClientValidationError())
 
         setupApplication(
             extension = {
@@ -486,7 +524,10 @@ internal class ClientCrudTest {
 
         then()
         assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
-        assertEquals(BusinessErrorCodes.BUSINESS_CLIENT_NAME_VALIDATION_ERROR, response.body<SimpleServerError>().errorCode)
+        assertEquals(
+            BusinessErrorCodes.BUSINESS_CLIENT_NAME_VALIDATION_ERROR,
+            response.body<SimpleServerError>().errorCode,
+        )
     }
 
     @Test
@@ -494,7 +535,8 @@ internal class ClientCrudTest {
         given()
         val useCase: CreateClient = mockk()
         val clientRemote = ClientRemote.stub()
-        coEvery { useCase.invoke(userId, businessId, clientRemote.toDetachedClient()) } returns Result.failure(CreateClient.Error.MissingContactInfo())
+        coEvery { useCase.invoke(userId, businessId, clientRemote.toDetachedClient()) } returns
+            Result.failure(CreateClient.Error.MissingContactInfo())
 
         setupApplication(
             extension = {
@@ -516,7 +558,10 @@ internal class ClientCrudTest {
 
         then()
         assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
-        assertEquals(BusinessErrorCodes.BUSINESS_CLIENT_MISSING_CONTACT_INFO, response.body<SimpleServerError>().errorCode)
+        assertEquals(
+            BusinessErrorCodes.BUSINESS_CLIENT_MISSING_CONTACT_INFO,
+            response.body<SimpleServerError>().errorCode,
+        )
     }
 
     @Test
@@ -524,7 +569,8 @@ internal class ClientCrudTest {
         given()
         val useCase: DeleteClient = mockk()
         val id = Uuid.random()
-        coEvery { useCase.invoke(userId, businessId, id, ACTION_CONFIRMATION_TOKEN) } returns Result.failure(DeleteClient.Error.NotFound())
+        coEvery { useCase.invoke(userId, businessId, id, ACTION_CONFIRMATION_TOKEN) } returns
+            Result.failure(DeleteClient.Error.NotFound())
 
         setupApplication(
             extension = {
@@ -540,7 +586,11 @@ internal class ClientCrudTest {
 
         whenn()
         val httpClient = createTestClient()
-        val response = httpClient.delete(BusinessRouting.Api.Clients.Id(BusinessRouting.Api.Clients(businessId = businessId), id)) { setBody(DeleteClientRequest(ACTION_CONFIRMATION_TOKEN)) }
+        val response = httpClient.delete(
+            BusinessRouting.Api.Clients.Id(BusinessRouting.Api.Clients(businessId = businessId), id),
+        ) {
+            setBody(DeleteClientRequest(ACTION_CONFIRMATION_TOKEN))
+        }
 
         then()
         assertEquals(HttpStatusCode.NotFound, response.status)
@@ -609,7 +659,8 @@ internal class ClientCrudTest {
         given()
         val useCase: DeleteClient = mockk()
         val id = Uuid.random()
-        coEvery { useCase.invoke(userId, businessId, id, ACTION_CONFIRMATION_TOKEN) } returns Result.failure(Error.OperationNotAllowed())
+        coEvery { useCase.invoke(userId, businessId, id, ACTION_CONFIRMATION_TOKEN) } returns
+            Result.failure(Error.OperationNotAllowed())
 
         setupApplication(
             extension = {
@@ -686,7 +737,11 @@ internal class ClientCrudTest {
 
         whenn()
         val httpClient = createTestClient()
-        val response = httpClient.delete(BusinessRouting.Api.Clients.Id(BusinessRouting.Api.Clients(businessId = businessId), Uuid.random())) { setBody(DeleteClientRequest(ACTION_CONFIRMATION_TOKEN)) }
+        val response = httpClient.delete(
+            BusinessRouting.Api.Clients.Id(BusinessRouting.Api.Clients(businessId = businessId), Uuid.random()),
+        ) {
+            setBody(DeleteClientRequest(ACTION_CONFIRMATION_TOKEN))
+        }
 
         then()
         assertEquals(HttpStatusCode.Unauthorized, response.status)
@@ -697,7 +752,8 @@ internal class ClientCrudTest {
         given()
         val useCase: DeleteClient = mockk()
         val id = Uuid.random()
-        coEvery { useCase.invoke(userId, businessId, id, ACTION_CONFIRMATION_TOKEN) } returns Result.failure(DeleteClient.Error.ActionConfirmationInvalid())
+        coEvery { useCase.invoke(userId, businessId, id, ACTION_CONFIRMATION_TOKEN) } returns
+            Result.failure(DeleteClient.Error.ActionConfirmationInvalid())
 
         setupApplication(
             extension = {
@@ -712,13 +768,18 @@ internal class ClientCrudTest {
         )
 
         whenn()
-        val response = createTestClient().delete(BusinessRouting.Api.Clients.Id(BusinessRouting.Api.Clients(businessId = businessId), id)) {
+        val response = createTestClient().delete(
+            BusinessRouting.Api.Clients.Id(BusinessRouting.Api.Clients(businessId = businessId), id),
+        ) {
             setBody(DeleteClientRequest(ACTION_CONFIRMATION_TOKEN))
         }
 
         then()
         assertEquals(HttpStatusCode.Forbidden, response.status)
-        assertEquals(BusinessErrorCodes.BUSINESS_ACTION_CONFIRMATION_INVALID, response.body<SimpleServerError>().errorCode)
+        assertEquals(
+            BusinessErrorCodes.BUSINESS_ACTION_CONFIRMATION_INVALID,
+            response.body<SimpleServerError>().errorCode,
+        )
     }
 
     @Test
@@ -726,7 +787,8 @@ internal class ClientCrudTest {
         given()
         val useCase: DeleteClient = mockk()
         val id = Uuid.random()
-        coEvery { useCase.invoke(userId, businessId, id, "") } returns Result.failure(DeleteClient.Error.ActionConfirmationInvalid())
+        coEvery { useCase.invoke(userId, businessId, id, "") } returns
+            Result.failure(DeleteClient.Error.ActionConfirmationInvalid())
 
         setupApplication(
             extension = {
@@ -741,10 +803,15 @@ internal class ClientCrudTest {
         )
 
         whenn()
-        val response = createTestClient().delete(BusinessRouting.Api.Clients.Id(BusinessRouting.Api.Clients(businessId = businessId), id))
+        val response = createTestClient().delete(
+            BusinessRouting.Api.Clients.Id(BusinessRouting.Api.Clients(businessId = businessId), id),
+        )
 
         then()
         assertEquals(HttpStatusCode.Forbidden, response.status)
-        assertEquals(BusinessErrorCodes.BUSINESS_ACTION_CONFIRMATION_INVALID, response.body<SimpleServerError>().errorCode)
+        assertEquals(
+            BusinessErrorCodes.BUSINESS_ACTION_CONFIRMATION_INVALID,
+            response.body<SimpleServerError>().errorCode,
+        )
     }
 }

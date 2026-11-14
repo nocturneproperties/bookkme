@@ -42,7 +42,16 @@ internal class DeleteInactiveDevicesImplTest {
         then()
         assertTrue(result.isSuccess)
         listOf(device1, device2).forEach { device ->
-            coVerify(exactly = 1) { fixture.eventProducer.send(match<AuthEvent.DeviceDeleted> { it.authId == device.authId && it.deviceUuid == device.deviceUuid }, any()) }
+            coVerify(exactly = 1) {
+                fixture.eventProducer.send(
+                    match<AuthEvent.DeviceDeleted> {
+                        it.authId ==
+                            device.authId &&
+                            it.deviceUuid == device.deviceUuid
+                    },
+                    any(),
+                )
+            }
         }
     }
 

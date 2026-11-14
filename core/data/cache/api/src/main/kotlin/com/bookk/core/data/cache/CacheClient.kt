@@ -12,13 +12,16 @@ interface CacheClient<K> : Closeable {
     suspend fun withTransaction(action: suspend CacheClient<K>.() -> Unit)
     suspend fun delete(key: K)
     suspend fun <V : Any> deleteIfEquals(key: K, expected: V, kType: KType)
+    suspend fun increment(key: K, expiration: Duration): Long
 }
 
 suspend inline fun <K, reified V : Any> CacheClient<K>.set(key: K, value: V, ttl: Duration? = null) {
     set(key, value, typeOf<V>(), ttl)
 }
 
-suspend inline fun <K, reified V : Any> CacheClient<K>.setIfAbsent(key: K, value: V, ttl: Duration? = null): Boolean = setIfAbsent(key, value, typeOf<V>(), ttl)
+suspend inline fun <K, reified V : Any> CacheClient<K>.setIfAbsent(key: K, value: V, ttl: Duration? = null): Boolean {
+    return setIfAbsent(key, value, typeOf<V>(), ttl)
+}
 
 suspend inline fun <K, reified V : Any> CacheClient<K>.get(key: K): V? = get(key, typeOf<V>())
 

@@ -64,13 +64,13 @@ fun Route.clientCrud() {
          * Import clients
          *
          * Summary: Import clients
-         * Description: Create up to 500 detached clients at once, e.g. from the phone book. Valid clients are created, invalid ones or ones whose phone or email already belongs to a client of the business (or to an earlier client of the same import) are skipped and returned in rejected with their position in the request and error code<br>BUSINESS_CLIENT_NAME_VALIDATION_ERROR (200005) Client name, last name, phone or email is invalid<br>BUSINESS_CLIENT_MISSING_CONTACT_INFO (200025) Client must have at least a phone or an email<br>BUSINESS_CLIENT_EXISTS (200004) Client with this phone or email already exists
+         * Description: Create up to 500 detached clients at once, e.g. from the phone book. Valid clients are created, invalid ones or ones whose email already belongs to a client of the business (or to an earlier client of the same import) are skipped and returned in rejected with their position in the request and error code<br>BUSINESS_CLIENT_NAME_VALIDATION_ERROR (200005) Client name, last name, phone or email is invalid<br>BUSINESS_CLIENT_MISSING_CONTACT_INFO (200025) Client must have at least a phone or an email<br>BUSINESS_CLIENT_EXISTS (200004) Client with this email already exists
          * Tag: business
          * Security: jwt
          * Body: application/x-protobuf [com.bookk.business.microservice.route.api.ClientImportRequest]
          * Response: 200 application/x-protobuf [com.bookk.business.domain.api.client.entity.ClientImportResult] Created clients and rejected request positions
          * Response: 404 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] User is not allowed to create clients for this business
-         * Response: 422 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Import clients errors<br>BUSINESS_CLIENT_IMPORT_TOO_LARGE (200039) A client import can contain at most 500 clients<br>BUSINESS_CLIENT_EXISTS (200004) A concurrent write took a phone or email of the import, retry it
+         * Response: 422 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Import clients errors<br>BUSINESS_CLIENT_IMPORT_TOO_LARGE (200039) A client import can contain at most 500 clients<br>BUSINESS_CLIENT_EXISTS (200004) A concurrent write took an email of the import, retry it
          * Response: 403 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Caller is a suspended employee of this business<br>BUSINESS_EMPLOYEE_ACCESS_SUSPENDED (200034) Your access to this business is suspended
          * See: docs/operations/business/import-clients.md
          */
@@ -98,7 +98,7 @@ fun Route.clientCrud() {
          * Body: application/x-protobuf [com.bookk.business.domain.api.client.entity.ClientRemote]
          * Response: 200 application/x-protobuf [com.bookk.business.domain.api.client.entity.ClientRemote] Created client entity
          * Response: 404 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] User is not allowed to create clients for this business
-         * Response: 422 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Create client errors<br>BUSINESS_CLIENT_EXISTS (200004) Client with this phone or email already exists<br>BUSINESS_CLIENT_NAME_VALIDATION_ERROR (200005) Client name, last name, phone or email is invalid<br>BUSINESS_CLIENT_MISSING_CONTACT_INFO (200025) Client must have at least a phone or an email
+         * Response: 422 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Create client errors<br>BUSINESS_CLIENT_EXISTS (200004) Client with this email already exists<br>BUSINESS_CLIENT_NAME_VALIDATION_ERROR (200005) Client name, last name, phone or email is invalid<br>BUSINESS_CLIENT_MISSING_CONTACT_INFO (200025) Client must have at least a phone or an email
          * Response: 403 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Caller is a suspended employee of this business<br>BUSINESS_EMPLOYEE_ACCESS_SUSPENDED (200034) Your access to this business is suspended
          * See: docs/operations/business/create-client.md
          */
@@ -173,7 +173,7 @@ fun Route.clientCrud() {
          * Response: 200 application/x-protobuf [com.bookk.business.domain.api.client.entity.ClientRemote] Updated client entity
          * Response: 400 application/x-protobuf Path id does not match body id
          * Response: 404 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Client not found or user is not allowed to update it
-         * Response: 422 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Update client errors<br>BUSINESS_CLIENT_EXISTS (200004) Client with this phone or email already exists<br>BUSINESS_CLIENT_NAME_VALIDATION_ERROR (200005) Client name, last name, phone or email is invalid<br>BUSINESS_CLIENT_PERSONAL_INFO_NOT_EDITABLE (200026) Personal info of an integrated client cannot be edited, only its description can
+         * Response: 422 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Update client errors<br>BUSINESS_CLIENT_EXISTS (200004) Client with this email already exists<br>BUSINESS_CLIENT_NAME_VALIDATION_ERROR (200005) Client name, last name, phone or email is invalid<br>BUSINESS_CLIENT_PERSONAL_INFO_NOT_EDITABLE (200026) Personal info of an integrated client cannot be edited, only its description can
          * Response: 403 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Caller is a suspended employee of this business<br>BUSINESS_EMPLOYEE_ACCESS_SUSPENDED (200034) Your access to this business is suspended
          * See: docs/operations/business/update-client.md
          */

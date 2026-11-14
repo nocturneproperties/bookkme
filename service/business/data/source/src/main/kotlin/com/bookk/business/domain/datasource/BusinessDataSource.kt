@@ -14,7 +14,8 @@ interface BusinessDataSource {
     suspend fun lockBusiness(id: Uuid, lock: RowLock): LockedBusiness?
     suspend fun isBusinessExist(userId: Uuid): Boolean
     suspend fun isOwner(userId: Uuid, businessId: Uuid): Boolean
-    suspend fun deleteUserBusinesses(userId: Uuid): List<Uuid>
+    suspend fun getUserBusinessIdsForUpdate(userId: Uuid): List<Uuid>
+    suspend fun deleteBusinesses(businessIds: Collection<Uuid>)
     suspend fun getDashboardBusiness(userId: Uuid): Business?
     suspend fun setDashboardBusiness(userId: Uuid, businessId: Uuid)
     suspend fun getUserBusinesses(userId: Uuid): UserBusinesses

@@ -13,7 +13,9 @@ import com.bookk.notifications.domain.datasource.NotificationSettingsDataSource
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
+import io.mockk.slot
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import kotlin.uuid.Uuid
@@ -98,7 +100,10 @@ internal class GetNotificationSettingsImplTest {
             userId = userId,
             channels = listOf(
                 NotificationChannelSettings.stub(channel = CommunicationChannel.EMAIL, availableToClients = true),
-                NotificationChannelSettings.stub(channel = CommunicationChannel.PUSH_NOTIFICATIONS, availableToClients = false),
+                NotificationChannelSettings.stub(
+                    channel = CommunicationChannel.PUSH_NOTIFICATIONS,
+                    availableToClients = false,
+                ),
                 NotificationChannelSettings.stub(channel = CommunicationChannel.TELEGRAM, availableToClients = true),
             ),
         )
@@ -133,5 +138,26 @@ internal class GetNotificationSettingsImplTest {
 
         then()
         assertTrue(result.isFailure)
+    }
+
+    @Test
+    fun `should offer email to the user but leave it off in newly created settings`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val created = slot<NotificationSettings>()
+        with(fixture) {
+            transactionManager.mockTransaction()
+            coEvery { notificationSettingsDataSource.getByUserId(userId) } returns null
+            coEvery { notificationSettingsDataSource.upsert(capture(created)) } answers { firstArg() }
+        }
+
+        whenn()
+        val result = fixture.sut.invoke(userId)
+
+        then()
+        val email = result.getOrThrow().channels.single { it.channel == CommunicationChannel.EMAIL }
+        assertTrue(email.availableToClients)
+        assertFalse(email.enabled)
     }
 }

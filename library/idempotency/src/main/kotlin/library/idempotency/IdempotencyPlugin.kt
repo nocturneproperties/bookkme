@@ -240,4 +240,6 @@ private suspend fun getStoredResponseContent(content: OutgoingContent) = when (c
 
 private const val IDEMPOTENCY_KEY_HEADER = "Idempotency-Key"
 
-fun getIdempotencyKey(call: ApplicationCall): IdempotencyKey? = call.request.headers[IDEMPOTENCY_KEY_HEADER]?.let(::IdempotencyKey)
+fun getIdempotencyKey(call: ApplicationCall): IdempotencyKey? = call.request.headers[IDEMPOTENCY_KEY_HEADER]?.let(
+    ::IdempotencyKey,
+)

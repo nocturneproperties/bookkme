@@ -7,14 +7,16 @@ import com.bookk.appointments.domain.api.operation.CreateAppointment
 import com.bookk.appointments.domain.api.operation.CreateAppointmentRequest
 import com.bookk.appointments.domain.api.operation.CreateInstantAppointment
 import com.bookk.appointments.domain.api.operation.DeclineAppointmentRequest
+import com.bookk.appointments.domain.api.operation.DeleteBusinessAppointmentData
 import com.bookk.appointments.domain.api.operation.DeleteClientAppointmentData
 import com.bookk.appointments.domain.api.operation.DeleteExpiredRequests
 import com.bookk.appointments.domain.api.operation.DeleteExpiredTombstones
-import com.bookk.appointments.domain.api.operation.DeleteModule
 import com.bookk.appointments.domain.api.operation.DeleteOutdatedRequests
 import com.bookk.appointments.domain.api.operation.DeleteUserAppointmentData
 import com.bookk.appointments.domain.api.operation.EditSettings
 import com.bookk.appointments.domain.api.operation.EnableAppointmentsForBusiness
+import com.bookk.appointments.domain.api.operation.EncryptPlaintextSnapshots
+import com.bookk.appointments.domain.api.operation.FillBusinessOwners
 import com.bookk.appointments.domain.api.operation.GetAppointment
 import com.bookk.appointments.domain.api.operation.GetAppointmentHistory
 import com.bookk.appointments.domain.api.operation.GetAppointmentRequests
@@ -33,16 +35,18 @@ import com.bookk.appointments.domain.impl.operation.CreateAppointmentImpl
 import com.bookk.appointments.domain.impl.operation.CreateAppointmentRequestImpl
 import com.bookk.appointments.domain.impl.operation.CreateInstantAppointmentImpl
 import com.bookk.appointments.domain.impl.operation.DeclineAppointmentRequestImpl
+import com.bookk.appointments.domain.impl.operation.DeleteBusinessAppointmentDataImpl
 import com.bookk.appointments.domain.impl.operation.DeleteClientAppointmentDataImpl
 import com.bookk.appointments.domain.impl.operation.DeleteExpiredRequestsImpl
 import com.bookk.appointments.domain.impl.operation.DeleteExpiredTombstonesImpl
-import com.bookk.appointments.domain.impl.operation.DeleteModuleImpl
 import com.bookk.appointments.domain.impl.operation.DeleteOutdatedRequestsImpl
 import com.bookk.appointments.domain.impl.operation.DeleteUserAppointmentDataImpl
 import com.bookk.appointments.domain.impl.operation.EditSettingsImpl
 import com.bookk.appointments.domain.impl.operation.EnableAppointmentsForBusinessImpl
+import com.bookk.appointments.domain.impl.operation.EncryptPlaintextSnapshotsImpl
 import com.bookk.appointments.domain.impl.operation.ExportBusinessAppointmentsImpl
 import com.bookk.appointments.domain.impl.operation.ExportUserAppointmentsImpl
+import com.bookk.appointments.domain.impl.operation.FillBusinessOwnersImpl
 import com.bookk.appointments.domain.impl.operation.GetAppointmentHistoryImpl
 import com.bookk.appointments.domain.impl.operation.GetAppointmentImpl
 import com.bookk.appointments.domain.impl.operation.GetAppointmentRequestsImpl
@@ -73,7 +77,7 @@ fun appointmentsDomainModule() = module {
         scopedOf(::CreateAppointmentImpl) bind CreateAppointment::class
         scopedOf(::EnableAppointmentsForBusinessImpl) bind EnableAppointmentsForBusiness::class
         scopedOf(::AppointmentEventHandler) bind EventHandler::class
-        scopedOf(::DeleteModuleImpl) bind DeleteModule::class
+        scopedOf(::DeleteBusinessAppointmentDataImpl) bind DeleteBusinessAppointmentData::class
         scopedOf(::EditSettingsImpl) bind EditSettings::class
         scopedOf(::GetSettingsImpl) bind GetSettings::class
         scopedOf(::CreateAppointmentRequestImpl) bind CreateAppointmentRequest::class
@@ -97,6 +101,8 @@ fun appointmentsDomainModule() = module {
         scopedOf(::DeleteOutdatedRequestsImpl) bind DeleteOutdatedRequests::class
         scopedOf(::DeleteExpiredRequestsImpl) bind DeleteExpiredRequests::class
         scopedOf(::DeleteExpiredTombstonesImpl) bind DeleteExpiredTombstones::class
+        scopedOf(::FillBusinessOwnersImpl) bind FillBusinessOwners::class
+        scopedOf(::EncryptPlaintextSnapshotsImpl) bind EncryptPlaintextSnapshots::class
         scopedOf(::DeleteUserAppointmentDataImpl) bind DeleteUserAppointmentData::class
         scopedOf(::ExportUserAppointmentsImpl) bind ExportUserAppointments::class
         scopedOf(::ExportBusinessAppointmentsImpl) bind ExportBusinessAppointments::class

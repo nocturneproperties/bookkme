@@ -40,27 +40,32 @@ internal class ImportClientsImpl(
                 .getOrNull()
         }
 
-        val existing = clientDataSource.getClientsByContacts(
+        val takenEmails = clientDataSource.getClientsByEmails(
             businessId,
-            phones = validated.mapNotNull { it.value.phone }.distinct(),
-            emails = validated.mapNotNull { it.value.email }.distinct(),
+            validated.mapNotNull {
+                it.value.email
+            }.distinct(),
         )
-        val takenPhones = existing.mapNotNull { it.phone }.toMutableSet()
-        val takenEmails = existing.mapNotNull { it.email?.lowercase() }.toMutableSet()
+            .mapNotNull { it.email?.lowercase() }
+            .toMutableSet()
 
         val accepted = validated.mapNotNull { (index, fields) ->
-            val phoneTaken = fields.phone != null && fields.phone in takenPhones
-            val emailTaken = fields.email != null && fields.email.lowercase() in takenEmails
-            if (phoneTaken || emailTaken) {
+            val email = fields.email?.lowercase()
+            if (email != null && !takenEmails.add(email)) {
                 rejected += RejectedClient(index, BusinessErrorCodes.BUSINESS_CLIENT_EXISTS)
                 return@mapNotNull null
             }
-            fields.phone?.let(takenPhones::add)
-            fields.email?.let { takenEmails += it.lowercase() }
             fields.toDetachedClient()
         }
 
-        val created = if (accepted.isEmpty()) emptyList() else clientDataSource.createDetachedClients(businessId, accepted)
+        val created = if (accepted.isEmpty()) {
+            emptyList()
+        } else {
+            clientDataSource.createDetachedClients(
+                businessId,
+                accepted,
+            )
+        }
         ClientImportResult(
             created = created.map(Client::toRemote),
             rejected = rejected.sortedBy(RejectedClient::index),

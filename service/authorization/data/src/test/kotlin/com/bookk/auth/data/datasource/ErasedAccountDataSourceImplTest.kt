@@ -27,7 +27,12 @@ internal class ErasedAccountDataSourceImplTest {
         val db = createTestDatabase(ErasedAccountTable)
         val sut = ErasedAccountDataSourceImpl()
 
-        suspend fun insertReapplyRequest(userId: Uuid, erasedAt: Instant = Instant.fromEpochMilliseconds(0)) = suspendTransaction {
+        suspend fun insertReapplyRequest(
+            userId: Uuid,
+            erasedAt: Instant = Instant.fromEpochMilliseconds(
+                0,
+            ),
+        ) = suspendTransaction {
             ErasedAccountTable.insert {
                 it[this.userId] = userId
                 it[this.erasedAt] = erasedAt
@@ -131,7 +136,10 @@ internal class ErasedAccountDataSourceImplTest {
         suspendTransaction {
             fixture.sut.record(expired)
             fixture.sut.record(recent)
-            ErasedAccountTable.update(where = { ErasedAccountTable.userId eq expired }) { it[erasedAt] = Instant.fromEpochMilliseconds(0) }
+            ErasedAccountTable.update(where = { ErasedAccountTable.userId eq expired }) {
+                it[erasedAt] =
+                    Instant.fromEpochMilliseconds(0)
+            }
         }
 
         whenn()

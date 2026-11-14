@@ -10,7 +10,6 @@ import com.bookk.auth.domain.impl.di.AuthScope
 import com.bookk.auth.domain.impl.di.authDomainModule
 import com.bookk.auth.microservice.route.authRoute
 import com.bookk.core.data.cache.impl.di.cacheModule
-import com.bookk.core.data.eventstreaming.data.di.outboxModule
 import com.bookk.core.data.eventstreaming.di.embeddedEventStreamingTransportModule
 import com.bookk.core.data.eventstreaming.di.eventStreamingTransportModule
 import com.bookk.core.data.eventstreaming.startEventHandling
@@ -23,6 +22,8 @@ import io.ktor.server.application.Application
 import io.ktor.server.application.install
 import io.ktor.server.routing.application
 import library.actionconfirmation.impl.di.actionConfirmationModule
+import library.email.impl.di.emailModule
+import library.outbox.di.outboxModule
 import library.scheduler.Scheduler
 import library.scheduler.SchedulerConfiguration
 import library.signing.RotateSigningKeys
@@ -32,12 +33,13 @@ import org.koin.dsl.module
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.minutes
 
-fun authModule() = module {
+fun authModule(environment: (String) -> String? = System::getenv) = module {
     includes(
         authDomainModule(),
         authDataModule(),
         signingModule(AuthScope),
         actionConfirmationModule(AuthScope),
+        emailModule(AuthScope, environment),
         eventStreamingTransportModule(AuthScope, AUTH_SERVICE_NAME),
         outboxModule(AuthScope),
         cacheModule(),
@@ -45,12 +47,13 @@ fun authModule() = module {
     )
 }
 
-fun authEmbeddedModule() = module {
+fun authEmbeddedModule(environment: (String) -> String? = System::getenv) = module {
     includes(
         authDomainModule(),
         authDataModule(),
         signingModule(AuthScope),
         actionConfirmationModule(AuthScope),
+        emailModule(AuthScope, environment),
         embeddedEventStreamingTransportModule(AuthScope, AUTH_SERVICE_NAME),
         outboxModule(AuthScope),
         cacheModule(),

@@ -1,0 +1,10 @@
+CREATE DATABASE IF NOT EXISTS `appointments_short_retention`;
+CREATE TABLE IF NOT EXISTS `appointments_short_retention`.subject_key (subject_id BINARY(16) NOT NULL PRIMARY KEY, wrapped_key VARBINARY(60) NULL, master_key_version INT NULL, created_at TIMESTAMP(6) NOT NULL, shredded_at TIMESTAMP(6) NULL);
+ALTER TABLE business_has_appointments ADD COLUMN IF NOT EXISTS owner_user_id BINARY(16) NULL, ADD INDEX IF NOT EXISTS business_has_appointments_owner_user_id (owner_user_id);
+ALTER TABLE outbox_event ADD COLUMN IF NOT EXISTS personal_data_encrypted BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE exhausted_event ADD COLUMN IF NOT EXISTS personal_data_encrypted BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE appointment_request MODIFY COLUMN IF EXISTS client_user_id BINARY(16) NOT NULL;
+ALTER TABLE appointment MODIFY COLUMN IF EXISTS employee_name VARCHAR(1024) NULL, MODIFY COLUMN IF EXISTS client_name VARCHAR(1024) NULL, MODIFY COLUMN IF EXISTS note VARCHAR(2048) NULL, ADD COLUMN IF NOT EXISTS employee_name_encrypted VARBINARY(4128) NULL, ADD COLUMN IF NOT EXISTS client_name_encrypted VARBINARY(4128) NULL, ADD COLUMN IF NOT EXISTS client_phone_encrypted VARBINARY(128) NULL, ADD COLUMN IF NOT EXISTS client_email_encrypted VARBINARY(2080) NULL, ADD COLUMN IF NOT EXISTS note_encrypted VARBINARY(8224) NULL;
+ALTER TABLE appointment_request MODIFY COLUMN IF EXISTS employee_name VARCHAR(1024) NULL, MODIFY COLUMN IF EXISTS client_name VARCHAR(1024) NULL, MODIFY COLUMN IF EXISTS note VARCHAR(2048) NULL, ADD COLUMN IF NOT EXISTS employee_name_encrypted VARBINARY(4128) NULL, ADD COLUMN IF NOT EXISTS client_name_encrypted VARBINARY(4128) NULL, ADD COLUMN IF NOT EXISTS client_phone_encrypted VARBINARY(128) NULL, ADD COLUMN IF NOT EXISTS client_email_encrypted VARBINARY(2080) NULL, ADD COLUMN IF NOT EXISTS note_encrypted VARBINARY(8224) NULL;
+CREATE TABLE IF NOT EXISTS shredded_subject (subject_id BINARY(16) NOT NULL PRIMARY KEY, shredded_at TIMESTAMP(6) NOT NULL);
+INSERT IGNORE INTO shredded_subject (subject_id, shredded_at) SELECT subject_id, shredded_at FROM `appointments_short_retention`.subject_key WHERE shredded_at IS NOT NULL;

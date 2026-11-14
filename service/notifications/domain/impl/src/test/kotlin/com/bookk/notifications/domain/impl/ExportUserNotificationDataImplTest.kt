@@ -32,7 +32,8 @@ internal class ExportUserNotificationDataImplTest {
         val deviceDataSource = mockk<DeviceDataSource>()
         val targetDataSource = mockk<NotificationTargetDataSource>()
         val transactionManager = mockk<TransactionManager>()
-        val sut = ExportUserNotificationDataImpl(settingsDataSource, deviceDataSource, targetDataSource, transactionManager)
+        val sut =
+            ExportUserNotificationDataImpl(settingsDataSource, deviceDataSource, targetDataSource, transactionManager)
         val userId = Uuid.random()
         val readInTransaction = mutableListOf<Boolean>()
 
@@ -52,10 +53,13 @@ internal class ExportUserNotificationDataImplTest {
     fun `should export the user's settings, devices and targets`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        coEvery { fixture.settingsDataSource.getByUserId(fixture.userId) } returns NotificationSettings.stub(userId = fixture.userId).copy(
-            appointmentEnabled = true,
-            channels = listOf(NotificationChannelSettings.stub(channel = CommunicationChannel.PUSH_NOTIFICATIONS, enabled = true)),
-        )
+        coEvery { fixture.settingsDataSource.getByUserId(fixture.userId) } returns
+            NotificationSettings.stub(userId = fixture.userId).copy(
+                appointmentEnabled = true,
+                channels = listOf(
+                    NotificationChannelSettings.stub(channel = CommunicationChannel.PUSH_NOTIFICATIONS, enabled = true),
+                ),
+            )
         coEvery { fixture.deviceDataSource.getByUserId(fixture.userId) } returns listOf(
             Device.stub(userId = fixture.userId, notificationToken = "fcm-token", language = Language.UK),
             Device.stub(userId = fixture.userId, notificationToken = null, language = Language.EN),
@@ -69,8 +73,14 @@ internal class ExportUserNotificationDataImplTest {
         then()
         assertEquals(
             NotificationsUserDataExport(
-                settings = SettingsExport(appointmentNotificationsEnabled = true, channels = listOf(ChannelExport("PUSH_NOTIFICATIONS", enabled = true))),
-                devices = listOf(DeviceExport("UK", pushNotificationsRegistered = true), DeviceExport("EN", pushNotificationsRegistered = false)),
+                settings = SettingsExport(
+                    appointmentNotificationsEnabled = true,
+                    channels = listOf(ChannelExport("PUSH_NOTIFICATIONS", enabled = true)),
+                ),
+                devices = listOf(
+                    DeviceExport("UK", pushNotificationsRegistered = true),
+                    DeviceExport("EN", pushNotificationsRegistered = false),
+                ),
                 email = "olena@example.com",
                 telegram = "@olena",
             ),
@@ -95,7 +105,8 @@ internal class ExportUserNotificationDataImplTest {
     fun `should fail when the settings can't be read`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        coEvery { fixture.settingsDataSource.getByUserId(fixture.userId) } throws IllegalStateException("database unreachable")
+        coEvery { fixture.settingsDataSource.getByUserId(fixture.userId) } throws
+            IllegalStateException("database unreachable")
 
         whenn()
         val result = fixture.sut(fixture.userId)

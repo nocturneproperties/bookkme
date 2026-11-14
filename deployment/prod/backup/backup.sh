@@ -5,6 +5,7 @@ export LC_ALL=C
 readonly backup_dir=${BACKUP_DIR:-/backups}
 readonly dump_dir=$backup_dir/dump
 readonly binlog_dir=$backup_dir/binlog
+readonly keys_dir=$backup_dir/keys
 readonly spool_dir=${SPOOL_DIR:-/spool}
 readonly metrics_dir=${METRICS_DIR:-/metrics}
 readonly public_key=${PUBLIC_KEY_FILE:-/run/configs/backup-public-key.asc}
@@ -14,7 +15,10 @@ readonly db_port=${DB_PORT:-3306}
 readonly db_user=${DB_USER:-backup}
 read -r -a schemas <<< "${SCHEMAS:-user authorization business appointments notifications}"
 readonly schemas
+read -r -a key_schemas <<< "${KEY_SCHEMAS:-user_short_retention business_short_retention appointments_short_retention notifications_short_retention}"
+readonly key_schemas
 readonly retention_days=${RETENTION_DAYS:-30}
+readonly key_retention_days=${KEY_RETENTION_DAYS:-7}
 readonly dump_hour_utc=${DUMP_HOUR_UTC:-3}
 readonly rotate_seconds=${BINLOG_ROTATE_SECONDS:-300}
 readonly poll_seconds=${POLL_SECONDS:-15}
@@ -32,7 +36,7 @@ fail() {
 
 prepare() {
   umask 077
-  mkdir -p "$private_dir" "$GNUPGHOME" "$dump_dir" "$binlog_dir"
+  mkdir -p "$private_dir" "$GNUPGHOME" "$dump_dir" "$binlog_dir" "$keys_dir"
   [[ -s $public_key ]] || fail "No public key at $public_key"
   [[ -s $password_file ]] || fail "No database password at $password_file"
   printf '[client]\nhost=%s\nport=%s\nuser=%s\npassword=%s\n' "$db_host" "$db_port" "$db_user" "$(<"$password_file")" > "$client_config"
@@ -161,6 +165,40 @@ prune() {
   find "$dump_dir" "$binlog_dir" -maxdepth 1 -type f -name '*.partial' -mmin +1440 -delete
 }
 
+existing_key_schemas() {
+  local names
+  names=$(printf "'%s'," "${key_schemas[@]}")
+  sql "SELECT schema_name FROM information_schema.schemata WHERE schema_name IN (${names%,}) ORDER BY schema_name"
+}
+
+prune_keys() {
+  local cutoff dumps count i
+  cutoff=keys-$(date -u -d "-$key_retention_days days" +%Y%m%dT%H%M%SZ)
+  mapfile -t dumps < <(find "$keys_dir" -maxdepth 1 -type f -name 'keys-*.sql.zst.gpg' -printf '%f\n' | sort)
+  count=${#dumps[@]}
+  for ((i = 0; i < count - 1; i++)); do
+    [[ ${dumps[i]} < $cutoff ]] || break
+    rm -f "$keys_dir/${dumps[i]}"
+  done
+  find "$keys_dir" -maxdepth 1 -type f -name '*.partial' -mmin +60 -delete
+}
+
+keys_once() {
+  local name target meta present
+  mapfile -t present < <(existing_key_schemas)
+  ((${#present[@]} > 0)) || return 0
+  name=keys-$(date -u +%Y%m%dT%H%M%SZ)
+  target=$keys_dir/$name.sql.zst.gpg
+  meta=$private_dir/$name.meta
+  mariadb-dump --defaults-extra-file="$client_config" --single-transaction --quick --hex-blob --databases "${present[@]}" |
+    awk -v meta="$meta" '{ print } { last = $0 } END { print "LAST " last > meta }' |
+    encrypt > "$target.partial"
+  grep -q '^LAST -- Dump completed' "$meta" || fail "$name is incomplete, it doesn't end with 'Dump completed'"
+  rm -f "$meta"
+  publish "$target"
+  prune_keys
+}
+
 dump_once() {
   local name target meta position
   name=dump-$(date -u +%Y%m%dT%H%M%SZ)
@@ -181,18 +219,30 @@ dump_once() {
 }
 
 write_dump_metrics() {
-  local dumps newest oldest
+  local dumps key_dumps newest oldest lines=()
   mapfile -t dumps < <(find "$dump_dir" -maxdepth 1 -type f -name 'dump-*.sql.zst.gpg' -printf '%f\n' | sort)
-  ((${#dumps[@]} > 0)) || return 0
-  newest=$dump_dir/${dumps[-1]}
-  oldest=$dump_dir/${dumps[0]}
-  write_metrics backup_dump \
-    "bookk_backup_dump_last_success_timestamp_seconds $(stat -c %Y "$newest")" \
-    "bookk_backup_dump_last_size_bytes $(stat -c %s "$newest")" \
-    "bookk_backup_oldest_dump_timestamp_seconds $(stat -c %Y "$oldest")" \
-    "bookk_backup_dumps ${#dumps[@]}" \
+  mapfile -t key_dumps < <(find "$keys_dir" -maxdepth 1 -type f -name 'keys-*.sql.zst.gpg' -printf '%f\n' | sort)
+  if ((${#dumps[@]} > 0)); then
+    newest=$dump_dir/${dumps[-1]}
+    oldest=$dump_dir/${dumps[0]}
+    lines+=(
+      "bookk_backup_dump_last_success_timestamp_seconds $(stat -c %Y "$newest")"
+      "bookk_backup_dump_last_size_bytes $(stat -c %s "$newest")"
+      "bookk_backup_oldest_dump_timestamp_seconds $(stat -c %Y "$oldest")"
+      "bookk_backup_dumps ${#dumps[@]}"
+    )
+  fi
+  if ((${#key_dumps[@]} > 0)); then
+    lines+=(
+      "bookk_backup_keys_last_success_timestamp_seconds $(stat -c %Y "$keys_dir/${key_dumps[-1]}")"
+      "bookk_backup_oldest_keys_timestamp_seconds $(stat -c %Y "$keys_dir/${key_dumps[0]}")"
+    )
+  fi
+  ((${#lines[@]} > 0)) || return 0
+  write_metrics backup_dump "${lines[@]}" \
     "bookk_backup_stored_bytes{kind=\"dump\"} $(du -sb "$dump_dir" | cut -f1)" \
-    "bookk_backup_stored_bytes{kind=\"binlog\"} $(du -sb "$binlog_dir" | cut -f1)"
+    "bookk_backup_stored_bytes{kind=\"binlog\"} $(du -sb "$binlog_dir" | cut -f1)" \
+    "bookk_backup_stored_bytes{kind=\"keys\"} $(du -sb "$keys_dir" | cut -f1)"
 }
 
 dump_due() {
@@ -202,17 +252,30 @@ dump_due() {
   [[ ${newest:5:8} < $(date -u +%Y%m%d) ]] && ((10#$(date -u +%H) >= dump_hour_utc))
 }
 
+keys_due() {
+  local newest
+  newest=$(newest_file "$keys_dir" 'keys-*.sql.zst.gpg')
+  [[ -n $newest ]] || return 0
+  (($(date +%s) - $(stat -c %Y "$keys_dir/$newest") >= rotate_seconds))
+}
+
 run_dumps() {
-  local next_metrics=0
+  local next_metrics=0 next_dump_attempt=0
   trap 'exit 0' TERM INT
   while true; do
-    if dump_due; then
+    if keys_due; then
+      if bash "$0" keys-once; then
+        next_metrics=0
+      else
+        log "ERROR The key dump failed, retrying in a minute"
+      fi
+    fi
+    if (($(date +%s) >= next_dump_attempt)) && dump_due; then
       if bash "$0" dump-once; then
         next_metrics=0
       else
         log "ERROR The dump failed, retrying in 10 minutes"
-        sleep 600 &
-        wait $!
+        next_dump_attempt=$(($(date +%s) + 600))
       fi
     fi
     if (($(date +%s) >= next_metrics)); then
@@ -229,5 +292,6 @@ case ${1:-} in
   binlog) run_binlog ;;
   dump) run_dumps ;;
   dump-once) dump_once ;;
-  *) fail "Usage: $0 binlog|dump|dump-once" ;;
+  keys-once) keys_once ;;
+  *) fail "Usage: $0 binlog|dump|dump-once|keys-once" ;;
 esac

@@ -28,7 +28,12 @@ internal class ErasedClientDataSourceImplTest {
         val db = createTestDatabase(ErasedClientTable)
         val sut = ErasedClientDataSourceImpl()
 
-        suspend fun insertReapplyRequest(client: ErasedClient, erasedAt: Instant = Instant.fromEpochMilliseconds(0)) = suspendTransaction {
+        suspend fun insertReapplyRequest(
+            client: ErasedClient,
+            erasedAt: Instant = Instant.fromEpochMilliseconds(
+                0,
+            ),
+        ) = suspendTransaction {
             ErasedClientTable.insert {
                 it[clientId] = client.clientId
                 it[businessId] = client.businessId
@@ -44,7 +49,9 @@ internal class ErasedClientDataSourceImplTest {
         }
 
         suspend fun recorded(): Set<ErasedClient> = suspendTransaction {
-            ErasedClientTable.selectAll().map { ErasedClient(businessId = it[ErasedClientTable.businessId], clientId = it[ErasedClientTable.clientId]) }.toSet()
+            ErasedClientTable.selectAll().map {
+                ErasedClient(businessId = it[ErasedClientTable.businessId], clientId = it[ErasedClientTable.clientId])
+            }.toSet()
         }
     }
 
@@ -72,6 +79,38 @@ internal class ErasedClientDataSourceImplTest {
 
         whenn()
         val result = runCatching { suspendTransaction { fixture.sut.record(client.businessId, client.clientId) } }
+
+        then()
+        assertTrue(result.isSuccess)
+        assertEquals(firstErasedAt, fixture.erasedAt(client.clientId))
+    }
+
+    @Test
+    fun `should record every erased client of a business at once`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val businessId = Uuid.random()
+        val clients = listOf(ErasedClient.stub(businessId = businessId), ErasedClient.stub(businessId = businessId))
+
+        whenn()
+        suspendTransaction { fixture.sut.recordAll(businessId, clients.map { it.clientId }) }
+
+        then()
+        assertEquals(clients.toSet(), fixture.recorded())
+    }
+
+    @Test
+    fun `should keep the first erasure time when a client is recorded again with others`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val client = ErasedClient.stub()
+        val firstErasedAt = Instant.fromEpochMilliseconds(1_000)
+        fixture.insertReapplyRequest(client, firstErasedAt)
+
+        whenn()
+        val result = runCatching {
+            suspendTransaction { fixture.sut.recordAll(client.businessId, listOf(client.clientId, Uuid.random())) }
+        }
 
         then()
         assertTrue(result.isSuccess)
@@ -133,7 +172,10 @@ internal class ErasedClientDataSourceImplTest {
         suspendTransaction {
             fixture.sut.record(expired.businessId, expired.clientId)
             fixture.sut.record(recent.businessId, recent.clientId)
-            ErasedClientTable.update(where = { ErasedClientTable.clientId eq expired.clientId }) { it[erasedAt] = Instant.fromEpochMilliseconds(0) }
+            ErasedClientTable.update(where = { ErasedClientTable.clientId eq expired.clientId }) {
+                it[erasedAt] =
+                    Instant.fromEpochMilliseconds(0)
+            }
         }
 
         whenn()

@@ -17,7 +17,10 @@ internal class ConfirmActionImpl(
     private val finishAssertion: FinishAssertion,
     private val tokenIssuer: TokenIssuer,
 ) : ConfirmAction {
-    override suspend fun invoke(userId: Uuid, request: ActionConfirmationRequest): Result<ActionConfirmationToken> = runSuspendCatching {
+    override suspend fun invoke(
+        userId: Uuid,
+        request: ActionConfirmationRequest,
+    ): Result<ActionConfirmationToken> = runSuspendCatching {
         finishAssertion.finishOwnedBy(userId, request).getOrThrow()
         val token = tokenIssuer.issue(ACTION_CONFIRMATION_TTL) {
             withAudience(TokenAudience.actionConfirmation)

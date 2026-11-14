@@ -16,7 +16,10 @@ internal class GetClientsImpl(
     private val businessPermissionDataSource: BusinessPermissionDataSource,
     private val transactionManager: TransactionManager,
 ) : GetClients {
-    override suspend fun invoke(requestUserId: Uuid, businessId: Uuid): Result<List<ClientRemote>> = transactionManager.transaction {
+    override suspend fun invoke(
+        requestUserId: Uuid,
+        businessId: Uuid,
+    ): Result<List<ClientRemote>> = transactionManager.transaction {
         businessPermissionDataSource.getPermission(requestUserId, businessId, BusinessResource.CLIENTS)
             .assert(PermissionAction.VIEW)
         clientsDataSource.getClients(businessId).map { it.toRemote() }

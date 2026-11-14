@@ -69,7 +69,8 @@ internal class SetEmployeeSuspensionImplTest {
         with(fixture) {
             transactionManager.mockTransaction()
             coEvery { employeeDataSource.getEmployee(businessId, employee.id) } returns employee
-            coEvery { employeeDataSource.setSuspendedAt(employee.id, any()) } returns employee.copy(suspendedAt = Instant.fromEpochMilliseconds(1))
+            coEvery { employeeDataSource.setSuspendedAt(employee.id, any()) } returns
+                employee.copy(suspendedAt = Instant.fromEpochMilliseconds(1))
         }
 
         whenn()
@@ -79,7 +80,9 @@ internal class SetEmployeeSuspensionImplTest {
         coVerify(exactly = 1) {
             fixture.eventProducer.send(
                 match<BusinessEvent.EmployeePermissionsChanged> {
-                    it.employeeUserId == employee.userId && it.businessId == businessId && it.permissions == BusinessPermissions.FULL && it.suspended
+                    it.employeeUserId == employee.userId && it.businessId == businessId &&
+                        it.permissions == BusinessPermissions.FULL &&
+                        it.suspended
                 },
                 any(),
             )
@@ -90,7 +93,11 @@ internal class SetEmployeeSuspensionImplTest {
     fun `should reinstate a suspended employee keeping the stored permissions`() = runUnitTest {
         given()
         val fixture = SutFixture(requestUserId, businessId)
-        val employee = Employee.stub(businessId = businessId, permissions = BusinessPermissions.VIEW_ONLY, suspendedAt = Instant.fromEpochMilliseconds(1))
+        val employee = Employee.stub(
+            businessId = businessId,
+            permissions = BusinessPermissions.VIEW_ONLY,
+            suspendedAt = Instant.fromEpochMilliseconds(1),
+        )
         val reinstated = employee.copy(suspendedAt = null)
         with(fixture) {
             transactionManager.mockTransaction()
@@ -110,7 +117,11 @@ internal class SetEmployeeSuspensionImplTest {
     fun `should publish the stored permissions when the employee is reinstated`() = runUnitTest {
         given()
         val fixture = SutFixture(requestUserId, businessId)
-        val employee = Employee.stub(businessId = businessId, permissions = BusinessPermissions.VIEW_ONLY, suspendedAt = Instant.fromEpochMilliseconds(1))
+        val employee = Employee.stub(
+            businessId = businessId,
+            permissions = BusinessPermissions.VIEW_ONLY,
+            suspendedAt = Instant.fromEpochMilliseconds(1),
+        )
         with(fixture) {
             transactionManager.mockTransaction()
             coEvery { employeeDataSource.getEmployee(businessId, employee.id) } returns employee
@@ -124,7 +135,8 @@ internal class SetEmployeeSuspensionImplTest {
         coVerify(exactly = 1) {
             fixture.eventProducer.send(
                 match<BusinessEvent.EmployeePermissionsChanged> {
-                    it.employeeUserId == employee.userId && it.permissions == BusinessPermissions.VIEW_ONLY && !it.suspended
+                    it.employeeUserId == employee.userId && it.permissions == BusinessPermissions.VIEW_ONLY &&
+                        !it.suspended
                 },
                 any(),
             )
@@ -147,7 +159,9 @@ internal class SetEmployeeSuspensionImplTest {
         then()
         assertEquals(employee, result.getOrNull())
         coVerify(exactly = 0) { fixture.employeeDataSource.setSuspendedAt(any(), any()) }
-        coVerify(exactly = 0) { fixture.eventProducer.send(any(BusinessEvent.EmployeePermissionsChanged::class), any()) }
+        coVerify(exactly = 0) {
+            fixture.eventProducer.send(any(BusinessEvent.EmployeePermissionsChanged::class), any())
+        }
     }
 
     @Test
@@ -166,14 +180,20 @@ internal class SetEmployeeSuspensionImplTest {
         then()
         assertEquals(employee, result.getOrNull())
         coVerify(exactly = 0) { fixture.employeeDataSource.setSuspendedAt(any(), any()) }
-        coVerify(exactly = 0) { fixture.eventProducer.send(any(BusinessEvent.EmployeePermissionsChanged::class), any()) }
+        coVerify(exactly = 0) {
+            fixture.eventProducer.send(any(BusinessEvent.EmployeePermissionsChanged::class), any())
+        }
     }
 
     @Test
     fun `should reject suspending the business owner`() = runUnitTest {
         given()
         val fixture = SutFixture(requestUserId, businessId)
-        val owner = Employee.stub(businessId = businessId, userId = requestUserId, permissions = BusinessPermissions.FULL)
+        val owner = Employee.stub(
+            businessId = businessId,
+            userId = requestUserId,
+            permissions = BusinessPermissions.FULL,
+        )
         with(fixture) {
             transactionManager.mockTransaction()
             coEvery { employeeDataSource.getEmployee(businessId, owner.id) } returns owner
@@ -185,7 +205,9 @@ internal class SetEmployeeSuspensionImplTest {
         then()
         assertTrue(result.exceptionOrNull() is SetEmployeeSuspension.Error.OwnerSuspensionNotAllowed)
         coVerify(exactly = 0) { fixture.employeeDataSource.setSuspendedAt(any(), any()) }
-        coVerify(exactly = 0) { fixture.eventProducer.send(any(BusinessEvent.EmployeePermissionsChanged::class), any()) }
+        coVerify(exactly = 0) {
+            fixture.eventProducer.send(any(BusinessEvent.EmployeePermissionsChanged::class), any())
+        }
     }
 
     @Test
@@ -221,6 +243,8 @@ internal class SetEmployeeSuspensionImplTest {
         then()
         assertTrue(result.exceptionOrNull() is Error.OperationNotAllowed)
         coVerify(exactly = 0) { fixture.employeeDataSource.getEmployee(any(), any()) }
-        coVerify(exactly = 0) { fixture.eventProducer.send(any(BusinessEvent.EmployeePermissionsChanged::class), any()) }
+        coVerify(exactly = 0) {
+            fixture.eventProducer.send(any(BusinessEvent.EmployeePermissionsChanged::class), any())
+        }
     }
 }

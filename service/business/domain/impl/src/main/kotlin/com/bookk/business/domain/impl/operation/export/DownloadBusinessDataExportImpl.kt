@@ -14,7 +14,10 @@ internal class DownloadBusinessDataExportImpl(
     private val transactionManager: TransactionManager,
 ) : DownloadBusinessDataExport {
 
-    override suspend fun invoke(userId: Uuid, businessId: Uuid): Result<DataExportDocument> = transactionManager.transaction {
+    override suspend fun invoke(
+        userId: Uuid,
+        businessId: Uuid,
+    ): Result<DataExportDocument> = transactionManager.transaction {
         businessDataSource.requireOwner(userId, businessId)
         dataExports.document(businessId) ?: throw Error.NotFound()
     }

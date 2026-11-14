@@ -21,7 +21,6 @@ import com.bookk.server.auth.client.export.ExportAccountData
 import com.bookk.server.user.client.api.event.UserEvent
 import com.bookk.user.domain.api.entity.LegalDocument
 import com.bookk.user.domain.api.entity.LegalDocumentAcceptance
-import com.bookk.user.domain.api.export.ContactMessageExport
 import com.bookk.user.domain.api.export.ProfileExport
 import com.bookk.user.domain.datasource.LegalDocumentDataSource
 import com.bookk.user.domain.datasource.UserDataExportDataSource
@@ -54,8 +53,12 @@ internal class PersonalDataExportAssemblerTest {
         val readInTransaction = mutableListOf<Boolean>()
         val profile = ProfileExport.stub(id = userId)
         val account = AccountDataExport.stub(passkeys = listOf(AccountDataExport.PasskeyExport.stub()))
-        val businesses = BusinessUserDataExport.stub(clientRecords = listOf(BusinessUserDataExport.ClientRecordExport.stub()))
-        val appointments = AppointmentsUserDataExport.stub(appointments = listOf(AppointmentsUserDataExport.AppointmentExport.stub()))
+        val businesses = BusinessUserDataExport.stub(
+            clientRecords = listOf(BusinessUserDataExport.ClientRecordExport.stub()),
+        )
+        val appointments = AppointmentsUserDataExport.stub(
+            appointments = listOf(AppointmentsUserDataExport.AppointmentExport.stub()),
+        )
         val notifications = NotificationsUserDataExport.stub(email = "olena@example.com")
         val sut = PersonalDataExportAssembler(
             userDataExportDataSource,
@@ -75,7 +78,6 @@ internal class PersonalDataExportAssemblerTest {
                 readInTransaction += transactionManager.isInTransaction()
                 profile
             }
-            coEvery { userDataExportDataSource.getContactMessages(userId) } returns listOf(ContactMessageExport.stub())
             coEvery { legalDocumentDataSource.getAcceptances(userId) } returns listOf(
                 LegalDocumentAcceptance(LegalDocument.PRIVACY_POLICY, "2026-11", Instant.fromEpochMilliseconds(1_000)),
             )
@@ -83,7 +85,9 @@ internal class PersonalDataExportAssemblerTest {
             coEvery { exportUserBusinessData(userId) } returns Result.success(businesses)
             coEvery { exportUserAppointments(userId) } returns Result.success(appointments)
             coEvery { exportUserNotificationData(userId) } returns Result.success(notifications)
-            coEvery { eventProducer.send(any<UserEvent.DataExportReady>(), any()) } coAnswers { sentEvents += firstArg<UserEvent.DataExportReady>() }
+            coEvery { eventProducer.send(any<UserEvent.DataExportReady>(), any()) } coAnswers {
+                sentEvents += firstArg<UserEvent.DataExportReady>()
+            }
         }
     }
 
@@ -102,8 +106,13 @@ internal class PersonalDataExportAssemblerTest {
                 generatedAt = fixture.clock.now,
                 userId = fixture.userId,
                 profile = fixture.profile,
-                contactMessages = listOf(ContactMessageExport.stub()),
-                legalAcceptances = listOf(PersonalDataExport.LegalAcceptanceExport("PRIVACY_POLICY", "2026-11", Instant.fromEpochMilliseconds(1_000))),
+                legalAcceptances = listOf(
+                    PersonalDataExport.LegalAcceptanceExport(
+                        "PRIVACY_POLICY",
+                        "2026-11",
+                        Instant.fromEpochMilliseconds(1_000),
+                    ),
+                ),
                 account = fixture.account,
                 businesses = fixture.businesses,
                 appointments = fixture.appointments,
@@ -123,7 +132,17 @@ internal class PersonalDataExportAssemblerTest {
 
         then()
         assertEquals(
-            setOf("formatVersion", "generatedAt", "userId", "profile", "contactMessages", "legalAcceptances", "account", "businesses", "appointments", "notifications"),
+            setOf(
+                "formatVersion",
+                "generatedAt",
+                "userId",
+                "profile",
+                "legalAcceptances",
+                "account",
+                "businesses",
+                "appointments",
+                "notifications",
+            ),
             Json.parseToJsonElement(json).jsonObject.keys,
         )
     }
@@ -157,7 +176,8 @@ internal class PersonalDataExportAssemblerTest {
     fun `should fail when any service can't hand over its part`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        coEvery { fixture.exportUserAppointments(fixture.userId) } returns Result.failure(IllegalStateException("appointments unreachable"))
+        coEvery { fixture.exportUserAppointments(fixture.userId) } returns
+            Result.failure(IllegalStateException("appointments unreachable"))
 
         whenn()
         val result = runSuspendCatching { fixture.sut.assemble(fixture.userId) }

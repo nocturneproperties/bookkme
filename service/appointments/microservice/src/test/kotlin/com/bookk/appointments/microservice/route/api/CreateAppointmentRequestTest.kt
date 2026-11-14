@@ -69,7 +69,8 @@ internal class CreateAppointmentRequestTest {
         val useCase: CreateAppointmentRequest = mockk()
         val userId = Uuid.random()
         val draft = AppointmentRequestDraft.stub()
-        coEvery { useCase.invoke(userId, any()) } returns Result.failure(CreateAppointmentRequest.Error.RequestForThisTimeExists())
+        coEvery { useCase.invoke(userId, any()) } returns
+            Result.failure(CreateAppointmentRequest.Error.RequestForThisTimeExists())
 
         setupApplication(
             extension = {
@@ -102,7 +103,8 @@ internal class CreateAppointmentRequestTest {
         val useCase: CreateAppointmentRequest = mockk()
         val userId = Uuid.random()
         val draft = AppointmentRequestDraft.stub()
-        coEvery { useCase.invoke(userId, any()) } returns Result.failure(CreateAppointmentRequest.Error.RequestForThisTimeNotAllowed())
+        coEvery { useCase.invoke(userId, any()) } returns
+            Result.failure(CreateAppointmentRequest.Error.RequestForThisTimeNotAllowed())
 
         setupApplication(
             extension = {
@@ -135,7 +137,8 @@ internal class CreateAppointmentRequestTest {
         val useCase: CreateAppointmentRequest = mockk()
         val userId = Uuid.random()
         val draft = AppointmentRequestDraft.stub()
-        coEvery { useCase.invoke(userId, any()) } returns Result.failure(CreateAppointmentRequest.Error.RequestForThisDateNotAllowed())
+        coEvery { useCase.invoke(userId, any()) } returns
+            Result.failure(CreateAppointmentRequest.Error.RequestForThisDateNotAllowed())
 
         setupApplication(
             extension = {
@@ -168,7 +171,8 @@ internal class CreateAppointmentRequestTest {
         val useCase: CreateAppointmentRequest = mockk()
         val userId = Uuid.random()
         val draft = AppointmentRequestDraft.stub()
-        coEvery { useCase.invoke(userId, any()) } returns Result.failure(CreateAppointmentRequest.Error.DateInThePastNotAllowed())
+        coEvery { useCase.invoke(userId, any()) } returns
+            Result.failure(CreateAppointmentRequest.Error.DateInThePastNotAllowed())
 
         setupApplication(
             extension = {
@@ -333,7 +337,8 @@ internal class CreateAppointmentRequestTest {
         val useCase: CreateAppointmentRequest = mockk()
         val userId = Uuid.random()
         val draft = AppointmentRequestDraft.stub()
-        coEvery { useCase.invoke(userId, any()) } returns Result.failure(GetAppointmentBookingContext.Error.EmployeeNotFound())
+        coEvery { useCase.invoke(userId, any()) } returns
+            Result.failure(GetAppointmentBookingContext.Error.EmployeeNotFound())
 
         setupApplication(
             extension = {
@@ -365,7 +370,8 @@ internal class CreateAppointmentRequestTest {
         val useCase: CreateAppointmentRequest = mockk()
         val userId = Uuid.random()
         val draft = AppointmentRequestDraft.stub()
-        coEvery { useCase.invoke(userId, any()) } returns Result.failure(com.bookk.core.domain.entity.Error.OperationNotAllowed())
+        coEvery { useCase.invoke(userId, any()) } returns
+            Result.failure(com.bookk.core.domain.entity.Error.OperationNotAllowed())
 
         setupApplication(
             extension = {
@@ -397,7 +403,8 @@ internal class CreateAppointmentRequestTest {
         val useCase: CreateAppointmentRequest = mockk()
         val userId = Uuid.random()
         val draft = AppointmentRequestDraft.stub()
-        coEvery { useCase.invoke(userId, any()) } returns Result.failure(GetAppointmentBookingContext.Error.ServiceNotFound())
+        coEvery { useCase.invoke(userId, any()) } returns
+            Result.failure(GetAppointmentBookingContext.Error.ServiceNotFound())
 
         setupApplication(
             extension = {
@@ -430,7 +437,8 @@ internal class CreateAppointmentRequestTest {
         val useCase: CreateAppointmentRequest = mockk()
         val userId = Uuid.random()
         val draft = AppointmentRequestDraft.stub()
-        coEvery { useCase.invoke(userId, any()) } returns Result.failure(GetAppointmentBookingContext.Error.EmployeeSuspended())
+        coEvery { useCase.invoke(userId, any()) } returns
+            Result.failure(GetAppointmentBookingContext.Error.EmployeeSuspended())
 
         setupApplication(
             extension = {

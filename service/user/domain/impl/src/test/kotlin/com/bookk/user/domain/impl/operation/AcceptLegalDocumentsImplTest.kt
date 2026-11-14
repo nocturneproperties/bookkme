@@ -85,7 +85,10 @@ internal class AcceptLegalDocumentsImplTest {
         }
 
         whenn()
-        val result = fixture.sut.invoke(userId, AcceptedLegalDocuments(privacyPolicy = null, termsOfService = terms.version))
+        val result = fixture.sut.invoke(
+            userId,
+            AcceptedLegalDocuments(privacyPolicy = null, termsOfService = terms.version),
+        )
 
         then()
         assertTrue(result.isSuccess)
@@ -105,7 +108,10 @@ internal class AcceptLegalDocumentsImplTest {
         }
 
         whenn()
-        val result = fixture.sut.invoke(userId, AcceptedLegalDocuments(privacyPolicy = "unpublished", termsOfService = null))
+        val result = fixture.sut.invoke(
+            userId,
+            AcceptedLegalDocuments(privacyPolicy = "unpublished", termsOfService = null),
+        )
 
         then()
         assertTrue(result.exceptionOrNull() is LegalDocumentError.VersionUnknown)
@@ -125,7 +131,10 @@ internal class AcceptLegalDocumentsImplTest {
         }
 
         whenn()
-        val result = fixture.sut.invoke(userId, AcceptedLegalDocuments(privacyPolicy = upcoming.version, termsOfService = null))
+        val result = fixture.sut.invoke(
+            userId,
+            AcceptedLegalDocuments(privacyPolicy = upcoming.version, termsOfService = null),
+        )
 
         then()
         assertTrue(result.exceptionOrNull() is LegalDocumentError.VersionUnknown)
@@ -146,7 +155,10 @@ internal class AcceptLegalDocumentsImplTest {
         }
 
         whenn()
-        val result = fixture.sut.invoke(userId, AcceptedLegalDocuments(privacyPolicy = policy.version, termsOfService = "unpublished"))
+        val result = fixture.sut.invoke(
+            userId,
+            AcceptedLegalDocuments(privacyPolicy = policy.version, termsOfService = "unpublished"),
+        )
 
         then()
         assertTrue(result.exceptionOrNull() is LegalDocumentError.VersionUnknown)
@@ -164,7 +176,10 @@ internal class AcceptLegalDocumentsImplTest {
         }
 
         whenn()
-        val result = fixture.sut.invoke(userId, AcceptedLegalDocuments(privacyPolicy = "2026-01-01", termsOfService = null))
+        val result = fixture.sut.invoke(
+            userId,
+            AcceptedLegalDocuments(privacyPolicy = "2026-01-01", termsOfService = null),
+        )
 
         then()
         assertTrue(result.exceptionOrNull() is Error.NotFound)

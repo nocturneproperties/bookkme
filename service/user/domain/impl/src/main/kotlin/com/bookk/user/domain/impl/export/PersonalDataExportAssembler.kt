@@ -10,7 +10,6 @@ import com.bookk.notifications.client.api.export.ExportUserNotificationData
 import com.bookk.server.appointments.client.api.export.ExportUserAppointments
 import com.bookk.server.auth.client.export.ExportAccountData
 import com.bookk.server.user.client.api.event.UserEvent
-import com.bookk.user.domain.api.export.ContactMessageExport
 import com.bookk.user.domain.api.export.ProfileExport
 import com.bookk.user.domain.datasource.LegalDocumentDataSource
 import com.bookk.user.domain.datasource.UserDataExportDataSource
@@ -38,9 +37,12 @@ internal class PersonalDataExportAssembler(
         val ownData = transactionManager.transactionOrThrow {
             OwnData(
                 profile = userDataExportDataSource.getProfile(ownerId) ?: throw Error.NotFound(),
-                contactMessages = userDataExportDataSource.getContactMessages(ownerId),
                 legalAcceptances = legalDocumentDataSource.getAcceptances(ownerId).map {
-                    PersonalDataExport.LegalAcceptanceExport(document = it.document.name, version = it.version, acceptedAt = it.acceptedAt)
+                    PersonalDataExport.LegalAcceptanceExport(
+                        document = it.document.name,
+                        version = it.version,
+                        acceptedAt = it.acceptedAt,
+                    )
                 },
             )
         }
@@ -54,7 +56,6 @@ internal class PersonalDataExportAssembler(
                 generatedAt = clock.now(),
                 userId = ownerId,
                 profile = ownData.profile,
-                contactMessages = ownData.contactMessages,
                 legalAcceptances = ownData.legalAcceptances,
                 account = account.await(),
                 businesses = businesses.await(),
@@ -71,7 +72,6 @@ internal class PersonalDataExportAssembler(
 
     private class OwnData(
         val profile: ProfileExport,
-        val contactMessages: List<ContactMessageExport>,
         val legalAcceptances: List<PersonalDataExport.LegalAcceptanceExport>,
     )
 

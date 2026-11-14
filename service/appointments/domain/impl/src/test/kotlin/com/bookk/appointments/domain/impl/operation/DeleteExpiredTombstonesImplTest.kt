@@ -65,7 +65,9 @@ internal class DeleteExpiredTombstonesImplTest {
         fixture.sut()
 
         then()
-        coVerify(exactly = 1) { fixture.transactionManager.transaction<Any>(TransactionIsolation.READ_COMMITTED, any()) }
+        coVerify(exactly = 1) {
+            fixture.transactionManager.transaction<Any>(TransactionIsolation.READ_COMMITTED, any())
+        }
     }
 
     @Test

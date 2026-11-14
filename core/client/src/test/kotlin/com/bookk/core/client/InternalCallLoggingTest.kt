@@ -49,7 +49,11 @@ internal class InternalCallLoggingTest {
         val events = fixture.appender.list
         val log = events.joinToString("\n") { it.formattedMessage }
         assertTrue(events.isNotEmpty()) { "nothing logged" }
-        assertTrue(events.all { it.level == Level.DEBUG }) { events.joinToString { "${it.level} ${it.formattedMessage}" } }
+        assertTrue(
+            events.all {
+                it.level == Level.DEBUG
+            },
+        ) { events.joinToString { "${it.level} ${it.formattedMessage}" } }
         assertTrue("http://business.service/api/business/internal/context" in log) { log }
         assertTrue("sent-request" in log && "stored-response" in log) { log }
     }

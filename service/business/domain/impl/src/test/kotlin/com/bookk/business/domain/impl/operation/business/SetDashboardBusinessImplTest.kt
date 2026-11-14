@@ -35,7 +35,10 @@ internal class SetDashboardBusinessImplTest {
         val businessId = Uuid.random()
         with(fixture) {
             transactionManager.mockTransaction()
-            coEvery { businessPermissionDataSource.getPermission(userId, businessId, BusinessResource.BUSINESS) } returns ResourcePermission(view = true, update = false, delete = false)
+            coEvery {
+                businessPermissionDataSource.getPermission(userId, businessId, BusinessResource.BUSINESS)
+            } returns
+                ResourcePermission(view = true, update = false, delete = false)
             coEvery { businessDataSource.setDashboardBusiness(userId, businessId) } returns Unit
         }
 
@@ -55,7 +58,10 @@ internal class SetDashboardBusinessImplTest {
         val businessId = Uuid.random()
         with(fixture) {
             transactionManager.mockTransaction()
-            coEvery { businessPermissionDataSource.getPermission(userId, businessId, BusinessResource.BUSINESS) } returns ResourcePermission.NONE
+            coEvery {
+                businessPermissionDataSource.getPermission(userId, businessId, BusinessResource.BUSINESS)
+            } returns
+                ResourcePermission.NONE
         }
 
         whenn()

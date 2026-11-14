@@ -1,0 +1,10 @@
+DROP TABLE IF EXISTS contact_form;
+CREATE DATABASE IF NOT EXISTS `user_short_retention`;
+CREATE TABLE IF NOT EXISTS `user_short_retention`.subject_key (subject_id BINARY(16) NOT NULL PRIMARY KEY, wrapped_key VARBINARY(60) NULL, master_key_version INT NULL, created_at TIMESTAMP(6) NOT NULL, shredded_at TIMESTAMP(6) NULL);
+ALTER TABLE data_export ADD COLUMN IF NOT EXISTS key_id BINARY(16) NULL;
+DELETE FROM data_export WHERE document IS NOT NULL AND key_id IS NULL;
+ALTER TABLE outbox_event ADD COLUMN IF NOT EXISTS personal_data_encrypted BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE exhausted_event ADD COLUMN IF NOT EXISTS personal_data_encrypted BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE profile MODIFY COLUMN IF EXISTS `name` VARCHAR(255) NULL, MODIFY COLUMN IF EXISTS last_name VARCHAR(255) NULL, MODIFY COLUMN IF EXISTS email VARCHAR(320) NULL, ADD COLUMN IF NOT EXISTS name_encrypted VARBINARY(1100) NULL, ADD COLUMN IF NOT EXISTS last_name_encrypted VARBINARY(1100) NULL, ADD COLUMN IF NOT EXISTS email_encrypted VARBINARY(1320) NULL, ADD COLUMN IF NOT EXISTS phone_encrypted VARBINARY(2080) NULL, ADD COLUMN IF NOT EXISTS email_index CHAR(44) NULL, ADD COLUMN IF NOT EXISTS phone_index CHAR(44) NULL, ADD CONSTRAINT profile_email_index_unique UNIQUE IF NOT EXISTS (email_index), ADD CONSTRAINT profile_phone_index_unique UNIQUE IF NOT EXISTS (phone_index);
+CREATE TABLE IF NOT EXISTS shredded_subject (subject_id BINARY(16) NOT NULL PRIMARY KEY, shredded_at TIMESTAMP(6) NOT NULL);
+INSERT IGNORE INTO shredded_subject (subject_id, shredded_at) SELECT subject_id, shredded_at FROM `user_short_retention`.subject_key WHERE shredded_at IS NOT NULL;

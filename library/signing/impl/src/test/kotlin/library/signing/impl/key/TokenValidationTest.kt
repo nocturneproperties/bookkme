@@ -122,7 +122,9 @@ internal class TokenValidationTest {
         val fixture = SutFixture()
 
         whenn()
-        val accepted = fixture.actionConfirmation.accepts(fixture.token(TokenAudience.actionConfirmation, expiresIn = (-1).minutes))
+        val accepted = fixture.actionConfirmation.accepts(
+            fixture.token(TokenAudience.actionConfirmation, expiresIn = (-1).minutes),
+        )
 
         then()
         assertFalse(accepted)

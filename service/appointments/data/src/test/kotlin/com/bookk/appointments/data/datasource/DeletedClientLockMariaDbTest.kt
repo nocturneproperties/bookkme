@@ -95,7 +95,7 @@ internal class DeletedClientLockMariaDbTest {
     }
 
     @Test
-    fun `should make a client deletion wait for a link or booking that found the client not deleted`() = runIntegrationTest {
+    fun `should make a client deletion wait for a link or booking that found the client alive`() = runIntegrationTest {
         given()
         val fixture = SutFixture()
         val businessId = Uuid.random()

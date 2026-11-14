@@ -11,7 +11,7 @@ secrets:
 
 configs:
   backup_script:
-    name: backup-script-v2
+    name: backup-script-v3
     file: ./backup.sh
   backup_public_key:
     name: backup-public-key-v1

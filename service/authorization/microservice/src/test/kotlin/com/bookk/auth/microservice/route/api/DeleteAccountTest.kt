@@ -38,7 +38,11 @@ internal class DeleteAccountTest {
         setupApplication(
             extension = {
                 install(Authentication) {
-                    provider { authenticate { context -> context.principal(AppPrincipal(Uuid.random(), userId, Uuid.random())) } }
+                    provider {
+                        authenticate { context ->
+                            context.principal(AppPrincipal(Uuid.random(), userId, Uuid.random()))
+                        }
+                    }
                 }
             },
             diModule = module { single { useCase } },
@@ -54,7 +58,9 @@ internal class DeleteAccountTest {
         val useCase = setupDeletion(userId, Result.success(Unit))
 
         whenn()
-        val response = createTestClient().delete(AuthRouting.Api.Auth.Account()) { setBody(DeleteAccountRequest("action-confirmation-token")) }
+        val response = createTestClient().delete(AuthRouting.Api.Auth.Account()) {
+            setBody(DeleteAccountRequest("action-confirmation-token"))
+        }
 
         then()
         assertEquals(HttpStatusCode.NoContent, response.status)
@@ -68,7 +74,9 @@ internal class DeleteAccountTest {
         setupDeletion(userId, Result.failure(DeleteAccount.Error.ActionConfirmationInvalid()))
 
         whenn()
-        val response = createTestClient().delete(AuthRouting.Api.Auth.Account()) { setBody(DeleteAccountRequest("invalid")) }
+        val response = createTestClient().delete(AuthRouting.Api.Auth.Account()) {
+            setBody(DeleteAccountRequest("invalid"))
+        }
 
         then()
         assertEquals(HttpStatusCode.Forbidden, response.status)
@@ -82,7 +90,9 @@ internal class DeleteAccountTest {
         setupDeletion(userId, Result.failure(DeleteAccount.Error.InvalidCredentials()))
 
         whenn()
-        val response = createTestClient().delete(AuthRouting.Api.Auth.Account()) { setBody(DeleteAccountRequest("action-confirmation-token")) }
+        val response = createTestClient().delete(AuthRouting.Api.Auth.Account()) {
+            setBody(DeleteAccountRequest("action-confirmation-token"))
+        }
 
         then()
         assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
@@ -124,7 +134,8 @@ internal class DeleteAccountTest {
         given()
         val userId = Uuid.random()
         val useCase = setupDeletion(userId, Result.failure(DeleteAccount.Error.ActionConfirmationInvalid()))
-        val oldBody = byteArrayOf(10, 10) + "request-id".encodeToByteArray() + byteArrayOf(18, 2) + "{}".encodeToByteArray()
+        val oldBody =
+            byteArrayOf(10, 10) + "request-id".encodeToByteArray() + byteArrayOf(18, 2) + "{}".encodeToByteArray()
 
         whenn()
         val response = createTestClient().delete(AuthRouting.Api.Auth.Account()) {
@@ -149,7 +160,9 @@ internal class DeleteAccountTest {
         )
 
         whenn()
-        val response = createTestClient().delete(AuthRouting.Api.Auth.Account()) { setBody(DeleteAccountRequest("action-confirmation-token")) }
+        val response = createTestClient().delete(AuthRouting.Api.Auth.Account()) {
+            setBody(DeleteAccountRequest("action-confirmation-token"))
+        }
 
         then()
         assertEquals(HttpStatusCode.Unauthorized, response.status)

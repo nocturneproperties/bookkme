@@ -99,3 +99,8 @@ monolith_env:
   APPLICATION_BUSINESS_SERVICE_HOSTNAME: monolith.service
   APPLICATION_APPOINTMENTS_SERVICE_HOSTNAME: monolith.service
   APPLICATION_NOTIFICATIONS_SERVICE_HOSTNAME: monolith.service
+  APPLICATION_POSTMARK_SERVER_TOKEN: "{{ vault_postmark_server_token }}"
+  APPLICATION_EMAIL_FROM: "notifications@{{ vault_stack_env.EMAIL_DOMAIN_NAME }}"
+  APPLICATION_EMAIL_CODE_SECRET: "{{ vault_email_code_secret }}"
+  APPLICATION_SUBJECT_MASTER_KEY: "{{ vault_subject_master_key }}"
+  APPLICATION_BLIND_INDEX_KEY: "{{ vault_blind_index_key }}"

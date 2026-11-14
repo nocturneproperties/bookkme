@@ -24,7 +24,9 @@ internal fun <T> retryWhileDatabaseUnreachable(
     }
 }
 
-private fun connectRetryDelays(): Sequence<Duration> = generateSequence(FIRST_CONNECT_RETRY_DELAY) { minOf(it * 2, LONGEST_CONNECT_RETRY_DELAY) }
+private fun connectRetryDelays(): Sequence<Duration> = generateSequence(FIRST_CONNECT_RETRY_DELAY) {
+    minOf(it * 2, LONGEST_CONNECT_RETRY_DELAY)
+}
     .take(CONNECT_RETRIES)
 
 private fun Throwable.isDatabaseUnreachable(): Boolean = causes().any { cause ->
@@ -33,7 +35,12 @@ private fun Throwable.isDatabaseUnreachable(): Boolean = causes().any { cause ->
 
 private fun Throwable.rootCause(): Throwable = causes().last()
 
-private fun Throwable.causes(): Sequence<Throwable> = generateSequence(this) { current -> current.cause?.takeIf { it !== current } }
+private fun Throwable.causes(): Sequence<Throwable> = generateSequence(this) { current ->
+    current.cause?.takeIf {
+        it !==
+            current
+    }
+}
 
 private val logger = LoggerFactory.getLogger("com.bookk.core.data.database.Migration")
 

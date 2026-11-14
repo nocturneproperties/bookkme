@@ -41,7 +41,12 @@ internal class CacheIdempotentResponseRepositoryTest {
     ) : CacheClient<String> by delegate {
         private var firstAttempt = true
 
-        override suspend fun <V : Any> setIfAbsent(key: String, value: V, kType: KType, expiration: Duration?): Boolean {
+        override suspend fun <V : Any> setIfAbsent(
+            key: String,
+            value: V,
+            kType: KType,
+            expiration: Duration?,
+        ): Boolean {
             if (firstAttempt) {
                 firstAttempt = false
                 return false

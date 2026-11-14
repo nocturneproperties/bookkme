@@ -5,6 +5,7 @@ import com.bookk.core.service.test.startScopedApplication
 import com.bookk.core.test.given
 import com.bookk.core.test.then
 import com.bookk.core.test.whenn
+import com.bookk.user.domain.api.operation.EncryptPlaintextProfiles
 import com.bookk.user.domain.impl.di.UserScope
 import io.ktor.server.testing.ApplicationTestBuilder
 import io.mockk.coEvery
@@ -26,12 +27,14 @@ internal class UserJobsTest {
     private class SutFixture {
         val buildDataExports = mockk<BuildDataExports>()
         val deleteExpiredDataExports = mockk<DeleteExpiredDataExports>()
+        val encryptPlaintextProfiles = mockk<EncryptPlaintextProfiles>()
         val scheduler = SchedulerConfiguration()
 
         suspend fun registerJobs(builder: ApplicationTestBuilder) {
             val application = builder.startScopedApplication(UserScope) {
                 scoped { buildDataExports }
                 scoped { deleteExpiredDataExports }
+                scoped { encryptPlaintextProfiles }
             }
             application.registerUserJobs(scheduler)
         }
@@ -50,6 +53,7 @@ internal class UserJobsTest {
             mapOf(
                 "user-buildDataExports" to 1.minutes,
                 "user-deleteExpiredDataExports" to 1.hours,
+                "user-encryptPlaintextProfiles" to 10.minutes,
             ),
             fixture.scheduler.registeredJobs(),
         )
@@ -108,6 +112,35 @@ internal class UserJobsTest {
 
         whenn()
         val result = runCatching { fixture.scheduler.runJob("user-deleteExpiredDataExports") }
+
+        then()
+        assertSame(error, result.exceptionOrNull())
+    }
+
+    @Test
+    fun `should encrypt the profiles still stored as plaintext`() = routeTest {
+        given()
+        val fixture = SutFixture()
+        coEvery { fixture.encryptPlaintextProfiles.invoke() } returns Result.success(Unit)
+        fixture.registerJobs(this)
+
+        whenn()
+        fixture.scheduler.runJob("user-encryptPlaintextProfiles")
+
+        then()
+        coVerify(exactly = 1) { fixture.encryptPlaintextProfiles.invoke() }
+    }
+
+    @Test
+    fun `should surface a failed profile encryption`() = routeTest {
+        given()
+        val fixture = SutFixture()
+        val error = IllegalStateException("The stored user has a shredded key")
+        coEvery { fixture.encryptPlaintextProfiles.invoke() } returns Result.failure(error)
+        fixture.registerJobs(this)
+
+        whenn()
+        val result = runCatching { fixture.scheduler.runJob("user-encryptPlaintextProfiles") }
 
         then()
         assertSame(error, result.exceptionOrNull())

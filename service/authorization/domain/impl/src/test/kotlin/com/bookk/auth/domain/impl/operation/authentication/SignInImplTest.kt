@@ -76,7 +76,8 @@ internal class SignInImplTest {
             transactionManager.mockTransaction()
             coEvery { finishAssertion(request) } returns Result.success(credential)
             coEvery { deviceDataSource.insertDevice(authId, deviceId, any(), Language.EN) } returns null
-            coEvery { generateAuthToken(any<GenerateAuthToken.Source.InitialAuthentication>()) } returns Result.success(tokens)
+            coEvery { generateAuthToken(any<GenerateAuthToken.Source.InitialAuthentication>()) } returns
+                Result.success(tokens)
         }
 
         whenn()
@@ -102,7 +103,8 @@ internal class SignInImplTest {
             transactionManager.mockTransaction()
             coEvery { finishAssertion(request) } returns Result.success(credential)
             coEvery { deviceDataSource.insertDevice(authId, deviceId, any(), Language.EN) } returns Uuid.random()
-            coEvery { generateAuthToken(any<GenerateAuthToken.Source.InitialAuthentication>()) } returns Result.success(tokens)
+            coEvery { generateAuthToken(any<GenerateAuthToken.Source.InitialAuthentication>()) } returns
+                Result.success(tokens)
         }
 
         whenn()
@@ -128,7 +130,8 @@ internal class SignInImplTest {
             transactionManager.mockTransaction()
             coEvery { finishAssertion(request) } returns Result.success(credential)
             coEvery { deviceDataSource.insertDevice(authId, deviceId, any(), Language.UK) } returns null
-            coEvery { generateAuthToken(any<GenerateAuthToken.Source.InitialAuthentication>()) } returns Result.success(tokens)
+            coEvery { generateAuthToken(any<GenerateAuthToken.Source.InitialAuthentication>()) } returns
+                Result.success(tokens)
         }
 
         whenn()
@@ -137,7 +140,16 @@ internal class SignInImplTest {
         then()
         assertTrue(result.isSuccess)
         coVerify(exactly = 1) { fixture.deviceDataSource.updateLanguage(authId, deviceId, Language.UK) }
-        coVerify(exactly = 1) { fixture.producer.send(match<AuthEvent.DeviceLanguageUpdated> { it.authId == authId && it.deviceUuid == deviceId && it.language == Language.UK }, any()) }
+        coVerify(exactly = 1) {
+            fixture.producer.send(
+                match<AuthEvent.DeviceLanguageUpdated> {
+                    it.authId == authId &&
+                        it.deviceUuid == deviceId &&
+                        it.language == Language.UK
+                },
+                any(),
+            )
+        }
         coVerify(exactly = 0) { fixture.producer.send(any<AuthEvent.DeviceCreated>(), any()) }
     }
 

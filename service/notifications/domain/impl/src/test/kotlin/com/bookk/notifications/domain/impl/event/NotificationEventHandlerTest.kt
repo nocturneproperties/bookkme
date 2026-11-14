@@ -113,46 +113,11 @@ internal class NotificationEventHandlerTest {
     private val to = Instant.fromEpochMilliseconds(1_700_003_600_000)
 
     @Test
-    fun `should notify nobody when an approved request's client has no account`() = runUnitTest {
-        given()
-        val fixture = SutFixture()
-        val event = AppointmentEvent.RequestApproved(
-            clientUserId = null, clientName = "Client", employeeUserId = Uuid.random(), employeeName = "Employee",
-            from = from, to = to, timeZone = TimeZone.UTC, businessName = "Salon", address = "1 Main St", price = "10 USD",
-        )
-        fixture.start(this)
-
-        whenn()
-        fixture.dispatch(AppointmentEvent.RequestApproved.TOPIC, event)
-
-        then()
-        coVerify(exactly = 0) { fixture.sendNotification.invoke(any(), any()) }
-    }
-
-    @Test
-    fun `should notify nobody when a rejected request's client has no account`() = runUnitTest {
-        given()
-        val fixture = SutFixture()
-        val event = AppointmentEvent.RequestRejected(
-            clientUserId = null, clientName = "Client", employeeUserId = Uuid.random(), employeeName = "Employee",
-            from = from, to = to, timeZone = TimeZone.UTC, address = "1 Main St", businessName = "Salon",
-            price = "10 USD", declineReason = "busy",
-        )
-        fixture.start(this)
-
-        whenn()
-        fixture.dispatch(AppointmentEvent.RequestRejected.TOPIC, event)
-
-        then()
-        coVerify(exactly = 0) { fixture.sendNotification.invoke(any(), any()) }
-    }
-
-    @Test
     fun `should notify nobody when a cancelled appointment's client has no account`() = runUnitTest {
         given()
         val fixture = SutFixture()
         val event = AppointmentEvent.Cancelled(
-            clientUserId = null, clientName = "Client", employeeUserId = Uuid.random(), employeeName = "Employee",
+            clientUserId = null, employeeUserId = Uuid.random(),
             from = from, to = to, timeZone = TimeZone.UTC, address = "1 Main St", businessName = "Salon",
             price = "10 USD", reason = "changed plans",
         )
@@ -169,7 +134,11 @@ internal class NotificationEventHandlerTest {
     fun `should warn the user whose account is about to be deleted for inactivity`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        val event = AuthEvent.AccountDormancyWarning(userId = Uuid.random(), deletesAt = Instant.parse("2029-03-05T14:30:00Z"), final = false)
+        val event = AuthEvent.AccountDormancyWarning(
+            userId = Uuid.random(),
+            deletesAt = Instant.parse("2029-03-05T14:30:00Z"),
+            final = false,
+        )
         val params = slot<NotificationParameters>()
         coEvery { fixture.sendNotification.invoke(any(), capture(params)) } returns Result.success(Unit)
         fixture.start(this)
@@ -203,7 +172,11 @@ internal class NotificationEventHandlerTest {
     fun `should tell the owner their business data export is ready`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        val event = BusinessEvent.ExportReady(businessId = Uuid.random(), ownerUserId = Uuid.random(), expiresAt = Instant.parse("2026-11-06T14:30:00Z"))
+        val event = BusinessEvent.ExportReady(
+            businessId = Uuid.random(),
+            ownerUserId = Uuid.random(),
+            expiresAt = Instant.parse("2026-11-06T14:30:00Z"),
+        )
         val params = slot<NotificationParameters>()
         coEvery { fixture.sendNotification.invoke(any(), capture(params)) } returns Result.success(Unit)
         fixture.start(this)
@@ -227,7 +200,10 @@ internal class NotificationEventHandlerTest {
         fixture.start(this)
 
         whenn()
-        fixture.dispatch(AuthEvent.DeviceLanguageUpdated.TOPIC, AuthEvent.DeviceLanguageUpdated(deviceUuid, Language.UK, authId = authId))
+        fixture.dispatch(
+            AuthEvent.DeviceLanguageUpdated.TOPIC,
+            AuthEvent.DeviceLanguageUpdated(deviceUuid, Language.UK, authId = authId),
+        )
         fixture.dispatch(AuthEvent.DeviceDeleted.TOPIC, AuthEvent.DeviceDeleted(deviceUuid, authId = authId))
 
         then()
@@ -244,7 +220,10 @@ internal class NotificationEventHandlerTest {
 
         whenn()
         val update = runSuspendCatching {
-            fixture.dispatch(AuthEvent.DeviceLanguageUpdated.TOPIC, AuthEvent.DeviceLanguageUpdated(deviceUuid, Language.UK))
+            fixture.dispatch(
+                AuthEvent.DeviceLanguageUpdated.TOPIC,
+                AuthEvent.DeviceLanguageUpdated(deviceUuid, Language.UK),
+            )
         }
         val deletion = runSuspendCatching {
             fixture.dispatch(AuthEvent.DeviceDeleted.TOPIC, AuthEvent.DeviceDeleted(deviceUuid))

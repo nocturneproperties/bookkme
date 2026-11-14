@@ -4,17 +4,32 @@ import kotlin.uuid.Uuid
 
 data class ExhaustedEvent(
     val id: Uuid,
-    val event: DltEvent,
+    val originalTopic: String,
+    val payload: ParkedPayload,
 ) {
     companion object {
         fun stub(
             id: Uuid = Uuid.random(),
             originalTopic: String = "topic",
-            payload: ByteArray = byteArrayOf(),
-            attempt: Int = DltRetry.DEFAULT_MAX_ATTEMPTS,
-        ) = ExhaustedEvent(
-            id = id,
-            event = DltEvent(payload = payload, originalTopic = originalTopic, attempt = attempt, topic = originalTopic),
-        )
+            payload: ParkedPayload = ParkedPayload.Readable(byteArrayOf()),
+        ): ExhaustedEvent {
+            return ExhaustedEvent(id = id, originalTopic = originalTopic, payload = payload)
+        }
     }
+}
+
+sealed interface ParkedPayload {
+    class Readable(val bytes: ByteArray) : ParkedPayload {
+        override fun equals(other: Any?): Boolean {
+            return other is Readable && bytes.contentEquals(other.bytes)
+        }
+
+        override fun hashCode(): Int {
+            return bytes.contentHashCode()
+        }
+    }
+
+    data object SubjectErased : ParkedPayload
+
+    data class Unreadable(val reason: String) : ParkedPayload
 }

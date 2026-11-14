@@ -7,8 +7,10 @@ import com.bookk.appointments.data.datasource.AppointmentSettingsDataSourceImpl
 import com.bookk.appointments.data.datasource.AppointmentSubscriptionDataSourceImpl
 import com.bookk.appointments.data.datasource.DeletedClientDataSourceImpl
 import com.bookk.appointments.data.datasource.DeletedUserDataSourceImpl
+import com.bookk.appointments.data.datasource.SnapshotCipher
 import com.bookk.appointments.data.datasource.UserDataExportDataSourceImpl
 import com.bookk.appointments.domain.api.APPOINTMENTS_SCHEMA
+import com.bookk.appointments.domain.api.APPOINTMENTS_SHORT_RETENTION_SCHEMA
 import com.bookk.appointments.domain.datasource.AppointmentDataSource
 import com.bookk.appointments.domain.datasource.AppointmentPermissionDataSource
 import com.bookk.appointments.domain.datasource.AppointmentRequestDataSource
@@ -19,16 +21,21 @@ import com.bookk.appointments.domain.datasource.DeletedUserDataSource
 import com.bookk.appointments.domain.datasource.UserDataExportDataSource
 import com.bookk.core.data.ExposedTransactionManager
 import com.bookk.core.data.database.createDatabase
-import com.bookk.core.data.eventstreaming.ExhaustedEventDataSource
-import com.bookk.core.data.eventstreaming.data.datasource.ExhaustedEventDataSourceImpl
 import com.bookk.core.domain.datasource.transaction.TransactionManager
+import library.encryption.impl.di.subjectKeys
+import library.outbox.di.exhaustedEventDataSource
+import library.outbox.di.personalDataCipher
 import org.koin.core.module.dsl.scopedOf
 import org.koin.core.qualifier.named
 import org.koin.dsl.bind
 import org.koin.dsl.module
 
-fun appointmentsDataModule() = module {
+fun appointmentsDataModule(environment: (String) -> String? = System::getenv) = module {
     scope(named(APPOINTMENTS_SCHEMA)) {
+        subjectKeys(APPOINTMENTS_SHORT_RETENTION_SCHEMA, environment)
+        personalDataCipher()
+        exhaustedEventDataSource()
+        scopedOf(::SnapshotCipher)
         scopedOf(::AppointmentDataSourceImpl) bind AppointmentDataSource::class
         scopedOf(::UserDataExportDataSourceImpl) bind UserDataExportDataSource::class
         scopedOf(::AppointmentRequestDataSourceImpl) bind AppointmentRequestDataSource::class
@@ -37,7 +44,6 @@ fun appointmentsDataModule() = module {
         scopedOf(::AppointmentPermissionDataSourceImpl) bind AppointmentPermissionDataSource::class
         scopedOf(::DeletedUserDataSourceImpl) bind DeletedUserDataSource::class
         scopedOf(::DeletedClientDataSourceImpl) bind DeletedClientDataSource::class
-        scopedOf(::ExhaustedEventDataSourceImpl) bind ExhaustedEventDataSource::class
         scoped { createDatabase(schemaName = APPOINTMENTS_SCHEMA) }
         scoped<TransactionManager> { ExposedTransactionManager(get()) }
     }

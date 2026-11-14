@@ -14,8 +14,8 @@ PROD_DIR = DEPLOYMENT_DIR / "prod"
 INVENTORY = DEPLOYMENT_DIR / "ansible/inventory/prod.yml"
 RETIRED_STACK_ENV = ["RUNNER_ACCESS_TOKEN", "MOBILE_RUNNER_ACCESS_TOKEN", "RUNNER_APP_ID", "RUNNER_APP_PRIVATE_KEY", "VPN_SUBNET"]
 RETIRED_STACK_ENV_PREFIXES = ["KAFKA_"]
-REQUIRED_KEYS = ["vault_vpn_password"]
-REQUIRED_STACK_ENV = ["CLOUDFLARE_DNS_API_TOKEN"]
+REQUIRED_KEYS = ["vault_vpn_password", "vault_postmark_server_token"]
+REQUIRED_STACK_ENV = ["CLOUDFLARE_DNS_API_TOKEN", "EMAIL_DOMAIN_NAME"]
 RETIRED_KEYS = ["vault_service_env"]
 RETIRED_SWARM_SECRETS = ["jwt_master_key", "jwt_quote_key"]
 PROMETHEUS_USER = "admin"
@@ -31,6 +31,9 @@ def generated_secrets():
         "vault_monolith_db_backup_password": secrets.token_urlsafe(32),
         "vault_monolith_redis_password": secrets.token_urlsafe(32),
         "vault_dozzle_session_secret": base64.b64encode(secrets.token_bytes(32)).decode(),
+        "vault_email_code_secret": secrets.token_urlsafe(48),
+        "vault_subject_master_key": base64.b64encode(secrets.token_bytes(32)).decode(),
+        "vault_blind_index_key": base64.b64encode(secrets.token_bytes(32)).decode(),
         "vault_swarm_secrets": {
             "mariadb_encryption_key": f"1;{secrets.token_hex(32)}\n",
             "signing_key_encryption_key": base64.b64encode(secrets.token_bytes(32)).decode(),

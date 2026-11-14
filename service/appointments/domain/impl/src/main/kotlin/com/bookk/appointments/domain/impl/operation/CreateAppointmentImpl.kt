@@ -46,17 +46,23 @@ internal class CreateAppointmentImpl(
         createAppointment(request, settings)
     }
 
-    override suspend fun createBypassingPermissions(request: AppointmentRequest): Result<Appointment> = transactionManager.transaction {
+    override suspend fun createBypassingPermissions(
+        request: AppointmentRequest,
+    ): Result<Appointment> = transactionManager.transaction {
         createAppointment(request, lockSettings(request.businessId))
     }
 
-    private suspend fun lockSettings(businessId: Uuid): AppointmentSettings = settingsDataSource.getForUpdate(businessId) ?: throw Error.NotFound()
+    private suspend fun lockSettings(businessId: Uuid): AppointmentSettings {
+        return settingsDataSource.getForUpdate(businessId) ?: throw Error.NotFound()
+    }
 
     private suspend fun createAppointment(request: AppointmentRequest, settings: AppointmentSettings): Appointment {
         verifyAppointment(request, settings)
         return appointmentDataSource.create(request).also {
             requestDataSource.approve(request)
-            eventProducer.send(AppointmentEvent.ClientVisitBooked(request.businessId, request.client.id, request.dateEnd))
+            eventProducer.send(
+                AppointmentEvent.ClientVisitBooked(request.businessId, request.client.id, request.dateEnd),
+            )
             sendRequestApprovedNotification(request)
         }
     }
@@ -64,8 +70,12 @@ internal class CreateAppointmentImpl(
     private suspend fun verifyAppointment(appointment: AppointmentRepresentation, settings: AppointmentSettings) {
         if (appointment.date < Clock.System.now()) throw CreateAppointment.Error.DateInThePastNotAllowed()
         if (!settings.isInWorkday(appointment.date)) throw CreateAppointment.Error.RequestForThisDateNotAllowed()
-        if (!settings.isInWorktime(appointment.date, appointment.dateEnd)) throw CreateAppointment.Error.RequestForThisTimeNotAllowed()
-        if (appointmentDataSource.hasOverlapsWith(appointment)) throw CreateAppointment.Error.AppointmentForThisTimeExists()
+        if (!settings.isInWorktime(appointment.date, appointment.dateEnd)) {
+            throw CreateAppointment.Error.RequestForThisTimeNotAllowed()
+        }
+        if (appointmentDataSource.hasOverlapsWith(appointment)) {
+            throw CreateAppointment.Error.AppointmentForThisTimeExists()
+        }
     }
 
     private suspend fun sendRequestApprovedNotification(request: AppointmentRequest) {
@@ -76,9 +86,7 @@ internal class CreateAppointmentImpl(
         eventProducer.send(
             AppointmentEvent.RequestApproved(
                 clientUserId = request.client.userId,
-                clientName = request.client.fullName,
                 employeeUserId = request.employee.userId,
-                employeeName = request.employee.fullName,
                 from = request.date,
                 to = request.dateEnd,
                 timeZone = business.timeZone,

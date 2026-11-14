@@ -40,7 +40,11 @@ internal class GetAttachPasskeyToAccountChallengeImplTest {
         )
     }
 
-    private fun makeAuthentication(authId: Uuid = Uuid.random()): Authentication = Authentication(id = authId, userId = Uuid.random(), uuid = Uuid.random())
+    private fun makeAuthentication(authId: Uuid = Uuid.random()): Authentication = Authentication(
+        id = authId,
+        userId = Uuid.random(),
+        uuid = Uuid.random(),
+    )
 
     private fun makeDevice(deviceId: Uuid = Uuid.random()): Device = Device(
         authRecord = makeAuthentication(),
@@ -113,7 +117,9 @@ internal class GetAttachPasskeyToAccountChallengeImplTest {
 
         then()
         assertTrue(result.isFailure)
-        assertTrue(result.exceptionOrNull() is GetAttachPasskeyToAccountChallenge.Error.UnableToGeneratePasskeyChallenge)
+        assertTrue(
+            result.exceptionOrNull() is GetAttachPasskeyToAccountChallenge.Error.UnableToGeneratePasskeyChallenge,
+        )
     }
 
     @Test
@@ -135,7 +141,9 @@ internal class GetAttachPasskeyToAccountChallengeImplTest {
 
         then()
         assertTrue(result.isFailure)
-        assertTrue(result.exceptionOrNull() is GetAttachPasskeyToAccountChallenge.Error.UnableToGeneratePasskeyChallenge)
+        assertTrue(
+            result.exceptionOrNull() is GetAttachPasskeyToAccountChallenge.Error.UnableToGeneratePasskeyChallenge,
+        )
     }
 
     @Test
@@ -151,7 +159,8 @@ internal class GetAttachPasskeyToAccountChallengeImplTest {
             transactionManager.mockTransaction()
             coEvery { accountDataSource.getAuthRecordById(authId) } returns auth
             coEvery { deviceDataSource.getDeviceById(deviceId) } returns device
-            coEvery { userClient.getUserById(userId) } returns Result.failure(RuntimeException("user service unavailable"))
+            coEvery { userClient.getUserById(userId) } returns
+                Result.failure(RuntimeException("user service unavailable"))
         }
 
         whenn()
@@ -159,6 +168,8 @@ internal class GetAttachPasskeyToAccountChallengeImplTest {
 
         then()
         assertTrue(result.isFailure)
-        assertTrue(result.exceptionOrNull() is GetAttachPasskeyToAccountChallenge.Error.UnableToGeneratePasskeyChallenge)
+        assertTrue(
+            result.exceptionOrNull() is GetAttachPasskeyToAccountChallenge.Error.UnableToGeneratePasskeyChallenge,
+        )
     }
 }

@@ -30,7 +30,8 @@ internal class UpdateDeviceLanguageTest {
         val deviceUuid = Uuid.random()
         val authId = Uuid.random()
         with(fixture) {
-            coEvery { deviceDataSource.updateLanguage(authId, deviceUuid, Language.UK) } returns Device.stub(deviceId = deviceUuid, language = Language.UK)
+            coEvery { deviceDataSource.updateLanguage(authId, deviceUuid, Language.UK) } returns
+                Device.stub(deviceId = deviceUuid, language = Language.UK)
         }
 
         whenn()
@@ -69,7 +70,8 @@ internal class UpdateDeviceLanguageTest {
         val deviceUuid = Uuid.random()
         val authId = Uuid.random()
         with(fixture) {
-            coEvery { deviceDataSource.updateLanguage(authId, deviceUuid, Language.EN) } throws RuntimeException("db error")
+            coEvery { deviceDataSource.updateLanguage(authId, deviceUuid, Language.EN) } throws
+                RuntimeException("db error")
         }
 
         whenn()

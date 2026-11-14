@@ -25,7 +25,7 @@ fun Routing.appointmentInit() {
          * Tag: appointment
          * Security: jwt
          * Response: 204 application/x-protobuf Created appointment entity
-         * Response: 404 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Business is unknown to the business service
+         * Response: 404 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Business is unknown to the business service, the caller lacks full control, or the owner deleted their account
          * Response: 422 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Appointment errors<br>PLUGIN_ALREADY_ENABLED (300009) Appointment plugin already enabled
          * Response: 403 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Caller is a suspended employee of this business<br>BUSINESS_EMPLOYEE_ACCESS_SUSPENDED (200034) Your access to this business is suspended
          * See: docs/operations/appointments/enable-appointments-for-business.md
@@ -75,9 +75,9 @@ fun Routing.appointmentInit() {
          */
         get<Api.Appointment.EnabledForClientBusinesses> {
             val principal = requireNotNull(call.principal<AppPrincipal>())
-            val getClientBusinessesAppointmentsStatus by application.injectScoped<GetClientBusinessesAppointmentsStatus>(AppointmentsScope)
+            val getStatus by application.injectScoped<GetClientBusinessesAppointmentsStatus>(AppointmentsScope)
 
-            call.respondWith(getClientBusinessesAppointmentsStatus(userId = principal.userId))
+            call.respondWith(getStatus(userId = principal.userId))
         }
     }
 }

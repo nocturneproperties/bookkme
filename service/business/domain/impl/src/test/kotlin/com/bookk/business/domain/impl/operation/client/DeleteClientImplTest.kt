@@ -22,6 +22,8 @@ import io.mockk.coVerifyOrder
 import io.mockk.mockk
 import library.actionconfirmation.ActionConfirmationGrant
 import library.actionconfirmation.test.ActionConfirmationTestTokens
+import library.encryption.test.ShredRecordingSubjectKeys
+import library.export.DataExports
 import library.permissions.ResourcePermission
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -34,7 +36,9 @@ internal class DeleteClientImplTest {
     private class SutFixture(val businessId: Uuid = Uuid.random(), val requestUserId: Uuid = Uuid.random()) {
         val clientDataSource = mockk<ClientDataSource>()
         val erasedClientDataSource = mockk<ErasedClientDataSource>()
+        val dataExports = mockk<DataExports>()
         val recordedInTransaction = mutableListOf<Boolean>()
+        val discardedInTransaction = mutableListOf<Boolean>()
         val businessPermissionDataSource = mockk<BusinessPermissionDataSource>()
         val businessDataSource = mockk<BusinessDataSource>()
         val eventProducer = mockk<StandardEventProducer>()
@@ -43,6 +47,7 @@ internal class DeleteClientImplTest {
         val sentInTransaction = mutableListOf<Boolean>()
         val confirmationTokens = ActionConfirmationTestTokens()
         val tokenSpentWhenLocking = mutableListOf<Boolean>()
+        val subjectKeys = ShredRecordingSubjectKeys(transactionManager::isInTransaction)
         val sut = DeleteClientImpl(
             transactionManager,
             clientDataSource,
@@ -51,6 +56,8 @@ internal class DeleteClientImplTest {
             eventProducer,
             confirmationTokens.gate,
             erasedClientDataSource,
+            dataExports,
+            subjectKeys,
         )
 
         init {
@@ -61,6 +68,9 @@ internal class DeleteClientImplTest {
             coEvery { erasedClientDataSource.record(businessId, any()) } coAnswers {
                 recordedInTransaction += transactionManager.isInTransaction()
             }
+            coEvery { dataExports.discard(businessId) } coAnswers {
+                discardedInTransaction += transactionManager.isInTransaction()
+            }
             coEvery { eventProducer.send(any<BusinessEvent.ClientDeleted>(), any()) } coAnswers {
                 sentEvents += firstArg<BusinessEvent.ClientDeleted>()
                 sentInTransaction += transactionManager.isInTransaction()
@@ -68,7 +78,10 @@ internal class DeleteClientImplTest {
         }
 
         fun grantPermission(permission: ResourcePermission) {
-            coEvery { businessPermissionDataSource.getPermission(requestUserId, businessId, BusinessResource.CLIENTS) } returns permission
+            coEvery {
+                businessPermissionDataSource.getPermission(requestUserId, businessId, BusinessResource.CLIENTS)
+            } returns
+                permission
         }
 
         fun stored(client: Client?, id: Uuid = client?.id ?: Uuid.random()): Uuid {
@@ -79,7 +92,10 @@ internal class DeleteClientImplTest {
             return id
         }
 
-        fun tokenFor(clientId: Uuid): String = confirmationTokens.tokenFor(ActionConfirmationGrant.clientDeletion(requestUserId, businessId, clientId), tokenId = TOKEN_ID)
+        fun tokenFor(clientId: Uuid): String = confirmationTokens.tokenFor(
+            ActionConfirmationGrant.clientDeletion(requestUserId, businessId, clientId),
+            tokenId = TOKEN_ID,
+        )
 
         fun makeOwner() {
             coEvery { businessDataSource.isOwner(requestUserId, businessId) } returns true
@@ -98,7 +114,12 @@ internal class DeleteClientImplTest {
         then()
         assertTrue(result.isSuccess)
         coVerify(exactly = 1) { fixture.clientDataSource.deleteClient(fixture.businessId, id) }
-        assertEquals(listOf(BusinessEvent.ClientDeleted(fixture.businessId, id, idempotencyKey = "")), fixture.sentEvents.map { it.copy(idempotencyKey = "") })
+        assertEquals(
+            listOf(BusinessEvent.ClientDeleted(fixture.businessId, id, idempotencyKey = "")),
+            fixture.sentEvents.map {
+                it.copy(idempotencyKey = "")
+            },
+        )
         assertEquals(listOf(true), fixture.sentInTransaction)
     }
 
@@ -114,6 +135,59 @@ internal class DeleteClientImplTest {
         then()
         coVerify(exactly = 1) { fixture.erasedClientDataSource.record(fixture.businessId, id) }
         assertEquals(listOf(true), fixture.recordedInTransaction)
+    }
+
+    @Test
+    fun `should discard the business's data export inside the transaction`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val id = fixture.stored(Client.Detached.stub())
+
+        whenn()
+        fixture.sut(fixture.requestUserId, fixture.businessId, id, fixture.tokenFor(id))
+
+        then()
+        coVerify(exactly = 1) { fixture.dataExports.discard(fixture.businessId) }
+        assertEquals(listOf(true), fixture.discardedInTransaction)
+    }
+
+    @Test
+    fun `should discard no data export when the client does not exist`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val id = fixture.stored(null)
+
+        whenn()
+        fixture.sut(fixture.requestUserId, fixture.businessId, id, fixture.tokenFor(id))
+
+        then()
+        coVerify(exactly = 0) { fixture.dataExports.discard(any()) }
+    }
+
+    @Test
+    fun `should shred the client's key inside the transaction`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val id = fixture.stored(Client.Detached.stub())
+
+        whenn()
+        fixture.sut(fixture.requestUserId, fixture.businessId, id, fixture.tokenFor(id))
+
+        then()
+        assertEquals(setOf(id), fixture.subjectKeys.shreddedInTransaction)
+    }
+
+    @Test
+    fun `should shred no key when the client does not exist`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val id = fixture.stored(null)
+
+        whenn()
+        fixture.sut(fixture.requestUserId, fixture.businessId, id, fixture.tokenFor(id))
+
+        then()
+        assertEquals(emptySet<Uuid>(), fixture.subjectKeys.shredded)
     }
 
     @Test
@@ -141,7 +215,11 @@ internal class DeleteClientImplTest {
         then()
         coVerifyOrder {
             fixture.clientDataSource.getClientForUpdate(fixture.businessId, id)
-            fixture.businessPermissionDataSource.getPermission(fixture.requestUserId, fixture.businessId, BusinessResource.CLIENTS)
+            fixture.businessPermissionDataSource.getPermission(
+                fixture.requestUserId,
+                fixture.businessId,
+                BusinessResource.CLIENTS,
+            )
             fixture.clientDataSource.deleteClient(fixture.businessId, id)
         }
     }

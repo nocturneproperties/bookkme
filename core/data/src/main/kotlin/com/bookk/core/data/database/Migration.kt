@@ -30,7 +30,9 @@ fun createDatabase(
         .load()
     retryWhileDatabaseUnreachable { migration.migrate() }
 
-    return Database.connect(HikariDataSource(poolConfig(schemaName, dbUrl, dbPort, dbUsername, dbPassword, maxPoolSize)))
+    return Database.connect(
+        HikariDataSource(poolConfig(schemaName, dbUrl, dbPort, dbUsername, dbPassword, maxPoolSize)),
+    )
 }
 
 internal fun poolConfig(

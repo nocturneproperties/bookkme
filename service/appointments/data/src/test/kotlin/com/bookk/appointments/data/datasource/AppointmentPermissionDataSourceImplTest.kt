@@ -21,7 +21,13 @@ import kotlin.uuid.Uuid
 internal class AppointmentPermissionDataSourceImplTest {
 
     private class SutFixture {
-        val db = createTestDatabase(AppointmentBusinessTable, WorkingHoursTable, DayOffsTable, AppointmentPermissionGrantsTable)
+        val db =
+            createTestDatabase(
+                AppointmentBusinessTable,
+                WorkingHoursTable,
+                DayOffsTable,
+                AppointmentPermissionGrantsTable,
+            )
         val sut = AppointmentPermissionDataSourceImpl()
         val subscriptionSut = AppointmentSubscriptionDataSourceImpl()
         lateinit var businessId: Uuid
@@ -68,10 +74,19 @@ internal class AppointmentPermissionDataSourceImplTest {
         val fixture = SutFixture()
         fixture.setup()
         val userId = Uuid.random()
-        suspendTransaction { fixture.sut.setPermission(userId, fixture.businessId, ResourcePermission(view = true, update = false, delete = false), suspended = false) }
+        suspendTransaction {
+            fixture.sut.setPermission(
+                userId,
+                fixture.businessId,
+                ResourcePermission(view = true, update = false, delete = false),
+                suspended = false,
+            )
+        }
 
         whenn()
-        suspendTransaction { fixture.sut.setPermission(userId, fixture.businessId, ResourcePermission.FULL, suspended = false) }
+        suspendTransaction {
+            fixture.sut.setPermission(userId, fixture.businessId, ResourcePermission.FULL, suspended = false)
+        }
         val stored = suspendTransaction { fixture.sut.getPermission(userId, fixture.businessId) }
 
         then()
@@ -84,7 +99,9 @@ internal class AppointmentPermissionDataSourceImplTest {
         val fixture = SutFixture()
         fixture.setup()
         val userId = Uuid.random()
-        suspendTransaction { fixture.sut.setPermission(userId, fixture.businessId, ResourcePermission.FULL, suspended = false) }
+        suspendTransaction {
+            fixture.sut.setPermission(userId, fixture.businessId, ResourcePermission.FULL, suspended = false)
+        }
 
         whenn()
         suspendTransaction { fixture.sut.deleteForUser(userId) }
@@ -113,7 +130,9 @@ internal class AppointmentPermissionDataSourceImplTest {
         val fixture = SutFixture()
         fixture.setup()
         val userId = Uuid.random()
-        suspendTransaction { fixture.sut.setPermission(userId, fixture.businessId, ResourcePermission.NONE, suspended = true) }
+        suspendTransaction {
+            fixture.sut.setPermission(userId, fixture.businessId, ResourcePermission.NONE, suspended = true)
+        }
 
         whenn()
         val result = runCatching { suspendTransaction { fixture.sut.getPermission(userId, fixture.businessId) } }
@@ -128,10 +147,14 @@ internal class AppointmentPermissionDataSourceImplTest {
         val fixture = SutFixture()
         fixture.setup()
         val userId = Uuid.random()
-        suspendTransaction { fixture.sut.setPermission(userId, fixture.businessId, ResourcePermission.NONE, suspended = true) }
+        suspendTransaction {
+            fixture.sut.setPermission(userId, fixture.businessId, ResourcePermission.NONE, suspended = true)
+        }
 
         whenn()
-        suspendTransaction { fixture.sut.setPermission(userId, fixture.businessId, ResourcePermission.FULL, suspended = false) }
+        suspendTransaction {
+            fixture.sut.setPermission(userId, fixture.businessId, ResourcePermission.FULL, suspended = false)
+        }
         val stored = suspendTransaction { fixture.sut.getPermission(userId, fixture.businessId) }
 
         then()

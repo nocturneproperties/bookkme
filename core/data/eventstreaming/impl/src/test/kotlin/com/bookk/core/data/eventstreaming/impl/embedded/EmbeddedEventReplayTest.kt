@@ -1,7 +1,8 @@
 package com.bookk.core.data.eventstreaming.impl.embedded
 
-import com.bookk.core.data.eventstreaming.DltEvent
 import com.bookk.core.data.eventstreaming.DltRetry
+import com.bookk.core.data.eventstreaming.ExhaustedEvent
+import com.bookk.core.data.eventstreaming.ParkedPayload
 import com.bookk.core.data.eventstreaming.impl.InMemoryExhaustedEventDataSource
 import com.bookk.core.data.eventstreaming.impl.inMemoryEventIdempotencyStorage
 import com.bookk.core.data.eventstreaming.impl.kafka.KeyedTestEvent
@@ -17,7 +18,6 @@ import kotlinx.coroutines.test.runCurrent
 import kotlinx.serialization.encodeToByteArray
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
-import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.util.concurrent.ConcurrentLinkedQueue
@@ -41,12 +41,12 @@ internal class EmbeddedEventReplayTest {
         )
     }
 
-    private fun exhausted(event: KeyedTestEvent, payload: ByteArray = encodedEventProtoBuf.encodeToByteArray(event)) = DltEvent(
-        payload = payload,
-        originalTopic = event.topic,
-        attempt = DltRetry.DEFAULT_MAX_ATTEMPTS,
-        topic = event.topic,
-    )
+    private fun exhausted(
+        event: KeyedTestEvent,
+        payload: ByteArray = encodedEventProtoBuf.encodeToByteArray(event),
+    ): ExhaustedEvent {
+        return ExhaustedEvent.stub(originalTopic = event.topic, payload = ParkedPayload.Readable(payload))
+    }
 
     private suspend fun TestScope.advanceThroughRetries() {
         runCurrent()
@@ -92,7 +92,7 @@ internal class EmbeddedEventReplayTest {
     }
 
     @Test
-    fun `should give a replayed event every attempt again and park it under a new key when it keeps failing`() = runUnitTest {
+    fun `should retry a replayed event in full and park it again when it keeps failing`() = runUnitTest {
         given()
         val fixture = SutFixture()
         val attempts = AtomicInteger(0)
@@ -110,7 +110,6 @@ internal class EmbeddedEventReplayTest {
         then()
         assertEquals(DltRetry.DEFAULT_MAX_ATTEMPTS, attempts.get())
         val parked = fixture.exhaustedEventDataSource.findByOriginalTopic(TOPIC).single()
-        assertNotEquals(replayedEvent.idempotencyKey, parked.idempotencyKey)
         assertEquals(DltRetry.DEFAULT_MAX_ATTEMPTS, parked.attempt)
     }
 
@@ -122,7 +121,9 @@ internal class EmbeddedEventReplayTest {
         fixture.sut.start(backgroundScope)
 
         whenn()
-        val replayed = fixture.sut.replay(exhausted(KeyedTestEvent(entityId = "entity-1", sequence = 0, topic = "embedded.replay.unknown")))
+        val replayed = fixture.sut.replay(
+            exhausted(KeyedTestEvent(entityId = "entity-1", sequence = 0, topic = "embedded.replay.unknown")),
+        )
 
         then()
         assertFalse(replayed)

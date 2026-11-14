@@ -13,11 +13,11 @@ object UserRouting {
                 @Resource("/{id}")
                 class Id(val parent: User = User(), val id: Uuid)
 
-                @Resource("/{id}")
-                class Delete(val parent: User = User(), val id: Uuid)
-
                 @Resource("/email")
                 class Email(val parent: User = User())
+
+                @Resource("/{id}/email")
+                class ChangeEmail(val parent: User = User(), val id: Uuid)
             }
         }
 
@@ -38,9 +38,6 @@ object UserRouting {
 
             @Resource("/me")
             class Edit(val parent: User = User())
-
-            @Resource("/contactus")
-            class ContactUs(val parent: User = User())
 
             @Resource("/export")
             class Export(val parent: User = User()) {

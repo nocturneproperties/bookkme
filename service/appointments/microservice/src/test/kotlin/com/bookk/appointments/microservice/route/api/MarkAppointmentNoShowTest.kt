@@ -69,7 +69,8 @@ internal class MarkAppointmentNoShowTest {
         val useCase: MarkAppointmentNoShow = mockk()
         val userId = Uuid.random()
         val appointmentId = Uuid.random()
-        coEvery { useCase.invoke(userId, appointmentId) } returns Result.failure(AppointmentStatusError.AlreadyCancelled())
+        coEvery { useCase.invoke(userId, appointmentId) } returns
+            Result.failure(AppointmentStatusError.AlreadyCancelled())
 
         setupApplication(
             extension = {
@@ -215,7 +216,8 @@ internal class MarkAppointmentNoShowTest {
         val useCase: MarkAppointmentNoShow = mockk()
         val userId = Uuid.random()
         val appointmentId = Uuid.random()
-        coEvery { useCase.invoke(userId, appointmentId) } returns Result.failure(AppointmentStatusError.EditWindowClosed())
+        coEvery { useCase.invoke(userId, appointmentId) } returns
+            Result.failure(AppointmentStatusError.EditWindowClosed())
 
         setupApplication(
             extension = {

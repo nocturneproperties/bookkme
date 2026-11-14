@@ -80,7 +80,8 @@ internal class ClientRetentionMariaDbTest {
     }
 
     private class SutFixture {
-        val clients = ClientDataSourceImpl()
+        val contactCipher = testContactCipher()
+        val clients = ClientDataSourceImpl(contactCipher)
         val businesses = BusinessDataSourceImpl()
 
         suspend fun createBusiness(): Uuid = suspendTransaction(db = database) {
@@ -91,15 +92,27 @@ internal class ClientRetentionMariaDbTest {
             clients.createDetachedClient(businessId, Client.Detached.stub(phone = null, email = null)).id
         }
 
+        suspend fun deleteInactiveClientsOf(businessId: Uuid): List<Uuid> {
+            val inactiveIds = clients.getInactiveClientIdsForUpdate(businessId, Clock.System.now() - 1.days)
+            clients.deleteClients(inactiveIds)
+            return inactiveIds
+        }
+
         suspend fun backdate(clientId: Uuid, to: Instant) = suspendTransaction(db = database) {
             ClientTable.update(where = { ClientTable.id eq clientId }) { it[lastActivityAt] = to }
         }
 
         suspend fun lastActivityAt(clientId: Uuid): Instant = suspendTransaction(db = database) {
-            ClientTable.select(ClientTable.lastActivityAt).where { ClientTable.id eq clientId }.single()[ClientTable.lastActivityAt]
+            ClientTable.select(ClientTable.lastActivityAt).where {
+                ClientTable.id eq clientId
+            }.single()[ClientTable.lastActivityAt]
         }
 
-        suspend fun <T> secondWhileFirstHolds(firstIsolation: Int, first: suspend () -> Unit, second: suspend () -> T): Result<T> {
+        suspend fun <T> secondWhileFirstHolds(
+            firstIsolation: Int,
+            first: suspend () -> Unit,
+            second: suspend () -> T,
+        ): Result<T> {
             val firstHeld = CompletableDeferred<Unit>()
             val secondFinished = CompletableDeferred<Unit>()
             return withContext(Dispatchers.IO) {
@@ -134,7 +147,9 @@ internal class ClientRetentionMariaDbTest {
         suspendTransaction(db = database) { fixture.clients.recordVisit(businessId, clientId, laterVisitEnd) }
 
         whenn()
-        suspendTransaction(db = database) { fixture.clients.recordVisit(businessId, clientId, Instant.parse("2099-01-01T10:00:00Z")) }
+        suspendTransaction(db = database) {
+            fixture.clients.recordVisit(businessId, clientId, Instant.parse("2099-01-01T10:00:00Z"))
+        }
 
         then()
         assertEquals(laterVisitEnd, fixture.lastActivityAt(clientId))
@@ -153,13 +168,19 @@ internal class ClientRetentionMariaDbTest {
         fixture.backdate(inactiveElsewhere, LONG_AGO)
 
         whenn()
-        val deleted = suspendTransaction(db = database) { fixture.clients.deleteInactiveClients(businessId, Clock.System.now() - 1.days) }
+        val deleted = suspendTransaction(db = database) {
+            fixture.deleteInactiveClientsOf(businessId)
+        }
 
         then()
         assertEquals(listOf(inactive), deleted)
         assertNull(suspendTransaction(db = database) { fixture.clients.getClientById(businessId, inactive) })
         assertNotNull(suspendTransaction(db = database) { fixture.clients.getClientById(businessId, active) })
-        assertNotNull(suspendTransaction(db = database) { fixture.clients.getClientById(otherBusinessId, inactiveElsewhere) })
+        assertNotNull(
+            suspendTransaction(db = database) {
+                fixture.clients.getClientById(otherBusinessId, inactiveElsewhere)
+            },
+        )
     }
 
     @Test
@@ -172,8 +193,10 @@ internal class ClientRetentionMariaDbTest {
         whenn()
         val creation = fixture.secondWhileFirstHolds(
             firstIsolation = Connection.TRANSACTION_READ_COMMITTED,
-            first = { fixture.clients.deleteInactiveClients(businessId, Clock.System.now() - 1.days) },
-            second = { fixture.clients.createDetachedClient(businessId, Client.Detached.stub(phone = null, email = null)) },
+            first = { fixture.deleteInactiveClientsOf(businessId) },
+            second = {
+                fixture.clients.createDetachedClient(businessId, Client.Detached.stub(phone = null, email = null))
+            },
         )
 
         then()
@@ -190,8 +213,10 @@ internal class ClientRetentionMariaDbTest {
         whenn()
         val creation = fixture.secondWhileFirstHolds(
             firstIsolation = Connection.TRANSACTION_REPEATABLE_READ,
-            first = { fixture.clients.deleteInactiveClients(businessId, Clock.System.now() - 1.days) },
-            second = { fixture.clients.createDetachedClient(businessId, Client.Detached.stub(phone = null, email = null)) },
+            first = { fixture.deleteInactiveClientsOf(businessId) },
+            second = {
+                fixture.clients.createDetachedClient(businessId, Client.Detached.stub(phone = null, email = null))
+            },
         )
 
         then()

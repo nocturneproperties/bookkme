@@ -10,20 +10,39 @@ import kotlin.reflect.KType
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.TimeSource
-import kotlin.time.toJavaDuration
 
 class InMemoryCacheClient(
     private val protobuf: ProtoBuf = ProtoBuf { encodeDefaults = true },
     timeSource: TimeSource = TimeSource.Monotonic,
 ) : CacheClient<String> {
 
-    private class InMemCacheEntry(val value: ByteArray, val ttl: Duration)
+    private class InMemCacheEntry(val value: ByteArray, val ttl: Duration, val keepsExpiration: Boolean = false)
+
+    private class WritingExpiry : Expiry<String, InMemCacheEntry> {
+        override fun expireAfterCreate(key: String, value: InMemCacheEntry, currentTime: Long): Long {
+            return value.ttl.inWholeNanoseconds
+        }
+
+        override fun expireAfterUpdate(
+            key: String,
+            value: InMemCacheEntry,
+            currentTime: Long,
+            currentDuration: Long,
+        ): Long = if (value.keepsExpiration) currentDuration else value.ttl.inWholeNanoseconds
+
+        override fun expireAfterRead(
+            key: String,
+            value: InMemCacheEntry,
+            currentTime: Long,
+            currentDuration: Long,
+        ): Long = currentDuration
+    }
 
     private val createdAt = timeSource.markNow()
 
     private val cache = Caffeine<String, InMemCacheEntry>.newBuilder()
         .ticker(Ticker { createdAt.elapsedNow().inWholeNanoseconds })
-        .expireAfter(Expiry.writing<String, InMemCacheEntry> { _, value -> value.ttl.toJavaDuration() })
+        .expireAfter(WritingExpiry())
         .maximumSize(10_000)
         .build<String, InMemCacheEntry>()
 
@@ -70,6 +89,18 @@ class InMemoryCacheClient(
         val entry = cache.getIfPresent(key) ?: return
         if (entry.value.contentEquals(data)) cache.asMap().remove(key, entry)
     }
+
+    override suspend fun increment(key: String, expiration: Duration): Long {
+        val entry = cache.asMap().compute(key) { _, current ->
+            current?.let {
+                InMemCacheEntry(it.count().plus(1).toString().toByteArray(), it.ttl, keepsExpiration = true)
+            }
+                ?: InMemCacheEntry("1".toByteArray(), expiration)
+        }
+        return requireNotNull(entry).count()
+    }
+
+    private fun InMemCacheEntry.count(): Long = value.decodeToString().toLong()
 
     override fun close() {
     }

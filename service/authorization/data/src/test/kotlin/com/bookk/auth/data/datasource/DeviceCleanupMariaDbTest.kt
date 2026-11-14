@@ -56,7 +56,7 @@ internal class DeviceCleanupMariaDbTest {
     }
 
     @Test
-    fun `should return the owner of each deleted device without removing another account on the same installation`() = runIntegrationTest {
+    fun `should return deleted devices' owners and keep other accounts on that installation`() = runIntegrationTest {
         given()
         val fixture = SutFixture()
         val deviceUuid = Uuid.random()
@@ -71,7 +71,10 @@ internal class DeviceCleanupMariaDbTest {
         }
 
         whenn()
-        val deleted = suspendTransaction(db = database) { fixture.sut.deleteInactiveDevices(Instant.parse("2020-01-01T00:00:00Z")) }
+        val deleted =
+            suspendTransaction(db = database) {
+                fixture.sut.deleteInactiveDevices(Instant.parse("2020-01-01T00:00:00Z"))
+            }
 
         then()
         assertEquals(listOf(DeviceIdentity(first.id, deviceUuid)), deleted)

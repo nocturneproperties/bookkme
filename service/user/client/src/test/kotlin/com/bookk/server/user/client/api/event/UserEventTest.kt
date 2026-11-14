@@ -1,5 +1,6 @@
 package com.bookk.server.user.client.api.event
 
+import com.bookk.core.data.eventstreaming.DataSubject
 import com.bookk.core.test.given
 import com.bookk.core.test.runUnitTest
 import com.bookk.core.test.then
@@ -84,5 +85,17 @@ internal class UserEventTest {
         then()
         assertEquals(userId.toString(), partitionKey)
         assertEquals(UserEvent.DataExportReady.TOPIC, event.topic)
+    }
+
+    @Test
+    fun `should name the user as the data subject of the updated event`() = runUnitTest {
+        given()
+        val event = updated()
+
+        whenn()
+        val subject = event.dataSubject
+
+        then()
+        assertEquals(DataSubject.User(userId), subject)
     }
 }

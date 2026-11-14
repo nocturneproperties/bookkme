@@ -18,6 +18,7 @@ erDiagram
     PROFILE ||--o{ DEVICE : "user_id"
     AUTHENTICATION ||--o{ DEVICE : "auth_id"
     BUSINESS ||--|| BUSINESS_HAS_APPOINTMENTS : "id (replicated via events)"
+    PROFILE ||--o{ BUSINESS_HAS_APPOINTMENTS : "owner_user_id (business.user_id, set on enable, kept by BusinessEvent.Updated, filled by appointments-fillBusinessOwners until 0.19.0, erased by AuthEvent.UserDeleted)"
     EMPLOYEE ||--o{ APPOINTMENT : "employee_id"
     PROFILE ||--o{ APPOINTMENT : "employee_user_id"
     PROFILE ||--o{ APPOINTMENT : "initiator_user_id (who booked)"

@@ -140,7 +140,9 @@ internal class BusinessRowLockMariaDbTest {
         val hasServices = fixture.readAfterWaitingForLockHolder(
             businessId = group.businessId,
             holderLock = RowLock.SHARED,
-            holderWrite = { serviceDataSource.createService(Service.stub(businessId = group.businessId, group = group)) },
+            holderWrite = {
+                serviceDataSource.createService(Service.stub(businessId = group.businessId, group = group))
+            },
             read = { serviceDataSource.hasServices(group.businessId) },
         )
 

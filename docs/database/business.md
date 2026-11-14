@@ -85,13 +85,20 @@ erDiagram
     CLIENT {
         uuid id PK
         uuid business_id FK
-        string name
-        string lastname
-        string phone "nullable; UK with business_id"
-        string email "nullable; UK with business_id; at least one of phone/email required on create"
+        string name "nullable; plaintext until 0.19.0, NULL once encrypted"
+        string lastname "nullable; plaintext until 0.19.0, NULL once encrypted"
+        string phone "nullable; plaintext until 0.19.0, NULL once encrypted"
+        string email "nullable; plaintext until 0.19.0, NULL once encrypted; UK with business_id"
+        string description "nullable; plaintext until 0.19.0, NULL once encrypted"
+        bytes name_encrypted "nullable until 0.19.0; NULL marks a plaintext row"
+        bytes lastname_encrypted "nullable until 0.19.0"
+        bytes phone_encrypted "nullable; not unique, several clients of a business may share it"
+        bytes email_encrypted "nullable; at least one of phone/email required on create"
+        bytes description_encrypted "nullable; business owner's notes about the client"
+        string email_index "nullable; HMAC of the trimmed, lowercased email; UK with business_id"
         uuid user_id "logical FK -> user.profile.id, nullable; UK with business_id"
-        string description "nullable; business owner's notes about the client"
         timestamp last_activity_at "latest booked visit end, or create/edit/takeover time; indexed with business_id; the business-deleteInactiveClients job deletes the row once it is older than the business retention period"
+        boolean deletion_hold "default false; set by staff on the owner's instruction, business-deleteInactiveClients skips the row"
         timestamp source_updated_at
         timestamp created_at
         timestamp updated_at
@@ -100,10 +107,14 @@ erDiagram
     EMPLOYEE {
         uuid id PK
         uuid business_id FK
-        string name
-        string lastname
-        string phone
-        string email
+        string name "nullable; plaintext until 0.19.0, NULL once encrypted"
+        string lastname "nullable; plaintext until 0.19.0, NULL once encrypted"
+        string phone "nullable; plaintext until 0.19.0, NULL once encrypted"
+        string email "nullable; plaintext until 0.19.0, NULL once encrypted"
+        bytes name_encrypted "nullable until 0.19.0; NULL marks a plaintext row"
+        bytes lastname_encrypted "nullable until 0.19.0"
+        bytes phone_encrypted "nullable"
+        bytes email_encrypted "nullable"
         uuid user_id "logical FK -> user.profile.id; UK with business_id"
         timestamp source_updated_at
         byte working_days
@@ -177,6 +188,7 @@ erDiagram
         int attempt
         blob payload
         bool replay_requested
+        bool personal_data_encrypted "payload sealed under a person's key"
         timestamp createdAt
         timestamp updatedAt
     }
@@ -197,7 +209,8 @@ erDiagram
         timestamp claimed_until "nullable; lease end"
         timestamp finished_at "nullable"
         timestamp expires_at "nullable; finished_at + 72 h, indexed"
-        longblob document "nullable; gzipped JSON, only while READY"
+        longblob document "nullable; gzipped JSON encrypted under key_id, only while READY"
+        uuid key_id "nullable; the document's own key in <svc>_short_retention.subject_key"
     }
 
     OUTBOX_EVENT {
@@ -206,13 +219,32 @@ erDiagram
         string partition_key "nullable"
         blob payload "ProtoBuf-encoded event, idempotency key included"
         timestamp createdAt
+        bool personal_data_encrypted "payload sealed under a person's key"
+    }
+
+    SUBJECT_KEY {
+        uuid subject_id PK "the person the key encrypts for; in schema business_short_retention, not business"
+        varbinary wrapped_key "nullable; 60 bytes, the AES-256 key wrapped by the vault master key; NULL in a tombstone"
+        int master_key_version "nullable; NULL in a tombstone"
+        timestamp created_at
+        timestamp shredded_at "nullable; set when the key is shredded, the first time kept"
+    }
+    SHREDDED_SUBJECT {
+        uuid subject_id PK "a person whose key in business_short_retention was shredded"
+        timestamp shredded_at "the first shredding time"
     }
 ```
 
-`DATA_EXPORT` holds the business's data export (one row per business) from the moment the owner requests it until 72 hours after its document was built. It is the shared `library/export` table, so it has no foreign key to `BUSINESS`; deleting the business deletes the row in the same transaction. It holds a copy of every client of the business, so it is not readable in NocoDB. See [Data export](../data-export.md).
+`DATA_EXPORT` holds the business's data export (one row per business) from the moment the owner requests it until 72 hours after its document was built. It is the shared `library/export` table, so it has no foreign key to `BUSINESS`; deleting the business deletes the row in the same transaction. It holds a copy of every client of the business, so it is not readable in NocoDB, and the document is encrypted under a random key of its own (`key_id`), shredded when the row loses its document; any erasure of a client or employee of the business deletes the row. See [Data export](../data-export.md).
 
-`EXHAUSTED_EVENT` is not part of the business domain model — it's the shared DLT landing table (`core/data/eventstreaming/data`, one instance per service schema) that `KafkaEventConsumer`/`EmbeddedEventConsumer` write to when an event exhausts its retry budget, so a failed event survives a process restart or crash instead of being lost. Every start, and every row an operator sets `replay_requested` on, is replayed through the consumer group's DLT topic by `ExhaustedEventReplayer`, which also exports the parked rows as the `events_exhausted` metric. See [Exhausted events](../exhausted-events.md).
+`EXHAUSTED_EVENT` is not part of the business domain model — it's the shared DLT landing table (`library/outbox`, one instance per service schema) that `KafkaEventConsumer`/`EmbeddedEventConsumer` write to when an event exhausts its retry budget, so a failed event survives a process restart or crash instead of being lost. Every start, and every row an operator sets `replay_requested` on, is replayed through the consumer group's DLT topic by `ExhaustedEventReplayer`, which also exports the parked rows as the `events_exhausted` metric. See [Exhausted events](../exhausted-events.md).
 
-`OUTBOX_EVENT` is not part of the business domain model either — it's the shared transactional outbox (`core/data/eventstreaming/data`, one instance per service schema). `eventProducer.send` inserts the encoded event in the same transaction as the business write, so an event exists exactly when its write committed; `OutboxRelay` then locks the oldest rows (`SELECT … FOR UPDATE`), publishes them to Kafka (or the embedded transport in the monolith) and deletes them. Delivery is at-least-once, deduplicated by consumers through the event's idempotency key. See [Transactional outbox](../transactional-outbox.md).
+`OUTBOX_EVENT` is not part of the business domain model either — it's the shared transactional outbox (`library/outbox`, one instance per service schema). `eventProducer.send` inserts the encoded event in the same transaction as the business write, so an event exists exactly when its write committed; `OutboxRelay` then locks the oldest rows (`SELECT … FOR UPDATE`), publishes them to Kafka (or the embedded transport in the monolith) and deletes them. Delivery is at-least-once, deduplicated by consumers through the event's idempotency key. See [Transactional outbox](../transactional-outbox.md).
+
+`CLIENT` holds each client's name, last name, phone, email and notes encrypted under the client's own key (`*_encrypted`, `library/encryption`, keyed by `id`), and `EMPLOYEE` an employee's name, last name, phone and email under their user's key (keyed by `user_id`), so deleting the row and shredding that key leaves nothing readable in backups. A client's email stays unique within the business and searchable (booking takeover, imports, profile merges) through `email_index`, a keyed HMAC of the trimmed, lowercased email; employees are never looked up by contact, so they get no index. Rows written before 0.18.0 keep their plaintext columns until the `business-encryptPlaintextContacts` job encrypts them and sets those columns to NULL; until then a write to such a row encrypts it too, a new client email is also checked against the plaintext `email` column, which the blind-index constraint can't see, and lookups match either. 0.19.0 drops the plaintext columns.
 
 `ERASED_CLIENT` records every client a business deleted (`DeleteClient` and the `business-deleteInactiveClients` retention job), in the same transaction as the deletion. Clients deleted with their user's account aren't recorded here: `authorization.erased_account` covers them. Like `ERASED_ACCOUNT`, the restore tool re-inserts the records from the latest backup with `reapply_requested`, and `business-reapplyErasures` deletes those clients again and sends `BusinessEvent.ClientDeleted`. Keyed by the client id alone, inserted once (`INSERT IGNORE`), kept 60 days, hidden from NocoDB.
+
+`SUBJECT_KEY` lives in its own schema, `business_short_retention`, created by the same migration: it holds one AES-GCM key per person whose fields this service encrypts, wrapped by the master key from the vault (`library/encryption`). Erasing a person replaces their key with a tombstone in the erasure's transaction (`wrapped_key` and `master_key_version` NULL, `shredded_at` set; written even for a person who never had a key, and never deleted), so their encrypted fields become unreadable in the live database at once, and in backups once the last key backup holding the key expires after 7 days. The tombstone stops a late write from creating a fresh key for the erased person: `encryptor` gives none and `isShredded` reports it. That is why the key schema is separate: it stays out of the binary log and the 30-day dump and gets its own short-lived backup. It holds keys only: the outbox, parked events and exports stay in `business`, and any personal data they copy is encrypted under the person's key. No foreign keys; NocoDB can't read it.
+
+`SHREDDED_SUBJECT` is the binlogged record of those tombstones, written in the same transaction (`INSERT IGNORE`, first time kept). The key schema is backed up only every 5 minutes, so a restore loads the newest key dump and then turns every key listed here back into a tombstone: a person erased after that key dump doesn't get their key back. Ids only, never deleted, like the tombstones; NocoDB can't read it.

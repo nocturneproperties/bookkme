@@ -56,11 +56,13 @@ internal fun PasskeyCredentialEntity.toDomain(): PasskeyCredential = PasskeyCred
     createdAt = createdAt,
 )
 
-internal fun PasskeyCredential.asPublicKeyCredentialDescriptor(): PublicKeyCredentialDescriptor = PublicKeyCredentialDescriptor.builder()
-    .id(YubicoByteArray(credDescriptor.id))
-    .type(PublicKeyCredentialType.entries.first { it.id == credDescriptor.type })
-    .transports(credDescriptor.transports.map { AuthenticatorTransport.of(it) }.toSet())
-    .build()
+internal fun PasskeyCredential.asPublicKeyCredentialDescriptor(): PublicKeyCredentialDescriptor {
+    return PublicKeyCredentialDescriptor.builder()
+        .id(YubicoByteArray(credDescriptor.id))
+        .type(PublicKeyCredentialType.entries.first { it.id == credDescriptor.type })
+        .transports(credDescriptor.transports.map { AuthenticatorTransport.of(it) }.toSet())
+        .build()
+}
 
 @Suppress("DEPRECATION")
 internal fun PasskeyCredential.asRegisteredCredential(): RegisteredCredential = RegisteredCredential.builder()

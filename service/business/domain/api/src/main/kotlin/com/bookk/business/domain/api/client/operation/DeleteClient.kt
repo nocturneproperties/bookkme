@@ -6,7 +6,12 @@ import io.ktor.http.HttpStatusCode
 import kotlin.uuid.Uuid
 
 interface DeleteClient {
-    suspend operator fun invoke(requestUserId: Uuid, businessId: Uuid, id: Uuid, confirmationToken: String): Result<Unit>
+    suspend operator fun invoke(
+        requestUserId: Uuid,
+        businessId: Uuid,
+        id: Uuid,
+        confirmationToken: String,
+    ): Result<Unit>
 
     sealed interface Error {
         class NotFound :

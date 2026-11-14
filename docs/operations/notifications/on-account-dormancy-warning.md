@@ -10,10 +10,10 @@ be deleted (`deletesAt`, written in UTC since the user's time zone isn't
 known) and that signing in keeps it.
 
 The notification type is `ACCOUNT`, which the user can't switch off (like
-employee invitations): it still goes only through the channels the user
-has enabled. Push rarely arrives, because devices and their push tokens
-are deleted after 30 days without sign-in. Email will carry it once email
-sending exists, with no change here.
+employee invitations): it goes through the channels the user has enabled
+and always by email, even with the email channel off. Push rarely
+arrives, because devices and their push tokens are deleted after 30 days
+without sign-in, so email is what reaches a dormant user.
 
 ```mermaid
 flowchart TD
@@ -21,6 +21,7 @@ flowchart TD
     Dedup -- Yes --> Skip([Skip - already handled])
     Dedup -- No --> Settings[NotificationSettingsDataSource.getByUserId userId - in a transaction]
     Settings -- none --> Fail([Fails - retried through the notifications DLT topic])
-    Settings -- found --> Channels[Send through every enabled channel - type ACCOUNT is never suppressed]
-    Channels --> Ack([Marked processed])
+    Settings -- found --> Channels["Send through every enabled channel plus EMAIL even when it is off, each once - type ACCOUNT is never suppressed"]
+    Channels --> Email[EmailNotificationSender - see on-user-updated for the address]
+    Email --> Ack([Marked processed])
 ```

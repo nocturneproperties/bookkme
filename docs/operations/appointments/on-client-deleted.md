@@ -17,9 +17,10 @@ keeps their account.
   `cause = REMOVED_BY_BUSINESS`, and a client with an account gets
   `AppointmentEvent.Cancelled` with that reason. An employee who is the
   client themselves gets only the client notification.
-- Every appointment of theirs at the business then has its client name set
-  to "Deleted Client" and phone, email and `client_user_id` cleared. The
-  rows, their `client_id` and the history stay for the business.
+- Every appointment of theirs at the business then has its client name,
+  phone, email and note cleared (plaintext and encrypted columns) and
+  `client_user_id` cleared; it reads as "Deleted Client". The rows, their
+  `client_id` and the history stay for the business.
 - Their requests at the business are deleted.
 
 Recording the client in `deleted_client` (`INSERT IGNORE`, client id,
@@ -45,22 +46,28 @@ flowchart TD
     Claim -- held by another delivery --> Wait[Re-claim every second, up to the 1-minute claim TTL] --> Claim
     Claim -- claimed --> Tx[[Begin transaction]]
     Tx --> Mark["DeletedClientDataSource.markDeleted businessId clientId - INSERT IGNORE into deleted_client"]
-    Mark --> Cancel["AppointmentDataSource.cancelUpcomingForClient businessId clientId now 'Client was removed by the business' - SELECT FOR UPDATE, SCHEDULED and date_start after now become CANCELLED"]
-    Cancel --> Anon["AppointmentDataSource.anonymizeClient businessId clientId - client_name = Deleted Client, phone, email and client_user_id null, note cleared, cancellation and price adjustment reasons kept"]
-    Anon --> DelReq["AppointmentRequestDataSource.deleteForClient businessId clientId"]
-    DelReq --> Any{any appointment cancelled?}
-    Any -- No --> Processed
+    Mark --> Upcoming["AppointmentDataSource.getUpcomingIdsOfClientForUpdate businessId clientId now - SELECT id FOR UPDATE, SCHEDULED and date_start after now"]
+    Upcoming --> Load["AppointmentDataSource.getAllByIds upcoming ids - plain read with services, after the lock; no query when there are none"]
+    Load --> Any{any upcoming appointment?}
+    Any -- No --> Cancel
     Any -- Yes --> Snapshot{"AppointmentSubscriptionDataSource.getBusinessSnapshot businessId"}
-    Snapshot -- missing --> Log[Log error, nobody notified] --> Processed
-    Snapshot -- found --> Each[For each cancelled appointment]
+    Snapshot -- missing --> Log[Log error, nobody notified] --> Cancel
+    Snapshot -- found --> Cancel
+    Cancel["AppointmentDataSource.cancelAll upcoming ids 'Client was removed by the business' - one UPDATE to CANCELLED"]
+    Cancel --> Anon["AppointmentDataSource.anonymizeClient businessId clientId - client name, phone, email, note and their encrypted columns and client_user_id null, read as Deleted Client, cancellation and price adjustment reasons kept"]
+    Anon --> DelReq["AppointmentRequestDataSource.deleteForClient businessId clientId"]
+    DelReq --> Known{business snapshot found?}
+    Known -- No --> Shred
+    Known -- Yes --> Each[For each cancelled appointment]
     Each --> ToEmployee{employee is the client themselves?}
     ToEmployee -- No --> SendEmployee["eventProducer.send AppointmentEvent.CancelledForDeletedClient employeeUserId from to timeZone businessName cause = REMOVED_BY_BUSINESS"]
     ToEmployee -- Yes --> ToClient
     SendEmployee --> ToClient{client has an account?}
-    ToClient -- Yes --> SendClient["eventProducer.send AppointmentEvent.Cancelled clientUserId ... reason"]
-    ToClient -- No --> Processed
-    SendClient --> Processed([markProcessed - kept 1 hour])
-    DelReq -- any step throws, rolled back --> Release[Release the claim] --> Dlt["Retried through business.client_deleted_appointments_dlt, up to 3 attempts"]
+    ToClient -- Yes --> SendClient["eventProducer.send AppointmentEvent.Cancelled clientUserId ... reason 'Client was removed by the business'"]
+    ToClient -- No --> Shred
+    SendClient --> Shred
+    Shred["SubjectKeys.shred clientId - last, unrelayed RequestCreated rows of the client are dropped"] --> Processed([markProcessed - kept 1 hour])
+    Shred -- any step throws, rolled back --> Release[Release the claim] --> Dlt["Retried through business.client_deleted_appointments_dlt, up to 3 attempts"]
     Dlt -- every attempt failed --> Parked(["Saved to exhausted_event - EventsExhausted alert, replayed on the next start or when replay_requested is set"])
 ```
 

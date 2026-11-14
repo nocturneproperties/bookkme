@@ -3,12 +3,14 @@ package com.bookk.auth.domain.impl.operation.registration
 import com.bookk.auth.domain.api.authentication.entity.Authentication
 import com.bookk.auth.domain.api.registration.entity.VerifyAccountCreationRequest
 import com.bookk.auth.domain.api.registration.operation.FinishPasskeyRegistration
+import com.bookk.auth.domain.api.registration.operation.FinishPasskeyRegistration.Error.ChallengeWindowExpired
 import com.bookk.auth.domain.api.registration.operation.FinishRegistration
 import com.bookk.auth.domain.api.token.entity.AuthTokens
 import com.bookk.auth.domain.api.token.operation.GenerateAuthToken
 import com.bookk.auth.domain.api.token.operation.GenerateAuthToken.Source
 import com.bookk.auth.domain.datasource.AccountDataSource
 import com.bookk.auth.domain.datasource.DeviceDataSource
+import com.bookk.auth.domain.impl.email.EmailPurpose
 import com.bookk.core.data.eventstreaming.StandardEventProducer
 import com.bookk.core.data.eventstreaming.send
 import com.bookk.core.domain.datasource.transaction.TransactionManager
@@ -17,6 +19,8 @@ import com.bookk.core.domain.entity.runSuspendCatching
 import com.bookk.server.auth.client.AuthEvent
 import com.bookk.server.user.client.UserClient
 import com.bookk.server.user.client.api.CreateUserRequest
+import library.email.EmailCodeError
+import library.email.EmailCodeRedeemer
 import kotlin.uuid.Uuid
 
 internal class FinishRegistrationImpl(
@@ -27,11 +31,27 @@ internal class FinishRegistrationImpl(
     private val eventProducer: StandardEventProducer,
     private val transactionManager: TransactionManager,
     private val finishPasskeyRegistration: FinishPasskeyRegistration,
+    private val emailCodeRedeemer: EmailCodeRedeemer,
 ) : FinishRegistration {
 
-    override suspend fun invoke(request: VerifyAccountCreationRequest, language: Language): Result<AuthTokens> = runSuspendCatching {
+    override suspend fun invoke(
+        request: VerifyAccountCreationRequest,
+        language: Language,
+    ): Result<AuthTokens> = runSuspendCatching {
+        val signUpAttempt = Uuid.parseOrNull(request.requestId) ?: throw ChallengeWindowExpired()
+        emailCodeRedeemer.redeem(request.verificationId, request.emailCode, ownerId = signUpAttempt) { verified ->
+            if (verified.purpose != EmailPurpose.SIGN_UP) throw EmailCodeError.Invalid()
+            register(request, verified.email, language).getOrThrow()
+        }.getOrThrow()
+    }
+
+    private suspend fun register(
+        request: VerifyAccountCreationRequest,
+        verifiedEmail: String,
+        language: Language,
+    ): Result<AuthTokens> = runSuspendCatching {
         val verifiedPasskey = finishPasskeyRegistration.verifyRequest(request).getOrThrow()
-        val userId = userClient.createUser(createUserFrom(request)).getOrThrow()
+        val userId = userClient.createUser(createUserFrom(request, verifiedEmail)).getOrThrow()
         val deviceName = request.deviceInfo.deviceName
         val deviceUuid = request.deviceInfo.deviceUUID
 
@@ -56,10 +76,13 @@ internal class FinishRegistrationImpl(
         }
     }
 
-    private fun createUserFrom(request: VerifyAccountCreationRequest): CreateUserRequest = CreateUserRequest(
+    private fun createUserFrom(
+        request: VerifyAccountCreationRequest,
+        verifiedEmail: String,
+    ): CreateUserRequest = CreateUserRequest(
         name = request.userInfo.name,
         lastName = request.userInfo.lastName,
-        email = request.userInfo.email,
+        email = verifiedEmail,
         acceptedDocuments = request.acceptedDocuments,
     )
 }

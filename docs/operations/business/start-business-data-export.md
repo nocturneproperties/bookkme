@@ -43,7 +43,7 @@ flowchart TD
     Lock -- no row --> Insert[DataExportDataSource.insert businessId now - PENDING]
     Lock -- PENDING or RUNNING --> Same[Return the export being built]
     Lock -- READY requested under a day ago --> R429([429 DATA_EXPORT_TOO_FREQUENT 900002 - token given back])
-    Lock -- older READY, or FAILED --> Restart[DataExportDataSource.restart businessId now - PENDING, document cleared]
+    Lock -- older READY, or FAILED --> Restart["DataExportDataSource.restart businessId now - PENDING, document and key_id cleared; SubjectKeys.shred old key_id"]
     Insert --> Recheck
     Restart --> Recheck
     Same --> Recheck
@@ -58,9 +58,10 @@ flowchart TD
     Own --> Calls["Outside a transaction - GET /api/internal/export/appointments/business/businessId"]
     Calls -- fails --> GiveBack["DataExportDataSource.giveBack businessId claimId - PENDING while attempts remain, else FAILED until now+72 h"]
     Calls -- ok --> Gzip[Encode BusinessDataExport as JSON, gzip]
-    Gzip --> Store{"Transaction - DataExportDataSource.complete businessId claimId document now now+72 h - only while the claim is held"}
+    Gzip --> Store{"Transaction - SubjectKeys.encryptor new random keyId, encrypt document; DataExportDataSource.complete businessId claimId ciphertext keyId now now+72 h - only while the claim is held"}
     Store -- too large or database error --> GiveBack
-    Store -- row deleted or claimed by another build --> Next
+    Store -- row deleted or claimed by another build --> Shred["SubjectKeys.shred keyId - same transaction"]
+    Shred --> Next
     Store -- stored --> Ready["eventProducer.send BusinessEvent.ExportReady businessId ownerUserId expiresAt - outbox row in the same transaction"]
 ```
 

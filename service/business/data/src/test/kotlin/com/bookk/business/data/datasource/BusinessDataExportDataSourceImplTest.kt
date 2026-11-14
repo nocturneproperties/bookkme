@@ -36,12 +36,15 @@ internal class BusinessDataExportDataSourceImplTest {
             ClientTable,
             EmployeeInvitationTable,
         )
-        val sut = BusinessDataExportDataSourceImpl()
+        val contactCipher = testContactCipher()
+        val sut = BusinessDataExportDataSourceImpl(contactCipher)
         val businessSut = BusinessDataSourceImpl()
-        val clientSut = ClientDataSourceImpl()
+        val clientSut = ClientDataSourceImpl(contactCipher)
         val invitationSut = EmployeeInvitationDataSourceImpl()
 
-        suspend fun business(): Uuid = suspendTransaction { businessSut.createBusiness(Uuid.random(), "Studio", "UAH", TimeZone.UTC) }.id
+        suspend fun business(): Uuid = suspendTransaction {
+            businessSut.createBusiness(Uuid.random(), "Studio", "UAH", TimeZone.UTC)
+        }.id
     }
 
     @Test
@@ -51,14 +54,41 @@ internal class BusinessDataExportDataSourceImplTest {
         val businessId = fixture.business()
         val otherBusinessId = fixture.business()
         val detached = suspendTransaction {
-            fixture.clientSut.createDetachedClient(businessId, Client.Detached.stub(name = "Ivan", lastName = "Petrenko", phone = "+380509998877", email = "ivan@example.com", description = "prefers mornings"))
+            fixture.clientSut.createDetachedClient(
+                businessId,
+                Client.Detached.stub(
+                    name = "Ivan",
+                    lastName = "Petrenko",
+                    phone = "+380509998877",
+                    email = "ivan@example.com",
+                    description = "prefers mornings",
+                ),
+            )
         }
         val integrated = suspendTransaction {
-            fixture.clientSut.getOrCreateIntegratedClient(businessId, Client.Integrated.stub(name = "Olena", lastName = "Koval", phone = "+380501112233", email = "olena@example.com"))
+            fixture.clientSut.getOrCreateIntegratedClient(
+                businessId,
+                Client.Integrated.stub(
+                    name = "Olena",
+                    lastName = "Koval",
+                    phone = "+380501112233",
+                    email = "olena@example.com",
+                ),
+            )
         }
-        suspendTransaction { fixture.clientSut.createDetachedClient(otherBusinessId, Client.Detached.stub(phone = "+380500000000", email = "other@example.com")) }
+        suspendTransaction {
+            fixture.clientSut.createDetachedClient(
+                otherBusinessId,
+                Client.Detached.stub(phone = "+380500000000", email = "other@example.com"),
+            )
+        }
         val lastActivityAt = Instant.fromEpochMilliseconds(1_700_000_000_000)
-        suspendTransaction { ClientTable.update({ ClientTable.businessId eq businessId }) { it[this.lastActivityAt] = lastActivityAt } }
+        suspendTransaction {
+            ClientTable.update({ ClientTable.businessId eq businessId }) {
+                it[this.lastActivityAt] =
+                    lastActivityAt
+            }
+        }
 
         whenn()
         val clients = suspendTransaction { fixture.sut.getClients(businessId) }
@@ -66,8 +96,26 @@ internal class BusinessDataExportDataSourceImplTest {
         then()
         assertEquals(
             setOf(
-                BusinessClientExport(detached.id, "Ivan", "Petrenko", "+380509998877", "ivan@example.com", "prefers mornings", hasAccount = false, lastActivityAt = lastActivityAt),
-                BusinessClientExport(integrated.id, "Olena", "Koval", "+380501112233", "olena@example.com", null, hasAccount = true, lastActivityAt = lastActivityAt),
+                BusinessClientExport(
+                    detached.id,
+                    "Ivan",
+                    "Petrenko",
+                    "+380509998877",
+                    "ivan@example.com",
+                    "prefers mornings",
+                    hasAccount = false,
+                    lastActivityAt = lastActivityAt,
+                ),
+                BusinessClientExport(
+                    integrated.id,
+                    "Olena",
+                    "Koval",
+                    "+380501112233",
+                    "olena@example.com",
+                    null,
+                    hasAccount = true,
+                    lastActivityAt = lastActivityAt,
+                ),
             ),
             clients.toSet(),
         )
@@ -79,10 +127,24 @@ internal class BusinessDataExportDataSourceImplTest {
         val fixture = SutFixture()
         val businessId = fixture.business()
         val inviter = Uuid.random()
-        val pending = suspendTransaction { fixture.invitationSut.createInvitation(EmployeeInvitation.stub(businessId = businessId, invitedBy = inviter, code = "PENDING1")) }
-        val revoked = suspendTransaction { fixture.invitationSut.createInvitation(EmployeeInvitation.stub(businessId = businessId, invitedBy = inviter, code = "REVOKED1")) }
+        val pending =
+            suspendTransaction {
+                fixture.invitationSut.createInvitation(
+                    EmployeeInvitation.stub(businessId = businessId, invitedBy = inviter, code = "PENDING1"),
+                )
+            }
+        val revoked =
+            suspendTransaction {
+                fixture.invitationSut.createInvitation(
+                    EmployeeInvitation.stub(businessId = businessId, invitedBy = inviter, code = "REVOKED1"),
+                )
+            }
         suspendTransaction { fixture.invitationSut.revokeInvitation(revoked.id) }
-        suspendTransaction { fixture.invitationSut.createInvitation(EmployeeInvitation.stub(businessId = fixture.business(), code = "ELSEWHER")) }
+        suspendTransaction {
+            fixture.invitationSut.createInvitation(
+                EmployeeInvitation.stub(businessId = fixture.business(), code = "ELSEWHER"),
+            )
+        }
 
         whenn()
         val invitations = suspendTransaction { fixture.sut.getPendingInvitations(businessId) }

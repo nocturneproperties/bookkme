@@ -34,10 +34,13 @@ internal class CreateServiceImplTest {
         val businessDataSource = mockk<BusinessDataSource>()
         val businessPermissionDataSource = mockk<BusinessPermissionDataSource>()
         val transactionManager = mockk<TransactionManager>()
-        val sut = CreateServiceImpl(serviceDataSource, businessDataSource, businessPermissionDataSource, transactionManager)
+        val sut =
+            CreateServiceImpl(serviceDataSource, businessDataSource, businessPermissionDataSource, transactionManager)
 
         fun allowServiceUpdates(userId: Uuid, businessId: Uuid) {
-            coEvery { businessPermissionDataSource.getPermission(userId, businessId, BusinessResource.SERVICES) } returns
+            coEvery {
+                businessPermissionDataSource.getPermission(userId, businessId, BusinessResource.SERVICES)
+            } returns
                 ResourcePermission(view = false, update = true, delete = false)
         }
     }
@@ -51,7 +54,8 @@ internal class CreateServiceImplTest {
         with(fixture) {
             transactionManager.mockTransaction()
             allowServiceUpdates(userId, service.businessId)
-            coEvery { businessDataSource.lockBusiness(service.businessId, RowLock.SHARED) } returns LockedBusiness("USD")
+            coEvery { businessDataSource.lockBusiness(service.businessId, RowLock.SHARED) } returns
+                LockedBusiness("USD")
             coEvery { serviceDataSource.getServiceGroup(service.group.id, service.businessId) } returns service.group
             coEvery { serviceDataSource.createService(service) } returns service
         }
@@ -74,7 +78,8 @@ internal class CreateServiceImplTest {
         with(fixture) {
             transactionManager.mockTransaction()
             allowServiceUpdates(userId, service.businessId)
-            coEvery { businessDataSource.lockBusiness(service.businessId, RowLock.SHARED) } returns LockedBusiness("EUR")
+            coEvery { businessDataSource.lockBusiness(service.businessId, RowLock.SHARED) } returns
+                LockedBusiness("EUR")
             coEvery { serviceDataSource.getServiceGroup(service.group.id, service.businessId) } returns service.group
             coEvery { serviceDataSource.createService(priced) } returns priced
         }
@@ -97,7 +102,8 @@ internal class CreateServiceImplTest {
         with(fixture) {
             transactionManager.mockTransaction()
             allowServiceUpdates(userId, service.businessId)
-            coEvery { businessDataSource.lockBusiness(service.businessId, RowLock.SHARED) } returns LockedBusiness("JPY")
+            coEvery { businessDataSource.lockBusiness(service.businessId, RowLock.SHARED) } returns
+                LockedBusiness("JPY")
             coEvery { serviceDataSource.getServiceGroup(service.group.id, service.businessId) } returns service.group
             coEvery { serviceDataSource.createService(priced) } returns priced
         }
@@ -118,7 +124,8 @@ internal class CreateServiceImplTest {
         with(fixture) {
             transactionManager.mockTransaction()
             allowServiceUpdates(userId, service.businessId)
-            coEvery { businessDataSource.lockBusiness(service.businessId, RowLock.SHARED) } returns LockedBusiness("JPY")
+            coEvery { businessDataSource.lockBusiness(service.businessId, RowLock.SHARED) } returns
+                LockedBusiness("JPY")
         }
 
         whenn()
@@ -173,8 +180,11 @@ internal class CreateServiceImplTest {
         val service = Service.stub()
         with(fixture) {
             transactionManager.mockTransaction()
-            coEvery { businessDataSource.lockBusiness(service.businessId, RowLock.SHARED) } returns LockedBusiness("USD")
-            coEvery { businessPermissionDataSource.getPermission(userId, service.businessId, BusinessResource.SERVICES) } returns ResourcePermission(view = true, update = false, delete = false)
+            coEvery { businessDataSource.lockBusiness(service.businessId, RowLock.SHARED) } returns
+                LockedBusiness("USD")
+            coEvery {
+                businessPermissionDataSource.getPermission(userId, service.businessId, BusinessResource.SERVICES)
+            } returns ResourcePermission(view = true, update = false, delete = false)
         }
 
         whenn()
@@ -196,9 +206,11 @@ internal class CreateServiceImplTest {
         with(fixture) {
             transactionManager.mockTransaction()
             allowServiceUpdates(userId, service.businessId)
-            coEvery { businessDataSource.lockBusiness(service.businessId, RowLock.SHARED) } returns LockedBusiness("USD")
+            coEvery { businessDataSource.lockBusiness(service.businessId, RowLock.SHARED) } returns
+                LockedBusiness("USD")
             coEvery { serviceDataSource.getServiceGroup(service.group.id, service.businessId) } returns service.group
-            coEvery { serviceDataSource.createService(service) } throws Error.UniqueConstraintFailed("", RuntimeException())
+            coEvery { serviceDataSource.createService(service) } throws
+                Error.UniqueConstraintFailed("", RuntimeException())
         }
 
         whenn()
@@ -218,7 +230,8 @@ internal class CreateServiceImplTest {
         with(fixture) {
             transactionManager.mockTransaction()
             allowServiceUpdates(userId, service.businessId)
-            coEvery { businessDataSource.lockBusiness(service.businessId, RowLock.SHARED) } returns LockedBusiness("usd")
+            coEvery { businessDataSource.lockBusiness(service.businessId, RowLock.SHARED) } returns
+                LockedBusiness("usd")
         }
 
         whenn()
@@ -238,7 +251,8 @@ internal class CreateServiceImplTest {
         with(fixture) {
             transactionManager.mockTransaction()
             allowServiceUpdates(userId, service.businessId)
-            coEvery { businessDataSource.lockBusiness(service.businessId, RowLock.SHARED) } returns LockedBusiness("USD")
+            coEvery { businessDataSource.lockBusiness(service.businessId, RowLock.SHARED) } returns
+                LockedBusiness("USD")
             coEvery { serviceDataSource.getServiceGroup(service.group.id, service.businessId) } returns null
         }
 
@@ -256,12 +270,16 @@ internal class CreateServiceImplTest {
         val fixture = SutFixture()
         val userId = Uuid.random()
         val storedGroup = ServiceGroup.stub(name = "Stored")
-        val service = Service.stub(businessId = storedGroup.businessId, group = storedGroup.copy(name = "Sent by client"))
+        val service = Service.stub(
+            businessId = storedGroup.businessId,
+            group = storedGroup.copy(name = "Sent by client"),
+        )
         val resolved = service.copy(group = storedGroup)
         with(fixture) {
             transactionManager.mockTransaction()
             allowServiceUpdates(userId, service.businessId)
-            coEvery { businessDataSource.lockBusiness(service.businessId, RowLock.SHARED) } returns LockedBusiness("USD")
+            coEvery { businessDataSource.lockBusiness(service.businessId, RowLock.SHARED) } returns
+                LockedBusiness("USD")
             coEvery { serviceDataSource.getServiceGroup(storedGroup.id, service.businessId) } returns storedGroup
             coEvery { serviceDataSource.createService(resolved) } returns resolved
         }
@@ -283,7 +301,8 @@ internal class CreateServiceImplTest {
         with(fixture) {
             transactionManager.mockTransaction()
             allowServiceUpdates(userId, service.businessId)
-            coEvery { businessDataSource.lockBusiness(service.businessId, RowLock.SHARED) } returns LockedBusiness("USD")
+            coEvery { businessDataSource.lockBusiness(service.businessId, RowLock.SHARED) } returns
+                LockedBusiness("USD")
             coEvery { serviceDataSource.getServiceGroup(service.group.id, service.businessId) } returns service.group
             coEvery { serviceDataSource.createService(service) } returns service
         }

@@ -13,9 +13,9 @@ import com.bookk.auth.domain.datasource.PassKeyDataSource
 import com.bookk.auth.domain.repository.CacheableCredentialRepository
 import com.bookk.core.data.ExposedTransactionManager
 import com.bookk.core.data.database.createDatabase
-import com.bookk.core.data.eventstreaming.ExhaustedEventDataSource
-import com.bookk.core.data.eventstreaming.data.datasource.ExhaustedEventDataSourceImpl
 import com.bookk.core.domain.datasource.transaction.TransactionManager
+import library.outbox.di.exhaustedEventDataSource
+import library.outbox.di.noPersonalDataCipher
 import org.koin.core.module.dsl.scopedOf
 import org.koin.core.qualifier.Qualifier
 import org.koin.core.qualifier.named
@@ -26,12 +26,13 @@ private val AuthScope: Qualifier = named(AUTH_SCHEMA)
 
 fun authDataModule() = module {
     scope(AuthScope) {
+        noPersonalDataCipher()
+        exhaustedEventDataSource()
         scopedOf(::AccountDataSourceImpl) bind AccountDataSource::class
         scopedOf(::DeviceDataSourceImpl) bind DeviceDataSource::class
         scopedOf(::ErasedAccountDataSourceImpl) bind ErasedAccountDataSource::class
         scopedOf(::PassKeyDataSourceImpl) bind PassKeyDataSource::class
         scopedOf(::YubicoCredentialRepository) bind CacheableCredentialRepository::class
-        scopedOf(::ExhaustedEventDataSourceImpl) bind ExhaustedEventDataSource::class
         scoped { createDatabase(schemaName = AUTH_SCHEMA) }
         scoped<TransactionManager> { ExposedTransactionManager(get()) }
     }

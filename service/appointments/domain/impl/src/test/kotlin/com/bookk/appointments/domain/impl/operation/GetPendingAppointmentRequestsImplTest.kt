@@ -24,7 +24,8 @@ internal class GetPendingAppointmentRequestsImplTest {
         val requestsDataSource = mockk<AppointmentRequestDataSource>()
         val appointmentPermissionDataSource = mockk<AppointmentPermissionDataSource>()
         val transactionManager = mockk<TransactionManager>()
-        val sut = GetPendingAppointmentRequestsImpl(requestsDataSource, appointmentPermissionDataSource, transactionManager)
+        val sut =
+            GetPendingAppointmentRequestsImpl(requestsDataSource, appointmentPermissionDataSource, transactionManager)
     }
 
     @Test
@@ -36,7 +37,8 @@ internal class GetPendingAppointmentRequestsImplTest {
         val requests = listOf(AppointmentRequest.stub(initiatorUserId = userId, businessId = businessId))
         with(fixture) {
             transactionManager.mockTransaction()
-            coEvery { appointmentPermissionDataSource.getPermission(userId, businessId) } returns ResourcePermission(view = true, update = false, delete = false)
+            coEvery { appointmentPermissionDataSource.getPermission(userId, businessId) } returns
+                ResourcePermission(view = true, update = false, delete = false)
             coEvery { requestsDataSource.getPending(businessId) } returns requests
         }
 
@@ -56,7 +58,8 @@ internal class GetPendingAppointmentRequestsImplTest {
         val businessId = Uuid.random()
         with(fixture) {
             transactionManager.mockTransaction()
-            coEvery { appointmentPermissionDataSource.getPermission(userId, businessId) } returns ResourcePermission.NONE
+            coEvery { appointmentPermissionDataSource.getPermission(userId, businessId) } returns
+                ResourcePermission.NONE
         }
 
         whenn()
@@ -76,7 +79,8 @@ internal class GetPendingAppointmentRequestsImplTest {
         val exception = RuntimeException("Database error")
         with(fixture) {
             transactionManager.mockTransaction()
-            coEvery { appointmentPermissionDataSource.getPermission(userId, businessId) } returns ResourcePermission(view = true, update = false, delete = false)
+            coEvery { appointmentPermissionDataSource.getPermission(userId, businessId) } returns
+                ResourcePermission(view = true, update = false, delete = false)
             coEvery { requestsDataSource.getPending(businessId) } throws exception
         }
 

@@ -22,7 +22,12 @@ object BusinessPermissionGrantsTable : UuidTable("business_permission_grants") {
         index(isUnique = true, userId, businessId, resource)
     }
 
-    fun upsertGrants(employeeId: Uuid, userId: Uuid, businessId: Uuid, grants: Map<BusinessResource, ResourcePermission>) {
+    fun upsertGrants(
+        employeeId: Uuid,
+        userId: Uuid,
+        businessId: Uuid,
+        grants: Map<BusinessResource, ResourcePermission>,
+    ) {
         batchUpsert(grants.entries) { (grantResource, permission) ->
             this[BusinessPermissionGrantsTable.employeeId] = employeeId
             this[BusinessPermissionGrantsTable.userId] = userId
@@ -35,6 +40,9 @@ object BusinessPermissionGrantsTable : UuidTable("business_permission_grants") {
     }
 
     fun permissionsOf(rows: Iterable<ResultRow>): BusinessPermissions = BusinessPermissions.from(
-        rows.associate { it[resource] to ResourcePermission(view = it[canView], update = it[canUpdate], delete = it[canDelete]) },
+        rows.associate {
+            it[resource] to
+                ResourcePermission(view = it[canView], update = it[canUpdate], delete = it[canDelete])
+        },
     )
 }

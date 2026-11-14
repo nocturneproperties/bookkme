@@ -9,6 +9,7 @@ data class DormantAccount(
     val lastActiveAt: Instant,
     val stage: DormancyStage,
     val warnedAt: Instant?,
+    val deletionHold: Boolean,
 ) {
     companion object {
         fun stub(
@@ -17,7 +18,8 @@ data class DormantAccount(
             lastActiveAt: Instant = Instant.fromEpochMilliseconds(0),
             stage: DormancyStage = DormancyStage.ACTIVE,
             warnedAt: Instant? = null,
-        ) = DormantAccount(authId, userId, lastActiveAt, stage, warnedAt)
+            deletionHold: Boolean = false,
+        ) = DormantAccount(authId, userId, lastActiveAt, stage, warnedAt, deletionHold)
     }
 }
 

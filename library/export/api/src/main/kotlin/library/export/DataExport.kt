@@ -12,7 +12,8 @@ data class DataExport(
     @ProtoNumber(4) val availableAgainAt: Instant?,
 ) {
     companion object {
-        val NONE = DataExport(status = DataExportStatus.NONE, requestedAt = null, expiresAt = null, availableAgainAt = null)
+        val NONE =
+            DataExport(status = DataExportStatus.NONE, requestedAt = null, expiresAt = null, availableAgainAt = null)
 
         fun stub(
             status: DataExportStatus = DataExportStatus.RUNNING,

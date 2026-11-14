@@ -9,7 +9,11 @@ internal class UpdateDeviceLanguage(
     private val deviceDataSource: DeviceDataSource,
     private val transactionManager: TransactionManager,
 ) {
-    suspend operator fun invoke(authId: Uuid, deviceUuid: Uuid, language: Language): Result<Unit> = transactionManager.transaction {
+    suspend operator fun invoke(
+        authId: Uuid,
+        deviceUuid: Uuid,
+        language: Language,
+    ): Result<Unit> = transactionManager.transaction {
         deviceDataSource.updateLanguage(authId, deviceUuid, language)
         Unit
     }

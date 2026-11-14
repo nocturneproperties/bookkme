@@ -17,6 +17,7 @@ dependencies {
     implementation(projects.service.notifications.client)
     implementation(projects.library.actionconfirmation.api)
     implementation(projects.library.export.api)
+    implementation(projects.library.encryption.api)
     testImplementation(testFixtures(projects.core))
     testImplementation(projects.core.data.eventstreaming.impl)
     testImplementation(testFixtures(projects.core.data.eventstreaming.impl))

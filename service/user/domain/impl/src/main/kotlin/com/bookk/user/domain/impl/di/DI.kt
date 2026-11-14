@@ -8,11 +8,12 @@ import com.bookk.server.business.client.di.businessClientModule
 import com.bookk.user.domain.api.USER_SCHEMA
 import com.bookk.user.domain.api.USER_SERVICE_NAME
 import com.bookk.user.domain.api.operation.AcceptLegalDocuments
-import com.bookk.user.domain.api.operation.CreateContactForm
+import com.bookk.user.domain.api.operation.ChangeUserEmail
 import com.bookk.user.domain.api.operation.CreateUser
 import com.bookk.user.domain.api.operation.DeleteUser
 import com.bookk.user.domain.api.operation.DownloadPersonalDataExport
 import com.bookk.user.domain.api.operation.EditUser
+import com.bookk.user.domain.api.operation.EncryptPlaintextProfiles
 import com.bookk.user.domain.api.operation.GetLegalDocumentStatus
 import com.bookk.user.domain.api.operation.GetLegalDocuments
 import com.bookk.user.domain.api.operation.GetPersonalDataExport
@@ -22,11 +23,12 @@ import com.bookk.user.domain.api.operation.StartPersonalDataExport
 import com.bookk.user.domain.impl.event.UserEventHandler
 import com.bookk.user.domain.impl.export.PersonalDataExportAssembler
 import com.bookk.user.domain.impl.operation.AcceptLegalDocumentsImpl
-import com.bookk.user.domain.impl.operation.CreateContactFormImpl
+import com.bookk.user.domain.impl.operation.ChangeUserEmailImpl
 import com.bookk.user.domain.impl.operation.CreateUserImpl
 import com.bookk.user.domain.impl.operation.DeleteUserImpl
 import com.bookk.user.domain.impl.operation.DownloadPersonalDataExportImpl
 import com.bookk.user.domain.impl.operation.EditUserImpl
+import com.bookk.user.domain.impl.operation.EncryptPlaintextProfilesImpl
 import com.bookk.user.domain.impl.operation.GetLegalDocumentStatusImpl
 import com.bookk.user.domain.impl.operation.GetLegalDocumentsImpl
 import com.bookk.user.domain.impl.operation.GetPersonalDataExportImpl
@@ -55,7 +57,7 @@ fun userDomainModule() = module {
         scopedOf(::CreateUserImpl) bind CreateUser::class
         scopedOf(::DeleteUserImpl) bind DeleteUser::class
         scopedOf(::EditUserImpl) bind EditUser::class
-        scopedOf(::CreateContactFormImpl) bind CreateContactForm::class
+        scopedOf(::ChangeUserEmailImpl) bind ChangeUserEmail::class
         scopedOf(::GetUserByEmailImpl) bind GetUserByEmail::class
         scopedOf(::GetUserByIdImpl) bind GetUserById::class
         scopedOf(::GetLegalDocumentsImpl) bind GetLegalDocuments::class
@@ -65,6 +67,7 @@ fun userDomainModule() = module {
         scopedOf(::StartPersonalDataExportImpl) bind StartPersonalDataExport::class
         scopedOf(::GetPersonalDataExportImpl) bind GetPersonalDataExport::class
         scopedOf(::DownloadPersonalDataExportImpl) bind DownloadPersonalDataExport::class
+        scopedOf(::EncryptPlaintextProfilesImpl) bind EncryptPlaintextProfiles::class
         scoped<DataExportAssembler> {
             PersonalDataExportAssembler(get(), get(), get(), get(), get(), get(), get(), get(), Clock.System)
         }

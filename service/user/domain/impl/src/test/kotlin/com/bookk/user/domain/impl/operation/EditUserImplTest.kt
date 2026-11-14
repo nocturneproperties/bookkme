@@ -97,7 +97,13 @@ internal class EditUserImplTest {
         given()
         val fixture = SutFixture()
         val editModel = editModel(firstName = "Jane", lastName = "Smith", email = "jane@example.com")
-        val updated = User(id = userId, name = "Jane", lastName = "Smith", email = "jane@example.com", phone = null)
+        val updated = User.stub(
+            id = userId,
+            name = "Jane",
+            lastName = "Smith",
+            email = "jane@example.com",
+            phone = null,
+        )
         with(fixture) {
             transactionManager.mockTransaction()
             coEvery { userDataSource.updateUser(userId, editModel, any()) } returns updated
@@ -126,7 +132,7 @@ internal class EditUserImplTest {
         given()
         val fixture = SutFixture()
         val edit = editModel(phone = "+10000000000")
-        val updated = User(
+        val updated = User.stub(
             id = userId,
             name = "Jane",
             lastName = "Smith",
@@ -164,6 +170,43 @@ internal class EditUserImplTest {
         coVerify(exactly = 1) {
             fixture.eventProducer.send(match<UserEvent.Updated> { it.phone == null }, any())
         }
+    }
+
+    @Test
+    fun `should accept the stored email sent back unchanged`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val editModel = editModel(firstName = "Jane", email = "jane@example.com")
+        with(fixture) {
+            transactionManager.mockTransaction()
+            coEvery { userDataSource.updateUser(userId, editModel, any()) } returns
+                User.stub(id = userId, email = "jane@example.com")
+        }
+
+        whenn()
+        val result = fixture.sut.invoke(userId, editModel)
+
+        then()
+        assertTrue(result.isSuccess) { result.toString() }
+    }
+
+    @Test
+    fun `should reject a changed email and publish nothing`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val editModel = editModel(firstName = "Jane", email = "other@example.com")
+        with(fixture) {
+            transactionManager.mockTransaction()
+            coEvery { userDataSource.updateUser(userId, editModel, any()) } returns
+                User.stub(id = userId, email = "jane@example.com")
+        }
+
+        whenn()
+        val result = fixture.sut.invoke(userId, editModel)
+
+        then()
+        assertTrue(result.exceptionOrNull() is EditUser.Error.EmailChangeRequiresVerification) { result.toString() }
+        coVerify(exactly = 0) { fixture.eventProducer.send(any<UserEvent.Updated>(), any()) }
     }
 
     @Test

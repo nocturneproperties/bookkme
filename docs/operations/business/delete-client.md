@@ -48,8 +48,10 @@ flowchart TD
     Owner -- Yes --> Delete
     Kind -- No --> Delete[ClientDataSource.deleteClient businessId id]
     Delete --> Record["ErasedClientDataSource.record businessId id - INSERT IGNORE erased_client, so a backup restore can delete it again"]
-    Record --> Send["eventProducer.send BusinessEvent.ClientDeleted businessId clientId - outbox row in this transaction"]
-    Send --> R204([204 Entity deleted - token stays spent])
+    Record --> Discard["DataExports.discard businessId - DELETE data_export row, SubjectKeys.shred its key_id"]
+    Discard --> Send["eventProducer.send BusinessEvent.ClientDeleted businessId clientId - outbox row in this transaction"]
+    Send --> Shred["SubjectKeys.shred id - last, tombstone the client's key"]
+    Shred --> R204([204 Entity deleted - token stays spent])
     Tx -- any failure after the reservation --> Release["ActionConfirmationGate.spend - release jti - NonCancellable, best effort"]
 ```
 

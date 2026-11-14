@@ -19,10 +19,13 @@ flowchart TD
     GetPerm -- caller suspended in the business --> R403s([403 BUSINESS_EMPLOYEE_ACCESS_SUSPENDED 200034 - propagated from the business service])
     GetPerm -- ok --> GetBiz[BusinessClient.getBusinessById businessId]
     GetBiz -- request failed --> RErr
+    GetBiz -- no ownerUserId, an older business service --> R500([500, nothing attached])
     GetBiz -- ok --> Tx[[Begin transaction]]
-    Tx --> AssertOwner{permission covers FULL?}
+    Tx --> OwnerGone{"DeletedUserDataSource.isDeletedForShare ownerUserId - LOCK IN SHARE MODE, first statement"}
+    OwnerGone -- deleted --> R404
+    OwnerGone -- has an account --> AssertOwner{permission covers FULL?}
     AssertOwner -- No --> R404([404 Error.OperationNotAllowed])
-    AssertOwner -- Yes --> Attach[AppointmentSubscriptionDataSource.attachBusiness BusinessSnapshot]
+    AssertOwner -- Yes --> Attach["AppointmentSubscriptionDataSource.attachBusiness BusinessSnapshot - owner_user_id = business.ownerUserId, not the caller"]
     Attach --> SetPerm[AppointmentPermissionDataSource.setPermission userId businessId FULL]
     SetPerm --> CreateSettings[AppointmentSettingsDataSource.create default AppointmentSettings]
     CreateSettings --> Constraint{Unique constraint violated?}

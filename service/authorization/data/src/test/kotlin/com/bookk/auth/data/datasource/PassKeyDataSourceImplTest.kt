@@ -17,17 +17,23 @@ import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
+import kotlin.time.TestTimeSource
 import kotlin.uuid.Uuid
 
 internal class PassKeyDataSourceImplTest {
 
     private class SutFixture {
         val db = createTestDatabase(AuthenticationTable, PasskeyCredentialTable)
-        val cacheClient = InMemoryCacheClient()
+        val timeSource = TestTimeSource()
+        val cacheClient = InMemoryCacheClient(timeSource = timeSource)
         val sut = PassKeyDataSourceImpl(cacheClient)
         val accountSut = AccountDataSourceImpl()
 
-        suspend fun insertAuth(): Authentication = suspendTransaction { accountSut.createAuthorization(Authentication.stub()) }
+        suspend fun insertAuth(): Authentication = suspendTransaction {
+            accountSut.createAuthorization(Authentication.stub())
+        }
     }
 
     @Test
@@ -228,5 +234,22 @@ internal class PassKeyDataSourceImplTest {
 
         then()
         assertNull(result)
+    }
+
+    @Test
+    fun `should keep a challenge as long as the email code sent with it`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.sut.saveChallengeToCache("req-1", "challenge-abc")
+
+        whenn()
+        fixture.timeSource += 10.minutes - 1.seconds
+        val beforeExpiry = fixture.sut.getCachedChallenge("req-1")
+        fixture.timeSource += 2.seconds
+        val afterExpiry = fixture.sut.getCachedChallenge("req-1")
+
+        then()
+        assertEquals("challenge-abc", beforeExpiry)
+        assertNull(afterExpiry)
     }
 }

@@ -12,6 +12,7 @@ dependencies {
     implementation(projects.library.signing.api)
     implementation(projects.library.actionconfirmation.api)
     implementation(projects.library.validation)
+    implementation(projects.core.i18n)
     implementation(projects.service.authorization.data.source)
     implementation(projects.service.authorization.client)
     implementation(projects.service.user.client)
@@ -19,4 +20,5 @@ dependencies {
     testImplementation(testFixtures(projects.core))
     testImplementation(testFixtures(projects.core.domain.datasource))
     testImplementation(testFixtures(projects.library.actionconfirmation.impl))
+    testImplementation(testFixtures(projects.library.email.impl))
 }

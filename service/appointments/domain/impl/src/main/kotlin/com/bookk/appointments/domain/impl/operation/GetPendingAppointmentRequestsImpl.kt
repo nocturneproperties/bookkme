@@ -14,7 +14,10 @@ internal class GetPendingAppointmentRequestsImpl(
     private val appointmentPermissionDataSource: AppointmentPermissionDataSource,
     private val transactionManager: TransactionManager,
 ) : GetPendingAppointmentRequests {
-    override suspend fun invoke(userId: Uuid, businessId: Uuid): Result<List<AppointmentRequest>> = transactionManager.transaction {
+    override suspend fun invoke(
+        userId: Uuid,
+        businessId: Uuid,
+    ): Result<List<AppointmentRequest>> = transactionManager.transaction {
         appointmentPermissionDataSource.getPermission(userId, businessId).assert(PermissionAction.VIEW)
         requestsDataSource.getPending(businessId)
     }

@@ -61,7 +61,10 @@ internal class EmployeeInvitationDataSourceImpl : DataSource(), EmployeeInvitati
         )
     }
 
-    override suspend fun getInvitationsByInviter(businessId: Uuid, invitedBy: Uuid): List<EmployeeInvitation> = dbQuery {
+    override suspend fun getInvitationsByInviter(
+        businessId: Uuid,
+        invitedBy: Uuid,
+    ): List<EmployeeInvitation> = dbQuery {
         EmployeeInvitationEntity.find {
             (EmployeeInvitationTable.businessId eq businessId) and
                 (EmployeeInvitationTable.invitedBy eq invitedBy)

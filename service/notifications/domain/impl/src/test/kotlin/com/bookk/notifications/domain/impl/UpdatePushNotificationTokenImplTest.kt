@@ -55,7 +55,8 @@ internal class UpdatePushNotificationTokenImplTest {
         val token = "fcm-token-abc123"
         with(fixture) {
             transactionManager.mockTransaction()
-            coEvery { deviceDataSource.updateToken(authId, deviceId, token) } throws RuntimeException("device not found")
+            coEvery { deviceDataSource.updateToken(authId, deviceId, token) } throws
+                RuntimeException("device not found")
         }
 
         whenn()

@@ -33,11 +33,13 @@ internal class RevokeEmployeeInvitationImplTest {
         val sut = RevokeEmployeeInvitationImpl(invitationDataSource, businessPermissionDataSource, transactionManager)
 
         init {
-            coEvery { businessPermissionDataSource.getPermission(any(), any(), BusinessResource.EMPLOYEES) } returns ResourcePermission(view = false, update = true, delete = false)
+            coEvery { businessPermissionDataSource.getPermission(any(), any(), BusinessResource.EMPLOYEES) } returns
+                ResourcePermission(view = false, update = true, delete = false)
         }
 
         fun grantPermission(permission: ResourcePermission) {
-            coEvery { businessPermissionDataSource.getPermission(any(), any(), BusinessResource.EMPLOYEES) } returns permission
+            coEvery { businessPermissionDataSource.getPermission(any(), any(), BusinessResource.EMPLOYEES) } returns
+                permission
         }
     }
 

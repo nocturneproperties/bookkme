@@ -23,6 +23,7 @@ import org.junit.jupiter.api.Test
 import org.testcontainers.containers.GenericContainer
 import org.testcontainers.utility.DockerImageName
 import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
 import kotlin.uuid.Uuid
 
 internal class RedisCacheClientTest {
@@ -41,13 +42,37 @@ internal class RedisCacheClientTest {
         }
 
         private fun connectedClients(): Int {
-            val info = container.execInContainer("valkey-cli", "-a", PASSWORD, "--no-auth-warning", "info", "clients").stdout
+            val info = container.execInContainer(
+                "valkey-cli",
+                "-a",
+                PASSWORD,
+                "--no-auth-warning",
+                "info",
+                "clients",
+            ).stdout
             return info.lineSequence().first { it.startsWith("connected_clients:") }.substringAfter(':').trim().toInt()
         }
+
+        private fun remainingMillis(key: String): Long = container.execInContainer(
+            "valkey-cli",
+            "-a",
+            PASSWORD,
+            "--no-auth-warning",
+            "pttl",
+            key,
+        ).stdout.trim().toLong()
     }
 
     private class SutFixture {
-        val sut = RedisCacheClient(container.host, container.getMappedPort(6379), PASSWORD, ProtoBuf { encodeDefaults = true })
+        val sut = RedisCacheClient(
+            container.host,
+            container.getMappedPort(6379),
+            PASSWORD,
+            ProtoBuf {
+                encodeDefaults =
+                    true
+            },
+        )
     }
 
     @Test
@@ -64,6 +89,7 @@ internal class RedisCacheClientTest {
                 fixture.sut.get<String, String>(key)
                 fixture.sut.setIfAbsent(key, "other", 1.minutes)
                 fixture.sut.delete(key)
+                fixture.sut.increment(key, 1.minutes)
             }
         }
 
@@ -237,6 +263,68 @@ internal class RedisCacheClientTest {
             fixture.sut.set(key, "after", 1.minutes)
             assertEquals("after", fixture.sut.get<String, String>(key))
         }
+        fixture.sut.close()
+    }
+
+    @Test
+    fun `should count each increment of a key from one`() = runIntegrationTest {
+        given()
+        val fixture = SutFixture()
+        val key = "counter-${Uuid.random()}"
+
+        whenn()
+        val counts = withContext(Dispatchers.IO) { (1..3).map { fixture.sut.increment(key, 1.minutes) } }
+
+        then()
+        assertEquals(listOf(1L, 2L, 3L), counts)
+        fixture.sut.close()
+    }
+
+    @Test
+    fun `should give every concurrent increment its own count`() = runIntegrationTest {
+        given()
+        val fixture = SutFixture()
+        val key = "counter-race-${Uuid.random()}"
+
+        whenn()
+        val counts = withContext(Dispatchers.IO) {
+            (1..20).map { async { fixture.sut.increment(key, 1.minutes) } }.awaitAll()
+        }
+
+        then()
+        assertEquals((1L..20L).toSet(), counts.toSet())
+        fixture.sut.close()
+    }
+
+    @Test
+    fun `should keep the expiration of the first increment when the key is incremented again`() = runIntegrationTest {
+        given()
+        val fixture = SutFixture()
+        val key = "counter-expiration-${Uuid.random()}"
+        withContext(Dispatchers.IO) { fixture.sut.increment(key, 30.seconds) }
+
+        whenn()
+        withContext(Dispatchers.IO) { fixture.sut.increment(key, 10.minutes) }
+
+        then()
+        assertTrue(withContext(Dispatchers.IO) { remainingMillis(key) } in 1..30_000)
+        fixture.sut.close()
+    }
+
+    @Test
+    fun `should reject incrementing inside a transaction and leave the connection usable`() = runIntegrationTest {
+        given()
+        val fixture = SutFixture()
+        val key = "counter-transaction-${Uuid.random()}"
+
+        whenn()
+        val thrown = withContext(Dispatchers.IO) {
+            runCatching { fixture.sut.withTransaction { increment(key, 1.minutes) } }.exceptionOrNull()
+        }
+
+        then()
+        assertTrue(thrown is UnsupportedOperationException)
+        assertEquals(1L, withContext(Dispatchers.IO) { fixture.sut.increment(key, 1.minutes) })
         fixture.sut.close()
     }
 }

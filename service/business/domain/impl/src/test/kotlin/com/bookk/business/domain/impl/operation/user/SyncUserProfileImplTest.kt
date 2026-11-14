@@ -15,6 +15,7 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.coVerifyOrder
 import io.mockk.mockk
+import library.encryption.test.ShredRecordingSubjectKeys
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -28,10 +29,18 @@ internal class SyncUserProfileImplTest {
         val employeeDataSource = mockk<EmployeeDataSource>()
         val transactionManager = mockk<TransactionManager>()
         val eventProducer = mockk<StandardEventProducer>(relaxed = true)
-        val sut = SyncUserProfileImpl(transactionManager, clientDataSource, employeeDataSource, eventProducer)
+        val subjectKeys = ShredRecordingSubjectKeys(transactionManager::isInTransaction)
+        val sut = SyncUserProfileImpl(
+            transactionManager,
+            clientDataSource,
+            employeeDataSource,
+            eventProducer,
+            subjectKeys,
+        )
 
         init {
-            coEvery { clientDataSource.findClientMergesForUser(any(), any(), any(), any()) } returns emptyList()
+            coEvery { clientDataSource.findClientMergesForUser(any(), any(), any()) } returns emptyList()
+            coEvery { clientDataSource.deleteClients(any()) } returns Unit
         }
     }
 
@@ -114,7 +123,7 @@ internal class SyncUserProfileImplTest {
     }
 
     @Test
-    fun `should merge detached clients holding the new contacts into the user's client before syncing`() = runUnitTest {
+    fun `should merge detached clients holding the new email into the user's client before syncing`() = runUnitTest {
         given()
         val fixture = SutFixture()
         val userId = Uuid.random()
@@ -122,10 +131,11 @@ internal class SyncUserProfileImplTest {
         val merge = ClientMerge.stub()
         with(fixture) {
             transactionManager.mockTransaction()
-            coEvery { clientDataSource.findClientMergesForUser(userId, "+1555", "john@doe.com", updatedAt) } returns listOf(merge)
-            coEvery { clientDataSource.deleteClient(merge.businessId, merge.fromClientId) } returns true
+            coEvery { clientDataSource.findClientMergesForUser(userId, "john@doe.com", updatedAt) } returns
+                listOf(merge)
             coEvery { clientDataSource.updateIntegratedClients(userId, any(), any(), any(), any(), any()) } returns 1
-            coEvery { employeeDataSource.updateIntegratedEmployees(userId, any(), any(), any(), any(), any()) } returns 0
+            coEvery { employeeDataSource.updateIntegratedEmployees(userId, any(), any(), any(), any(), any()) } returns
+                0
         }
 
         whenn()
@@ -134,7 +144,7 @@ internal class SyncUserProfileImplTest {
         then()
         assertTrue(result.isSuccess)
         coVerifyOrder {
-            fixture.clientDataSource.deleteClient(merge.businessId, merge.fromClientId)
+            fixture.clientDataSource.deleteClients(listOf(merge.fromClientId))
             fixture.eventProducer.send(
                 match<BusinessEvent.ClientLinked> {
                     it.businessId == merge.businessId && it.clientId == merge.toClientId && it.userId == userId &&
@@ -144,6 +154,50 @@ internal class SyncUserProfileImplTest {
             )
             fixture.clientDataSource.updateIntegratedClients(userId, "John", "Doe", "john@doe.com", "+1555", updatedAt)
         }
+    }
+
+    @Test
+    fun `should shred the keys of the clients merged away inside the transaction`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val updatedAt = Instant.fromEpochMilliseconds(1000)
+        val merges = listOf(ClientMerge.stub(), ClientMerge.stub())
+        with(fixture) {
+            transactionManager.mockTransaction()
+            coEvery { clientDataSource.findClientMergesForUser(userId, any(), updatedAt) } returns merges
+            coEvery { clientDataSource.updateIntegratedClients(userId, any(), any(), any(), any(), any()) } returns 1
+            coEvery { employeeDataSource.updateIntegratedEmployees(userId, any(), any(), any(), any(), any()) } returns
+                0
+        }
+
+        whenn()
+        fixture.sut(userId, "John", "Doe", "john@doe.com", "+1555", updatedAt)
+
+        then()
+        assertEquals(merges.map { it.fromClientId }.toSet(), fixture.subjectKeys.shreddedInTransaction)
+    }
+
+    @Test
+    fun `should delete every client merged away at once`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val updatedAt = Instant.fromEpochMilliseconds(1000)
+        val merges = listOf(ClientMerge.stub(), ClientMerge.stub())
+        with(fixture) {
+            transactionManager.mockTransaction()
+            coEvery { clientDataSource.findClientMergesForUser(userId, any(), updatedAt) } returns merges
+            coEvery { clientDataSource.updateIntegratedClients(userId, any(), any(), any(), any(), any()) } returns 1
+            coEvery { employeeDataSource.updateIntegratedEmployees(userId, any(), any(), any(), any(), any()) } returns
+                0
+        }
+
+        whenn()
+        fixture.sut(userId, "John", "Doe", "john@doe.com", "+1555", updatedAt)
+
+        then()
+        coVerify(exactly = 1) { fixture.clientDataSource.deleteClients(merges.map { it.fromClientId }) }
     }
 
     @Test
@@ -158,11 +212,12 @@ internal class SyncUserProfileImplTest {
         val linked = mutableListOf<BusinessEvent.ClientLinked>()
         with(fixture) {
             transactionManager.mockTransaction()
-            coEvery { clientDataSource.findClientMergesForUser(userId, any(), any(), updatedAt) } returns listOf(kept, sameKept, elsewhere)
-            coEvery { clientDataSource.deleteClient(any(), any()) } returns true
+            coEvery { clientDataSource.findClientMergesForUser(userId, any(), updatedAt) } returns
+                listOf(kept, sameKept, elsewhere)
             coEvery { eventProducer.send(capture(linked), any()) } returns Unit
             coEvery { clientDataSource.updateIntegratedClients(userId, any(), any(), any(), any(), any()) } returns 1
-            coEvery { employeeDataSource.updateIntegratedEmployees(userId, any(), any(), any(), any(), any()) } returns 0
+            coEvery { employeeDataSource.updateIntegratedEmployees(userId, any(), any(), any(), any(), any()) } returns
+                0
         }
 
         whenn()
@@ -179,21 +234,22 @@ internal class SyncUserProfileImplTest {
     }
 
     @Test
-    fun `should not publish a merge when no detached client holds the new contacts`() = runUnitTest {
+    fun `should not publish a merge when no detached client holds the new email`() = runUnitTest {
         given()
         val fixture = SutFixture()
         val userId = Uuid.random()
         with(fixture) {
             transactionManager.mockTransaction()
             coEvery { clientDataSource.updateIntegratedClients(userId, any(), any(), any(), any(), any()) } returns 1
-            coEvery { employeeDataSource.updateIntegratedEmployees(userId, any(), any(), any(), any(), any()) } returns 0
+            coEvery { employeeDataSource.updateIntegratedEmployees(userId, any(), any(), any(), any(), any()) } returns
+                0
         }
 
         whenn()
         fixture.sut(userId, "John", "Doe", "john@doe.com", "+1555", Instant.fromEpochMilliseconds(1000))
 
         then()
-        coVerify(exactly = 0) { fixture.clientDataSource.deleteClient(any(), any()) }
+        coVerify(exactly = 0) { fixture.clientDataSource.deleteClients(match { it.isNotEmpty() }) }
         coVerify(exactly = 0) { fixture.eventProducer.send(any<BusinessEvent.ClientLinked>(), any()) }
     }
 }

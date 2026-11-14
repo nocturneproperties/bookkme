@@ -1,5 +1,6 @@
 package library.export.impl
 
+import com.bookk.core.data.test.countStatements
 import com.bookk.core.data.test.createTestDatabase
 import com.bookk.core.test.given
 import com.bookk.core.test.runUnitTest
@@ -33,10 +34,14 @@ internal class DataExportDataSourceTest {
         suspend fun record(ownerId: Uuid = this.ownerId) = suspendTransaction { sut.get(ownerId) }
 
         suspend fun document(ownerId: Uuid = this.ownerId): ByteArray? = suspendTransaction {
-            DataExportTable.selectAll().where { DataExportTable.ownerId eq ownerId }.single()[DataExportTable.document]?.bytes
+            DataExportTable.selectAll().where {
+                DataExportTable.ownerId eq ownerId
+            }.single()[DataExportTable.document]?.bytes
         }
 
-        suspend fun requested(ownerId: Uuid = this.ownerId, at: Instant = now) = suspendTransaction { sut.insert(ownerId, at) }
+        suspend fun requested(ownerId: Uuid = this.ownerId, at: Instant = now) = suspendTransaction {
+            sut.insert(ownerId, at)
+        }
 
         suspend fun claimed(ownerId: Uuid = this.ownerId, claimId: Uuid = Uuid.random(), at: Instant = now): Uuid {
             requested(ownerId, at)
@@ -44,9 +49,19 @@ internal class DataExportDataSourceTest {
             return claimId
         }
 
-        suspend fun ready(ownerId: Uuid = this.ownerId, at: Instant = now, expiresAt: Instant = at + DataExports.DOCUMENT_LIFETIME) {
+        suspend fun keyId(ownerId: Uuid = this.ownerId): Uuid? = suspendTransaction {
+            DataExportTable.selectAll().where { DataExportTable.ownerId eq ownerId }.single()[DataExportTable.keyId]
+        }
+
+        suspend fun ready(
+            ownerId: Uuid = this.ownerId,
+            at: Instant = now,
+            expiresAt: Instant = at + DataExports.DOCUMENT_LIFETIME,
+            keyId: Uuid = Uuid.random(),
+        ): Uuid {
             val claimId = claimed(ownerId, at = at)
-            suspendTransaction { sut.complete(ownerId, claimId, byteArrayOf(1, 2, 3), at, expiresAt) }
+            suspendTransaction { sut.complete(ownerId, claimId, byteArrayOf(1, 2, 3), keyId, at, expiresAt) }
+            return keyId
         }
 
         suspend fun attempts(ownerId: Uuid = this.ownerId, count: Int) = suspendTransaction {
@@ -63,7 +78,10 @@ internal class DataExportDataSourceTest {
         fixture.requested()
 
         then()
-        assertEquals(DataExportRecord(fixture.ownerId, DataExportState.PENDING, fixture.now, attempts = 0, expiresAt = null), fixture.record())
+        assertEquals(
+            DataExportRecord(fixture.ownerId, DataExportState.PENDING, fixture.now, attempts = 0, expiresAt = null),
+            fixture.record(),
+        )
     }
 
     @Test
@@ -102,8 +120,12 @@ internal class DataExportDataSourceTest {
         suspendTransaction { fixture.sut.restart(fixture.ownerId, restartedAt) }
 
         then()
-        assertEquals(DataExportRecord(fixture.ownerId, DataExportState.PENDING, restartedAt, attempts = 0, expiresAt = null), fixture.record())
+        assertEquals(
+            DataExportRecord(fixture.ownerId, DataExportState.PENDING, restartedAt, attempts = 0, expiresAt = null),
+            fixture.record(),
+        )
         assertNull(fixture.document())
+        assertNull(fixture.keyId())
     }
 
     @Test
@@ -129,7 +151,14 @@ internal class DataExportDataSourceTest {
         fixture.requested()
 
         whenn()
-        val claimed = suspendTransaction { fixture.sut.claim(fixture.ownerId, Uuid.random(), fixture.now, fixture.now + DataExports.BUILD_LEASE) }
+        val claimed = suspendTransaction {
+            fixture.sut.claim(
+                fixture.ownerId,
+                Uuid.random(),
+                fixture.now,
+                fixture.now + DataExports.BUILD_LEASE,
+            )
+        }
 
         then()
         assertTrue(claimed)
@@ -144,7 +173,14 @@ internal class DataExportDataSourceTest {
         fixture.claimed(at = fixture.now - 1.minutes)
 
         whenn()
-        val claimed = suspendTransaction { fixture.sut.claim(fixture.ownerId, Uuid.random(), fixture.now, fixture.now + DataExports.BUILD_LEASE) }
+        val claimed = suspendTransaction {
+            fixture.sut.claim(
+                fixture.ownerId,
+                Uuid.random(),
+                fixture.now,
+                fixture.now + DataExports.BUILD_LEASE,
+            )
+        }
 
         then()
         assertFalse(claimed)
@@ -158,7 +194,14 @@ internal class DataExportDataSourceTest {
         fixture.claimed(at = fixture.now - 11.minutes)
 
         whenn()
-        val claimed = suspendTransaction { fixture.sut.claim(fixture.ownerId, Uuid.random(), fixture.now, fixture.now + DataExports.BUILD_LEASE) }
+        val claimed = suspendTransaction {
+            fixture.sut.claim(
+                fixture.ownerId,
+                Uuid.random(),
+                fixture.now,
+                fixture.now + DataExports.BUILD_LEASE,
+            )
+        }
 
         then()
         assertTrue(claimed)
@@ -173,7 +216,14 @@ internal class DataExportDataSourceTest {
         fixture.attempts(count = DataExports.MAX_BUILD_ATTEMPTS)
 
         whenn()
-        val claimed = suspendTransaction { fixture.sut.claim(fixture.ownerId, Uuid.random(), fixture.now, fixture.now + DataExports.BUILD_LEASE) }
+        val claimed = suspendTransaction {
+            fixture.sut.claim(
+                fixture.ownerId,
+                Uuid.random(),
+                fixture.now,
+                fixture.now + DataExports.BUILD_LEASE,
+            )
+        }
 
         then()
         assertFalse(claimed)
@@ -185,13 +235,27 @@ internal class DataExportDataSourceTest {
         val fixture = SutFixture()
         val claimId = fixture.claimed()
         val expiresAt = fixture.now + DataExports.DOCUMENT_LIFETIME
+        val keyId = Uuid.random()
 
         whenn()
-        val completed = suspendTransaction { fixture.sut.complete(fixture.ownerId, claimId, byteArrayOf(7, 8), fixture.now, expiresAt) }
+        val completed =
+            suspendTransaction {
+                fixture.sut.complete(fixture.ownerId, claimId, byteArrayOf(7, 8), keyId, fixture.now, expiresAt)
+            }
 
         then()
         assertTrue(completed)
-        assertEquals(DataExportRecord(fixture.ownerId, DataExportState.READY, fixture.now, attempts = 1, expiresAt = expiresAt), fixture.record())
+        assertEquals(
+            DataExportRecord(
+                fixture.ownerId,
+                DataExportState.READY,
+                fixture.now,
+                attempts = 1,
+                expiresAt = expiresAt,
+                keyId = keyId,
+            ),
+            fixture.record(),
+        )
         assertArrayEquals(byteArrayOf(7, 8), fixture.document())
     }
 
@@ -202,7 +266,17 @@ internal class DataExportDataSourceTest {
         fixture.claimed()
 
         whenn()
-        val completed = suspendTransaction { fixture.sut.complete(fixture.ownerId, Uuid.random(), byteArrayOf(7, 8), fixture.now, fixture.now + DataExports.DOCUMENT_LIFETIME) }
+        val completed =
+            suspendTransaction {
+                fixture.sut.complete(
+                    fixture.ownerId,
+                    Uuid.random(),
+                    byteArrayOf(7, 8),
+                    Uuid.random(),
+                    fixture.now,
+                    fixture.now + DataExports.DOCUMENT_LIFETIME,
+                )
+            }
 
         then()
         assertFalse(completed)
@@ -215,10 +289,20 @@ internal class DataExportDataSourceTest {
         given()
         val fixture = SutFixture()
         val claimId = fixture.claimed()
-        suspendTransaction { fixture.sut.delete(fixture.ownerId) }
+        suspendTransaction { fixture.sut.delete(setOf(fixture.ownerId)) }
 
         whenn()
-        val completed = suspendTransaction { fixture.sut.complete(fixture.ownerId, claimId, byteArrayOf(7, 8), fixture.now, fixture.now + DataExports.DOCUMENT_LIFETIME) }
+        val completed =
+            suspendTransaction {
+                fixture.sut.complete(
+                    fixture.ownerId,
+                    claimId,
+                    byteArrayOf(7, 8),
+                    Uuid.random(),
+                    fixture.now,
+                    fixture.now + DataExports.DOCUMENT_LIFETIME,
+                )
+            }
 
         then()
         assertFalse(completed)
@@ -232,7 +316,14 @@ internal class DataExportDataSourceTest {
         val claimId = fixture.claimed()
 
         whenn()
-        suspendTransaction { fixture.sut.giveBack(fixture.ownerId, claimId, fixture.now, fixture.now + DataExports.DOCUMENT_LIFETIME) }
+        suspendTransaction {
+            fixture.sut.giveBack(
+                fixture.ownerId,
+                claimId,
+                fixture.now,
+                fixture.now + DataExports.DOCUMENT_LIFETIME,
+            )
+        }
 
         then()
         assertEquals(DataExportState.PENDING, fixture.record()?.state)
@@ -251,7 +342,16 @@ internal class DataExportDataSourceTest {
         suspendTransaction { fixture.sut.giveBack(fixture.ownerId, claimId, fixture.now, expiresAt) }
 
         then()
-        assertEquals(DataExportRecord(fixture.ownerId, DataExportState.FAILED, fixture.now, attempts = DataExports.MAX_BUILD_ATTEMPTS, expiresAt = expiresAt), fixture.record())
+        assertEquals(
+            DataExportRecord(
+                fixture.ownerId,
+                DataExportState.FAILED,
+                fixture.now,
+                attempts = DataExports.MAX_BUILD_ATTEMPTS,
+                expiresAt = expiresAt,
+            ),
+            fixture.record(),
+        )
         assertTrue(suspendTransaction { fixture.sut.claimable(fixture.now) }.isEmpty())
     }
 
@@ -262,7 +362,14 @@ internal class DataExportDataSourceTest {
         fixture.claimed()
 
         whenn()
-        suspendTransaction { fixture.sut.giveBack(fixture.ownerId, Uuid.random(), fixture.now, fixture.now + DataExports.DOCUMENT_LIFETIME) }
+        suspendTransaction {
+            fixture.sut.giveBack(
+                fixture.ownerId,
+                Uuid.random(),
+                fixture.now,
+                fixture.now + DataExports.DOCUMENT_LIFETIME,
+            )
+        }
 
         then()
         assertEquals(DataExportState.RUNNING, fixture.record()?.state)
@@ -290,14 +397,15 @@ internal class DataExportDataSourceTest {
     fun `should hand out the document of a ready export until it expires`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        fixture.ready(expiresAt = fixture.now + 1.hours)
+        val keyId = fixture.ready(expiresAt = fixture.now + 1.hours)
 
         whenn()
         val beforeExpiry = suspendTransaction { fixture.sut.document(fixture.ownerId, fixture.now) }
         val afterExpiry = suspendTransaction { fixture.sut.document(fixture.ownerId, fixture.now + 1.hours) }
 
         then()
-        assertArrayEquals(byteArrayOf(1, 2, 3), beforeExpiry)
+        assertArrayEquals(byteArrayOf(1, 2, 3), beforeExpiry?.ciphertext)
+        assertEquals(keyId, beforeExpiry?.keyId)
         assertNull(afterExpiry)
     }
 
@@ -315,33 +423,69 @@ internal class DataExportDataSourceTest {
     }
 
     @Test
-    fun `should delete only the owner's export`() = runUnitTest {
+    fun `should delete only the given owners' exports and return their documents' keys`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        val other = Uuid.random()
-        fixture.ready()
-        fixture.ready(other)
+        val second = Uuid.random()
+        val running = Uuid.random()
+        val kept = Uuid.random()
+        val firstKeyId = fixture.ready()
+        val secondKeyId = fixture.ready(second)
+        fixture.claimed(running)
+        fixture.ready(kept)
 
         whenn()
-        suspendTransaction { fixture.sut.delete(fixture.ownerId) }
+        val deletedKeyIds = suspendTransaction {
+            fixture.sut.delete(setOf(fixture.ownerId, second, running, Uuid.random()))
+        }
 
         then()
-        assertNull(fixture.record())
-        assertEquals(DataExportState.READY, fixture.record(other)?.state)
+        assertEquals(setOf(firstKeyId, secondKeyId), deletedKeyIds.toSet())
+        listOf(fixture.ownerId, second, running).forEach { assertNull(fixture.record(it)) }
+        assertEquals(DataExportState.READY, fixture.record(kept)?.state)
+    }
+
+    @Test
+    fun `should delete any number of exports with two statements`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val owners = List(5) { Uuid.random() }.onEach { fixture.ready(it) }
+
+        whenn()
+        val statements = suspendTransaction { countStatements { fixture.sut.delete(owners.toSet()) } }
+
+        then()
+        assertEquals(2, statements)
+    }
+
+    @Test
+    fun `should only look up when no given owner has an export`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+
+        whenn()
+        val statements = suspendTransaction { countStatements { fixture.sut.delete(setOf(Uuid.random())) } }
+        val noOwners = suspendTransaction { countStatements { fixture.sut.delete(emptySet()) } }
+
+        then()
+        assertEquals(1, statements)
+        assertEquals(0, noOwners)
     }
 
     @Test
     fun `should delete expired exports and keep the rest`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        val expired = Uuid.random().also { fixture.ready(it, expiresAt = fixture.now) }
+        val expired = Uuid.random()
+        val expiredKeyId = fixture.ready(expired, expiresAt = fixture.now)
         val ready = Uuid.random().also { fixture.ready(it, expiresAt = fixture.now + 1.minutes) }
         val running = Uuid.random().also { fixture.claimed(it) }
 
         whenn()
-        suspendTransaction { fixture.sut.deleteExpired(fixture.now) }
+        val deletedKeyIds = suspendTransaction { fixture.sut.deleteExpired(fixture.now) }
 
         then()
+        assertEquals(listOf(expiredKeyId), deletedKeyIds)
         assertNull(fixture.record(expired))
         assertEquals(DataExportState.READY, fixture.record(ready)?.state)
         assertEquals(DataExportState.RUNNING, fixture.record(running)?.state)

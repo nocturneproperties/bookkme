@@ -1,5 +1,6 @@
 package com.bookk.business.data.orm.entity
 
+import com.bookk.business.data.datasource.ContactReader
 import com.bookk.business.data.orm.table.BusinessPermissionGrantsTable
 import com.bookk.business.data.orm.table.BusinessTable
 import com.bookk.business.data.orm.table.EmployeeCanProvideServiceTable
@@ -32,6 +33,11 @@ internal class EmployeeEntity(id: EntityID<Uuid>) : UuidEntity(id) {
     var phone by EmployeeTable.phone
     var email by EmployeeTable.email
     var userId by EmployeeTable.userId
+    var nameEncrypted by EmployeeTable.nameEncrypted
+    var lastNameEncrypted by EmployeeTable.lastNameEncrypted
+    var phoneEncrypted by EmployeeTable.phoneEncrypted
+    var emailEncrypted by EmployeeTable.emailEncrypted
+    var sourceUpdatedAt by EmployeeTable.sourceUpdatedAt
     var createdAt by EmployeeTable.createdAt
     var updatedAt by EmployeeTable.updatedAt
     var workingDays by EmployeeTable.workingDays
@@ -42,24 +48,59 @@ internal class EmployeeEntity(id: EntityID<Uuid>) : UuidEntity(id) {
     val dayOffs by EmployeeDayOffEntity referrersOn EmployeeDayOffTable.employeeId
     val grants by BusinessPermissionGrantEntity referrersOn BusinessPermissionGrantsTable.employeeId
 
-    fun toDomain(): Employee = Employee(
-        id = id.value,
-        businessId = businessId.value,
-        name = name,
-        lastName = lastName,
-        phone = phone,
-        email = email,
-        userId = userId,
-        services = services.map(ServiceEntity::toDomain),
-        schedule = Schedule(
-            workingDays = workingDays.toWorkingDays(),
-            workingHours = workingHours.toWorkingHours(),
-            dayOffs = dayOffs.map { it.domain() },
-        ),
-        createdAt = createdAt,
-        permissions = BusinessPermissions.from(grants.associate { it.resource to it.permission() }),
-        suspendedAt = suspendedAt,
-    )
+    fun plaintextContact(): Contact {
+        return Contact(name = name.orEmpty(), lastName = lastName.orEmpty(), phone = phone, email = email)
+    }
+
+    fun contact(reader: ContactReader): Contact {
+        val encryptedName = nameEncrypted ?: return plaintextContact()
+        val encrypted = EncryptedContact(
+            name = encryptedName,
+            lastName = checkNotNull(lastNameEncrypted) { "Employee ${id.value} has no encrypted last name" },
+            phone = phoneEncrypted,
+            email = emailEncrypted,
+        )
+        return reader.read(userId, encrypted)
+    }
+
+    fun store(contact: EncryptedContact) {
+        nameEncrypted = contact.name
+        lastNameEncrypted = contact.lastName
+        phoneEncrypted = contact.phone
+        emailEncrypted = contact.email
+        name = null
+        lastName = null
+        phone = null
+        email = null
+    }
+
+    fun update(model: EmployeeUpdateModel, contact: EncryptedContact) {
+        store(contact)
+        replaceSchedule(model.schedule)
+        replaceServices(model.services)
+        updatedAt = Clock.System.now()
+    }
+
+    fun toDomain(contact: Contact): Employee {
+        return Employee(
+            id = id.value,
+            businessId = businessId.value,
+            name = contact.name,
+            lastName = contact.lastName,
+            phone = contact.phone,
+            email = contact.email,
+            userId = userId,
+            services = services.map(ServiceEntity::toDomain),
+            schedule = Schedule(
+                workingDays = workingDays.toWorkingDays(),
+                workingHours = workingHours.toWorkingHours(),
+                dayOffs = dayOffs.map { it.domain() },
+            ),
+            createdAt = createdAt,
+            permissions = BusinessPermissions.from(grants.associate { it.resource to it.permission() }),
+            suspendedAt = suspendedAt,
+        )
+    }
 
     private fun replaceSchedule(schedule: Schedule) {
         workingDays = schedule.activeDays().toWorkingDaysMask()
@@ -88,27 +129,14 @@ internal class EmployeeEntity(id: EntityID<Uuid>) : UuidEntity(id) {
     }
 
     companion object : DecoratorUuidEntityClass<EmployeeEntity>(EmployeeTable) {
-        fun new(model: Employee): EmployeeEntity = new {
+        fun new(model: Employee, contact: EncryptedContact): EmployeeEntity = new {
             businessId = EntityID(model.businessId, BusinessTable)
-            name = model.name.trim()
-            lastName = model.lastName.trim()
-            phone = model.phone?.trim()
-            email = model.email?.trim()
             userId = model.userId
+            store(contact)
         }.apply {
             replaceSchedule(model.schedule)
             replaceServices(model.services)
             writePermissions(model.permissions)
-        }
-
-        fun findByIdAndUpdate(model: EmployeeUpdateModel): EmployeeEntity? = findByIdAndUpdate(model.id) {
-            it.name = model.name.trim()
-            it.lastName = model.lastName.trim()
-            it.phone = model.phone?.trim()
-            it.email = model.email?.trim()
-            it.replaceSchedule(model.schedule)
-            it.replaceServices(model.services)
-            it.updatedAt = Clock.System.now()
         }
 
         fun findByIdAndUpdateSuspension(id: Uuid, suspendedAt: Instant?): EmployeeEntity? = findByIdAndUpdate(id) {

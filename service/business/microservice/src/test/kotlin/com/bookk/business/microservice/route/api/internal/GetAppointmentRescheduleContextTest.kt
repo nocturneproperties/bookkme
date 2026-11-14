@@ -81,19 +81,31 @@ internal class GetAppointmentRescheduleContextTest {
     @Test
     fun `should return not found when the employee is missing`() = routeTest {
         given()
-        assertRejected(GetAppointmentRescheduleContext.Error.EmployeeNotFound(), HttpStatusCode.NotFound, BusinessErrorCodes.BUSINESS_EMPLOYEE_NOT_EXISTS)
+        assertRejected(
+            GetAppointmentRescheduleContext.Error.EmployeeNotFound(),
+            HttpStatusCode.NotFound,
+            BusinessErrorCodes.BUSINESS_EMPLOYEE_NOT_EXISTS,
+        )
     }
 
     @Test
     fun `should return unprocessable entity when the employee is suspended`() = routeTest {
         given()
-        assertRejected(GetAppointmentRescheduleContext.Error.EmployeeSuspended(), HttpStatusCode.UnprocessableEntity, BusinessErrorCodes.BUSINESS_EMPLOYEE_SUSPENDED)
+        assertRejected(
+            GetAppointmentRescheduleContext.Error.EmployeeSuspended(),
+            HttpStatusCode.UnprocessableEntity,
+            BusinessErrorCodes.BUSINESS_EMPLOYEE_SUSPENDED,
+        )
     }
 
     @Test
     fun `should return unprocessable entity when a service is missing`() = routeTest {
         given()
-        assertRejected(GetAppointmentRescheduleContext.Error.ServiceNotFound(), HttpStatusCode.UnprocessableEntity, BusinessErrorCodes.BUSINESS_QUOTE_SERVICE_NOT_FOUND)
+        assertRejected(
+            GetAppointmentRescheduleContext.Error.ServiceNotFound(),
+            HttpStatusCode.UnprocessableEntity,
+            BusinessErrorCodes.BUSINESS_QUOTE_SERVICE_NOT_FOUND,
+        )
     }
 
     private suspend fun ApplicationTestBuilder.assertRejected(error: Throwable, status: HttpStatusCode, code: Int) {

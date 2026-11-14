@@ -15,7 +15,11 @@ internal class SetDashboardBusinessImpl(
     private val transactionManager: TransactionManager,
 ) : SetDashboardBusiness {
     override suspend fun invoke(userId: Uuid, businessId: Uuid): Result<Unit> = transactionManager.transaction {
-        businessPermissionDataSource.getPermission(userId, businessId, BusinessResource.BUSINESS).assert(PermissionAction.VIEW)
+        businessPermissionDataSource.getPermission(
+            userId,
+            businessId,
+            BusinessResource.BUSINESS,
+        ).assert(PermissionAction.VIEW)
         businessDataSource.setDashboardBusiness(userId, businessId)
     }
 }

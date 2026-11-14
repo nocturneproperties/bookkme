@@ -56,7 +56,7 @@ internal class DeviceScopeMariaDbTest {
     }
 
     @Test
-    fun `should converge concurrent creation and replay without losing the current token or language`() = runIntegrationTest {
+    fun `should converge concurrent creation and replay keeping the current token and language`() = runIntegrationTest {
         given()
         val fixture = SutFixture()
         val authId = Uuid.random()
@@ -69,7 +69,9 @@ internal class DeviceScopeMariaDbTest {
             List(8) {
                 async {
                     ready.await()
-                    fixture.transactionManager.transactionOrThrow { fixture.sut.getOrCreate(authId, deviceUuid, userId, Language.EN) }
+                    fixture.transactionManager.transactionOrThrow {
+                        fixture.sut.getOrCreate(authId, deviceUuid, userId, Language.EN)
+                    }
                 }
             }.also { ready.complete(Unit) }.awaitAll()
         }
@@ -77,7 +79,9 @@ internal class DeviceScopeMariaDbTest {
             fixture.sut.updateToken(authId, deviceUuid, "current-token")
             fixture.sut.updateLanguage(authId, deviceUuid, Language.UK)
         }
-        val replayed = fixture.transactionManager.transactionOrThrow { fixture.sut.getOrCreate(authId, deviceUuid, userId, Language.EN) }
+        val replayed = fixture.transactionManager.transactionOrThrow {
+            fixture.sut.getOrCreate(authId, deviceUuid, userId, Language.EN)
+        }
 
         then()
         assertEquals(1, created.map { it.id }.distinct().size)
@@ -92,8 +96,14 @@ internal class DeviceScopeMariaDbTest {
         given()
         val fixture = SutFixture()
         val deviceUuid = Uuid.random()
-        val first = suspendTransaction(db = database) { fixture.sut.getOrCreate(Uuid.random(), deviceUuid, Uuid.random(), Language.EN) }
-        val second = suspendTransaction(db = database) { fixture.sut.getOrCreate(Uuid.random(), deviceUuid, Uuid.random(), Language.UK) }
+        val first =
+            suspendTransaction(db = database) {
+                fixture.sut.getOrCreate(Uuid.random(), deviceUuid, Uuid.random(), Language.EN)
+            }
+        val second =
+            suspendTransaction(db = database) {
+                fixture.sut.getOrCreate(Uuid.random(), deviceUuid, Uuid.random(), Language.UK)
+            }
 
         whenn()
         suspendTransaction(db = database) {
@@ -106,17 +116,27 @@ internal class DeviceScopeMariaDbTest {
 
         then()
         assertTrue(suspendTransaction(db = database) { fixture.sut.getByUserId(first.userId) }.isEmpty())
-        assertEquals(listOf(second.copy(notificationToken = "second-token")), suspendTransaction(db = database) { fixture.sut.getByUserId(second.userId) })
+        assertEquals(
+            listOf(second.copy(notificationToken = "second-token")),
+            suspendTransaction(db = database) {
+                fixture.sut.getByUserId(second.userId)
+            },
+        )
     }
 
     @Test
     fun `should refuse a conflicting user without changing a stored association`() = runIntegrationTest {
         given()
         val fixture = SutFixture()
-        val device = suspendTransaction(db = database) { fixture.sut.getOrCreate(Uuid.random(), Uuid.random(), Uuid.random(), Language.EN) }
+        val device =
+            suspendTransaction(db = database) {
+                fixture.sut.getOrCreate(Uuid.random(), Uuid.random(), Uuid.random(), Language.EN)
+            }
 
         whenn()
-        val result = fixture.transactionManager.transaction { fixture.sut.getOrCreate(device.authId, device.deviceUuid, Uuid.random(), Language.UK) }
+        val result = fixture.transactionManager.transaction {
+            fixture.sut.getOrCreate(device.authId, device.deviceUuid, Uuid.random(), Language.UK)
+        }
 
         then()
         assertTrue(result.exceptionOrNull() is Error.OperationNotAllowed)

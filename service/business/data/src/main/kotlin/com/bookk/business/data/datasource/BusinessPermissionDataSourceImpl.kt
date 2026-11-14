@@ -20,7 +20,9 @@ import kotlin.uuid.Uuid
 
 internal class BusinessPermissionDataSourceImpl : DataSource(), BusinessPermissionDataSource {
 
-    override suspend fun getViewer(userId: Uuid, businessId: Uuid): BusinessViewer = getViewers(userId, listOf(businessId)).getValue(businessId)
+    override suspend fun getViewer(userId: Uuid, businessId: Uuid): BusinessViewer {
+        return getViewers(userId, listOf(businessId)).getValue(businessId)
+    }
 
     override suspend fun getViewers(userId: Uuid, businessIds: List<Uuid>): Map<Uuid, BusinessViewer> {
         if (businessIds.isEmpty()) return emptyMap()
@@ -76,7 +78,10 @@ internal class BusinessPermissionDataSourceImpl : DataSource(), BusinessPermissi
         )
     }
 
-    override suspend fun setPermissions(employee: Employee, grants: Map<BusinessResource, ResourcePermission>) = dbQuery {
+    override suspend fun setPermissions(
+        employee: Employee,
+        grants: Map<BusinessResource, ResourcePermission>,
+    ) = dbQuery {
         BusinessPermissionGrantsTable.upsertGrants(employee.id, employee.userId, employee.businessId, grants)
     }
 }

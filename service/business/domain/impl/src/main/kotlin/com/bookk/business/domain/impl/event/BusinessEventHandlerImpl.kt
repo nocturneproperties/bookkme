@@ -35,7 +35,9 @@ internal class BusinessEventHandlerImpl(
                     updatedAt = event.updatedAt,
                 )
             }
-            .registerResultReceiver(AppointmentEvent.ClientVisitBooked.TOPIC) { event: AppointmentEvent.ClientVisitBooked ->
+            .registerResultReceiver(
+                AppointmentEvent.ClientVisitBooked.TOPIC,
+            ) { event: AppointmentEvent.ClientVisitBooked ->
                 recordClientVisit(event.businessId, event.clientId, event.visitEnd)
             }
             .start(scope)

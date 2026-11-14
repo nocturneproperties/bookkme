@@ -41,6 +41,7 @@ kotlin-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-te
 kotlin-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlin-datetime" }
 kotlin-plugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
+kotlin-test-junit5 = { module = "org.jetbrains.kotlin:kotlin-test-junit5", version.ref = "kotlin" }
 kotlin-serialization-protobuf = { module = "org.jetbrains.kotlinx:kotlinx-serialization-protobuf", version.ref = "serialization" }
 kotlin-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serialization" }
 ktor-http = { module = "io.ktor:ktor-http", version.ref = "ktor" }

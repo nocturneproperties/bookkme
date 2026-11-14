@@ -195,7 +195,8 @@ internal class DeclineAppointmentRequestTest {
         val useCase: DeclineAppointmentRequest = mockk()
         val userId = Uuid.random()
         val requestId = Uuid.random()
-        coEvery { useCase.invoke(userId, AppointmentCancellation(id = requestId, reason = "Reason")) } returns Result.success(Unit)
+        coEvery { useCase.invoke(userId, AppointmentCancellation(id = requestId, reason = "Reason")) } returns
+            Result.success(Unit)
 
         setupApplication(
             extension = {

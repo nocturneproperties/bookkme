@@ -8,7 +8,11 @@ import io.ktor.http.HttpStatusCode
 import kotlin.uuid.Uuid
 
 interface ImportClients {
-    suspend operator fun invoke(requestUserId: Uuid, businessId: Uuid, clients: List<Client.Detached>): Result<ClientImportResult>
+    suspend operator fun invoke(
+        requestUserId: Uuid,
+        businessId: Uuid,
+        clients: List<Client.Detached>,
+    ): Result<ClientImportResult>
 
     sealed interface Error {
         class TooManyClients :
@@ -23,7 +27,7 @@ interface ImportClients {
             BusinessError(
                 statusCode = HttpStatusCode.UnprocessableEntity.value,
                 code = BusinessErrorCodes.BUSINESS_CLIENT_EXISTS,
-                message = "Client with this phone or email already exists",
+                message = "Client with this email already exists",
             ),
             Error
     }

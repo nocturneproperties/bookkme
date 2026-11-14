@@ -253,7 +253,13 @@ fun Routing.appointment() {
             val body = call.receiveNullable<CompleteAppointmentRequest>()
             val completeAppointment by application.injectScoped<CompleteAppointment>(AppointmentsScope)
 
-            call.respondWith(completeAppointment(userId = principal.userId, appointmentId = it.id, priceAdjustment = body?.priceAdjustment))
+            call.respondWith(
+                completeAppointment(
+                    userId = principal.userId,
+                    appointmentId = it.id,
+                    priceAdjustment = body?.priceAdjustment,
+                ),
+            )
         }
     }
 }

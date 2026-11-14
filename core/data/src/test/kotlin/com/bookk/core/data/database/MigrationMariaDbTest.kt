@@ -137,7 +137,9 @@ internal class MigrationMariaDbTest {
     }
 
     private class WarningsOnly : Filter<ILoggingEvent>() {
-        override fun decide(event: ILoggingEvent) = if (event.level.isGreaterOrEqual(Level.WARN)) FilterReply.NEUTRAL else FilterReply.DENY
+        override fun decide(
+            event: ILoggingEvent,
+        ) = if (event.level.isGreaterOrEqual(Level.WARN)) FilterReply.NEUTRAL else FilterReply.DENY
     }
 
     @Test
@@ -247,7 +249,7 @@ internal class MigrationMariaDbTest {
     }
 
     @Test
-    fun `should run a default transaction at repeatable read after a read committed one on the same connection`() = runIntegrationTest {
+    fun `should use repeatable read again after a read committed transaction on one connection`() = runIntegrationTest {
         given()
         val fixture = SutFixture(schemaName = "migration_pool_isolation")
         fixture.grantOnlyOwnSchema(createSchema = true)
@@ -287,7 +289,9 @@ internal class MigrationMariaDbTest {
     }
 
     private fun Database.tableNames(): List<String> = transaction(this) {
-        exec("SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name <> 'flyway_schema_history'") { result ->
+        exec(
+            "SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name <> 'flyway_schema_history'",
+        ) { result ->
             generateSequence { if (result.next()) result.getString(1) else null }.toList()
         }.orEmpty()
     }

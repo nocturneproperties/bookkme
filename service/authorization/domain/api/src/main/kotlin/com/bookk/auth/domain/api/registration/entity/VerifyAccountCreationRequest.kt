@@ -13,6 +13,8 @@ data class VerifyAccountCreationRequest(
     @ProtoNumber(3) val userInfo: UserInfo,
     @ProtoNumber(4) override val publicKeyCredentialJson: String,
     @ProtoNumber(5) val acceptedDocuments: AcceptedLegalDocuments,
+    @ProtoNumber(6) val verificationId: Uuid,
+    @ProtoNumber(7) val emailCode: String,
 ) : FinishRegistrationRequest {
     @Serializable
     data class UserInfo(

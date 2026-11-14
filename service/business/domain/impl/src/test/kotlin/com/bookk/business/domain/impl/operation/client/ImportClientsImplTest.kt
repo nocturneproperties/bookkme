@@ -36,8 +36,9 @@ internal class ImportClientsImplTest {
 
         init {
             transactionManager.mockTransaction()
-            coEvery { businessPermissionDataSource.getPermission(any(), any(), BusinessResource.CLIENTS) } returns ResourcePermission.FULL
-            coEvery { clientDataSource.getClientsByContacts(any(), any(), any()) } returns emptyList()
+            coEvery { businessPermissionDataSource.getPermission(any(), any(), BusinessResource.CLIENTS) } returns
+                ResourcePermission.FULL
+            coEvery { clientDataSource.getClientsByEmails(any(), any()) } returns emptyList()
             coEvery { clientDataSource.createDetachedClients(any(), any()) } answers { secondArg() }
         }
     }
@@ -58,17 +59,24 @@ internal class ImportClientsImplTest {
         assertEquals(listOf("Ann", "Ben"), result.getOrThrow().created.map { it.name })
         assertTrue(result.getOrThrow().rejected.isEmpty())
         coVerify(exactly = 1) {
-            fixture.clientDataSource.createDetachedClients(businessId, match { it.map(Client::name) == listOf("Ann", "Ben") })
+            fixture.clientDataSource.createDetachedClients(
+                businessId,
+                match {
+                    it.map(Client::name) ==
+                        listOf("Ann", "Ben")
+                },
+            )
         }
     }
 
     @Test
-    fun `should look up existing clients once for every phone and email of the import`() = runUnitTest {
+    fun `should look up existing clients once for every email of the import`() = runUnitTest {
         given()
         val fixture = SutFixture()
         val clients = listOf(
-            Client.Detached.stub(phone = "+1111 ", email = "a@client.com"),
+            Client.Detached.stub(phone = "+1111", email = "a@client.com"),
             Client.Detached.stub(phone = "+2222", email = null),
+            Client.Detached.stub(phone = null, email = "b@client.com"),
         )
 
         whenn()
@@ -76,10 +84,12 @@ internal class ImportClientsImplTest {
 
         then()
         coVerify(exactly = 1) {
-            fixture.clientDataSource.getClientsByContacts(
+            fixture.clientDataSource.getClientsByEmails(
                 businessId,
-                match { it.toSet() == setOf("+1111", "+2222") },
-                match { it.toSet() == setOf("a@client.com") },
+                match {
+                    it.toSet() ==
+                        setOf("a@client.com", "b@client.com")
+                },
             )
         }
     }
@@ -113,16 +123,14 @@ internal class ImportClientsImplTest {
     }
 
     @Test
-    fun `should reject clients whose phone or email already exists in the business`() = runUnitTest {
+    fun `should reject clients whose email already exists in the business`() = runUnitTest {
         given()
         val fixture = SutFixture()
         val clients = listOf(
-            Client.Detached.stub(name = "SamePhone", phone = "+1111", email = null),
             Client.Detached.stub(name = "SameEmail", phone = null, email = "taken@client.com"),
             Client.Detached.stub(name = "New", phone = "+3333", email = null),
         )
-        coEvery { fixture.clientDataSource.getClientsByContacts(businessId, any(), any()) } returns listOf(
-            Client.Detached.stub(phone = "+1111", email = null),
+        coEvery { fixture.clientDataSource.getClientsByEmails(businessId, any()) } returns listOf(
             Client.Integrated.stub(phone = null, email = "TAKEN@client.com"),
         )
 
@@ -131,22 +139,33 @@ internal class ImportClientsImplTest {
 
         then()
         assertEquals(listOf("New"), result.created.map { it.name })
-        assertEquals(
-            listOf(
-                RejectedClient(0, BusinessErrorCodes.BUSINESS_CLIENT_EXISTS),
-                RejectedClient(1, BusinessErrorCodes.BUSINESS_CLIENT_EXISTS),
-            ),
-            result.rejected,
-        )
+        assertEquals(listOf(RejectedClient(0, BusinessErrorCodes.BUSINESS_CLIENT_EXISTS)), result.rejected)
     }
 
     @Test
-    fun `should reject a client repeating a phone or email of an earlier one in the import`() = runUnitTest {
+    fun `should create clients sharing a phone with an existing client or with each other`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val clients = listOf(
+            Client.Detached.stub(name = "Ann", phone = "+1111", email = null),
+            Client.Detached.stub(name = "Ben", phone = "+1111", email = null),
+        )
+        coEvery { fixture.clientDataSource.getClientsByEmails(businessId, any()) } returns emptyList()
+
+        whenn()
+        val result = fixture.sut(requestUserId, businessId, clients).getOrThrow()
+
+        then()
+        assertEquals(listOf("Ann", "Ben"), result.created.map { it.name })
+        assertTrue(result.rejected.isEmpty())
+    }
+
+    @Test
+    fun `should reject a client repeating the email of an earlier one in the import`() = runUnitTest {
         given()
         val fixture = SutFixture()
         val clients = listOf(
             Client.Detached.stub(name = "First", phone = "+1111", email = "first@client.com"),
-            Client.Detached.stub(name = "SamePhone", phone = "+1111", email = null),
             Client.Detached.stub(name = "SameEmail", phone = null, email = "first@client.com"),
         )
 
@@ -155,13 +174,7 @@ internal class ImportClientsImplTest {
 
         then()
         assertEquals(listOf("First"), result.created.map { it.name })
-        assertEquals(
-            listOf(
-                RejectedClient(1, BusinessErrorCodes.BUSINESS_CLIENT_EXISTS),
-                RejectedClient(2, BusinessErrorCodes.BUSINESS_CLIENT_EXISTS),
-            ),
-            result.rejected,
-        )
+        assertEquals(listOf(RejectedClient(1, BusinessErrorCodes.BUSINESS_CLIENT_EXISTS)), result.rejected)
     }
 
     @Test
@@ -182,7 +195,8 @@ internal class ImportClientsImplTest {
     fun `should accept an import of exactly the maximum size`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        val clients = List(ImportClients.MAX_CLIENTS) { index -> Client.Detached.stub(phone = "+1$index", email = null) }
+        val clients =
+            List(ImportClients.MAX_CLIENTS) { index -> Client.Detached.stub(phone = "+1$index", email = null) }
 
         whenn()
         val result = fixture.sut(requestUserId, businessId, clients)
@@ -195,19 +209,20 @@ internal class ImportClientsImplTest {
     fun `should return TooManyClients when the import is larger than the maximum`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        val clients = List(ImportClients.MAX_CLIENTS + 1) { index -> Client.Detached.stub(phone = "+1$index", email = null) }
+        val clients =
+            List(ImportClients.MAX_CLIENTS + 1) { index -> Client.Detached.stub(phone = "+1$index", email = null) }
 
         whenn()
         val result = fixture.sut(requestUserId, businessId, clients)
 
         then()
         assertTrue(result.exceptionOrNull() is ImportClients.Error.TooManyClients)
-        coVerify(exactly = 0) { fixture.clientDataSource.getClientsByContacts(any(), any(), any()) }
+        coVerify(exactly = 0) { fixture.clientDataSource.getClientsByEmails(any(), any()) }
         coVerify(exactly = 0) { fixture.clientDataSource.createDetachedClients(any(), any()) }
     }
 
     @Test
-    fun `should return ClientExist when a concurrent write takes a phone or email first`() = runUnitTest {
+    fun `should return ClientExist when a concurrent write takes an email first`() = runUnitTest {
         given()
         val fixture = SutFixture()
         coEvery { fixture.clientDataSource.createDetachedClients(any(), any()) } throws

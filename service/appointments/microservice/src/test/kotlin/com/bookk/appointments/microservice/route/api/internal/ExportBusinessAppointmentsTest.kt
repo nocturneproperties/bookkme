@@ -26,7 +26,9 @@ internal class ExportBusinessAppointmentsTest {
     fun `should return the business's appointments`() = routeTest {
         given()
         val useCase: ExportBusinessAppointments = mockk()
-        val export = AppointmentsBusinessDataExport.stub(settings = AppointmentsBusinessDataExport.SettingsExport(true, true, 10, ""))
+        val export = AppointmentsBusinessDataExport.stub(
+            settings = AppointmentsBusinessDataExport.SettingsExport(true, true, 10, ""),
+        )
         coEvery { useCase.invoke(businessId) } returns Result.success(export)
         setupApplication(diModule = module { single { useCase } }, routeUnderTest = { exportBusinessAppointments() })
 

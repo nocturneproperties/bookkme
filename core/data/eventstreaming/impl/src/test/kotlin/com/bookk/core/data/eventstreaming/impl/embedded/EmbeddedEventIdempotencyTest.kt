@@ -180,7 +180,7 @@ internal class EmbeddedEventIdempotencyTest {
     }
 
     @Test
-    fun `should park an event whose claim stays held by an unfinished delivery in the exhausted store without handling it`() = runUnitTest {
+    fun `should park an event claimed by an unfinished delivery as exhausted without handling it`() = runUnitTest {
         given()
         val fixture = SutFixture()
         val topic = "embedded.idempotency.in-progress"
@@ -215,7 +215,15 @@ internal class EmbeddedEventIdempotencyTest {
         runCurrent()
 
         then()
-        assertEquals(EventClaim.CLAIMED, fixture.eventIdempotencyStorage.claim("business_group", topic, event.idempotencyKey, Uuid.random().toString()))
+        assertEquals(
+            EventClaim.CLAIMED,
+            fixture.eventIdempotencyStorage.claim(
+                "business_group",
+                topic,
+                event.idempotencyKey,
+                Uuid.random().toString(),
+            ),
+        )
     }
 
     @Test
@@ -223,7 +231,8 @@ internal class EmbeddedEventIdempotencyTest {
         given()
         val storage = mockk<EventIdempotencyStorage>()
         every { storage.claimTtl } returns 1.minutes
-        coEvery { storage.claim(any(), any(), any(), any()) } throws RuntimeException("cache down") andThen EventClaim.CLAIMED
+        coEvery { storage.claim(any(), any(), any(), any()) } throws RuntimeException("cache down") andThen
+            EventClaim.CLAIMED
         coEvery { storage.markProcessed(any(), any(), any()) } just Runs
         val fixture = SutFixture(eventIdempotencyStorage = storage)
         val topic = "embedded.idempotency.claim-failure"

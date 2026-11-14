@@ -1,11 +1,13 @@
 package com.bookk.user.domain.impl.operation
 
+import com.bookk.core.data.eventstreaming.StandardEventProducer
 import com.bookk.core.domain.datasource.transaction.TransactionManager
 import com.bookk.core.domain.datasource.transaction.mockTransaction
 import com.bookk.core.test.given
 import com.bookk.core.test.runUnitTest
 import com.bookk.core.test.then
 import com.bookk.core.test.whenn
+import com.bookk.server.user.client.api.event.UserEvent
 import com.bookk.user.domain.api.entity.AcceptedLegalDocuments
 import com.bookk.user.domain.api.entity.LegalDocument
 import com.bookk.user.domain.api.entity.LegalDocumentAcceptance
@@ -33,7 +35,8 @@ internal class CreateUserImplTest {
         val userDataSource = mockk<UserDataSource>()
         val legalDocumentDataSource = mockk<LegalDocumentDataSource>()
         val transactionManager = mockk<TransactionManager>()
-        val sut = CreateUserImpl(userDataSource, legalDocumentDataSource, transactionManager)
+        val eventProducer = mockk<StandardEventProducer>(relaxed = true)
+        val sut = CreateUserImpl(userDataSource, legalDocumentDataSource, transactionManager, eventProducer)
     }
 
     private val policy = LegalDocumentVersion.stub(version = "2026-01-01")
@@ -92,7 +95,49 @@ internal class CreateUserImplTest {
     }
 
     @Test
-    fun `should fail with LegalDocumentsNotAccepted and create nothing when a document in effect is not accepted`() = runUnitTest {
+    fun `should publish the created profile so other services learn the verified email`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val created = User.stub(name = "Ann", lastName = "Lee", email = "ann@example.com", phone = null)
+        val published = slot<UserEvent.Updated>()
+        with(fixture) {
+            transactionManager.mockTransaction()
+            coEvery { legalDocumentDataSource.getVersionsInEffect(any()) } returns emptyList()
+            coEvery { userDataSource.insertNewUser(any()) } returns created
+            coEvery { eventProducer.send(capture(published), any()) } just runs
+        }
+
+        whenn()
+        val result = fixture.sut.invoke(NewUser("Ann", "Lee", "ann@example.com", AcceptedLegalDocuments(null, null)))
+
+        then()
+        assertTrue(result.isSuccess)
+        coVerify(exactly = 1) { fixture.eventProducer.send(any(UserEvent.Updated::class), any()) }
+        assertEquals(
+            listOf(created.id.toString(), "Ann", "Lee", "ann@example.com", null),
+            with(published.captured) { listOf(userId.toString(), name, lastName, email, phone) },
+        )
+    }
+
+    @Test
+    fun `should publish nothing when the legal documents are not accepted`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        with(fixture) {
+            transactionManager.mockTransaction()
+            coEvery { legalDocumentDataSource.getVersionsInEffect(any()) } returns listOf(policy)
+        }
+
+        whenn()
+        val result = fixture.sut.invoke(newUser(AcceptedLegalDocuments(null, null)))
+
+        then()
+        assertTrue(result.exceptionOrNull() is CreateUser.Error.LegalDocumentsNotAccepted)
+        coVerify(exactly = 0) { fixture.eventProducer.send(any(UserEvent.Updated::class), any()) }
+    }
+
+    @Test
+    fun `should fail with LegalDocumentsNotAccepted and create nothing for an unaccepted document`() = runUnitTest {
         given()
         val fixture = SutFixture()
         with(fixture) {
@@ -102,7 +147,9 @@ internal class CreateUserImplTest {
         }
 
         whenn()
-        val result = fixture.sut.invoke(newUser(AcceptedLegalDocuments(privacyPolicy = policy.version, termsOfService = null)))
+        val result = fixture.sut.invoke(
+            newUser(AcceptedLegalDocuments(privacyPolicy = policy.version, termsOfService = null)),
+        )
 
         then()
         assertTrue(result.exceptionOrNull() is CreateUser.Error.LegalDocumentsNotAccepted)
@@ -111,18 +158,21 @@ internal class CreateUserImplTest {
     }
 
     @Test
-    fun `should fail with LegalDocumentsNotAccepted when an earlier version than the one in effect is accepted`() = runUnitTest {
+    fun `should fail with LegalDocumentsNotAccepted when only an outdated version is accepted`() = runUnitTest {
         given()
         val fixture = SutFixture()
         val earlierPolicy = LegalDocumentVersion.stub(version = "2025-01-01")
         with(fixture) {
             transactionManager.mockTransaction()
             coEvery { legalDocumentDataSource.getVersionsInEffect(any()) } returns listOf(policy)
-            coEvery { legalDocumentDataSource.getVersion(earlierPolicy.document, earlierPolicy.version) } returns earlierPolicy
+            coEvery { legalDocumentDataSource.getVersion(earlierPolicy.document, earlierPolicy.version) } returns
+                earlierPolicy
         }
 
         whenn()
-        val result = fixture.sut.invoke(newUser(AcceptedLegalDocuments(privacyPolicy = earlierPolicy.version, termsOfService = null)))
+        val result = fixture.sut.invoke(
+            newUser(AcceptedLegalDocuments(privacyPolicy = earlierPolicy.version, termsOfService = null)),
+        )
 
         then()
         assertTrue(result.exceptionOrNull() is CreateUser.Error.LegalDocumentsNotAccepted)
@@ -130,7 +180,7 @@ internal class CreateUserImplTest {
     }
 
     @Test
-    fun `should fail with VersionUnknown and create nothing when an accepted version was never published`() = runUnitTest {
+    fun `should fail with VersionUnknown and create nothing for a version that was never published`() = runUnitTest {
         given()
         val fixture = SutFixture()
         with(fixture) {
@@ -140,7 +190,9 @@ internal class CreateUserImplTest {
         }
 
         whenn()
-        val result = fixture.sut.invoke(newUser(AcceptedLegalDocuments(privacyPolicy = "unpublished", termsOfService = null)))
+        val result = fixture.sut.invoke(
+            newUser(AcceptedLegalDocuments(privacyPolicy = "unpublished", termsOfService = null)),
+        )
 
         then()
         assertTrue(result.exceptionOrNull() is LegalDocumentError.VersionUnknown)

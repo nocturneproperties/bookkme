@@ -45,7 +45,10 @@ internal class CreateServiceGroupImplTest {
         val group = createTestGroup()
         with(fixture) {
             transactionManager.mockTransaction()
-            coEvery { businessPermissionDataSource.getPermission(userId, group.businessId, BusinessResource.SERVICES) } returns ResourcePermission(view = false, update = true, delete = false)
+            coEvery {
+                businessPermissionDataSource.getPermission(userId, group.businessId, BusinessResource.SERVICES)
+            } returns
+                ResourcePermission(view = false, update = true, delete = false)
             coEvery { serviceDataSource.createServiceGroup(group) } returns group
         }
 
@@ -80,8 +83,12 @@ internal class CreateServiceGroupImplTest {
         val group = createTestGroup()
         with(fixture) {
             transactionManager.mockTransaction()
-            coEvery { businessPermissionDataSource.getPermission(userId, group.businessId, BusinessResource.SERVICES) } returns ResourcePermission(view = false, update = true, delete = false)
-            coEvery { serviceDataSource.createServiceGroup(group) } throws Error.UniqueConstraintFailed("", RuntimeException())
+            coEvery {
+                businessPermissionDataSource.getPermission(userId, group.businessId, BusinessResource.SERVICES)
+            } returns
+                ResourcePermission(view = false, update = true, delete = false)
+            coEvery { serviceDataSource.createServiceGroup(group) } throws
+                Error.UniqueConstraintFailed("", RuntimeException())
         }
 
         whenn()
@@ -100,7 +107,10 @@ internal class CreateServiceGroupImplTest {
         val group = createTestGroup()
         with(fixture) {
             transactionManager.mockTransaction()
-            coEvery { businessPermissionDataSource.getPermission(userId, group.businessId, BusinessResource.SERVICES) } returns ResourcePermission(view = true, update = false, delete = false)
+            coEvery {
+                businessPermissionDataSource.getPermission(userId, group.businessId, BusinessResource.SERVICES)
+            } returns
+                ResourcePermission(view = true, update = false, delete = false)
         }
 
         whenn()

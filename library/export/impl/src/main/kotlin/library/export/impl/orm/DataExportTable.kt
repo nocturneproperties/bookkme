@@ -14,6 +14,7 @@ internal object DataExportTable : Table("data_export") {
     val finishedAt = timestamp("finished_at").nullable()
     val expiresAt = timestamp("expires_at").nullable().index()
     val document = blob("document").nullable()
+    val keyId = uuid("key_id").nullable()
 
     override val primaryKey = PrimaryKey(ownerId)
 }

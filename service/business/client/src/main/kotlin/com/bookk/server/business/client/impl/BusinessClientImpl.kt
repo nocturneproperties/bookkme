@@ -27,16 +27,27 @@ internal class BusinessClientImpl(
     private val getStaffBookingContext: GetStaffBookingContext,
     private val getOwnedBusinessMemberIds: GetOwnedBusinessMemberIds,
 ) : BusinessClient {
-    override suspend fun getBusinessById(id: Uuid): Result<BusinessDTO> = getBusinessDetails.invoke(id).map(BusinessDTO::from)
+    override suspend fun getBusinessById(id: Uuid): Result<BusinessDTO> {
+        return getBusinessDetails.invoke(id).map(BusinessDTO::from)
+    }
 
-    override suspend fun getPermission(userId: Uuid, businessId: Uuid, resource: BusinessResource): Result<ResourcePermission> = getBusinessPermission.invoke(userId, businessId, resource)
+    override suspend fun getPermission(
+        userId: Uuid,
+        businessId: Uuid,
+        resource: BusinessResource,
+    ): Result<ResourcePermission> = getBusinessPermission.invoke(userId, businessId, resource)
 
     override suspend fun getAppointmentBookingContext(
         businessId: Uuid,
         employeeId: Uuid,
         userId: Uuid,
         serviceIds: List<Uuid>,
-    ): Result<AppointmentBookingContext> = getAppointmentBookingContext.invoke(businessId, employeeId, userId, serviceIds)
+    ): Result<AppointmentBookingContext> = getAppointmentBookingContext.invoke(
+        businessId,
+        employeeId,
+        userId,
+        serviceIds,
+    )
 
     override suspend fun getStaffBookingContext(
         businessId: Uuid,
@@ -53,7 +64,11 @@ internal class BusinessClientImpl(
 
     override suspend fun getClientBusinessIds(userId: Uuid): Result<List<Uuid>> = getClientBusinessIds.invoke(userId)
 
-    override suspend fun getServicesByIds(businessId: Uuid, serviceIds: List<Uuid>): Result<List<Service>> = getServicesByIds.invoke(businessId, serviceIds)
+    override suspend fun getServicesByIds(businessId: Uuid, serviceIds: List<Uuid>): Result<List<Service>> {
+        return getServicesByIds.invoke(businessId, serviceIds)
+    }
 
-    override suspend fun getOwnedBusinessMemberIds(ownerUserId: Uuid): Result<List<Uuid>> = getOwnedBusinessMemberIds.invoke(ownerUserId)
+    override suspend fun getOwnedBusinessMemberIds(ownerUserId: Uuid): Result<List<Uuid>> {
+        return getOwnedBusinessMemberIds.invoke(ownerUserId)
+    }
 }

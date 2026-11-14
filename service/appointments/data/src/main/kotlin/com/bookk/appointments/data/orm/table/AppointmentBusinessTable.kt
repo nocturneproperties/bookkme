@@ -14,6 +14,7 @@ object AppointmentBusinessTable : BaseUUIDTable("business_has_appointments") {
     val workingDays = byte("working_days").default(MONDAY_TO_FRIDAY)
 
     val sourceUpdatedAt = timestamp("source_updated_at").nullable()
+    val ownerUserId = uuid("owner_user_id").nullable().index()
 }
 
 private val MONDAY_TO_FRIDAY: Byte = DayOfWeek.entries

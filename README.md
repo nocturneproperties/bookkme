@@ -1,208 +1,320 @@
-# bookk-server
+# BookkMe Server
 
-Backend for **Bookk** — an appointment-booking platform for small businesses. Clients discover a business, request a time slot, and get notified; owners manage their services, staff, working hours, and bookings.
+**BookkMe** is an appointment-booking platform for small businesses such as salons, barbers, studios, clinics and tutors. Clients find a business, pick a service and a time, and get notified about their booking. The business manages its services, staff, working hours, clients and bookings in one place.
 
-Written in Kotlin as a **modular monolith**: one Gradle build, one shared core, five independently deployable Ktor services that talk over Kafka.
+This repository holds the BookkMe backend. You can run it yourself to take bookings for your own business, study how it works, or change it to fit your needs, within the terms of the [license](#license).
 
 ---
 
 ## Contents
 
-- [Architecture](#architecture)
-- [Tech stack](#tech-stack)
-- [Getting started](#getting-started)
-- [Running the local stack](#running-the-local-stack)
+- [Features](#features)
+- [Try it locally](#try-it-locally)
+- [Self-hosting for your business](#self-hosting-for-your-business)
 - [Configuration](#configuration)
-- [Testing](#testing)
-- [Database migrations](#database-migrations)
-- [Deployment](#deployment)
+- [Running as microservices](#running-as-microservices)
+- [How the services communicate](#how-the-services-communicate)
+- [Security](#security)
+- [Privacy and GDPR](#privacy-and-gdpr)
+- [Upgrading](#upgrading)
+- [Building from source](#building-from-source)
+- [Project layout](#project-layout)
+- [Support](#support)
+- [Feature requests](#feature-requests)
 - [Contributing](#contributing)
+- [License](#license)
 
 ---
 
-## Architecture
+## Features
 
-### Services
+**For businesses**
 
-| Service | Port (local) | Responsibility |
-|---|---|---|
-| `authorization` | 8000 | Account registration, WebAuthn/passkey login, JWT issuing & refresh, device sessions |
-| `user` | 8001 | User profiles, contact forms, account deletion |
-| `business` | 8002 | Businesses, services & service groups, employees and invitations, clients, quotes |
-| `appointments` | 8003 | Booking requests, approval flow, schedules, day-offs, appointment history |
-| `notifications` | 8004 | Push notification targets, device tokens, per-user notification settings |
+- Services and service groups, each with its own price and duration
+- Staff accounts with invite codes and separate view, edit and delete permissions for business details, staff, clients, services and appointments, plus suspending access
+- Working hours, days off and schedules for every employee
+- A client list with import, notes and automatic matching to client accounts
+- Booking requests you approve or decline, or instant booking when you prefer
+- Appointment history, completion and no-show tracking
 
-Each service owns its own database schema. Nothing reaches across a schema boundary — cross-service reads go through a `client/` module, and cross-service writes are driven by Kafka events.
+**For clients**
 
-### Module layering
+- Passwordless sign-in with passkeys, with the email verified by a one-time code
+- Booking, rescheduling and cancelling appointments
+- Push and email notifications, with per-channel settings
+- Notifications in the language of the client's device
 
-Every service is split into the same five modules, and the dependency direction is enforced by the build:
+**For operators**
 
-```
-service/<svc>/
-├── domain/api/      operation interfaces, entities, error codes   ← no dependencies
-├── domain/impl/     operation implementations + Koin DI + tests
-├── data/source/     datasource interfaces
-├── data/            Exposed tables/entities, datasource impls, migrations
-├── microservice/    Ktor routes (typed Resources), main(), route tests
-└── client/          events and API surface consumed by other services
-```
-
-A business rule lives in exactly one place: an **operation** — a single-method interface in `domain/api`, implemented in `domain/impl`, returning `Result<T>`. Routes are thin; they authenticate, deserialize, call one operation, and map the result to HTTP.
-
-Shared infrastructure lives outside the services:
-
-```
-core/       Result/Error types, Ktor server bootstrap, auth, Exposed helpers, Kafka event streaming, Valkey (Redis-compatible) cache, i18n
-library/    money, idempotency, permissions, schedule, scheduler, request signing
-build-src/  Gradle convention plugins (bookk.microservice, bookk.data, bookk.domain.api, …)
-```
-
-### Conventions worth knowing up front
-
-- **Wire format is ProtoBuf**, not JSON — all request and response bodies use `application/x-protobuf`.
-- **OpenAPI specs are generated from source** by the Ktor compiler plugin, parsed out of route KDoc.
-- **Errors are typed.** Each operation declares a nested `sealed interface Error`; every case carries an HTTP status and a stable numeric code from `<Svc>ErrorCodes`. Codes are allocated in blocks of 100 000 per service.
-- **Permission failures return 404, not 403** — intentional, so probing cannot confirm that a resource exists.
-- **Background work is in-process.** Services register recurring jobs via the `Scheduler` plugin (e.g. appointments marks bookings completed every 5 minutes and prunes outdated requests hourly).
+- Runs as a single server process backed by MariaDB and Valkey (or Redis)
+- Database migrations run automatically at startup
+- Personal data encrypted with a key per person, so erasing someone also makes their data unreadable in backups
+- Personal-data tools for GDPR: data export, account and client erasure, dormant account clean-up and retention rules (see [Privacy and GDPR](#privacy-and-gdpr))
+- Draft privacy policy and terms of service templates for self-hosting businesses in English, Polish and Ukrainian (`docs/legal/template`)
+- Prometheus metrics and structured logs
+- An OpenAPI description of the whole API, served with Swagger UI
 
 ---
 
-## Tech stack
+## Try it locally
 
-| | |
+You need **Docker** with Compose v2, **JDK 21** and about 4 GB of free memory.
+
+```sh
+git clone https://github.com/nocturneproperties/bookkme.git
+cd bookkme/deployment/dev
+./rollout-monolith.sh
+```
+
+The script starts MariaDB, Valkey and nginx, builds the server image and starts it. When it finishes:
+
+- the API answers on `http://localhost:8085/api/`
+- Swagger UI with every route is at `http://localhost:8085/api/monolith/internal/swagger`
+
+The development setup does not send email. It writes every message to the server log instead, verification codes included, so you can sign up without a mail provider. Push notifications need your own Firebase key in `deployment/dev/security/firebase-private-key.json`.
+
+To stop everything:
+
+```sh
+docker compose -f monolith-compose.yml down
+docker compose -f environment-compose.yml down
+```
+
+---
+
+## Self-hosting for your business
+
+The [self-hosting permission](LICENSE-SELF-HOSTING.md) lets you run BookkMe to take bookings for your own business, with your staff and your clients using it, and lets a hosting provider or IT contractor run it for you. It does not let you offer BookkMe to other businesses.
+
+### What you need
+
+- A Linux server with Docker
+- **MariaDB 11.8** or newer
+- **Valkey 8** or a compatible Redis
+- A domain with TLS, and a reverse proxy in front of the server (an nginx example is in `deployment/dev/nginx-monolith.conf`)
+- A [Postmark](https://postmarkapp.com) account with a verified sending domain, for verification codes and email notifications
+- A Firebase project, for push notifications
+
+### Steps
+
+1. **Build the image.** `./gradlew publishImageToLocalRegistry` builds `bookkme-server` into your local Docker. Release images are also published as `ghcr.io/nocturneproperties/bookkme-server:<version>`.
+2. **Create the databases.** The server keeps its data in five schemas (`authorization`, `user`, `business`, `appointments`, `notifications`) and each person's encryption key in four more (`user_short_retention`, `business_short_retention`, `appointments_short_retention`, `notifications_short_retention`). It needs one user with full rights on all nine. Create the first five yourself; the server creates the key schemas and every table on first start, but its user must already have the rights on them. `deployment/dev/db/init.sql` shows the statements.
+3. **Configure it.** Set the [environment variables](#configuration) and mount the two secret files.
+4. **Start it** behind your reverse proxy, on HTTPS. Passkeys only work on the domain in `APPLICATION_DOMAIN_NAME`.
+5. **Publish your legal texts.** Fill in the templates in `docs/legal/template` for your business, have them reviewed, and publish them as described in [`docs/legal-documents.md`](docs/legal-documents.md).
+
+`deployment/prod` and `deployment/ansible` contain the production setup we run ourselves on Docker Swarm, with backups, monitoring and a VPN. Use them as a reference; they are written for our own infrastructure and will need adapting.
+
+---
+
+## Configuration
+
+The server is configured through environment variables. `deployment/dev/service/monolith.env` is a working example for local use; never reuse its passwords and secrets in production.
+
+| Variable | Purpose |
 |---|---|
-| Language | Kotlin, JVM toolchain 21 |
-| HTTP | Ktor 3.5 (CIO engine), typed `Resources` routing |
-| DI | Koin 4 |
-| Persistence | Exposed 1.0 (DAO + DSL) on MySQL/MariaDB, Flyway migrations |
-| Messaging | Apache Kafka (KRaft) |
-| Cache | Valkey (Redis-compatible) via Lettuce |
-| Serialization | kotlinx.serialization (ProtoBuf) |
-| Auth | Yubico WebAuthn (passkeys), Auth0 java-jwt |
-| Push | Firebase Admin SDK |
-| Testing | JUnit 5, MockK, H2 for datasource tests, Testcontainers (MariaDB, Valkey, Kafka) for integration tests |
-| Build & ship | Gradle (convention plugins, configuration cache), Jib → Docker, Docker Swarm |
-| Observability | Micrometer/Prometheus, Grafana, Alertmanager, Loki + Alloy for logs |
+| `APPLICATION_DOMAIN_NAME` | Your public domain, used for passkeys and links |
+| `APPLICATION_SERVICE_NAME` | `monolith` |
+| `APPLICATION_SERVICE_HOSTNAME`, `APPLICATION_SERVICE_PORT` | Address the server binds to |
+| `APPLICATION_SERVICE_VERSION` | Version shown in the API description |
+| `APPLICATION_LOG_LEVEL` | `info`, `debug`, … |
+| `APPLICATION_DB_URL`, `APPLICATION_DB_PORT`, `APPLICATION_DB_USER`, `APPLICATION_DB_PASSWORD` | Database connection |
+| `APPLICATION_REDIS_HOSTS`, `APPLICATION_REDIS_PORT`, `APPLICATION_REDIS_PASSWORD` | Cache connection |
+| `APPLICATION_AUTH_SERVICE_HOSTNAME`, `…_USER_…`, `…_BUSINESS_…`, `…_APPOINTMENTS_…`, `…_NOTIFICATIONS_…` | Internal addresses; in a single-server setup all point at the server itself |
+| `APPLICATION_POSTMARK_SERVER_TOKEN` | Postmark server token; `development_token` logs emails instead of sending them |
+| `APPLICATION_EMAIL_FROM` | Sender address, on your verified Postmark domain |
+| `APPLICATION_EMAIL_CODE_SECRET` | Random secret of at least 32 bytes for verification codes |
+| `APPLICATION_SUBJECT_MASTER_KEY` | Base64 of exactly 32 random bytes; wraps every person's encryption key. Keep it outside the database and never lose it: without it no encrypted field or export can be read |
+| `APPLICATION_BLIND_INDEX_KEY` | Base64 of at least 32 random bytes, for the keyed hashes that look up encrypted emails and phones |
+
+Two secrets are read from files, as Docker secrets:
+
+| Secret | Purpose |
+|---|---|
+| `signing_key_encryption_key` | Encrypts the keys the server signs access tokens with |
+| `firebase_key` | Firebase service account key, for push notifications |
 
 ---
 
-## Getting started
+## Running as microservices
 
-### Prerequisites
+BookkMe is made of five services:
 
-- **JDK 21** (Temurin recommended)
-- **Docker** with Compose v2
-- Roughly 4 GB of free RAM for the local stack
+| Service | Responsibility |
+|---|---|
+| `auth` | Accounts, sign-up and email changes with email verification, passkey sign-in, access tokens, devices |
+| `user` | Profiles, legal document acceptance, data export |
+| `business` | Businesses, services, staff and invitations, permissions, clients, price quotes |
+| `appointments` | Booking requests, approvals, appointments, schedules and history |
+| `notifications` | Push and email notifications, device tokens, notification settings |
 
-### Build and test
+The same code runs in two ways:
 
-```sh
-./gradlew build          # compile everything
-./gradlew test           # run the full test suite
-```
+- **As one server** (the default above). `MonolithServer` starts all five services in one process, and they pass events to each other in memory. You only need MariaDB and Valkey. This is what we run in production, and it is the right choice for a single business.
+- **As five separate services.** Each service has its own entry point, its own image and its own database user that can only reach its own schema. The services send events to each other through **Apache Kafka** and call each other over internal HTTP. Choose this when you need to scale or deploy the services independently.
 
-Scope work to a single module while iterating:
-
-```sh
-./gradlew :service:appointments:domain:impl:test
-./gradlew :service:appointments:microservice:test --tests "com.bookk.appointments.*.CreateAppointmentTest"
-```
-
----
-
-## Running the local stack
-
-`deployment/dev/rollout.sh` brings up infrastructure, builds each service image with Jib, and starts the services:
+### Try it locally
 
 ```sh
 cd deployment/dev
 ./rollout.sh
 ```
 
-That script does three things, which you can also run separately:
+The script starts MariaDB, Valkey, Kafka (with Kafka UI on `http://localhost:8080`) and nginx, builds an image for each service and starts them. nginx on `http://localhost` routes `/api/auth`, `/api/user`, `/api/business`, `/api/appointments` and `/api/notifications` to the matching service, and each service serves its own Swagger UI, for example `http://localhost/api/appointments/internal/swagger`. Ports `8000`–`8004` are Java debugger ports, one per service, so you can attach your IDE.
 
-1. `docker compose -f environment-compose.yml up -d` — MariaDB (plus a second, empty one on `127.0.0.1:3308` for trying out migrations), Kafka with Kafka UI, Valkey with RedisInsight, nginx
-2. `./gradlew :service:<svc>:microservice:publishImageToLocalRegistry` for each service
-3. `docker compose -f microservices-compose.yml up -d` — the five services
+### Configuration
 
-Services are published on `localhost:8000`–`8004`, and each container also exposes a **JDWP debug agent** on its internal port 8000, so you can attach a remote debugger from your IDE.
-
-> **Note:** the Gradle daemon sometimes fails to resolve Docker from the environment. `rollout.sh` runs `./gradlew --stop` first for exactly this reason — if image builds fail with a Docker-not-found error, stop the daemon and retry.
-
----
-
-## Configuration
-
-Services are configured entirely through environment variables. Per-service `.env` files for local development live in `deployment/dev/service/`.
+Each service takes the variables from [Configuration](#configuration), with its own values; `deployment/dev/service/<service>.env` has an example for each. The differences from the single server:
 
 | Variable | Purpose |
 |---|---|
-| `APPLICATION_SERVICE_NAME` / `_VERSION` / `_HOSTNAME` / `_PORT` | Service identity and bind address |
-| `APPLICATION_DOMAIN_NAME` | Public domain, used for WebAuthn relying-party ID and links |
-| `APPLICATION_DB_SCHEME` / `_URL` / `_PORT` / `_USER` / `_PASSWORD` | Database connection |
-| `APPLICATION_REDIS_HOSTS` / `_PORT` / `_PASSWORD` | Cache connection |
-| `APPLICATION_KAFKA_HOSTS` / `_CLUSTER_ID` | Event streaming (`HOSTS` is comma-separated) |
-| `APPLICATION_<OTHER>_SERVICE_HOSTNAME` | Service-to-service addressing |
+| `APPLICATION_SERVICE_NAME` | `auth`, `user`, `business`, `appointments` or `notifications`; it also sets the route prefix `/api/<name>` |
+| `APPLICATION_DB_USER`, `APPLICATION_DB_PASSWORD` | The service's own database user, with rights on its own schema and, for every service but `auth`, on its `<service>_short_retention` key schema |
+| `APPLICATION_KAFKA_HOSTS` | Kafka bootstrap servers, separated by commas |
+| `APPLICATION_KAFKA_CLUSTER_ID` | Kafka cluster id |
+| `APPLICATION_<SERVICE>_SERVICE_HOSTNAME` | Where to reach the other services it calls |
 
-Secrets that are not environment variables are mounted as Docker secrets: `signing_key_encryption_key` (auth and business) and `firebase-private-key.json` (notifications).
+Mount `signing_key_encryption_key` into `auth` and `business`, which sign tokens, and `firebase_key` into `notifications`. `auth` and `notifications` also need the email settings.
 
-`local.properties` at the repo root holds your Docker registry credentials (`DOCKER_USERNAME`, `DOCKER_PASSWORD`) for image publishing and is not tracked.
+### Images
 
----
-
-## Testing
-
-Tests share no state: every test builds its own subject and mocks.
-
-- **Operation tests** (`domain/impl`) mock datasources with MockK and run under `runUnitTest { }`.
-- **Route tests** (`microservice`) spin up a Ktor test application via `routeTest { }` and assert status codes and error payloads.
-- **Datasource tests** (`data`) run against a per-test in-memory H2 database in MySQL compatibility mode.
-- **Integration tests** cover what H2 and mocks can't reproduce: row locking and write conflicts (`BusinessRowLockMariaDbTest`), the outbox relay (`OutboxRelayMariaDbTest`), the real Flyway migrations (`MigrationMariaDbTest`), the Redis client against Valkey (`RedisCacheClientTest`) and the Kafka consumers and producer. They start MariaDB 11.8, Valkey and Kafka with Testcontainers, so `./gradlew test` needs a running Docker.
-
-Two conventions the fixtures enforce at runtime:
-
-- every test calls the `given()` / `whenn()` / `then()` markers — a test missing one fails;
-- every test builds its subject through a private `SutFixture` class, so mocks are never shared across tests.
-
-`runBlocking` is banned in tests; use the provided coroutine-aware runners.
+`./gradlew :service:<service>:microservice:publishImageToLocalRegistry` builds one service's image (`<service>` is `authorization`, `user`, `business`, `appointments` or `notifications`). Release images are published as `ghcr.io/nocturneproperties/bookkme-<service>:<version>`. `deployment/prod/microservice` and `deployment/prod/kafka` show a Docker Swarm setup for this mode.
 
 ---
 
-## Database migrations
+## How the services communicate
 
-Migrations are plain Flyway SQL scripts, **written by hand**: `service/<svc>/data/src/main/resources/db/migration/<schema>/V<n>__migration_script.sql`, where `<n>` is one past the highest existing version in that directory. Each service applies its own scripts at startup (`createDatabase`).
+Each service owns its data and never reads another service's database. They work together in two ways:
 
-There is no generator. An earlier one diffed the Exposed table definitions, and it silently produced broken scripts for composite indexes, so it was removed. When a table definition changes, write the matching SQL yourself: column adds, drops and type changes, index and constraint changes. Drop a named composite index before dropping a column it covers; MariaDB won't do that for you.
+- **Events** for anything that happened. A service announces a change, such as `appointment.request_created`, `business.client_deleted` or `auth.user_deleted`, and every service that cares reacts to it in its own time. Notifications, for example, reacts to booking requests, approvals and cancellations by sending pushes and emails, and every service deletes its own data when it receives `auth.user_deleted`.
+- **Internal HTTP calls** for data a service needs right away, such as the booking flow asking `business` for a service's price and duration.
 
-Before a migration lands, run Flyway through every script of that schema, the new one included, against a real MariaDB. The dev stack's second MariaDB on `127.0.0.1:3308` is there for that.
+Events are reliable:
+
+- **Transactional outbox.** A service saves an event in its own `outbox_event` table in the same database transaction as the change it describes. A background relay publishes saved events afterwards. A failed change never produces an event, and an event is not lost when Kafka is down; it waits in the outbox.
+- **At-least-once delivery, handled once.** An event can arrive more than once, after a crash or a restart, so each consumer records which events it has handled in Valkey and skips the repeats.
+- **Retries and parking.** A failed handler is retried through a retry topic of its own. After the last attempt the event is parked in an `exhausted_event` table and raises a metric for alerts. Parked events are replayed on the next start, or when an operator asks for it, and are deleted after 30 days.
+
+The single server uses exactly the same producers, outbox and consumers, with an in-memory transport in place of Kafka. Events are encoded as ProtoBuf and described by the `client` module of the service that publishes them. [`docs/transactional-outbox.md`](docs/transactional-outbox.md) and [`docs/exhausted-events.md`](docs/exhausted-events.md) go into detail.
 
 ---
 
-## Deployment
+## Security
 
-Production runs the **monolith** on **Docker Swarm**, next to separate infrastructure stacks (`deployment/prod/`): VPN (WireGuard), nginx, orchestrator (Dozzle), monitoring (Prometheus + Grafana + Alertmanager) and the admin panel. CI runs on GitHub-hosted runners, nothing of it lives in the swarm. Everything is deployed with Ansible (`deployment/ansible/`, see its README): `make bootstrap` / `make infra` for hosts, swarm and infrastructure, `make deploy v=<version>` for the monolith.
+**Sign-in**
 
-GitHub Actions only builds and publishes: `push-build-and-test.yml` builds and tests every push and pull request, and pushing a `monolith/<version>` tag runs `monolith-publish.yml`, which publishes `ghcr.io/nocturneproperties/bookkme-server:<version>` with Jib and then deploys it through `deploy.yml` (the same Ansible playbook, gated by the `production` environment). The microservice images are still published for when the services are split out again: a `auth/`, `user/`, `business/`, `appointment/` or `notification/<version>` tag runs `microservice-publish.yml`, which publishes `ghcr.io/nocturneproperties/bookkme-<service>:<version>` and deploys nothing.
+- **No passwords.** Accounts sign in with passkeys (WebAuthn), so there is no password to steal, reuse or phish.
+- **Verified email.** An account is created only after its owner enters a 6-digit code sent to the address, and the address changes only through a code sent to the new one. Codes expire after 10 minutes, allow a limited number of attempts and resends, and are stored only as keyed hashes.
+- **Short-lived tokens.** Access tokens live 5 minutes. Refresh tokens belong to one device and are replaced on every use.
+- **Rotating signing keys.** Token signing keys rotate daily and are published as a JWKS, so old keys stop being trusted on their own. The private keys are stored encrypted. Every token type has its own audience, so one kind of token cannot be used as another.
+- **Confirmation for sensitive actions.** Deleting an account, deleting a client and exporting personal data each need a fresh passkey confirmation, not only a signed-in session.
+
+**Access control**
+
+- **Fine-grained permissions.** The owner gives each staff member separate view, edit and delete rights per area, and can suspend a staff member's access at once. Every request is checked on the server.
+- **No probing.** A resource the caller may not see answers 404, the same as one that does not exist, so its existence is not revealed.
+- **Business boundaries.** Every write is limited to the business the caller's permission was checked against, so an id from another business does nothing.
+- **Server-side data.** Prices, durations, names and contact details are looked up on the server from their ids, never taken from what the app sends.
+
+**Abuse and replay protection**
+
+- **Idempotency keys** on requests, so a retried request never takes effect twice.
+- **Single-use tokens** that are claimed atomically, so two concurrent requests cannot both use one.
+- **Rate limits** in the nginx configuration for sending and checking email codes and for passkey sign-in.
+
+**Infrastructure** (the production setup in `deployment/`)
+
+- The database refuses unencrypted connections, and the server verifies its certificate.
+- Database tables, logs and temporary files are encrypted at rest.
+- The database and cache are reachable only from a private network, not from the reverse proxy or the internet, and traffic between hosts is encrypted.
+- Backups are encrypted with a public key before they leave the server, and kept for 30 days. The per-person encryption keys are left out of them and backed up separately every 5 minutes, kept for 7 days.
+- Secrets are passed as Docker secrets from an encrypted Ansible vault, and nothing from the vault stays on the server's disk.
+
+Found a vulnerability? See [Support](#support) for how to report it privately.
+
+---
+
+## Privacy and GDPR
+
+BookkMe is built to help whoever runs it meet the GDPR. It handles personal data with these tools:
+
+- **Right of access and portability.** Users can export all their personal data from every service, after confirming with their passkey.
+- **Right to erasure.** Deleting an account erases the user's data in every service, cancels their upcoming appointments and removes their personal details from the appointment history. A business can delete any of its clients in the same way.
+- **Storage limitation.** An account unused for 3 years is deleted after three email warnings. Each business sets how long it keeps inactive clients (12 to 120 months, 36 by default), and older ones are deleted automatically. Booking requests are deleted 60 days after their time slot, and failed events after 30 days.
+- **Encryption per person.** Each person's data is encrypted with a key of their own: profiles, client and staff details, appointment snapshots and notes, stored events and data exports. Erasing a person deletes their key, so every copy of their data left in the database or in a backup can no longer be read once the backups of that key have expired. The keys live in their own schemas, which never enter the binary log, so they can be backed up on a shorter schedule than the data (we keep them 7 days). Back them up: without its key, a person's data cannot be recovered.
+- **Erasure survives backups.** Every erasure is recorded, and restoring an older backup runs the erasures made since then again and deletes the keys erased since then, so a deleted person does not come back.
+- **Recorded acceptance.** The server records which version of the privacy policy and terms each user accepted.
+- **Data minimisation.** Staff see only what their permissions allow, and notification emails go only to verified addresses.
+- **Policy templates.** `docs/legal/template` contains a draft privacy policy and terms of service for a business running its own copy, in English, Polish and Ukrainian.
+
+The software alone does not make a deployment compliant. When you self-host BookkMe, your business is the data controller: you decide the legal basis, publish your own privacy policy and terms (the templates are drafts that need review for your country), sign data processing agreements with your providers (such as your hosting provider, Postmark and Firebase), and answer requests from the people whose data you hold. [`docs/legal/README.md`](docs/legal/README.md) lists what to complete before publishing.
+
+---
+
+## Upgrading
+
+Every release is described in [`RELEASE_NOTES.md`](RELEASE_NOTES.md): what changed for apps and operators, new settings, and anything that can stop an upgrade. Read the entries between your version and the new one before upgrading, and back up the database. Migrations run when the new version starts.
+
+Versions follow semantic versioning. While the version is `0.x`, a minor release can contain breaking changes.
+
+---
+
+## Building from source
+
+```sh
+./gradlew build                                   # compile and test everything
+./gradlew test                                    # run the tests
+./gradlew :service:appointments:domain:impl:test  # test one module
+./gradlew spotlessApply                           # format the code
+```
+
+Some tests start MariaDB, Valkey and Kafka with Testcontainers, so `./gradlew test` needs Docker running.
+
+The server is written in Kotlin with Ktor, Koin, Exposed and Flyway, and speaks ProtoBuf (`application/x-protobuf`) rather than JSON.
+
+---
+
+## Project layout
+
+```
+src/            the single-server entry point that runs every service in one process
+service/        authorization, user, business, appointments, notifications
+core/           shared server, database, event and cache code
+library/        money, permissions, validation, email, scheduling and other building blocks
+build-src/      Gradle convention plugins
+deployment/     local development stack and our production setup
+docs/           database diagrams, operation diagrams, legal texts and design notes
+```
+
+Each service can also run as its own process, talking to the others over Kafka (see [Running as microservices](#running-as-microservices)). [`AGENTS.md`](AGENTS.md) and `docs/agents/` describe the code conventions in detail.
+
+---
+
+## Support
+
+BookkMe is maintained by a small team, and support is best effort. [GitHub issues](https://github.com/nocturneproperties/bookkme/issues) are for bugs only: include the version you run and the steps that reproduce the problem. Please do not report security vulnerabilities in a public issue; use GitHub's private vulnerability reporting for this repository instead.
+
+---
+
+## Feature requests
+
+Suggest new features and improvements in [GitHub Discussions](https://github.com/nocturneproperties/bookkme/discussions), not in issues. Describe the problem you want solved, not only the solution, so others can add their use cases and vote on it. **Feature requests opened as issues will be closed.**
 
 ---
 
 ## Contributing
 
-**[`AGENTS.md`](AGENTS.md) is the authoritative style guide** — it documents the recipes for adding an operation, a route, a datasource, and their tests, with the reasoning behind each rule. Read it before your first change. Highlights:
+**Unfortunately, we do not accept contributions.** Pull requests will be closed without review. This keeps the code, its licensing and its legal texts under one owner.
 
-- **Development is test-driven.** Write the failing test first, then the minimum implementation, then refactor.
-- **No comments in production code or tests.** Express intent through names and structure. The only exception is route KDoc, which the OpenAPI plugin parses.
-- New Gradle modules must be registered in `settings.gradle.kts`.
-- Follow `service/appointments` as the reference implementation — it is the newest service and the most consistent with current conventions.
+You are welcome to fork the project and change your copy within the terms of the license. Bug reports in issues and ideas in Discussions are always appreciated.
 
 ---
 
 ## License
 
-Bookk is **source-available** under the **Functional Source License, Version 1.1, ALv2 Future License** (`FSL-1.1-ALv2`) — see [`LICENSE`](LICENSE) — plus an [additional permission for self-hosting](LICENSE-SELF-HOSTING.md).
+BookkMe is **source-available** under the **Functional Source License, Version 1.1, ALv2 Future License** (`FSL-1.1-ALv2`) — see [`LICENSE`](LICENSE) — plus an [additional permission for self-hosting](LICENSE-SELF-HOSTING.md).
 
-- **Allowed:** reading, modifying and running the code for any purpose other than a competing product — internal use, non-commercial education and research, contributing, and self-hosting Bookk to take bookings for your own business, with your own clients booking through it.
-- **Not allowed:** offering Bookk, or a product built from it, to other businesses — as a hosted service, as software you sell, or as part of a booking platform.
+- **Allowed:** reading, modifying and running the code for any purpose other than a competing product — internal use, non-commercial education and research, and self-hosting BookkMe to take bookings for your own business, with your own clients booking through it.
+- **Not allowed:** offering BookkMe, or a product built from it, to other businesses — as a hosted service, as software you sell, or as part of a booking platform.
 - **Becomes Apache 2.0 after two years:** each version is also licensed under the Apache License, Version 2.0 from the second anniversary of its release.
 - **Earlier versions stay Apache 2.0:** versions published before the switch to FSL — every commit whose `LICENSE` file is the Apache License — were released under the Apache License, Version 2.0 and remain available under it.

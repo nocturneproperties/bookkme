@@ -8,5 +8,5 @@ interface UserClient {
     suspend fun getUserById(userId: Uuid): Result<UserSnapshot>
     suspend fun getUserByEmail(email: String): Result<UserSnapshot>
     suspend fun createUser(request: CreateUserRequest): Result<Uuid>
-    suspend fun deleteUser(userId: Uuid): Result<Unit>
+    suspend fun changeEmail(userId: Uuid, verifiedEmail: String): Result<Unit>
 }

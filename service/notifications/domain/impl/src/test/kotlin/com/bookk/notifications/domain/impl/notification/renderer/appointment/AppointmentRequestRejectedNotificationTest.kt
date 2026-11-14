@@ -18,9 +18,7 @@ internal class AppointmentRequestRejectedNotificationTest {
 
     private fun event() = AppointmentEvent.RequestRejected(
         clientUserId = Uuid.random(),
-        clientName = "Alice",
         employeeUserId = Uuid.random(),
-        employeeName = "Bob",
         from = Instant.parse("2026-03-05T14:30:00Z"),
         to = Instant.parse("2026-03-05T15:00:00Z"),
         timeZone = TimeZone.UTC,

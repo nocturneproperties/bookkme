@@ -25,7 +25,9 @@ internal class ExportUserBusinessDataClientImplTest {
     private class SutFixture(status: HttpStatusCode = HttpStatusCode.OK) {
         val export = BusinessUserDataExport.stub(
             ownedBusiness = BusinessUserDataExport.OwnedBusinessExport.stub(),
-            employments = listOf(BusinessUserDataExport.EmploymentExport.stub(suspendedAt = Instant.fromEpochMilliseconds(1_000))),
+            employments = listOf(
+                BusinessUserDataExport.EmploymentExport.stub(suspendedAt = Instant.fromEpochMilliseconds(1_000)),
+            ),
             clientRecords = listOf(BusinessUserDataExport.ClientRecordExport.stub(description = "prefers mornings")),
         )
         val requestedPaths = mutableListOf<String>()

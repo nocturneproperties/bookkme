@@ -7,6 +7,7 @@ import com.bookk.appointments.domain.datasource.AppointmentRequestDataSource
 import com.bookk.appointments.domain.datasource.DeletedClientDataSource
 import com.bookk.appointments.domain.datasource.DeletedUserDataSource
 import com.bookk.core.domain.datasource.transaction.TransactionManager
+import library.encryption.SubjectKeys
 import kotlin.uuid.Uuid
 
 internal class LinkClientUser(
@@ -16,19 +17,24 @@ internal class LinkClientUser(
     private val deleteUserAppointmentData: DeleteUserAppointmentData,
     private val deletedClientDataSource: DeletedClientDataSource,
     private val deleteClientAppointmentData: DeleteClientAppointmentData,
+    private val subjectKeys: SubjectKeys,
     private val transactionManager: TransactionManager,
 ) {
 
-    suspend operator fun invoke(businessId: Uuid, clientId: Uuid, userId: Uuid, mergedClientIds: List<Uuid>): Result<Unit> = transactionManager.transaction {
+    suspend operator fun invoke(
+        businessId: Uuid,
+        clientId: Uuid,
+        userId: Uuid,
+        mergedClientIds: List<Uuid>,
+    ): Result<Unit> = transactionManager.transaction {
         val accountAlreadyDeleted = deletedUserDataSource.isDeletedForShare(userId)
         val clientAlreadyDeleted = deletedClientDataSource.isDeletedForShare(businessId, clientId)
-        mergedClientIds.forEach { mergedClientId ->
-            appointmentDataSource.reassignClient(businessId, mergedClientId, clientId)
-            appointmentRequestDataSource.reassignClient(businessId, mergedClientId, clientId)
-        }
+        appointmentDataSource.reassignClients(businessId, mergedClientIds, clientId)
+        appointmentRequestDataSource.reassignClients(businessId, mergedClientIds, clientId)
         appointmentDataSource.linkClientUser(businessId, clientId, userId)
         appointmentRequestDataSource.linkClientUser(businessId, clientId, userId)
         if (accountAlreadyDeleted) deleteUserAppointmentData(userId).getOrThrow()
         if (clientAlreadyDeleted) deleteClientAppointmentData(businessId, clientId).getOrThrow()
+        subjectKeys.shredAll(mergedClientIds)
     }
 }

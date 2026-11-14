@@ -22,7 +22,11 @@ internal class UpdateClientImpl(
     private val clientDataSource: ClientDataSource,
     private val businessPermissionDataSource: BusinessPermissionDataSource,
 ) : UpdateClient {
-    override suspend fun invoke(requestUserId: Uuid, businessId: Uuid, model: ClientUpdateModel): Result<ClientRemote> = transactionManager.transaction {
+    override suspend fun invoke(
+        requestUserId: Uuid,
+        businessId: Uuid,
+        model: ClientUpdateModel,
+    ): Result<ClientRemote> = transactionManager.transaction {
         businessPermissionDataSource.getPermission(requestUserId, businessId, BusinessResource.CLIENTS)
             .assert(PermissionAction.UPDATE)
         val existing = clientDataSource.getClientById(businessId, model.id) ?: throw UpdateClient.Error.NotFound()

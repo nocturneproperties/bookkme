@@ -1,6 +1,5 @@
 package com.bookk.user.microservice.route.api
 
-import com.bookk.core.domain.entity.CoreErrorCodes
 import com.bookk.core.domain.entity.Error
 import com.bookk.core.domain.entity.SimpleServerError
 import com.bookk.core.service.test.createTestClient
@@ -33,6 +32,7 @@ import library.export.DataExport
 import library.export.DataExportDocument
 import library.export.DataExportStatus
 import library.export.DataExports
+import library.export.ExportErrorCodes
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.koin.dsl.module
@@ -47,7 +47,10 @@ internal class PersonalDataExportTest {
     private val start: StartPersonalDataExport = mockk()
     private val status: GetPersonalDataExport = mockk()
     private val download: DownloadPersonalDataExport = mockk()
-    private val running = DataExport.stub(status = DataExportStatus.RUNNING, requestedAt = Instant.fromEpochMilliseconds(1_000))
+    private val running = DataExport.stub(
+        status = DataExportStatus.RUNNING,
+        requestedAt = Instant.fromEpochMilliseconds(1_000),
+    )
 
     private fun io.ktor.server.testing.ApplicationTestBuilder.serve(authenticated: Boolean = true) = setupApplication(
         extension = { if (authenticated) authenticateAs(userId) else rejectEveryToken() },
@@ -66,7 +69,9 @@ internal class PersonalDataExportTest {
         serve()
 
         whenn()
-        val response = createTestClient().post(UserRouting.Api.User.Export()) { setBody(DataExportRequest(confirmationToken = "action-confirmation-token")) }
+        val response = createTestClient().post(UserRouting.Api.User.Export()) {
+            setBody(DataExportRequest(confirmationToken = "action-confirmation-token"))
+        }
 
         then()
         assertEquals(HttpStatusCode.OK, response.status)
@@ -94,11 +99,13 @@ internal class PersonalDataExportTest {
         serve()
 
         whenn()
-        val response = createTestClient().post(UserRouting.Api.User.Export()) { setBody(DataExportRequest(confirmationToken = "action-confirmation-token")) }
+        val response = createTestClient().post(UserRouting.Api.User.Export()) {
+            setBody(DataExportRequest(confirmationToken = "action-confirmation-token"))
+        }
 
         then()
         assertEquals(HttpStatusCode.TooManyRequests, response.status)
-        assertEquals(CoreErrorCodes.DATA_EXPORT_TOO_FREQUENT, response.body<SimpleServerError>().errorCode)
+        assertEquals(ExportErrorCodes.DATA_EXPORT_TOO_FREQUENT, response.body<SimpleServerError>().errorCode)
     }
 
     @Test
@@ -137,7 +144,9 @@ internal class PersonalDataExportTest {
         serve()
 
         whenn()
-        val response = createTestClient().get(UserRouting.Api.User.Export.Download()) { header(HttpHeaders.AcceptEncoding, "gzip") }
+        val response = createTestClient().get(UserRouting.Api.User.Export.Download()) {
+            header(HttpHeaders.AcceptEncoding, "gzip")
+        }
 
         then()
         assertEquals(HttpStatusCode.NotFound, response.status)

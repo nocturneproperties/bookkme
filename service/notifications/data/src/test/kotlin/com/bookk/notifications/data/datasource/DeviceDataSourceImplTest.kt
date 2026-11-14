@@ -9,11 +9,14 @@ import com.bookk.core.test.runUnitTest
 import com.bookk.core.test.then
 import com.bookk.core.test.whenn
 import com.bookk.notifications.data.orm.table.DeviceTable
+import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
+import org.jetbrains.exposed.v1.jdbc.update
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
 internal class DeviceDataSourceImplTest {
@@ -159,10 +162,12 @@ internal class DeviceDataSourceImplTest {
         given()
         val fixture = SutFixture()
         val deviceUuid = Uuid.random()
-        val first = suspendTransaction { fixture.sut.getOrCreate(Uuid.random(), deviceUuid, Uuid.random(), Language.EN) }
+        val first =
+            suspendTransaction { fixture.sut.getOrCreate(Uuid.random(), deviceUuid, Uuid.random(), Language.EN) }
 
         whenn()
-        val second = suspendTransaction { fixture.sut.getOrCreate(Uuid.random(), deviceUuid, Uuid.random(), Language.UK) }
+        val second =
+            suspendTransaction { fixture.sut.getOrCreate(Uuid.random(), deviceUuid, Uuid.random(), Language.UK) }
 
         then()
         assertTrue(first.id != second.id)
@@ -175,8 +180,10 @@ internal class DeviceDataSourceImplTest {
         given()
         val fixture = SutFixture()
         val deviceUuid = Uuid.random()
-        val first = suspendTransaction { fixture.sut.getOrCreate(Uuid.random(), deviceUuid, Uuid.random(), Language.EN) }
-        val second = suspendTransaction { fixture.sut.getOrCreate(Uuid.random(), deviceUuid, Uuid.random(), Language.EN) }
+        val first =
+            suspendTransaction { fixture.sut.getOrCreate(Uuid.random(), deviceUuid, Uuid.random(), Language.EN) }
+        val second =
+            suspendTransaction { fixture.sut.getOrCreate(Uuid.random(), deviceUuid, Uuid.random(), Language.EN) }
 
         whenn()
         suspendTransaction {
@@ -192,14 +199,20 @@ internal class DeviceDataSourceImplTest {
         assertEquals("first-token", updatedFirst.notificationToken)
         assertEquals(Language.UK, updatedFirst.language)
         assertTrue(suspendTransaction { fixture.sut.getByUserId(first.userId) }.isEmpty())
-        assertEquals(listOf(second.copy(notificationToken = "second-token")), suspendTransaction { fixture.sut.getByUserId(second.userId) })
+        assertEquals(
+            listOf(second.copy(notificationToken = "second-token")),
+            suspendTransaction {
+                fixture.sut.getByUserId(second.userId)
+            },
+        )
     }
 
     @Test
     fun `should refuse token updates for another account's device`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        val owner = suspendTransaction { fixture.sut.getOrCreate(Uuid.random(), Uuid.random(), Uuid.random(), Language.EN) }
+        val owner =
+            suspendTransaction { fixture.sut.getOrCreate(Uuid.random(), Uuid.random(), Uuid.random(), Language.EN) }
 
         whenn()
         val result = runSuspendCatching {
@@ -215,7 +228,8 @@ internal class DeviceDataSourceImplTest {
     fun `should refuse a replay that changes the user of an existing account device`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        val owner = suspendTransaction { fixture.sut.getOrCreate(Uuid.random(), Uuid.random(), Uuid.random(), Language.EN) }
+        val owner =
+            suspendTransaction { fixture.sut.getOrCreate(Uuid.random(), Uuid.random(), Uuid.random(), Language.EN) }
 
         whenn()
         val result = runSuspendCatching {
@@ -225,5 +239,58 @@ internal class DeviceDataSourceImplTest {
         then()
         assertTrue(result.exceptionOrNull() is Error.OperationNotAllowed)
         assertEquals(listOf(owner), suspendTransaction { fixture.sut.getByUserId(owner.userId) })
+    }
+
+    @Test
+    fun `should return the language of the newest device`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        suspendTransaction {
+            val older = fixture.sut.getOrCreate(Uuid.random(), Uuid.random(), userId, Language.EN)
+            val newer = fixture.sut.getOrCreate(Uuid.random(), Uuid.random(), userId, Language.PL)
+            DeviceTable.update({ DeviceTable.id eq older.id }) { it[createdAt] = Instant.fromEpochSeconds(1_000) }
+            DeviceTable.update({ DeviceTable.id eq newer.id }) { it[createdAt] = Instant.fromEpochSeconds(2_000) }
+        }
+
+        whenn()
+        val language = suspendTransaction { fixture.sut.getLastUsedLanguage(userId) }
+
+        then()
+        assertEquals(Language.PL, language)
+    }
+
+    @Test
+    fun `should return the language of the device signed in to most recently`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val older = suspendTransaction {
+            val older = fixture.sut.getOrCreate(Uuid.random(), Uuid.random(), userId, Language.EN)
+            val newer = fixture.sut.getOrCreate(Uuid.random(), Uuid.random(), userId, Language.PL)
+            DeviceTable.update({ DeviceTable.id eq older.id }) { it[createdAt] = Instant.fromEpochSeconds(1_000) }
+            DeviceTable.update({ DeviceTable.id eq newer.id }) { it[createdAt] = Instant.fromEpochSeconds(2_000) }
+            older
+        }
+        suspendTransaction { fixture.sut.updateLanguage(older.authId, older.deviceUuid, Language.UK) }
+
+        whenn()
+        val language = suspendTransaction { fixture.sut.getLastUsedLanguage(userId) }
+
+        then()
+        assertEquals(Language.UK, language)
+    }
+
+    @Test
+    fun `should return no language for a user without devices`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        suspendTransaction { fixture.sut.getOrCreate(Uuid.random(), Uuid.random(), Uuid.random(), Language.PL) }
+
+        whenn()
+        val language = suspendTransaction { fixture.sut.getLastUsedLanguage(Uuid.random()) }
+
+        then()
+        assertNull(language)
     }
 }

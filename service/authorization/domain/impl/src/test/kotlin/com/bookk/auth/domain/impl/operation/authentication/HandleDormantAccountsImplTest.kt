@@ -40,7 +40,14 @@ internal class HandleDormantAccountsImplTest {
         val transactionManager = mockk<TransactionManager>()
         val warnings = mutableListOf<AuthEvent.AccountDormancyWarning>()
         val sentInTransaction = mutableListOf<Boolean>()
-        val sut = HandleDormantAccountsImpl(accountDataSource, businessClient, accountEraser, eventProducer, transactionManager)
+        val sut =
+            HandleDormantAccountsImpl(
+                accountDataSource,
+                businessClient,
+                accountEraser,
+                eventProducer,
+                transactionManager,
+            )
 
         init {
             transactionManager.mockTransaction()
@@ -83,7 +90,13 @@ internal class HandleDormantAccountsImplTest {
         val account = DormantAccount.stub(stage = DormancyStage.ACTIVE)
         fixture.dormant(account)
         val warnedAt = mutableListOf<Instant?>()
-        coEvery { fixture.accountDataSource.setDormancyStage(account.userId, DormancyStage.SENT_60_DAY_WARNING, captureNullable(warnedAt)) } returns Unit
+        coEvery {
+            fixture.accountDataSource.setDormancyStage(
+                account.userId,
+                DormancyStage.SENT_60_DAY_WARNING,
+                captureNullable(warnedAt),
+            )
+        } returns Unit
         val startedAt = now()
 
         whenn()
@@ -115,7 +128,9 @@ internal class HandleDormantAccountsImplTest {
         val warning = fixture.warnings.single()
         assertFalse(warning.final)
         assertEquals(firstWarnedAt + 60.days, warning.deletesAt)
-        coVerify(exactly = 1) { fixture.accountDataSource.setDormancyStage(account.userId, DormancyStage.SENT_30_DAY_WARNING, firstWarnedAt) }
+        coVerify(exactly = 1) {
+            fixture.accountDataSource.setDormancyStage(account.userId, DormancyStage.SENT_30_DAY_WARNING, firstWarnedAt)
+        }
         assertEquals(listOf(true), fixture.sentInTransaction)
     }
 
@@ -148,7 +163,9 @@ internal class HandleDormantAccountsImplTest {
         val warning = fixture.warnings.single()
         assertTrue(warning.final)
         assertEquals(firstWarnedAt + 60.days, warning.deletesAt)
-        coVerify(exactly = 1) { fixture.accountDataSource.setDormancyStage(account.userId, DormancyStage.SENT_7_DAY_WARNING, firstWarnedAt) }
+        coVerify(exactly = 1) {
+            fixture.accountDataSource.setDormancyStage(account.userId, DormancyStage.SENT_7_DAY_WARNING, firstWarnedAt)
+        }
         assertEquals(listOf(true), fixture.sentInTransaction)
     }
 
@@ -202,8 +219,10 @@ internal class HandleDormantAccountsImplTest {
         val owner = DormantAccount.stub(stage = DormancyStage.SENT_7_DAY_WARNING, warnedAt = now() - 61.days)
         val memberId = Uuid.random()
         fixture.dormant(owner)
-        coEvery { fixture.businessClient.getOwnedBusinessMemberIds(owner.userId) } returns Result.success(listOf(memberId))
-        coEvery { fixture.accountDataSource.getLastActiveAt(listOf(memberId)) } returns mapOf(memberId to now() - 30.days)
+        coEvery { fixture.businessClient.getOwnedBusinessMemberIds(owner.userId) } returns
+            Result.success(listOf(memberId))
+        coEvery { fixture.accountDataSource.getLastActiveAt(listOf(memberId)) } returns
+            mapOf(memberId to now() - 30.days)
 
         whenn()
         fixture.sut()
@@ -220,8 +239,10 @@ internal class HandleDormantAccountsImplTest {
         val owner = DormantAccount.stub(stage = DormancyStage.SENT_7_DAY_WARNING, warnedAt = now() - 61.days)
         val memberId = Uuid.random()
         fixture.dormant(owner)
-        coEvery { fixture.businessClient.getOwnedBusinessMemberIds(owner.userId) } returns Result.success(listOf(memberId))
-        coEvery { fixture.accountDataSource.getLastActiveAt(listOf(memberId)) } returns mapOf(memberId to now() - (4 * 365).days)
+        coEvery { fixture.businessClient.getOwnedBusinessMemberIds(owner.userId) } returns
+            Result.success(listOf(memberId))
+        coEvery { fixture.accountDataSource.getLastActiveAt(listOf(memberId)) } returns
+            mapOf(memberId to now() - (4 * 365).days)
 
         whenn()
         fixture.sut()
@@ -236,7 +257,48 @@ internal class HandleDormantAccountsImplTest {
         val fixture = SutFixture()
         val listed = DormantAccount.stub(stage = DormancyStage.SENT_7_DAY_WARNING, warnedAt = now() - 61.days)
         fixture.dormant(listed)
-        coEvery { fixture.accountDataSource.getDormantAccountForUpdate(listed.userId) } returns listed.copy(lastActiveAt = now(), stage = DormancyStage.ACTIVE, warnedAt = null)
+        coEvery { fixture.accountDataSource.getDormantAccountForUpdate(listed.userId) } returns
+            listed.copy(lastActiveAt = now(), stage = DormancyStage.ACTIVE, warnedAt = null)
+
+        whenn()
+        fixture.sut()
+
+        then()
+        coVerify(exactly = 0) { fixture.accountEraser.erase(any(), any()) }
+        assertTrue(fixture.warnings.isEmpty())
+    }
+
+    @Test
+    fun `should neither warn nor delete an account whose deletion is on hold`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.dormant(
+            DormantAccount.stub(stage = DormancyStage.ACTIVE, deletionHold = true),
+            DormantAccount.stub(
+                stage = DormancyStage.SENT_7_DAY_WARNING,
+                warnedAt = now() - 61.days,
+                deletionHold = true,
+            ),
+        )
+
+        whenn()
+        val result = fixture.sut()
+
+        then()
+        assertTrue(result.isSuccess)
+        coVerify(exactly = 0) { fixture.accountEraser.erase(any(), any()) }
+        coVerify(exactly = 0) { fixture.accountDataSource.setDormancyStage(any(), any(), any()) }
+        assertTrue(fixture.warnings.isEmpty())
+    }
+
+    @Test
+    fun `should leave an account alone when its deletion was put on hold after it was listed`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val listed = DormantAccount.stub(stage = DormancyStage.SENT_7_DAY_WARNING, warnedAt = now() - 61.days)
+        fixture.dormant(listed)
+        coEvery { fixture.accountDataSource.getDormantAccountForUpdate(listed.userId) } returns
+            listed.copy(deletionHold = true)
 
         whenn()
         fixture.sut()
@@ -264,7 +326,10 @@ internal class HandleDormantAccountsImplTest {
     fun `should succeed when every dormant account is handled`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        fixture.dormant(DormantAccount.stub(stage = DormancyStage.ACTIVE), DormantAccount.stub(stage = DormancyStage.ACTIVE))
+        fixture.dormant(
+            DormantAccount.stub(stage = DormancyStage.ACTIVE),
+            DormantAccount.stub(stage = DormancyStage.ACTIVE),
+        )
 
         whenn()
         val result = fixture.sut()

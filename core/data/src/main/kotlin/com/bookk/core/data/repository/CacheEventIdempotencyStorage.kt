@@ -25,7 +25,12 @@ class CacheEventIdempotencyStorage(
 
     override val claimTtl: Duration = CLAIM_TTL
 
-    override suspend fun claim(consumerGroup: String, topic: String, idempotencyKey: String, deliveryId: String): EventClaim {
+    override suspend fun claim(
+        consumerGroup: String,
+        topic: String,
+        idempotencyKey: String,
+        deliveryId: String,
+    ): EventClaim {
         val key = key(consumerGroup, topic, idempotencyKey)
         repeat(CLAIM_ATTEMPTS) {
             if (cacheClient.setIfAbsent(key, claimOf(deliveryId), CLAIM_TTL)) return EventClaim.CLAIMED
@@ -36,7 +41,11 @@ class CacheEventIdempotencyStorage(
     }
 
     override suspend fun markProcessed(consumerGroup: String, topic: String, idempotencyKey: String) {
-        cacheClient.set(key(consumerGroup, topic, idempotencyKey), EventProcessingRecord(processed = true), PROCESSED_TTL)
+        cacheClient.set(
+            key(consumerGroup, topic, idempotencyKey),
+            EventProcessingRecord(processed = true),
+            PROCESSED_TTL,
+        )
     }
 
     override suspend fun release(consumerGroup: String, topic: String, idempotencyKey: String, deliveryId: String) {
@@ -45,7 +54,11 @@ class CacheEventIdempotencyStorage(
 
     private fun claimOf(deliveryId: String) = EventProcessingRecord(processed = false, deliveryId = deliveryId)
 
-    private fun key(consumerGroup: String, topic: String, idempotencyKey: String) = "event:$consumerGroup:$topic:$idempotencyKey"
+    private fun key(
+        consumerGroup: String,
+        topic: String,
+        idempotencyKey: String,
+    ) = "event:$consumerGroup:$topic:$idempotencyKey"
 
     private companion object {
         const val CLAIM_ATTEMPTS = 3

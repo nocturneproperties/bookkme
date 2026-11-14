@@ -28,7 +28,11 @@ dependencies {
     implementation(projects.service.notifications.domain.api)
     implementation(projects.service.notifications.client)
     implementation(projects.service.notifications.domain.impl)
+    implementation(projects.library.email.impl)
+    implementation(projects.library.scheduler)
     testImplementation(testFixtures(projects.core))
-    testImplementation(testFixtures(projects.core.data.eventstreaming.data))
+    testImplementation(testFixtures(projects.library.outbox))
+    testImplementation(testFixtures(projects.library.encryption.impl))
     testImplementation(testFixtures(projects.core.service))
+    testImplementation(testFixtures(projects.library.scheduler))
 }

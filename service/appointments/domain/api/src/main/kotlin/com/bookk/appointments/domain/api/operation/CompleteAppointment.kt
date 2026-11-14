@@ -8,7 +8,11 @@ import io.ktor.http.HttpStatusCode
 import kotlin.uuid.Uuid
 
 interface CompleteAppointment {
-    suspend operator fun invoke(userId: Uuid, appointmentId: Uuid, priceAdjustment: PriceAdjustmentDraft?): Result<Appointment>
+    suspend operator fun invoke(
+        userId: Uuid,
+        appointmentId: Uuid,
+        priceAdjustment: PriceAdjustmentDraft?,
+    ): Result<Appointment>
 
     sealed interface Error {
         class NegativePrice : Error, BusinessError(
