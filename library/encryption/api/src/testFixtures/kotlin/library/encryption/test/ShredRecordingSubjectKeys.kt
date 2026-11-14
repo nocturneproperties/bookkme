@@ -22,6 +22,10 @@ class ShredRecordingSubjectKeys(private val isInTransaction: suspend () -> Boole
         throw UnsupportedOperationException("ShredRecordingSubjectKeys only records shredding")
     }
 
+    override suspend fun isShredded(subjectId: Uuid): Boolean {
+        return subjectId in shredded
+    }
+
     override suspend fun shred(subjectId: Uuid) {
         shredAll(listOf(subjectId))
     }

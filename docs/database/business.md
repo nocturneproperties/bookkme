@@ -214,9 +214,10 @@ erDiagram
 
     SUBJECT_KEY {
         uuid subject_id PK "the person the key encrypts for; in schema business_short_retention, not business"
-        varbinary wrapped_key "60 bytes; the AES-256 key wrapped by the vault master key"
-        int master_key_version
+        varbinary wrapped_key "nullable; 60 bytes, the AES-256 key wrapped by the vault master key; NULL in a tombstone"
+        int master_key_version "nullable; NULL in a tombstone"
         timestamp created_at
+        timestamp shredded_at "nullable; set when the key is shredded, the first time kept"
     }
 ```
 
@@ -228,4 +229,4 @@ erDiagram
 
 `ERASED_CLIENT` records every client a business deleted (`DeleteClient` and the `business-deleteInactiveClients` retention job), in the same transaction as the deletion. Clients deleted with their user's account aren't recorded here: `authorization.erased_account` covers them. Like `ERASED_ACCOUNT`, the restore tool re-inserts the records from the latest backup with `reapply_requested`, and `business-reapplyErasures` deletes those clients again and sends `BusinessEvent.ClientDeleted`. Keyed by the client id alone, inserted once (`INSERT IGNORE`), kept 60 days, hidden from NocoDB.
 
-`SUBJECT_KEY` lives in its own schema, `business_short_retention`, created by the same migration: it holds one AES-GCM key per person whose fields this service encrypts, wrapped by the master key from the vault (`library/encryption`). Erasing a person deletes their row in the erasure's transaction, so their encrypted fields become unreadable in the live database at once, and in backups once the last key backup holding the row expires after 7 days. That is why the key schema is separate: it stays out of the binary log and the 30-day dump and gets its own short-lived backup. It holds keys only: the outbox, parked events and exports stay in `business`, and any personal data they copy is encrypted under the person's key. No foreign keys; NocoDB can't read it.
+`SUBJECT_KEY` lives in its own schema, `business_short_retention`, created by the same migration: it holds one AES-GCM key per person whose fields this service encrypts, wrapped by the master key from the vault (`library/encryption`). Erasing a person replaces their key with a tombstone in the erasure's transaction (`wrapped_key` and `master_key_version` NULL, `shredded_at` set; written even for a person who never had a key, and never deleted), so their encrypted fields become unreadable in the live database at once, and in backups once the last key backup holding the key expires after 7 days. The tombstone stops a late write from creating a fresh key for the erased person: `encryptor` gives none and `isShredded` reports it. That is why the key schema is separate: it stays out of the binary log and the 30-day dump and gets its own short-lived backup. It holds keys only: the outbox, parked events and exports stay in `business`, and any personal data they copy is encrypted under the person's key. No foreign keys; NocoDB can't read it.

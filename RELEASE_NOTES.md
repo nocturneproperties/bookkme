@@ -34,6 +34,7 @@ Changes since `monolith/0.17.0`. Sign-up verifies the email with a code before t
 - Every erasure (account deletion, client deletion and retention, client merges, a dropped business) now also shreds the erased people's keys in each service, so their encrypted events and exports can no longer be read.
 - User profiles (name, last name, email, phone) are now stored encrypted under the user's key; email and phone uniqueness ignores case and surrounding spaces.
 - Notification email and Telegram targets are now stored encrypted under the user's key; a target whose key is missing counts as no target, so that user gets no email until their next profile update.
+- A `UserEvent.Updated` delivered after the account's deletion no longer re-creates the deleted user's notification settings.
 - New counter `personal_data_key_missing_total{source}` counts data left unreadable because a person's key is missing (a key lost in a restore, never an erasure), by event topic or table; it should stay at zero. A profile whose key is missing reads with empty fields until the user re-enters them.
 
 ### Upgrade

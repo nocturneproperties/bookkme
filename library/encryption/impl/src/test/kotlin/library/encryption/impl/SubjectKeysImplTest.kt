@@ -12,6 +12,7 @@ import library.encryption.Decrypted
 import library.encryption.Encryptor
 import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -134,6 +135,46 @@ internal class SubjectKeysImplTest {
 
         then()
         assertNull(encryptor)
+    }
+
+    @Test
+    fun `should report a subject with a tombstone as shredded`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        coEvery { fixture.dataSource.get(fixture.subjectId) } returns fixture.tombstone()
+
+        whenn()
+        val shredded = fixture.sut.isShredded(fixture.subjectId)
+
+        then()
+        assertTrue(shredded)
+    }
+
+    @Test
+    fun `should report a subject with a live key as not shredded`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        coEvery { fixture.dataSource.get(fixture.subjectId) } returns fixture.storedKey()
+
+        whenn()
+        val shredded = fixture.sut.isShredded(fixture.subjectId)
+
+        then()
+        assertFalse(shredded)
+    }
+
+    @Test
+    fun `should report a subject without a key row as not shredded and create no key`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        coEvery { fixture.dataSource.get(fixture.subjectId) } returns null
+
+        whenn()
+        val shredded = fixture.sut.isShredded(fixture.subjectId)
+
+        then()
+        assertFalse(shredded)
+        coVerify(exactly = 0) { fixture.dataSource.insertIfAbsent(any()) }
     }
 
     @Test

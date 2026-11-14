@@ -35,6 +35,10 @@ internal class SubjectKeysImpl(
         return SubjectDecryptor(requested, liveKeys, shredded)
     }
 
+    override suspend fun isShredded(subjectId: Uuid): Boolean {
+        return dataSource.get(subjectId) is StoredSubjectKey.Shredded
+    }
+
     override suspend fun shred(subjectId: Uuid) {
         shredAll(listOf(subjectId))
     }

@@ -15,6 +15,7 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.just
 import io.mockk.mockk
+import library.encryption.test.InMemorySubjectKeys
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import kotlin.time.Instant
@@ -25,8 +26,9 @@ internal class UpdateTargetInformationTest {
     private class SutFixture {
         val getNotificationSettings = mockk<GetNotificationSettings>()
         val targetDataSource = mockk<NotificationTargetDataSource>()
+        val subjectKeys = InMemorySubjectKeys()
         val transactionManager = mockk<TransactionManager>()
-        val sut = UpdateTargetInformation(getNotificationSettings, targetDataSource, transactionManager)
+        val sut = UpdateTargetInformation(getNotificationSettings, targetDataSource, subjectKeys, transactionManager)
     }
 
     private val userId = Uuid.random()
@@ -146,6 +148,25 @@ internal class UpdateTargetInformationTest {
         then()
         assertTrue(result.isSuccess)
         coVerify(exactly = 0) { fixture.targetDataSource.insertTelegram(any(), any()) }
+    }
+
+    @Test
+    fun `should neither create settings nor store a target for a user already erased`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        with(fixture) {
+            transactionManager.mockTransaction()
+            subjectKeys.shred(userId)
+        }
+
+        whenn()
+        val result = fixture.sut.invoke(userId, Target.Email("late@example.com"), updatedAt)
+
+        then()
+        assertTrue(result.isSuccess) { result.toString() }
+        coVerify(exactly = 0) { fixture.getNotificationSettings.invoke(any()) }
+        coVerify(exactly = 0) { fixture.targetDataSource.updateEmail(any(), any(), any()) }
+        coVerify(exactly = 0) { fixture.targetDataSource.insertEmail(any(), any(), any()) }
     }
 
     @Test

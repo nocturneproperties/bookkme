@@ -21,4 +21,5 @@ dependencies {
     testImplementation(projects.core.data.eventstreaming.impl)
     testImplementation(testFixtures(projects.core.data.eventstreaming.impl))
     testImplementation(testFixtures(projects.core.domain.datasource))
+    testImplementation(testFixtures(projects.library.encryption.api))
 }

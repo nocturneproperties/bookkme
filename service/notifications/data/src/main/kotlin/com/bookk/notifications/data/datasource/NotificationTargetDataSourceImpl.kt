@@ -70,8 +70,10 @@ internal class NotificationTargetDataSourceImpl(
         NotificationEmailTargetTable.update(
             where = {
                 (NotificationEmailTargetTable.userId eq userId) and
-                    (NotificationEmailTargetTable.sourceUpdatedAt.isNull() or
-                            (NotificationEmailTargetTable.sourceUpdatedAt less updatedAt))
+                    (
+                        NotificationEmailTargetTable.sourceUpdatedAt.isNull() or
+                            (NotificationEmailTargetTable.sourceUpdatedAt less updatedAt)
+                        )
             },
         ) {
             it[NotificationEmailTargetTable.email] = null

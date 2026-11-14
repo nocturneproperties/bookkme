@@ -31,6 +31,10 @@ class InMemorySubjectKeys : SubjectKeys {
         return SubjectDecryptor(live.toSet(), shredded.toSet(), tampered.toSet())
     }
 
+    override suspend fun isShredded(subjectId: Uuid): Boolean {
+        return subjectId in shredded
+    }
+
     override suspend fun shred(subjectId: Uuid) {
         shredAll(listOf(subjectId))
     }
