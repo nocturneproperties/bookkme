@@ -40,7 +40,8 @@ erDiagram
     NOTIFICATION_EMAIL_TARGETS {
         uuid id PK
         uuid user_id UK "logical FK -> user.profile.id"
-        text email
+        text email "nullable; plaintext rows from before 0.18.0 only"
+        bytes email_encrypted "nullable until 0.19.0; NULL marks a plaintext row"
         timestamp source_updated_at
         timestamp createdAt
         timestamp updatedAt
@@ -49,7 +50,8 @@ erDiagram
     NOTIFICATION_TELEGRAM_TARGETS {
         uuid id PK
         uuid user_id UK "logical FK -> user.profile.id"
-        text telegram_tag
+        text telegram_tag "nullable; plaintext rows from before 0.18.0 only"
+        bytes telegram_tag_encrypted "nullable until 0.19.0; NULL marks a plaintext row"
         timestamp createdAt
         timestamp updatedAt
     }
@@ -77,6 +79,8 @@ erDiagram
 `notification_email_targets` and `notification_telegram_targets` are not
 foreign-keyed to `notification_settings` in the schema — they are joined to a
 user's settings at query time via the shared `user_id`.
+
+Both targets are stored encrypted under the user's own key (`email_encrypted`, `telegram_tag_encrypted`, `library/encryption`, keyed by `user_id`), so account deletion, which deletes the rows and shreds that key, leaves nothing readable in backups. They are only ever looked up by `user_id`, so they have no blind index. A row whose key is missing reads as no target. Rows written before 0.18.0 keep their plaintext columns until the `notifications-encryptPlaintextTargets` job encrypts them and sets those columns to NULL; a write to such a row encrypts it too. 0.19.0 drops the plaintext columns.
 
 `EXHAUSTED_EVENT` is not part of the notifications domain model — it's the shared DLT landing table (`library/outbox`, one instance per service schema) that `KafkaEventConsumer`/`EmbeddedEventConsumer` write to when an event exhausts its retry budget, so a failed event survives a process restart or crash instead of being lost. Every start, and every row an operator sets `replay_requested` on, is replayed through the consumer group's DLT topic by `ExhaustedEventReplayer`, which also exports the parked rows as the `events_exhausted` metric. See [Exhausted events](../exhausted-events.md).
 

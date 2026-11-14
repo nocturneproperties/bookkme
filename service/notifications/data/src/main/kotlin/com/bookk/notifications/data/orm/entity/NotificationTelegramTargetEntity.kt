@@ -9,6 +9,7 @@ import kotlin.uuid.Uuid
 internal class NotificationTelegramTargetEntity(id: EntityID<Uuid>) : UuidEntity(id) {
     var userId by NotificationTelegramTargetTable.userId
     var telegramTag by NotificationTelegramTargetTable.telegramTag
+    var telegramTagEncrypted by NotificationTelegramTargetTable.telegramTagEncrypted
 
     companion object : DecoratorUuidEntityClass<NotificationTelegramTargetEntity>(NotificationTelegramTargetTable)
 }

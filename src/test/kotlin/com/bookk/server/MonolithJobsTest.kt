@@ -14,6 +14,9 @@ import com.bookk.core.service.test.startScopedApplication
 import com.bookk.core.test.given
 import com.bookk.core.test.then
 import com.bookk.core.test.whenn
+import com.bookk.notifications.domain.api.NOTIFICATIONS_SERVICE_NAME
+import com.bookk.notifications.domain.impl.di.NotificationsScope
+import com.bookk.notifications.microservice.registerNotificationsJobs
 import com.bookk.user.domain.api.USER_SERVICE_NAME
 import com.bookk.user.domain.impl.di.UserScope
 import com.bookk.user.microservice.registerUserJobs
@@ -42,6 +45,7 @@ internal class MonolithJobsTest {
             UserScope to {},
             BusinessScope to { scoped { businessRotateSigningKeys } },
             AppointmentsScope to {},
+            NotificationsScope to {},
         )
     }
 
@@ -57,7 +61,8 @@ internal class MonolithJobsTest {
         val expectedJobs = application.jobsRegisteredBy { registerAuthJobs(it) } +
             application.jobsRegisteredBy { registerUserJobs(it) } +
             application.jobsRegisteredBy { registerBusinessJobs(it) } +
-            application.jobsRegisteredBy { registerAppointmentsJobs(it) }
+            application.jobsRegisteredBy { registerAppointmentsJobs(it) } +
+            application.jobsRegisteredBy { registerNotificationsJobs(it) }
 
         whenn()
         application.registerMonolithJobs(fixture.scheduler)
@@ -78,6 +83,7 @@ internal class MonolithJobsTest {
             USER_SERVICE_NAME to application.jobsRegisteredBy { registerUserJobs(it) }.keys,
             BUSINESS_SERVICE_NAME to application.jobsRegisteredBy { registerBusinessJobs(it) }.keys,
             APPOINTMENTS_SERVICE_NAME to application.jobsRegisteredBy { registerAppointmentsJobs(it) }.keys,
+            NOTIFICATIONS_SERVICE_NAME to application.jobsRegisteredBy { registerNotificationsJobs(it) }.keys,
         )
 
         then()

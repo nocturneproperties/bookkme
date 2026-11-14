@@ -130,6 +130,14 @@ Registered in `registerBusinessJobs` (`BusinessMicroservice.kt`).
 | `user-deleteExpiredDataExports` | 1 hour | `DeleteExpiredDataExports` (`library/export`) | Deletes `user.data_export` rows whose `expires_at` passed (72 hours after the document was built or the export failed) and shreds their documents' keys in the same transaction. |
 | `user-encryptPlaintextProfiles` | 10 minutes | `EncryptPlaintextProfiles` | Encrypts the `user.profile` rows still stored as plaintext from before 0.18.0, 100 per transaction (locked with `FOR UPDATE`), under each user's key, fills `email_index`/`phone_index` and sets the plaintext columns to NULL. Once none are left each run is one query; removed in 0.19.0 with the plaintext columns. |
 
+## Notifications service
+
+`Application.registerNotificationsJobs` in `service/notifications/microservice/src/main/kotlin/com/bookk/notifications/microservice/NotificationsMicroservice.kt`.
+
+| Job | Interval | Operation | What it does |
+|---|---|---|---|
+| `notifications-encryptPlaintextTargets` | 10 minutes | `EncryptPlaintextTargets` | Encrypts the `notification_email_targets` and then the `notification_telegram_targets` rows still stored as plaintext from before 0.18.0, 100 per transaction (locked with `FOR UPDATE`), under each user's key, and sets the plaintext column to NULL. Once none are left each run is one query per table; removed in 0.19.0 with the plaintext columns. |
+
 ## Adding a new job
 
 1. Write the operation like any other (`domain/api` interface + `domain/impl` impl +

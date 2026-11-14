@@ -26,14 +26,14 @@ internal class UpdateTargetInformation(
 
     private suspend fun saveEmail(userId: Uuid, email: String, updatedAt: Instant) {
         if (targetDataSource.updateEmail(userId, email, updatedAt)) return
-        if (targetDataSource.getEmail(userId) == null) {
+        if (!targetDataSource.hasEmail(userId)) {
             targetDataSource.insertEmail(userId, email, updatedAt)
         }
     }
 
     private suspend fun saveTelegram(userId: Uuid, telegramTag: String) {
         if (targetDataSource.updateTelegram(userId, telegramTag)) return
-        if (targetDataSource.getTelegram(userId) == null) {
+        if (!targetDataSource.hasTelegram(userId)) {
             targetDataSource.insertTelegram(userId, telegramTag)
         }
     }

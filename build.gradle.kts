@@ -55,6 +55,7 @@ dependencies {
     testImplementation(projects.service.authorization.domain.api)
     testImplementation(projects.service.business.domain.api)
     testImplementation(projects.service.appointments.domain.api)
+    testImplementation(projects.service.notifications.domain.api)
     testImplementation(testFixtures(projects.core))
     testImplementation(testFixtures(projects.core.service))
     testImplementation(testFixtures(projects.library.scheduler))

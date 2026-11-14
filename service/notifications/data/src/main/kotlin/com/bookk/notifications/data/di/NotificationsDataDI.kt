@@ -6,6 +6,7 @@ import com.bookk.core.domain.datasource.transaction.TransactionManager
 import com.bookk.notifications.data.datasource.DeviceDataSourceImpl
 import com.bookk.notifications.data.datasource.NotificationSettingsDataSourceImpl
 import com.bookk.notifications.data.datasource.NotificationTargetDataSourceImpl
+import com.bookk.notifications.data.datasource.TargetCipher
 import com.bookk.notifications.domain.api.NOTIFICATIONS_SCHEMA
 import com.bookk.notifications.domain.api.NOTIFICATIONS_SHORT_RETENTION_SCHEMA
 import com.bookk.notifications.domain.datasource.DeviceDataSource
@@ -29,6 +30,7 @@ fun notificationsDataModule(environment: (String) -> String? = System::getenv) =
         scoped<TransactionManager> { ExposedTransactionManager(get()) }
         scopedOf(::DeviceDataSourceImpl) bind DeviceDataSource::class
         scopedOf(::NotificationSettingsDataSourceImpl) bind NotificationSettingsDataSource::class
+        scopedOf(::TargetCipher)
         scopedOf(::NotificationTargetDataSourceImpl) bind NotificationTargetDataSource::class
     }
 }

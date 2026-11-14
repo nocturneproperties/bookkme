@@ -53,7 +53,7 @@ internal class UpdateTargetInformationTest {
         then()
         assertTrue(result.isSuccess)
         coVerify(exactly = 0) { fixture.targetDataSource.insertEmail(any(), any(), any()) }
-        coVerify(exactly = 0) { fixture.targetDataSource.getEmail(any()) }
+        coVerify(exactly = 0) { fixture.targetDataSource.hasEmail(any()) }
     }
 
     @Test
@@ -63,7 +63,7 @@ internal class UpdateTargetInformationTest {
         with(fixture) {
             settingsFound()
             coEvery { targetDataSource.updateEmail(userId, "user@example.com", updatedAt) } returns false
-            coEvery { targetDataSource.getEmail(userId) } returns null
+            coEvery { targetDataSource.hasEmail(userId) } returns false
             coEvery { targetDataSource.insertEmail(userId, "user@example.com", updatedAt) } just Runs
         }
 
@@ -82,7 +82,7 @@ internal class UpdateTargetInformationTest {
         with(fixture) {
             settingsFound()
             coEvery { targetDataSource.updateEmail(userId, "stale@example.com", updatedAt) } returns false
-            coEvery { targetDataSource.getEmail(userId) } returns "newer@example.com"
+            coEvery { targetDataSource.hasEmail(userId) } returns true
         }
 
         whenn()
@@ -118,7 +118,7 @@ internal class UpdateTargetInformationTest {
         with(fixture) {
             settingsFound()
             coEvery { targetDataSource.updateTelegram(userId, "@user_tag") } returns false
-            coEvery { targetDataSource.getTelegram(userId) } returns null
+            coEvery { targetDataSource.hasTelegram(userId) } returns false
             coEvery { targetDataSource.insertTelegram(userId, "@user_tag") } just Runs
         }
 
@@ -128,6 +128,24 @@ internal class UpdateTargetInformationTest {
         then()
         assertTrue(result.isSuccess)
         coVerify(exactly = 1) { fixture.targetDataSource.insertTelegram(userId, "@user_tag") }
+    }
+
+    @Test
+    fun `should not insert the telegram target when a row already exists but was not updated`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        with(fixture) {
+            settingsFound()
+            coEvery { targetDataSource.updateTelegram(userId, "@user_tag") } returns false
+            coEvery { targetDataSource.hasTelegram(userId) } returns true
+        }
+
+        whenn()
+        val result = fixture.sut.invoke(userId, Target.Telegram("@user_tag"), updatedAt)
+
+        then()
+        assertTrue(result.isSuccess)
+        coVerify(exactly = 0) { fixture.targetDataSource.insertTelegram(any(), any()) }
     }
 
     @Test

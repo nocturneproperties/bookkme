@@ -13,6 +13,7 @@ dependencies {
 
     testImplementation(testFixtures(projects.core))
     testImplementation(testFixtures(projects.library.encryption.impl))
+    testImplementation(testFixtures(projects.library.encryption.api))
     testImplementation(testFixtures(projects.core.data))
     testImplementation(libs.testcontainers.junit)
 }
