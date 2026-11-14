@@ -6,6 +6,7 @@ import com.bookk.business.domain.api.business.operation.DeleteDayOffsInThePast
 import com.bookk.business.domain.api.client.operation.DeleteInactiveClients
 import com.bookk.business.domain.api.employee.operation.DeleteProcessedEmployeeInvitations
 import com.bookk.business.domain.api.employee.operation.ExpireEmployeeInvitations
+import com.bookk.business.domain.api.encryption.operation.EncryptPlaintextContacts
 import com.bookk.business.domain.api.erasure.operation.DeleteExpiredErasureRecords
 import com.bookk.business.domain.api.erasure.operation.ReapplyClientErasures
 import com.bookk.business.domain.impl.di.BusinessScope
@@ -103,5 +104,8 @@ fun Application.registerBusinessJobs(scheduler: SchedulerConfiguration) {
     }
     scheduler.job("$BUSINESS_SERVICE_NAME-deleteExpiredDataExports", interval = 1.hours) {
         scope.get<DeleteExpiredDataExports>().invoke().getOrThrow()
+    }
+    scheduler.job("$BUSINESS_SERVICE_NAME-encryptPlaintextContacts", interval = 10.minutes) {
+        scope.get<EncryptPlaintextContacts>().invoke().getOrThrow()
     }
 }

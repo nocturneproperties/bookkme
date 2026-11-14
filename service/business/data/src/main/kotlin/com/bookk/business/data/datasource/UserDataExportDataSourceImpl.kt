@@ -1,6 +1,8 @@
 package com.bookk.business.data.datasource
 
 import com.bookk.business.data.orm.entity.BusinessEntity
+import com.bookk.business.data.orm.entity.ClientEntity
+import com.bookk.business.data.orm.entity.Contact
 import com.bookk.business.data.orm.entity.EmployeeEntity
 import com.bookk.business.data.orm.table.BusinessDashboardTable
 import com.bookk.business.data.orm.table.BusinessTable
@@ -17,15 +19,15 @@ import com.bookk.business.domain.api.export.BusinessUserDataExport.PermissionExp
 import com.bookk.business.domain.api.export.BusinessUserDataExport.WorkingHoursExport
 import com.bookk.business.domain.datasource.UserDataExportDataSource
 import com.bookk.core.data.DataSource
-import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.dao.with
 import org.jetbrains.exposed.v1.jdbc.select
-import org.jetbrains.exposed.v1.jdbc.selectAll
 import kotlin.uuid.Uuid
 
-internal class UserDataExportDataSourceImpl : DataSource(), UserDataExportDataSource {
+internal class UserDataExportDataSourceImpl(
+    private val contactCipher: ContactCipher,
+) : DataSource(), UserDataExportDataSource {
 
     override suspend fun export(userId: Uuid): BusinessUserDataExport = dbQuery {
         val employees = EmployeeEntity.find { EmployeeTable.userId eq userId }
@@ -35,15 +37,21 @@ internal class UserDataExportDataSourceImpl : DataSource(), UserDataExportDataSo
                 EmployeeEntity::dayOffs,
                 EmployeeEntity::grants,
             )
-            .map { it.toDomain() }
-        val clientRows = ClientTable.selectAll().where { ClientTable.userId eq userId }.toList()
+            .toList()
+        val employeeReader = contactCipher.reader(listOf(userId), EMPLOYEE_SOURCE)
+        val clients = ClientEntity.find { ClientTable.userId eq userId }.toList()
+        val clientReader = contactCipher.reader(clients.map { it.id.value }, CLIENT_SOURCE)
         val businessNames =
-            businessNames(employees.map { it.businessId } + clientRows.map { it[ClientTable.businessId].value })
+            businessNames(employees.map { it.businessId.value } + clients.map { it.businessId.value })
         BusinessUserDataExport(
             ownedBusiness = BusinessEntity.find { BusinessTable.userId eq userId }.singleOrNull()?.toExport(),
-            employments = employees.map { it.toExport(businessNames.getValue(it.businessId)) },
-            clientRecords = clientRows.map {
-                it.toClientRecord(businessNames.getValue(it[ClientTable.businessId].value))
+            employments = employees.map { entity ->
+                entity.toDomain(
+                    entity.contact(employeeReader),
+                ).toExport(businessNames.getValue(entity.businessId.value))
+            },
+            clientRecords = clients.map { entity ->
+                entity.toClientRecord(entity.contact(clientReader), businessNames.getValue(entity.businessId.value))
             },
             dashboardBusinessId = BusinessDashboardTable.select(BusinessDashboardTable.businessId)
                 .where { BusinessDashboardTable.userId eq userId }
@@ -94,14 +102,21 @@ internal class UserDataExportDataSourceImpl : DataSource(), UserDataExportDataSo
         daysOff = schedule.dayOffs.map { DayOffExport(start = it.start, end = it.end) },
     )
 
-    private fun ResultRow.toClientRecord(businessName: String) = ClientRecordExport(
-        businessId = this[ClientTable.businessId].value,
-        businessName = businessName,
-        name = this[ClientTable.name],
-        lastName = this[ClientTable.lastName],
-        phone = this[ClientTable.phone],
-        email = this[ClientTable.email],
-        description = this[ClientTable.description],
-        lastActivityAt = this[ClientTable.lastActivityAt],
-    )
+    private fun ClientEntity.toClientRecord(contact: Contact, businessName: String): ClientRecordExport {
+        return ClientRecordExport(
+            businessId = businessId.value,
+            businessName = businessName,
+            name = contact.name,
+            lastName = contact.lastName,
+            phone = contact.phone,
+            email = contact.email,
+            description = contact.description,
+            lastActivityAt = lastActivityAt,
+        )
+    }
+
+    private companion object {
+        const val CLIENT_SOURCE = "client"
+        const val EMPLOYEE_SOURCE = "employee"
+    }
 }

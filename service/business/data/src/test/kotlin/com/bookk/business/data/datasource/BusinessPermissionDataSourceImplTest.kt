@@ -51,8 +51,9 @@ internal class BusinessPermissionDataSourceImplTest {
             ClientTable,
         )
         val businessDataSource = BusinessDataSourceImpl()
-        val employeeDataSource = EmployeeDataSourceImpl()
-        val clientDataSource = ClientDataSourceImpl()
+        val contactCipher = testContactCipher()
+        val employeeDataSource = EmployeeDataSourceImpl(contactCipher)
+        val clientDataSource = ClientDataSourceImpl(contactCipher)
         val sut = BusinessPermissionDataSourceImpl()
 
         suspend fun employee(userId: Uuid, businessName: String = "Salon"): Employee {

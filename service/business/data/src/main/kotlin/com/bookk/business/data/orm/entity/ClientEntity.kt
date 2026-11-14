@@ -1,12 +1,12 @@
 package com.bookk.business.data.orm.entity
 
+import com.bookk.business.data.datasource.ContactReader
 import com.bookk.business.data.orm.table.ClientTable
 import com.bookk.business.domain.api.client.entity.Client
-import com.bookk.business.domain.api.client.entity.ClientUpdateModel
 import com.bookk.core.data.DecoratorUuidEntityClass
 import org.jetbrains.exposed.v1.core.dao.id.EntityID
+import org.jetbrains.exposed.v1.core.statements.UpdateBuilder
 import org.jetbrains.exposed.v1.dao.UuidEntity
-import kotlin.time.Clock
 import kotlin.uuid.Uuid
 
 internal class ClientEntity(id: EntityID<Uuid>) : UuidEntity(id) {
@@ -17,52 +17,83 @@ internal class ClientEntity(id: EntityID<Uuid>) : UuidEntity(id) {
     var email by ClientTable.email
     var userId by ClientTable.userId
     var description by ClientTable.description
+    var nameEncrypted by ClientTable.nameEncrypted
+    var lastNameEncrypted by ClientTable.lastNameEncrypted
+    var phoneEncrypted by ClientTable.phoneEncrypted
+    var emailEncrypted by ClientTable.emailEncrypted
+    var descriptionEncrypted by ClientTable.descriptionEncrypted
+    var emailIndex by ClientTable.emailIndex
+    var sourceUpdatedAt by ClientTable.sourceUpdatedAt
     var lastActivityAt by ClientTable.lastActivityAt
 
-    companion object : DecoratorUuidEntityClass<ClientEntity>(ClientTable) {
-        fun findByIdAndUpdate(businessId: Uuid, model: ClientUpdateModel): ClientEntity? = findByIdAndUpdate(model.id) {
-            if (it.businessId.value == businessId) {
-                model.name?.let { name -> it.name = name }
-                model.lastName?.let { lastName -> it.lastName = lastName }
-                model.phone?.let { phone -> it.phone = phone }
-                model.email?.let { email -> it.email = email }
-                model.description?.let { description -> it.description = description }
-                it.lastActivityAt = Clock.System.now()
-            }
-        }?.takeIf { it.businessId.value == businessId }
-
-        fun takeOver(businessId: Uuid, detachedClientId: Uuid, profile: Client.Integrated): ClientEntity? = findById(
-            detachedClientId,
+    fun plaintextContact(): Contact {
+        return Contact(
+            name = name.orEmpty(),
+            lastName = lastName.orEmpty(),
+            phone = phone,
+            email = email,
+            description = description,
         )
-            ?.takeIf { it.businessId.value == businessId && it.userId == null }
-            ?.apply {
-                userId = profile.userId
-                name = profile.name.trim()
-                lastName = profile.lastName.trim()
-                profile.phone?.let { phone = it.trim() }
-                profile.email?.let { email = it.trim() }
-                lastActivityAt = Clock.System.now()
-            }
     }
 
-    fun toDomain(): Client = when (val userId = userId) {
-        null -> Client.Detached(
-            id = id.value,
-            name = name,
-            lastName = lastName,
-            phone = phone,
-            email = email,
-            description = description,
+    fun contact(reader: ContactReader): Contact {
+        val encryptedName = nameEncrypted ?: return plaintextContact()
+        val encrypted = EncryptedContact(
+            name = encryptedName,
+            lastName = checkNotNull(lastNameEncrypted) { "Client ${id.value} has no encrypted last name" },
+            phone = phoneEncrypted,
+            email = emailEncrypted,
+            description = descriptionEncrypted,
         )
+        return reader.read(id.value, encrypted)
+    }
 
-        else -> Client.Integrated(
-            id = id.value,
-            name = name,
-            lastName = lastName,
-            phone = phone,
-            email = email,
-            userId = userId,
-            description = description,
-        )
+    fun store(contact: EncryptedContact, emailIndex: String?, reindexEmail: Boolean) {
+        val unindexed = nameEncrypted == null
+        nameEncrypted = contact.name
+        lastNameEncrypted = contact.lastName
+        phoneEncrypted = contact.phone
+        emailEncrypted = contact.email
+        descriptionEncrypted = contact.description
+        name = null
+        lastName = null
+        phone = null
+        email = null
+        description = null
+        if (unindexed || reindexEmail) this.emailIndex = emailIndex
+    }
+
+    fun toDomain(contact: Contact): Client {
+        return when (val userId = userId) {
+            null -> Client.Detached(
+                id = id.value,
+                name = contact.name,
+                lastName = contact.lastName,
+                phone = contact.phone,
+                email = contact.email,
+                description = contact.description,
+            )
+
+            else -> Client.Integrated(
+                id = id.value,
+                name = contact.name,
+                lastName = contact.lastName,
+                phone = contact.phone,
+                email = contact.email,
+                userId = userId,
+                description = contact.description,
+            )
+        }
+    }
+
+    companion object : DecoratorUuidEntityClass<ClientEntity>(ClientTable) {
+        fun UpdateBuilder<*>.writeContact(contact: EncryptedContact, emailIndex: String?) {
+            this[ClientTable.nameEncrypted] = contact.name
+            this[ClientTable.lastNameEncrypted] = contact.lastName
+            this[ClientTable.phoneEncrypted] = contact.phone
+            this[ClientTable.emailEncrypted] = contact.email
+            this[ClientTable.descriptionEncrypted] = contact.description
+            this[ClientTable.emailIndex] = emailIndex
+        }
     }
 }

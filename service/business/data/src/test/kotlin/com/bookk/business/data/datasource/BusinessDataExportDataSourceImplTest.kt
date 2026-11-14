@@ -36,9 +36,10 @@ internal class BusinessDataExportDataSourceImplTest {
             ClientTable,
             EmployeeInvitationTable,
         )
-        val sut = BusinessDataExportDataSourceImpl()
+        val contactCipher = testContactCipher()
+        val sut = BusinessDataExportDataSourceImpl(contactCipher)
         val businessSut = BusinessDataSourceImpl()
-        val clientSut = ClientDataSourceImpl()
+        val clientSut = ClientDataSourceImpl(contactCipher)
         val invitationSut = EmployeeInvitationDataSourceImpl()
 
         suspend fun business(): Uuid = suspendTransaction {

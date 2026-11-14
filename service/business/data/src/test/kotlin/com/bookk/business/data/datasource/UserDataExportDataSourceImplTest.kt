@@ -55,10 +55,11 @@ internal class UserDataExportDataSourceImplTest {
             EmployeeDayOffTable,
             ClientTable,
         )
-        val sut = UserDataExportDataSourceImpl()
+        val contactCipher = testContactCipher()
+        val sut = UserDataExportDataSourceImpl(contactCipher)
         val businessSut = BusinessDataSourceImpl()
-        val employeeSut = EmployeeDataSourceImpl()
-        val clientSut = ClientDataSourceImpl()
+        val employeeSut = EmployeeDataSourceImpl(contactCipher)
+        val clientSut = ClientDataSourceImpl(contactCipher)
         val permissionSut = BusinessPermissionDataSourceImpl()
         val userId = Uuid.random()
 
@@ -187,6 +188,7 @@ internal class UserDataExportDataSourceImplTest {
                     lastName = "Koval",
                     phone = "+380501112233",
                     email = "olena@example.com",
+                    description = "allergic to latex",
                 ),
             )
         }
@@ -194,7 +196,6 @@ internal class UserDataExportDataSourceImplTest {
         val lastActivityAt = Instant.fromEpochMilliseconds(1_700_000_000_000)
         suspendTransaction {
             ClientTable.update({ ClientTable.id eq clientId }) {
-                it[description] = "allergic to latex"
                 it[this.lastActivityAt] = lastActivityAt
             }
         }

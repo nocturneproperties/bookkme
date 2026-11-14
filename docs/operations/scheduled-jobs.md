@@ -119,6 +119,7 @@ Registered in `registerBusinessJobs` (`BusinessMicroservice.kt`).
 | `business-deleteExpiredErasureRecords` | 1 day | `DeleteExpiredErasureRecords` | Deletes `business.erased_client` rows older than 60 days. |
 | `business-buildDataExports` | 1 minute | `BuildDataExports` (`library/export`, with `BusinessDataExportAssembler`) | Builds the queued business data exports the same way as `user-buildDataExports`, from the business's own data and appointments' part, and sends `BusinessEvent.ExportReady` in the transaction that stores the document. See [Start business data export](business/start-business-data-export.md). |
 | `business-deleteExpiredDataExports` | 1 hour | `DeleteExpiredDataExports` (`library/export`) | Deletes `business.data_export` rows whose `expires_at` passed and shreds their documents' keys in the same transaction. |
+| `business-encryptPlaintextContacts` | 10 minutes | `EncryptPlaintextContacts` | Encrypts the `business.client` and then the `business.employee` rows still stored as plaintext from before 0.18.0, 100 per transaction (locked with `FOR UPDATE`), clients under their own key and employees under their user's key, fills `client.email_index` and sets the plaintext columns to NULL. Once none are left each run is one query per table; removed in 0.19.0 with the plaintext columns. |
 
 ## User service
 

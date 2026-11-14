@@ -80,7 +80,8 @@ internal class ClientRetentionMariaDbTest {
     }
 
     private class SutFixture {
-        val clients = ClientDataSourceImpl()
+        val contactCipher = testContactCipher()
+        val clients = ClientDataSourceImpl(contactCipher)
         val businesses = BusinessDataSourceImpl()
 
         suspend fun createBusiness(): Uuid = suspendTransaction(db = database) {

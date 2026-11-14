@@ -58,8 +58,9 @@ internal class BusinessDataSourceImplTest {
             ClientTable,
         )
         val sut = BusinessDataSourceImpl()
-        val employeeSut = EmployeeDataSourceImpl()
-        val clientSut = ClientDataSourceImpl()
+        val contactCipher = testContactCipher()
+        val employeeSut = EmployeeDataSourceImpl(contactCipher)
+        val clientSut = ClientDataSourceImpl(contactCipher)
     }
 
     private fun updateModel(

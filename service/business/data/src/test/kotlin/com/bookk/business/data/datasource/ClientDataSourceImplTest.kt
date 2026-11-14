@@ -44,7 +44,8 @@ internal class ClientDataSourceImplTest {
                 BusinessDayOffTable,
                 ClientTable,
             )
-        val sut = ClientDataSourceImpl()
+        val contactCipher = testContactCipher()
+        val sut = ClientDataSourceImpl(contactCipher)
         val businessSut = BusinessDataSourceImpl()
         lateinit var businessId: Uuid
 

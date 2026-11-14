@@ -60,7 +60,8 @@ internal class EmployeeDataSourceImplTest {
             EmployeeWorkingHoursTable,
             EmployeeDayOffTable,
         )
-        val sut = EmployeeDataSourceImpl()
+        val contactCipher = testContactCipher()
+        val sut = EmployeeDataSourceImpl(contactCipher)
         val businessSut = BusinessDataSourceImpl()
         val serviceSut = ServiceDataSourceImpl()
         val permissionSut = BusinessPermissionDataSourceImpl()

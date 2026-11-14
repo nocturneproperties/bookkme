@@ -1,6 +1,8 @@
 package com.bookk.business.data.datasource
 
+import com.bookk.business.data.orm.entity.Contact
 import com.bookk.business.data.orm.entity.EmployeeEntity
+import com.bookk.business.data.orm.entity.EncryptedContact
 import com.bookk.business.data.orm.table.BusinessTable
 import com.bookk.business.data.orm.table.EmployeeCanProvideServiceTable
 import com.bookk.business.data.orm.table.EmployeeTable
@@ -19,23 +21,37 @@ import org.jetbrains.exposed.v1.core.or
 import org.jetbrains.exposed.v1.dao.with
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.select
-import org.jetbrains.exposed.v1.jdbc.update
 import kotlin.time.Clock
 import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
-internal class EmployeeDataSourceImpl : DataSource(), EmployeeDataSource {
+internal class EmployeeDataSourceImpl(private val contactCipher: ContactCipher) : DataSource(), EmployeeDataSource {
 
     override suspend fun createEmployee(employee: Employee): Employee = dbQuery {
-        EmployeeEntity.new(employee).toDomain()
+        val contact = Contact(
+            name = employee.name.trim(),
+            lastName = employee.lastName.trim(),
+            phone = employee.phone?.trim(),
+            email = employee.email?.trim(),
+        )
+        EmployeeEntity.new(employee, encryptExisting(employee.userId, contact)).toDomain(contact)
     }
 
     override suspend fun updateEmployee(model: EmployeeUpdateModel): Employee = dbQuery {
-        (EmployeeEntity.findByIdAndUpdate(model) ?: throw Error.NotFound()).toDomain()
+        val entity = EmployeeEntity.find { EmployeeTable.id eq model.id }.forUpdate().singleOrNull()
+            ?: throw Error.NotFound()
+        val contact = Contact(
+            name = model.name.trim(),
+            lastName = model.lastName.trim(),
+            phone = model.phone?.trim(),
+            email = model.email?.trim(),
+        )
+        entity.update(model, encryptExisting(entity.userId, contact))
+        entity.toDomain(contact)
     }
 
     override suspend fun setSuspendedAt(id: Uuid, suspendedAt: Instant?): Employee = dbQuery {
-        (EmployeeEntity.findByIdAndUpdateSuspension(id, suspendedAt) ?: throw Error.NotFound()).toDomain()
+        (EmployeeEntity.findByIdAndUpdateSuspension(id, suspendedAt) ?: throw Error.NotFound()).domain()
     }
 
     override suspend fun getEmployees(businessId: Uuid): List<Employee> = dbQuery {
@@ -49,7 +65,7 @@ internal class EmployeeDataSourceImpl : DataSource(), EmployeeDataSource {
                 EmployeeEntity::dayOffs,
                 EmployeeEntity::grants,
             )
-            .map(EmployeeEntity::toDomain)
+            .domains()
     }
 
     override suspend fun getEmployee(businessId: Uuid, id: Uuid): Employee? = dbQuery {
@@ -57,7 +73,7 @@ internal class EmployeeDataSourceImpl : DataSource(), EmployeeDataSource {
             (EmployeeTable.businessId eq businessId) and (EmployeeTable.id eq id)
         }
             .firstOrNull()
-            ?.toDomain()
+            ?.domain()
     }
 
     override suspend fun getEmployeeByUserId(businessId: Uuid, userId: Uuid): Employee? = dbQuery {
@@ -65,7 +81,7 @@ internal class EmployeeDataSourceImpl : DataSource(), EmployeeDataSource {
             (EmployeeTable.businessId eq businessId) and (EmployeeTable.userId eq userId)
         }
             .firstOrNull()
-            ?.toDomain()
+            ?.domain()
     }
 
     override suspend fun deleteEmployee(businessId: Uuid, id: Uuid): Boolean = dbQuery {
@@ -82,18 +98,24 @@ internal class EmployeeDataSourceImpl : DataSource(), EmployeeDataSource {
         phone: String?,
         updatedAt: Instant,
     ): Int = dbQuery {
-        EmployeeTable.update(
-            where = {
-                (EmployeeTable.userId eq userId) and
-                    (EmployeeTable.sourceUpdatedAt.isNull() or (EmployeeTable.sourceUpdatedAt less updatedAt))
-            },
-        ) {
-            it[this.name] = name.trim()
-            it[this.lastName] = lastName.trim()
-            it[this.email] = email.trim()
-            phone?.let { value -> it[this.phone] = value.trim() }
-            it[EmployeeTable.sourceUpdatedAt] = updatedAt
-            it[EmployeeTable.updatedAt] = Clock.System.now()
+        val employments = EmployeeEntity.find {
+            (EmployeeTable.userId eq userId) and
+                (EmployeeTable.sourceUpdatedAt.isNull() or (EmployeeTable.sourceUpdatedAt less updatedAt))
+        }.forUpdate().toList()
+        val reader = contactCipher.reader(listOf(userId), SOURCE)
+        employments.count { entity ->
+            val current = entity.contact(reader)
+            val synced = current.copy(
+                name = name.trim(),
+                lastName = lastName.trim(),
+                email = email.trim(),
+                phone = phone?.trim() ?: current.phone,
+            )
+            val encrypted = contactCipher.encrypt(userId, synced) ?: return@count false
+            entity.store(encrypted)
+            entity.sourceUpdatedAt = updatedAt
+            entity.updatedAt = Clock.System.now()
+            true
         }
     }
 
@@ -131,7 +153,7 @@ internal class EmployeeDataSourceImpl : DataSource(), EmployeeDataSource {
                 EmployeeEntity::dayOffs,
                 EmployeeEntity::grants,
             )
-            .map(EmployeeEntity::toDomain)
+            .domains()
     }
 
     override suspend fun getOwnedBusinessMemberUserIds(ownerUserId: Uuid): List<Uuid> = dbQuery {
@@ -139,5 +161,28 @@ internal class EmployeeDataSourceImpl : DataSource(), EmployeeDataSource {
             .select(EmployeeTable.userId)
             .where { (BusinessTable.userId eq ownerUserId) and (EmployeeTable.userId neq ownerUserId) }
             .map { it[EmployeeTable.userId] }
+    }
+
+    override suspend fun encryptPlaintextEmployees(limit: Int): Int = dbQuery {
+        val plaintext = EmployeeEntity.find { EmployeeTable.nameEncrypted.isNull() }.limit(limit).forUpdate().toList()
+        plaintext.forEach { entity -> entity.store(encryptExisting(entity.userId, entity.plaintextContact())) }
+        plaintext.size
+    }
+
+    private suspend fun encryptExisting(userId: Uuid, contact: Contact): EncryptedContact {
+        return checkNotNull(contactCipher.encrypt(userId, contact)) { "The employee user $userId has a shredded key" }
+    }
+
+    private suspend fun EmployeeEntity.domain(): Employee {
+        return toDomain(contact(contactCipher.reader(listOf(userId), SOURCE)))
+    }
+
+    private suspend fun List<EmployeeEntity>.domains(): List<Employee> {
+        val reader = contactCipher.reader(map { it.userId }, SOURCE)
+        return map { it.toDomain(it.contact(reader)) }
+    }
+
+    private companion object {
+        const val SOURCE = "employee"
     }
 }
