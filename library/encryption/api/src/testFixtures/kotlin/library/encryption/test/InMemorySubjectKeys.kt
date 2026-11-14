@@ -22,6 +22,7 @@ class InMemorySubjectKeys : SubjectKeys {
     }
 
     override suspend fun encryptor(subjectId: Uuid): Encryptor? {
+        require(subjectId != Uuid.NIL) { NIL_SUBJECT }
         if (subjectId in shredded) return null
         live += subjectId
         return SubjectEncryptor(subjectId)
@@ -40,6 +41,7 @@ class InMemorySubjectKeys : SubjectKeys {
     }
 
     override suspend fun shredAll(subjectIds: Collection<Uuid>) {
+        require(Uuid.NIL !in subjectIds) { NIL_SUBJECT }
         live -= subjectIds.toSet()
         shredded += subjectIds
     }
@@ -84,6 +86,8 @@ class InMemorySubjectKeys : SubjectKeys {
     }
 
     private companion object {
+        const val NIL_SUBJECT = "The nil subject has no key"
+
         fun prefix(subjectId: Uuid): String {
             return "enc[$subjectId]:"
         }

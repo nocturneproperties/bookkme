@@ -18,6 +18,7 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.security.SecureRandom
+import kotlin.test.assertFailsWith
 import kotlin.time.Clock
 import kotlin.time.Instant
 import kotlin.uuid.Uuid
@@ -312,6 +313,45 @@ internal class SubjectKeysImplTest {
 
         then()
         coVerify(exactly = 1) { fixture.dataSource.shred(setOf(fixture.subjectId, other), fixture.now) }
+    }
+
+    @Test
+    fun `should refuse to create a key for the nil subject`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+
+        whenn()
+        val failure = assertFailsWith<IllegalArgumentException> { fixture.sut.encryptor(Uuid.NIL) }
+
+        then()
+        assertTrue(failure.message.orEmpty().contains("nil"))
+        coVerify(exactly = 0) { fixture.dataSource.get(any()) }
+        coVerify(exactly = 0) { fixture.dataSource.insertIfAbsent(any()) }
+    }
+
+    @Test
+    fun `should refuse to shred the nil subject`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+
+        whenn()
+        val failure = assertFailsWith<IllegalArgumentException> { fixture.sut.shred(Uuid.NIL) }
+
+        then()
+        assertTrue(failure.message.orEmpty().contains("nil"))
+        coVerify(exactly = 0) { fixture.dataSource.shred(any(), any()) }
+    }
+
+    @Test
+    fun `should shred none of the subjects when one of them is the nil subject`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+
+        whenn()
+        assertFailsWith<IllegalArgumentException> { fixture.sut.shredAll(listOf(fixture.subjectId, Uuid.NIL)) }
+
+        then()
+        coVerify(exactly = 0) { fixture.dataSource.shred(any(), any()) }
     }
 
     private companion object {

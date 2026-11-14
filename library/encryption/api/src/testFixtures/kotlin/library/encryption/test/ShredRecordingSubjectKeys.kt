@@ -31,6 +31,7 @@ class ShredRecordingSubjectKeys(private val isInTransaction: suspend () -> Boole
     }
 
     override suspend fun shredAll(subjectIds: Collection<Uuid>) {
+        require(Uuid.NIL !in subjectIds) { "The nil subject has no key" }
         shreds += Shred(subjectIds.toSet(), isInTransaction())
     }
 

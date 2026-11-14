@@ -18,6 +18,7 @@ internal class SubjectKeysImpl(
 ) : SubjectKeys {
 
     override suspend fun encryptor(subjectId: Uuid): Encryptor? {
+        requireNotNil(listOf(subjectId))
         val stored = dataSource.get(subjectId) ?: dataSource.insertIfAbsent(newKey(subjectId))
         return when (stored) {
             is StoredSubjectKey.Live -> SubjectEncryptor(subjectId, masterKey.unwrap(stored))
@@ -44,7 +45,14 @@ internal class SubjectKeysImpl(
     }
 
     override suspend fun shredAll(subjectIds: Collection<Uuid>) {
+        requireNotNil(subjectIds)
         dataSource.shred(subjectIds.toSet(), clock.now())
+    }
+
+    private fun requireNotNil(subjectIds: Collection<Uuid>) {
+        require(Uuid.NIL !in subjectIds) {
+            "The nil subject has no key: a nil id stands for an erased or unknown person"
+        }
     }
 
     private fun newKey(subjectId: Uuid): StoredSubjectKey.Live {
