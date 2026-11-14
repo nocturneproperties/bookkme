@@ -42,6 +42,7 @@ internal class AppointmentEntity(id: EntityID<Uuid>) : UuidEntity(id) {
     var dateStart by AppointmentTable.dateStart
     var dateEnd by AppointmentTable.dateEnd
     var noteEncrypted by AppointmentTable.noteEncrypted
+    var clientNameIndex by AppointmentTable.clientNameIndex
     var status by AppointmentTable.status
     var cancellationReason by AppointmentTable.cancellationReason
     var completedBy by AppointmentTable.completedBy
@@ -106,6 +107,7 @@ internal class AppointmentEntity(id: EntityID<Uuid>) : UuidEntity(id) {
                     phone = clientPhoneEncrypted,
                     email = clientEmailEncrypted,
                     note = checkNotNull(noteEncrypted) { "Snapshot of client $clientId has no encrypted note" },
+                    nameIndex = clientNameIndex,
                 )
             },
             encryptedEmployeeName = employeeNameEncrypted,
@@ -167,6 +169,10 @@ internal class AppointmentEntity(id: EntityID<Uuid>) : UuidEntity(id) {
             it.writeClient(encrypted)
         }
 
+        fun findByIdAndUpdateClientNameIndex(id: Uuid, nameIndex: String) = findByIdAndUpdate(id) {
+            it.clientNameIndex = nameIndex
+        }
+
         private fun AppointmentEntity.writeSnapshot(encrypted: EncryptedSnapshot) {
             writeClient(encrypted.client)
             employeeNameEncrypted = encrypted.employeeName
@@ -177,6 +183,7 @@ internal class AppointmentEntity(id: EntityID<Uuid>) : UuidEntity(id) {
             clientPhoneEncrypted = encrypted?.phone
             clientEmailEncrypted = encrypted?.email
             noteEncrypted = encrypted?.note
+            clientNameIndex = encrypted?.nameIndex
         }
     }
 }

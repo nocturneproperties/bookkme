@@ -115,7 +115,7 @@ fun Routing.appointment() {
          * Get appointments history
          *
          * Summary: Get appointments history
-         * Description: Get paginated appointments history, optionally filtered by a query matching client name or service names
+         * Description: Get paginated appointments history, optionally filtered by a query matching the client's whole name (ignoring case) or part of a service name
          * Tag: appointment
          * Security: jwt
          * Response: 200 application/x-protobuf [com.bookk.appointments.domain.api.entity.AppointmentPagination] List of appointments

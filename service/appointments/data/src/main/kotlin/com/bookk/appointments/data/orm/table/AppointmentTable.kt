@@ -6,6 +6,8 @@ import com.bookk.core.data.database.BaseUUIDTable
 import org.jetbrains.exposed.v1.core.ReferenceOption
 import org.jetbrains.exposed.v1.datetime.timestamp
 
+private const val BLIND_INDEX_LENGTH = 44
+
 object AppointmentTable : BaseUUIDTable("appointment") {
     val initiatorUserId = uuid("initiator_user_id")
     val businessId = reference("business_id", AppointmentBusinessTable.id, onDelete = ReferenceOption.CASCADE)
@@ -23,8 +25,10 @@ object AppointmentTable : BaseUUIDTable("appointment") {
     val clientPhoneEncrypted = binary("client_phone_encrypted", 128).nullable()
     val clientEmailEncrypted = binary("client_email_encrypted", 2080).nullable()
     val noteEncrypted = binary("note_encrypted", 8224).nullable()
+    val clientNameIndex = char("client_name_index", BLIND_INDEX_LENGTH).nullable()
 
     init {
         index(false, initiatorUserId, businessId, dateStart)
+        index("appointment_business_client_name_index", false, businessId, clientNameIndex)
     }
 }

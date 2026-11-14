@@ -8,6 +8,7 @@ import com.bookk.appointments.data.orm.entity.StoredSnapshot
 import com.bookk.appointments.domain.api.entity.Appointment
 import com.bookk.appointments.domain.api.entity.AppointmentRequest
 import com.bookk.appointments.domain.api.entity.EmployeeSnapshot
+import library.encryption.BlindIndex
 import library.encryption.Decrypted
 import library.encryption.Decryptor
 import library.encryption.MissingKeys
@@ -15,11 +16,13 @@ import library.encryption.SubjectKeys
 import library.encryption.decryptText
 import library.encryption.encryptText
 import library.encryption.map
+import library.encryption.ofCaseInsensitive
 import library.encryption.valueOrNull
 import kotlin.uuid.Uuid
 
 internal class SnapshotCipher(
     private val subjectKeys: SubjectKeys,
+    private val blindIndex: BlindIndex,
     private val missingKeys: MissingKeys,
 ) {
 
@@ -51,6 +54,17 @@ internal class SnapshotCipher(
         }
     }
 
+    suspend fun clientNameIndexes(snapshots: List<StoredSnapshot>): List<String?> {
+        val decryptor = subjectKeys.decryptor(snapshots.map { it.clientId }.distinct())
+        return snapshots.map { snapshot ->
+            decryptor.decryptClient(snapshot).valueOrNull()?.let { clientNameIndex(it.fullName) }
+        }
+    }
+
+    fun clientNameIndex(fullName: String): String? {
+        return fullName.takeIf { it.isNotBlank() }?.let(blindIndex::ofCaseInsensitive)
+    }
+
     suspend fun reencryptClient(snapshot: DecryptedSnapshot, toClientId: Uuid): EncryptedClientDetails? {
         return snapshot.readableClient?.let { encryptClient(toClientId, it) }
     }
@@ -66,6 +80,7 @@ internal class SnapshotCipher(
             phone = client.phone?.let(encryptor::encryptText),
             email = client.email?.let(encryptor::encryptText),
             note = encryptor.encryptText(client.note),
+            nameIndex = clientNameIndex(client.fullName),
         )
     }
 

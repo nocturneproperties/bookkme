@@ -23,6 +23,7 @@ internal class EncryptedClientDetails(
     val phone: ByteArray?,
     val email: ByteArray?,
     val note: ByteArray,
+    val nameIndex: String?,
 )
 
 internal class EncryptedSnapshot(

@@ -3,6 +3,7 @@ package com.bookk.appointments.microservice
 import com.bookk.appointments.domain.api.operation.DeleteExpiredRequests
 import com.bookk.appointments.domain.api.operation.DeleteExpiredTombstones
 import com.bookk.appointments.domain.api.operation.DeleteOutdatedRequests
+import com.bookk.appointments.domain.api.operation.IndexClientNames
 import com.bookk.appointments.domain.api.operation.MarkAppointmentsCompleted
 import com.bookk.appointments.domain.impl.di.AppointmentsScope
 import com.bookk.core.service.test.routeTest
@@ -31,6 +32,7 @@ internal class AppointmentsJobsTest {
         val deleteOutdatedRequests = mockk<DeleteOutdatedRequests>()
         val deleteExpiredRequests = mockk<DeleteExpiredRequests>()
         val deleteExpiredTombstones = mockk<DeleteExpiredTombstones>()
+        val indexClientNames = mockk<IndexClientNames>()
         val scheduler = SchedulerConfiguration()
 
         suspend fun registerJobs(builder: ApplicationTestBuilder) {
@@ -39,6 +41,7 @@ internal class AppointmentsJobsTest {
                 scoped { deleteOutdatedRequests }
                 scoped { deleteExpiredRequests }
                 scoped { deleteExpiredTombstones }
+                scoped { indexClientNames }
             }
             application.registerAppointmentsJobs(scheduler)
         }
@@ -59,6 +62,7 @@ internal class AppointmentsJobsTest {
                 "appointments-deleteOutdatedRequests" to 1.hours,
                 "appointments-deleteExpiredRequests" to 1.days,
                 "appointments-deleteExpiredTombstones" to 1.days,
+                "appointments-indexClientNames" to 10.minutes,
             ),
             fixture.scheduler.registeredJobs(),
         )
@@ -175,6 +179,35 @@ internal class AppointmentsJobsTest {
 
         whenn()
         val result = runCatching { fixture.scheduler.runJob("appointments-deleteExpiredTombstones") }
+
+        then()
+        assertSame(error, result.exceptionOrNull())
+    }
+
+    @Test
+    fun `should index the client names of older appointments`() = routeTest {
+        given()
+        val fixture = SutFixture()
+        coEvery { fixture.indexClientNames.invoke() } returns Result.success(Unit)
+        fixture.registerJobs(this)
+
+        whenn()
+        fixture.scheduler.runJob("appointments-indexClientNames")
+
+        then()
+        coVerify(exactly = 1) { fixture.indexClientNames.invoke() }
+    }
+
+    @Test
+    fun `should surface a failed indexing of client names`() = routeTest {
+        given()
+        val fixture = SutFixture()
+        val error = RuntimeException("indexClientNames failed")
+        coEvery { fixture.indexClientNames.invoke() } returns Result.failure(error)
+        fixture.registerJobs(this)
+
+        whenn()
+        val result = runCatching { fixture.scheduler.runJob("appointments-indexClientNames") }
 
         then()
         assertSame(error, result.exceptionOrNull())

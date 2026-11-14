@@ -21,12 +21,15 @@ import com.bookk.core.test.runUnitTest
 import com.bookk.core.test.then
 import com.bookk.core.test.whenn
 import library.encryption.Decrypted
+import library.encryption.ofCaseInsensitive
 import library.encryption.test.InMemorySubjectKeys
 import library.encryption.test.RecordingMissingKeys
+import library.encryption.test.UnkeyedBlindIndex
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
+import org.jetbrains.exposed.v1.jdbc.update
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
@@ -48,7 +51,8 @@ internal class AppointmentDataSourceImplEncryptionTest {
         )
         val subjectKeys = InMemorySubjectKeys()
         val missingKeys = RecordingMissingKeys()
-        val sut = AppointmentDataSourceImpl(SnapshotCipher(subjectKeys, missingKeys))
+        val blindIndex = UnkeyedBlindIndex()
+        val sut = AppointmentDataSourceImpl(SnapshotCipher(subjectKeys, blindIndex, missingKeys))
         lateinit var businessId: Uuid
 
         suspend fun setup() {
@@ -76,6 +80,22 @@ internal class AppointmentDataSourceImplEncryptionTest {
 
         suspend fun storedRow(id: Uuid): ResultRow {
             return suspendTransaction { AppointmentTable.selectAll().where { AppointmentTable.id eq id }.single() }
+        }
+
+        fun nameIndex(fullName: String): String {
+            return blindIndex.ofCaseInsensitive(fullName)
+        }
+
+        suspend fun storedBeforeNameIndex(vararg ids: Uuid) {
+            suspendTransaction {
+                ids.forEach { id ->
+                    AppointmentTable.update({ AppointmentTable.id eq id }) { it[clientNameIndex] = null }
+                }
+            }
+        }
+
+        suspend fun page(query: String, limit: Int = 10, offset: Long = 0): List<Uuid> {
+            return suspendTransaction { sut.getAllPaginated(businessId, limit, offset, query) }.data.map { it.id }
         }
 
         suspend fun decrypted(subjectId: Uuid, ciphertext: ByteArray?): String? {
@@ -110,6 +130,35 @@ internal class AppointmentDataSourceImplEncryptionTest {
             assertEquals("Bring the red dress", fixture.decrypted(client.id, row[AppointmentTable.noteEncrypted]))
             assertEquals("Bob Stylist", fixture.decrypted(employee.userId, row[AppointmentTable.employeeNameEncrypted]))
         }
+
+    @Test
+    fun `should store a blind index of the client's full name`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val client = ClientSnapshot.stub().copy(fullName = "Alice Smith")
+
+        whenn()
+        val created = fixture.create(fixture.appointment(client = client))
+
+        then()
+        assertEquals(fixture.nameIndex("Alice Smith"), fixture.storedRow(created.id)[AppointmentTable.clientNameIndex])
+    }
+
+    @Test
+    fun `should index the client name of an appointment created from a request`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val request = AppointmentRequest.stub(businessId = fixture.businessId)
+
+        whenn()
+        val created = suspendTransaction { fixture.sut.create(request) }
+
+        then()
+        val stored = fixture.storedRow(created.id)[AppointmentTable.clientNameIndex]
+        assertEquals(fixture.nameIndex(request.client.fullName), stored)
+    }
 
     @Test
     fun `should store an appointment created from a request encrypted`() = runUnitTest {
@@ -218,6 +267,7 @@ internal class AppointmentDataSourceImplEncryptionTest {
         val row = fixture.storedRow(created.id)
         assertNull(row[AppointmentTable.clientNameEncrypted])
         assertNull(row[AppointmentTable.noteEncrypted])
+        assertNull(row[AppointmentTable.clientNameIndex])
         assertEquals("Deleted Client", suspendTransaction { fixture.sut.get(created.id) }.client.fullName)
     }
 
@@ -237,6 +287,7 @@ internal class AppointmentDataSourceImplEncryptionTest {
         assertNull(row[AppointmentTable.clientPhoneEncrypted])
         assertNull(row[AppointmentTable.clientEmailEncrypted])
         assertNull(row[AppointmentTable.noteEncrypted])
+        assertNull(row[AppointmentTable.clientNameIndex])
         val read = suspendTransaction { fixture.sut.get(created.id) }
         assertEquals(ClientSnapshot(created.client.id, "Deleted Client", null, null, null), read.client)
         assertEquals("", read.note)
@@ -256,6 +307,7 @@ internal class AppointmentDataSourceImplEncryptionTest {
         val row = fixture.storedRow(created.id)
         assertNull(row[AppointmentTable.clientNameEncrypted])
         assertNull(row[AppointmentTable.noteEncrypted])
+        assertNull(row[AppointmentTable.clientNameIndex])
         val read = suspendTransaction { fixture.sut.get(created.id) }
         assertEquals(ClientSnapshot(created.client.id, "Deleted Client", null, null, null), read.client)
     }
@@ -278,7 +330,7 @@ internal class AppointmentDataSourceImplEncryptionTest {
     }
 
     @Test
-    fun `should find appointments by an encrypted client name typed in another case`() = runUnitTest {
+    fun `should find appointments by the client's full name typed in another case`() = runUnitTest {
         given()
         val fixture = SutFixture()
         fixture.setup()
@@ -286,7 +338,7 @@ internal class AppointmentDataSourceImplEncryptionTest {
         fixture.create(fixture.appointment(client = ClientSnapshot.stub().copy(fullName = "Carol Jones")))
 
         whenn()
-        val page = suspendTransaction { fixture.sut.getAllPaginated(fixture.businessId, 10, 0, "aLiCe") }
+        val page = suspendTransaction { fixture.sut.getAllPaginated(fixture.businessId, 10, 0, " aLiCe sMiTh ") }
 
         then()
         assertEquals(listOf(match.id), page.data.map { it.id })
@@ -294,23 +346,52 @@ internal class AppointmentDataSourceImplEncryptionTest {
     }
 
     @Test
-    fun `should find appointments by a client name or a service name`() = runUnitTest {
+    fun `should not find appointments by part of the client's name`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        fixture.create(fixture.appointment(client = ClientSnapshot.stub().copy(fullName = "Alice Smith")))
+
+        whenn()
+        val found = fixture.page("alice")
+
+        then()
+        assertEquals(emptyList<Uuid>(), found)
+    }
+
+    @Test
+    fun `should not find another business's appointments by the client's name`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        fixture.create(fixture.appointment(client = ClientSnapshot.stub().copy(fullName = "Alice Smith")))
+        fixture.setup()
+
+        whenn()
+        val found = fixture.page("alice smith")
+
+        then()
+        assertEquals(emptyList<Uuid>(), found)
+    }
+
+    @Test
+    fun `should find appointments by the client's full name or part of a service name`() = runUnitTest {
         given()
         val fixture = SutFixture()
         fixture.setup()
         val byName = fixture.create(fixture.appointment(client = ClientSnapshot.stub().copy(fullName = "Alice Smith")))
         val byService = fixture.create(
             fixture.appointment(date = Instant.fromEpochMilliseconds(3_600_000)).copy(
-                services = listOf(ServiceSnapshot.stub().copy(name = "Alice's haircut")),
+                services = listOf(ServiceSnapshot.stub().copy(name = "Alice Smith's haircut")),
             ),
         )
         fixture.create(fixture.appointment(client = ClientSnapshot.stub().copy(fullName = "Carol Jones")))
 
         whenn()
-        val page = suspendTransaction { fixture.sut.getAllPaginated(fixture.businessId, 10, 0, "alice") }
+        val found = fixture.page("alice smith")
 
         then()
-        assertEquals(listOf(byService.id, byName.id), page.data.map { it.id })
+        assertEquals(listOf(byService.id, byName.id), found)
     }
 
     @Test
@@ -321,19 +402,126 @@ internal class AppointmentDataSourceImplEncryptionTest {
         val matches = (0 until 3).map { hour ->
             fixture.create(
                 fixture.appointment(
-                    client = ClientSnapshot.stub().copy(fullName = "Alice $hour"),
+                    client = ClientSnapshot.stub().copy(fullName = "Alice Smith"),
                     date = Instant.fromEpochMilliseconds(hour * 3_600_000L),
                 ),
             )
         }
 
         whenn()
-        val page = suspendTransaction { fixture.sut.getAllPaginated(fixture.businessId, 2, 2, "alice") }
+        val page = suspendTransaction { fixture.sut.getAllPaginated(fixture.businessId, 2, 2, "alice smith") }
 
         then()
         assertEquals(listOf(matches[0].id), page.data.map { it.id })
         assertEquals(3L, page.metadata.total)
         assertEquals(2L, page.metadata.page)
+    }
+
+    @Test
+    fun `should find an appointment by the client's new name after an update`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val created = fixture.create(fixture.appointment(client = ClientSnapshot.stub().copy(fullName = "Alice Smith")))
+
+        whenn()
+        suspendTransaction { fixture.sut.update(created.copy(client = created.client.copy(fullName = "Alice Jones"))) }
+
+        then()
+        assertEquals(listOf(created.id), fixture.page("alice jones"))
+        assertEquals(emptyList<Uuid>(), fixture.page("alice smith"))
+    }
+
+    @Test
+    fun `should not decrypt appointments that don't match the search`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val unreadable = fixture.create(
+            fixture.appointment(client = ClientSnapshot.stub().copy(fullName = "Carol Jones")),
+        )
+        fixture.subjectKeys.loseKey(unreadable.client.id)
+        fixture.create(fixture.appointment(client = ClientSnapshot.stub().copy(fullName = "Alice Smith")))
+
+        whenn()
+        fixture.page("alice smith")
+
+        then()
+        assertEquals(emptyList<String>(), fixture.missingKeys.reported)
+    }
+
+    @Test
+    fun `should index the client names of appointments stored without one`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val alice = fixture.create(fixture.appointment(client = ClientSnapshot.stub().copy(fullName = "Alice Smith")))
+        val carol = fixture.create(fixture.appointment(client = ClientSnapshot.stub().copy(fullName = "Carol Jones")))
+        fixture.storedBeforeNameIndex(alice.id, carol.id)
+
+        whenn()
+        val cursor = suspendTransaction { fixture.sut.indexClientNames(after = Uuid.NIL, limit = 10) }
+
+        then()
+        assertEquals(maxOf(alice.id, carol.id), cursor)
+        assertEquals(fixture.nameIndex("Alice Smith"), fixture.storedRow(alice.id)[AppointmentTable.clientNameIndex])
+        assertEquals(fixture.nameIndex("Carol Jones"), fixture.storedRow(carol.id)[AppointmentTable.clientNameIndex])
+    }
+
+    @Test
+    fun `should index at most the given number of appointments after the cursor`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val ids = (0 until 3).map { fixture.create(fixture.appointment()).id }.sorted()
+        fixture.storedBeforeNameIndex(*ids.toTypedArray())
+
+        whenn()
+        val cursor = suspendTransaction { fixture.sut.indexClientNames(after = ids[0], limit = 1) }
+
+        then()
+        assertEquals(ids[1], cursor)
+        assertNull(fixture.storedRow(ids[0])[AppointmentTable.clientNameIndex])
+        assertEquals(
+            fixture.nameIndex(ClientSnapshot.stub().fullName),
+            fixture.storedRow(ids[1])[AppointmentTable.clientNameIndex],
+        )
+        assertNull(fixture.storedRow(ids[2])[AppointmentTable.clientNameIndex])
+    }
+
+    @Test
+    fun `should move past an appointment whose client key is missing without indexing or reporting it`() =
+        runUnitTest {
+            given()
+            val fixture = SutFixture()
+            fixture.setup()
+            val created = fixture.create(fixture.appointment())
+            fixture.storedBeforeNameIndex(created.id)
+            fixture.subjectKeys.loseKey(created.client.id)
+
+            whenn()
+            val cursor = suspendTransaction { fixture.sut.indexClientNames(after = Uuid.NIL, limit = 10) }
+
+            then()
+            assertEquals(created.id, cursor)
+            assertNull(fixture.storedRow(created.id)[AppointmentTable.clientNameIndex])
+            assertEquals(emptyList<String>(), fixture.missingKeys.reported)
+        }
+
+    @Test
+    fun `should find nothing to index once every readable appointment has its index`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        fixture.create(fixture.appointment())
+        val anonymized = fixture.create(fixture.appointment())
+        suspendTransaction { fixture.sut.anonymizeClient(fixture.businessId, anonymized.client.id) }
+
+        whenn()
+        val cursor = suspendTransaction { fixture.sut.indexClientNames(after = Uuid.NIL, limit = 10) }
+
+        then()
+        assertNull(cursor)
     }
 
     @Test
@@ -353,6 +541,7 @@ internal class AppointmentDataSourceImplEncryptionTest {
         val row = fixture.storedRow(moved.id)
         assertEquals("Merged Name", fixture.decrypted(kept.id, row[AppointmentTable.clientNameEncrypted]))
         assertEquals("Merged note", fixture.decrypted(kept.id, row[AppointmentTable.noteEncrypted]))
+        assertEquals(fixture.nameIndex("Merged Name"), row[AppointmentTable.clientNameIndex])
         val read = suspendTransaction { fixture.sut.get(moved.id) }
         assertEquals(merged.copy(id = kept.id), read.client)
     }

@@ -18,6 +18,7 @@ import com.bookk.core.test.whenn
 import library.encryption.Decrypted
 import library.encryption.test.InMemorySubjectKeys
 import library.encryption.test.RecordingMissingKeys
+import library.encryption.test.UnkeyedBlindIndex
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.selectAll
@@ -38,7 +39,11 @@ internal class AppointmentRequestDataSourceImplEncryptionTest {
         )
         val subjectKeys = InMemorySubjectKeys()
         val missingKeys = RecordingMissingKeys()
-        val sut = AppointmentRequestDataSourceImpl(InMemoryCacheClient(), SnapshotCipher(subjectKeys, missingKeys))
+        val sut =
+            AppointmentRequestDataSourceImpl(
+                InMemoryCacheClient(),
+                SnapshotCipher(subjectKeys, UnkeyedBlindIndex(), missingKeys),
+            )
         lateinit var businessId: Uuid
 
         suspend fun setup() {
