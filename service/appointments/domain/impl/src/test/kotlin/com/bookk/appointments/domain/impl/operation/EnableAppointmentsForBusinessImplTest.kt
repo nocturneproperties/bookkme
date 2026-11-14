@@ -271,23 +271,4 @@ internal class EnableAppointmentsForBusinessImplTest {
         assertTrue(result.exceptionOrNull() is Error.OperationNotAllowed)
         assertTrue(fixture.attached.isEmpty())
     }
-
-    @Test
-    fun `should fail without enabling when the business service sends no owner`() = runUnitTest {
-        given()
-        val fixture = SutFixture()
-        with(fixture) {
-            transactionManager.mockTransaction()
-            acceptAttach()
-            coEvery { businessClient.getBusinessById(testBusinessId) } returns
-                Result.success(BusinessDTO.stub(id = testBusinessId, ownerUserId = null))
-        }
-
-        whenn()
-        val result = fixture.sut.invoke(testUserId, testBusinessId)
-
-        then()
-        assertTrue(result.isFailure)
-        assertTrue(fixture.attached.isEmpty())
-    }
 }

@@ -28,10 +28,8 @@ internal class EnableAppointmentsForBusinessImpl(
             return Result.failure(it)
         }
         val business = businessClient.getBusinessById(businessId).getOrElse { return Result.failure(it) }
-        val ownerUserId = business.ownerUserId
-            ?: return Result.failure(IllegalStateException("Business $businessId came without its owner"))
         return transactionManager.transaction<Unit> {
-            if (deletedUserDataSource.isDeletedForShare(ownerUserId)) throw Error.OperationNotAllowed()
+            if (deletedUserDataSource.isDeletedForShare(business.ownerUserId)) throw Error.OperationNotAllowed()
             if (!permission.covers(ResourcePermission.FULL)) throw Error.OperationNotAllowed()
             subscriptionSource.attachBusiness(
                 BusinessSnapshot(
@@ -41,7 +39,7 @@ internal class EnableAppointmentsForBusinessImpl(
                     timeZone = business.timeZone,
                     isEnabled = true,
                     schedule = business.schedule,
-                    ownerUserId = ownerUserId,
+                    ownerUserId = business.ownerUserId,
                 ),
             )
             appointmentPermissionDataSource.setPermission(

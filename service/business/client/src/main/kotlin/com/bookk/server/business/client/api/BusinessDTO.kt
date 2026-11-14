@@ -14,7 +14,7 @@ data class BusinessDTO(
     @ProtoNumber(3) val address: String,
     @ProtoNumber(4) val timeZone: TimeZone,
     @ProtoNumber(5) val schedule: Schedule,
-    @ProtoNumber(6) val ownerUserId: Uuid?,
+    @ProtoNumber(6) val ownerUserId: Uuid,
 ) {
     companion object {
         fun stub(
@@ -23,7 +23,7 @@ data class BusinessDTO(
             address: String = "Business address",
             timeZone: TimeZone = TimeZone.UTC,
             schedule: Schedule = Schedule(),
-            ownerUserId: Uuid? = Uuid.random(),
+            ownerUserId: Uuid = Uuid.random(),
         ): BusinessDTO {
             return BusinessDTO(
                 id = id,

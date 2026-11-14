@@ -37,9 +37,7 @@ this user's appointment footprint in every role, in one transaction:
   settings, working hours, days off and grants go with it by
   `ON DELETE CASCADE`. Appointments doesn't wait for
   `BusinessEvent.Deleted` for this; [React to business
-  deletion](on-business-deleted.md) still runs, and covers a business
-  created before 0.18.0 whose owner the `appointments-fillBusinessOwners`
-  job hasn't filled in yet.
+  deletion](on-business-deleted.md) still runs and usually finds nothing.
 
 The operation runs in three phases: select, delete, shred. Recording the
 user in `deleted_user` comes first. Then every locking read

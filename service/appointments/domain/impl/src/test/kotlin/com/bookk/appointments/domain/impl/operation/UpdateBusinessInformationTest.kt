@@ -107,24 +107,4 @@ internal class UpdateBusinessInformationTest {
             fixture.subscriptionDataSource.updateBusiness(match { it.ownerUserId == ownerUserId }, updatedAt)
         }
     }
-
-    @Test
-    fun `should pass no owner on when an update from before the owner field has none`() = runUnitTest {
-        given()
-        val fixture = SutFixture()
-        val dto = BusinessDTO.stub(ownerUserId = null)
-        with(fixture) {
-            transactionManager.mockTransaction()
-            coEvery { subscriptionDataSource.updateBusiness(any(), any()) } returns Unit
-        }
-
-        whenn()
-        val result = fixture.sut.invoke(dto, updatedAt)
-
-        then()
-        assertTrue(result.isSuccess)
-        coVerify(exactly = 1) {
-            fixture.subscriptionDataSource.updateBusiness(match { it.ownerUserId == null }, updatedAt)
-        }
-    }
 }

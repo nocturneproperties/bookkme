@@ -10,7 +10,7 @@ import com.bookk.user.domain.impl.di.UserScope
 import com.bookk.user.microservice.route.UserRouting.Api
 import io.ktor.server.auth.authenticate
 import io.ktor.server.auth.principal
-import io.ktor.server.request.receiveNullable
+import io.ktor.server.request.receive
 import io.ktor.server.resources.get
 import io.ktor.server.resources.post
 import io.ktor.server.routing.Route
@@ -42,7 +42,7 @@ internal fun Route.personalDataExport() {
          */
         post<Api.User.Export> {
             val principal = requireNotNull(call.principal<AppPrincipal>())
-            val confirmationToken = call.receiveNullable<DataExportRequest>()?.confirmationToken.orEmpty()
+            val confirmationToken = call.receive<DataExportRequest>().confirmationToken.orEmpty()
             val startPersonalDataExport by application.injectScoped<StartPersonalDataExport>(UserScope)
 
             call.respondWith(startPersonalDataExport(principal.userId, confirmationToken))

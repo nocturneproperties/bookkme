@@ -22,7 +22,6 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.server.auth.authenticate
 import io.ktor.server.auth.principal
 import io.ktor.server.request.receive
-import io.ktor.server.request.receiveNullable
 import io.ktor.server.resources.get
 import io.ktor.server.resources.post
 import io.ktor.server.resources.put
@@ -250,14 +249,14 @@ fun Routing.appointment() {
          */
         post<Api.Appointment.Complete> {
             val principal = requireNotNull(call.principal<AppPrincipal>())
-            val body = call.receiveNullable<CompleteAppointmentRequest>()
+            val body = call.receive<CompleteAppointmentRequest>()
             val completeAppointment by application.injectScoped<CompleteAppointment>(AppointmentsScope)
 
             call.respondWith(
                 completeAppointment(
                     userId = principal.userId,
                     appointmentId = it.id,
-                    priceAdjustment = body?.priceAdjustment,
+                    priceAdjustment = body.priceAdjustment,
                 ),
             )
         }

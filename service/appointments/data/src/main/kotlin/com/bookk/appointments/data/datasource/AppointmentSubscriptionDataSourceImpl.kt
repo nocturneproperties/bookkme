@@ -7,10 +7,8 @@ import com.bookk.appointments.data.orm.table.AppointmentTable
 import com.bookk.appointments.domain.api.entity.BusinessSnapshot
 import com.bookk.appointments.domain.datasource.AppointmentSubscriptionDataSource
 import com.bookk.core.data.DataSource
-import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.inList
-import org.jetbrains.exposed.v1.core.isNull
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.update
@@ -57,24 +55,6 @@ internal class AppointmentSubscriptionDataSourceImpl : DataSource(), Appointment
     override suspend fun detachBusinesses(businessIds: Collection<Uuid>) {
         if (businessIds.isEmpty()) return
         dbQuery { AppointmentBusinessTable.deleteWhere { AppointmentBusinessTable.id inList businessIds } }
-    }
-
-    override suspend fun getBusinessIdsWithoutOwner(): List<Uuid> = dbQuery {
-        AppointmentBusinessTable.select(AppointmentBusinessTable.id)
-            .where { AppointmentBusinessTable.ownerUserId.isNull() }
-            .map { it[AppointmentBusinessTable.id].value }
-    }
-
-    override suspend fun fillMissingOwner(businessId: Uuid, ownerUserId: Uuid) {
-        dbQuery {
-            AppointmentBusinessTable.update(
-                where = {
-                    (AppointmentBusinessTable.id eq businessId) and AppointmentBusinessTable.ownerUserId.isNull()
-                },
-            ) {
-                it[AppointmentBusinessTable.ownerUserId] = ownerUserId
-            }
-        }
     }
 
     override suspend fun enableBusiness(businessId: Uuid) {

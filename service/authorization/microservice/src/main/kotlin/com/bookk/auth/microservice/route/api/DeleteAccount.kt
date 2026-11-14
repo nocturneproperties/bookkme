@@ -9,7 +9,7 @@ import com.bookk.core.service.enity.respondWith
 import com.bookk.server.auth.client.AppPrincipal
 import io.ktor.server.auth.authenticate
 import io.ktor.server.auth.principal
-import io.ktor.server.request.receiveNullable
+import io.ktor.server.request.receive
 import io.ktor.server.resources.delete
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.application
@@ -31,7 +31,7 @@ internal fun Route.deleteAccount() {
          */
         delete<Api.Auth.Account> {
             val principal = requireNotNull(call.principal<AppPrincipal>())
-            val confirmationToken = call.receiveNullable<DeleteAccountRequest>()?.confirmationToken.orEmpty()
+            val confirmationToken = call.receive<DeleteAccountRequest>().confirmationToken
             val deleteAccount by application.injectScoped<DeleteAccount>(AuthScope)
 
             call.respondWith(deleteAccount(principal.userId, confirmationToken))

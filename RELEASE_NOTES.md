@@ -1,5 +1,20 @@
 # Release notes
 
+## 0.19.0
+
+Changes since `monolith/0.18.0`. Finishes the 0.18.0 transition: every business in appointments must now have its owner.
+
+### Services
+
+- `BusinessDTO.ownerUserId` (6) is now required; a `BusinessEvent.Updated` or `getBusinessById` answer without it fails to decode.
+- The `appointments-fillBusinessOwners` job is removed.
+
+### Upgrade
+
+- Upgrade from 0.18.0 only, never straight from 0.17.0.
+- Appointments `V12` makes `business_has_appointments.owner_user_id` NOT NULL and fails on a `NULL` there; before deploying, `SELECT COUNT(*) FROM appointments.business_has_appointments WHERE owner_user_id IS NULL` must return 0.
+- Before deploying, `SELECT COUNT(*) FROM appointments.exhausted_event WHERE original_topic = 'business.updated'` must return 0 for rows parked before the 0.18.0 deploy; replay or delete them first, since 0.19.0 can't decode them.
+
 ## 0.18.0
 
 Changes since `monolith/0.17.0`. Sign-up verifies the email with a code before the account exists, the email changes only through a code sent to the new address, business clients are matched to accounts by that verified email only, and notifications can now go out by email, and the in-app contact form is gone in favour of support email; older apps can no longer sign up.

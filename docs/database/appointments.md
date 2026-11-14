@@ -37,7 +37,7 @@ erDiagram
         string time_zone
         byte working_days
         timestamp source_updated_at
-        uuid owner_user_id "nullable until 0.19.0, indexed, business.user_id, set on enable, kept by BusinessEvent.Updated, filled by appointments-fillBusinessOwners"
+        uuid owner_user_id "indexed, business.user_id, set on enable, kept by BusinessEvent.Updated"
         timestamp createdAt
         timestamp updatedAt
     }
