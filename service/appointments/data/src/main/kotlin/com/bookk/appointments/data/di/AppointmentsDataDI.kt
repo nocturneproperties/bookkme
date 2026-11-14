@@ -7,6 +7,7 @@ import com.bookk.appointments.data.datasource.AppointmentSettingsDataSourceImpl
 import com.bookk.appointments.data.datasource.AppointmentSubscriptionDataSourceImpl
 import com.bookk.appointments.data.datasource.DeletedClientDataSourceImpl
 import com.bookk.appointments.data.datasource.DeletedUserDataSourceImpl
+import com.bookk.appointments.data.datasource.SnapshotCipher
 import com.bookk.appointments.data.datasource.UserDataExportDataSourceImpl
 import com.bookk.appointments.domain.api.APPOINTMENTS_SCHEMA
 import com.bookk.appointments.domain.api.APPOINTMENTS_SHORT_RETENTION_SCHEMA
@@ -34,6 +35,7 @@ fun appointmentsDataModule(environment: (String) -> String? = System::getenv) = 
         subjectKeys(APPOINTMENTS_SHORT_RETENTION_SCHEMA, environment)
         personalDataCipher()
         exhaustedEventDataSource()
+        scopedOf(::SnapshotCipher)
         scopedOf(::AppointmentDataSourceImpl) bind AppointmentDataSource::class
         scopedOf(::UserDataExportDataSourceImpl) bind UserDataExportDataSource::class
         scopedOf(::AppointmentRequestDataSourceImpl) bind AppointmentRequestDataSource::class

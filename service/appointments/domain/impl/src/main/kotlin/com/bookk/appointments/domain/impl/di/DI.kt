@@ -15,6 +15,7 @@ import com.bookk.appointments.domain.api.operation.DeleteOutdatedRequests
 import com.bookk.appointments.domain.api.operation.DeleteUserAppointmentData
 import com.bookk.appointments.domain.api.operation.EditSettings
 import com.bookk.appointments.domain.api.operation.EnableAppointmentsForBusiness
+import com.bookk.appointments.domain.api.operation.EncryptPlaintextSnapshots
 import com.bookk.appointments.domain.api.operation.FillBusinessOwners
 import com.bookk.appointments.domain.api.operation.GetAppointment
 import com.bookk.appointments.domain.api.operation.GetAppointmentHistory
@@ -42,6 +43,7 @@ import com.bookk.appointments.domain.impl.operation.DeleteOutdatedRequestsImpl
 import com.bookk.appointments.domain.impl.operation.DeleteUserAppointmentDataImpl
 import com.bookk.appointments.domain.impl.operation.EditSettingsImpl
 import com.bookk.appointments.domain.impl.operation.EnableAppointmentsForBusinessImpl
+import com.bookk.appointments.domain.impl.operation.EncryptPlaintextSnapshotsImpl
 import com.bookk.appointments.domain.impl.operation.ExportBusinessAppointmentsImpl
 import com.bookk.appointments.domain.impl.operation.ExportUserAppointmentsImpl
 import com.bookk.appointments.domain.impl.operation.FillBusinessOwnersImpl
@@ -100,6 +102,7 @@ fun appointmentsDomainModule() = module {
         scopedOf(::DeleteExpiredRequestsImpl) bind DeleteExpiredRequests::class
         scopedOf(::DeleteExpiredTombstonesImpl) bind DeleteExpiredTombstones::class
         scopedOf(::FillBusinessOwnersImpl) bind FillBusinessOwners::class
+        scopedOf(::EncryptPlaintextSnapshotsImpl) bind EncryptPlaintextSnapshots::class
         scopedOf(::DeleteUserAppointmentDataImpl) bind DeleteUserAppointmentData::class
         scopedOf(::ExportUserAppointmentsImpl) bind ExportUserAppointments::class
         scopedOf(::ExportBusinessAppointmentsImpl) bind ExportBusinessAppointments::class

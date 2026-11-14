@@ -18,7 +18,9 @@ import org.jetbrains.exposed.v1.dao.with
 import org.jetbrains.exposed.v1.jdbc.select
 import kotlin.uuid.Uuid
 
-internal class UserDataExportDataSourceImpl : DataSource(), UserDataExportDataSource {
+internal class UserDataExportDataSourceImpl(
+    private val snapshotCipher: SnapshotCipher,
+) : DataSource(), UserDataExportDataSource {
 
     override suspend fun getAppointmentsOfUser(userId: Uuid): List<Appointment> = dbQuery {
         AppointmentEntity
@@ -29,7 +31,10 @@ internal class UserDataExportDataSourceImpl : DataSource(), UserDataExportDataSo
             .orderBy(AppointmentTable.dateStart to SortOrder.ASC)
             .toList()
             .withDetails()
-            .map { it.domain() }
+            .let { appointments ->
+                val reader = snapshotCipher.reader(appointments.map { it.storedSnapshot() }, AppointmentTable.tableName)
+                appointments.map { it.domain(reader) }
+            }
     }
 
     override suspend fun getRequestsOfUser(userId: Uuid): List<AppointmentRequest> = dbQuery {
@@ -41,7 +46,16 @@ internal class UserDataExportDataSourceImpl : DataSource(), UserDataExportDataSo
             }
             .orderBy(AppointmentRequestTable.dateStart to SortOrder.ASC)
             .with(AppointmentRequestEntity::services)
-            .map { it.domain() }
+            .toList()
+            .let { requests ->
+                val reader = snapshotCipher.reader(
+                    requests.map {
+                        it.storedSnapshot()
+                    },
+                    AppointmentRequestTable.tableName,
+                )
+                requests.map { it.domain(reader) }
+            }
     }
 
     override suspend fun getBusinessNames(businessIds: Collection<Uuid>): Map<Uuid, String> = dbQuery {

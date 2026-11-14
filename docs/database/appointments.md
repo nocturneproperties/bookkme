@@ -48,15 +48,20 @@ erDiagram
         uuid business_id FK
         uuid employee_id "logical FK -> business.employee.id"
         uuid employee_user_id "indexed; logical FK -> user.profile.id (employee's own userId); what account deletion cancels and renames by"
-        string employee_name
+        string employee_name "nullable, plaintext until 0.19.0, NULL once encrypted"
+        bytes employee_name_encrypted "nullable; under the employee_user_id key, NULL when erased"
         uuid client_id "logical FK -> business.client.id"
         uuid client_user_id "nullable, indexed; logical FK -> user.profile.id of the client's own account, empty for a client without one or once erased; who client notifications go to, and what account deletion erases by"
-        string client_name
-        string client_phone
-        string client_email
+        string client_name "nullable, plaintext until 0.19.0, NULL once encrypted"
+        string client_phone "plaintext until 0.19.0"
+        string client_email "plaintext until 0.19.0"
+        bytes client_name_encrypted "nullable; under the client_id key, NULL when erased"
+        bytes client_phone_encrypted "nullable; under the client_id key"
+        bytes client_email_encrypted "nullable; under the client_id key"
         timestamp date_start
         timestamp date_end
-        string note
+        string note "nullable, plaintext until 0.19.0, NULL once encrypted"
+        bytes note_encrypted "nullable; under the client_id key, set whenever client_name_encrypted is"
         enum status "SCHEDULED 0, COMPLETED 1, CANCELLED 2, NO_SHOW 3, UNRESOLVED 4; stored as an integer"
         string cancellation_reason
         enum completed_by "nullable; SYSTEM (MarkAppointmentsCompleted job) or USER (CompleteAppointment); set only while status = COMPLETED"
@@ -109,15 +114,20 @@ erDiagram
         uuid business_id FK
         uuid employee_id "logical FK -> business.employee.id"
         uuid employee_user_id "indexed; logical FK -> user.profile.id (employee's own userId); what account deletion cancels and renames by"
-        string employee_name
+        string employee_name "nullable, plaintext until 0.19.0, NULL once encrypted"
+        bytes employee_name_encrypted "nullable; under the employee_user_id key, NULL when erased"
         uuid client_id "logical FK -> business.client.id"
         uuid client_user_id "NOT NULL, indexed; logical FK -> user.profile.id of the client's own account, the user who booked the request (only a client books one, for themselves); who client notifications go to, and what account deletion deletes the request by"
-        string client_name
-        string client_phone
-        string client_email
+        string client_name "nullable, plaintext until 0.19.0, NULL once encrypted"
+        string client_phone "plaintext until 0.19.0"
+        string client_email "plaintext until 0.19.0"
+        bytes client_name_encrypted "nullable; under the client_id key, NULL when erased"
+        bytes client_phone_encrypted "nullable; under the client_id key"
+        bytes client_email_encrypted "nullable; under the client_id key"
         timestamp date_start
         timestamp date_end "indexed; requests ended more than 60 days ago are deleted by appointments-deleteExpiredRequests"
-        string note
+        string note "nullable, plaintext until 0.19.0, NULL once encrypted"
+        bytes note_encrypted "nullable; under the client_id key, set whenever client_name_encrypted is"
         enum status
         string decline_reason
         timestamp createdAt
@@ -228,5 +238,7 @@ erDiagram
 `EXHAUSTED_EVENT` is not part of the appointments domain model — it's the shared DLT landing table (`library/outbox`, one instance per service schema) that `KafkaEventConsumer`/`EmbeddedEventConsumer` write to when an event exhausts its retry budget, so a failed event survives a process restart or crash instead of being lost. Every start, and every row an operator sets `replay_requested` on, is replayed through the consumer group's DLT topic by `ExhaustedEventReplayer`, which also exports the parked rows as the `events_exhausted` metric. See [Exhausted events](../exhausted-events.md).
 
 `OUTBOX_EVENT` is not part of the appointments domain model either — it's the shared transactional outbox (`library/outbox`, one instance per service schema). `eventProducer.send` inserts the encoded event in the same transaction as the appointments write, so an event exists exactly when its write committed; `OutboxRelay` then locks the oldest rows (`SELECT … FOR UPDATE`), publishes them to Kafka (or the embedded transport in the monolith) and deletes them. Delivery is at-least-once, deduplicated by consumers through the event's idempotency key. See [Transactional outbox](../transactional-outbox.md).
+
+`APPOINTMENT` and `APPOINTMENT_REQUEST` hold the client snapshot (name, phone, email) and the note encrypted under the client's key (`*_encrypted`, keyed by `client_id`), and the employee name under the employee's user key (keyed by `employee_user_id`), so shredding a person's key leaves nothing of them readable in backups. A row reads an erased person as "Deleted Client" or "Deleted User": its key is shredded, or erasure set both the plaintext and the encrypted columns to NULL; a row whose key is missing reads with empty fields and is reported through `personal_data_key_missing_total{source}`. Searching appointments by client name decrypts the business's appointments in memory. Moving a merged client's rows onto the kept client (`LinkClientUser`) re-encrypts them under the kept client's key before the merged keys are shredded. Rows written before 0.18.0 keep their plaintext columns until the `appointments-encryptPlaintextSnapshots` job encrypts them and sets those columns to NULL (for an already erased person, or an employee set to the nil UUID, it only drops the plaintext); a write to such a row encrypts it too. 0.19.0 drops the plaintext columns.
 
 `SUBJECT_KEY` lives in its own schema, `appointments_short_retention`, created by the same migration: it holds one AES-GCM key per person whose fields this service encrypts, wrapped by the master key from the vault (`library/encryption`). Erasing a person replaces their key with a tombstone in the erasure's transaction (`wrapped_key` and `master_key_version` NULL, `shredded_at` set; written even for a person who never had a key, and never deleted), so their encrypted fields become unreadable in the live database at once, and in backups once the last key backup holding the key expires after 7 days. The tombstone stops a late write from creating a fresh key for the erased person: `encryptor` gives none and `isShredded` reports it. That is why the key schema is separate: it stays out of the binary log and the 30-day dump and gets its own short-lived backup. It holds keys only: the outbox and parked events stay in `appointments`, and any personal data they copy is encrypted under the person's key. No foreign keys; NocoDB can't read it.

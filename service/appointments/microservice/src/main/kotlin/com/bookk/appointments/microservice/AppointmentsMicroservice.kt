@@ -5,6 +5,7 @@ import com.bookk.appointments.domain.api.APPOINTMENTS_SERVICE_NAME
 import com.bookk.appointments.domain.api.operation.DeleteExpiredRequests
 import com.bookk.appointments.domain.api.operation.DeleteExpiredTombstones
 import com.bookk.appointments.domain.api.operation.DeleteOutdatedRequests
+import com.bookk.appointments.domain.api.operation.EncryptPlaintextSnapshots
 import com.bookk.appointments.domain.api.operation.FillBusinessOwners
 import com.bookk.appointments.domain.api.operation.MarkAppointmentsCompleted
 import com.bookk.appointments.domain.impl.di.AppointmentsScope
@@ -84,5 +85,8 @@ fun Application.registerAppointmentsJobs(scheduler: SchedulerConfiguration) {
     }
     scheduler.job("$APPOINTMENTS_SERVICE_NAME-fillBusinessOwners", interval = 1.hours) {
         scope.get<FillBusinessOwners>().invoke().getOrThrow()
+    }
+    scheduler.job("$APPOINTMENTS_SERVICE_NAME-encryptPlaintextSnapshots", interval = 10.minutes) {
+        scope.get<EncryptPlaintextSnapshots>().invoke().getOrThrow()
     }
 }

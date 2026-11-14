@@ -51,7 +51,7 @@ internal class AppointmentDataSourceImplTest {
             PriceAdjustmentTable,
             PriceAdjustmentServicesTable,
         )
-        val sut = AppointmentDataSourceImpl()
+        val sut = AppointmentDataSourceImpl(testSnapshotCipher())
         val subscriptionSut = AppointmentSubscriptionDataSourceImpl()
         val settingsSut = AppointmentSettingsDataSourceImpl()
         lateinit var businessId: Uuid
@@ -798,7 +798,7 @@ internal class AppointmentDataSourceImplTest {
         val found = suspendTransaction { fixture.sut.get(created.id) }
 
         then()
-        assertEquals("Deleted User", found.client.fullName)
+        assertEquals("Deleted Client", found.client.fullName)
         assertNull(found.client.phone)
         assertNull(found.client.email)
         assertEquals(created.client.id, found.client.id)

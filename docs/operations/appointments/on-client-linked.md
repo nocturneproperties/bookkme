@@ -19,8 +19,9 @@ have `client_user_id` empty. In one transaction this moves every row of
 the duplicates onto `clientId`, then records the account on all of the
 kept client's appointments and requests, so that [account
 deletion](on-user-deleted.md), which erases by `client_user_id`, finds
-them. The stored name, phone and email are a snapshot of booking time and
-are left as they are. Moving and linking travel in one event, because two
+them. The stored name, phone, email and note are a snapshot of booking
+time and keep their values, but the moved rows are re-encrypted under the
+kept client's key before the duplicates' keys are shredded. Moving and linking travel in one event, because two
 events on separate topics could arrive in either order and leave moved rows
 without the account.
 
@@ -58,7 +59,7 @@ flowchart TD
     Claim -- claimed --> Tx[[Begin transaction]]
     Tx --> Deleted["DeletedUserDataSource.isDeletedForShare userId - LOCK IN SHARE MODE"]
     Deleted --> ClientDeleted["DeletedClientDataSource.isDeletedForShare businessId clientId - LOCK IN SHARE MODE"]
-    ClientDeleted --> Move["AppointmentDataSource.reassignClients + AppointmentRequestDataSource.reassignClients businessId mergedIds clientId - one UPDATE per table, none without merged ids"]
+    ClientDeleted --> Move["AppointmentDataSource.reassignClients + AppointmentRequestDataSource.reassignClients businessId mergedIds clientId - per table, lock the merged rows FOR UPDATE, decrypt each under its old client key and store it under clientId's key, none without merged ids"]
     Move --> LinkA["AppointmentDataSource.linkClientUser businessId clientId userId - client_user_id = userId"]
     LinkA --> LinkR["AppointmentRequestDataSource.linkClientUser businessId clientId userId"]
     LinkR --> Was{account already deleted?}

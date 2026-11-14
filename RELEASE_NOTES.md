@@ -17,6 +17,7 @@ Changes since `monolith/0.17.0`. Sign-up verifies the email with a code before t
 - Account notices (dormancy warnings, data export ready) are always emailed to the account's address, even with the email channel off.
 - `POST /api/user/contactus` is removed (404); link users to the support email instead. The data export no longer has `contactMessages`.
 - `POST /api/appointments/enabled/{businessId}` answers 404 when the business's owner has deleted their account.
+- An appointment's client who deleted their account now shows as "Deleted Client" (was "Deleted User"), like a client the business deleted.
 - A business data export is discarded (status `NONE`, a new one can start at once) when the business loses a client or employee to a deletion, retention or account deletion; personal and business exports ready before the upgrade are deleted too.
 - Prod nginx limits each IP to 6 code sends at once, then one per 30 s (`sign_up/challenge` and `POST /api/auth/email` together), to 11 code checks, then one per 6 s (`sign_up` and `email/confirm`), and to 21 `GET /api/auth/passkey/sign_in/challenge`, then one per 6 s; beyond that it answers 429 with an HTML body, so treat any 429 as "try again later".
 
@@ -35,6 +36,7 @@ Changes since `monolith/0.17.0`. Sign-up verifies the email with a code before t
 - User profiles (name, last name, email, phone) are now stored encrypted under the user's key; email and phone uniqueness ignores case and surrounding spaces.
 - Notification email and Telegram targets are now stored encrypted under the user's key; a target whose key is missing counts as no target, so that user gets no email until their next profile update.
 - Business clients (name, last name, phone, email, notes) are now stored encrypted under each client's key and employees under their user's key; a client's email stays unique within the business ignoring case and surrounding spaces.
+- Appointment and request client details and notes are now stored encrypted under the client's key and employee names under the employee's; searching appointments by client name now matches the query literally (no `%`/`_` wildcards).
 - A `UserEvent.Updated` delivered after the account's deletion no longer re-creates the deleted user's notification settings.
 - New counter `personal_data_key_missing_total{source}` counts data left unreadable because a person's key is missing (a key lost in a restore, never an erasure), by event topic or table; it should stay at zero. A profile whose key is missing reads with empty fields until the user re-enters them.
 
@@ -48,6 +50,7 @@ Changes since `monolith/0.17.0`. Sign-up verifies the email with a code before t
 - User `V6` makes the plaintext `profile` columns nullable and adds encrypted and blind-index ones; the new `user-encryptPlaintextProfiles` job (every 10 minutes) then encrypts every existing profile. Before deploying, `SELECT LOWER(TRIM(email)) e FROM user.profile GROUP BY e HAVING COUNT(*) > 1` (and the same for `phone`) must return nothing, or the job fails on that batch.
 - Notifications `V5` makes `notification_email_targets.email` and `notification_telegram_targets.telegram_tag` nullable and adds encrypted columns; the new `notifications-encryptPlaintextTargets` job (every 10 minutes) then encrypts the existing targets. Nothing to do.
 - Business `V18` makes the plaintext `client` and `employee` name columns nullable and adds encrypted columns and `client.email_index`; the new `business-encryptPlaintextContacts` job (every 10 minutes) then encrypts every existing client and employee. Before deploying, `SELECT business_id, LOWER(TRIM(email)) e FROM business.client WHERE email IS NOT NULL GROUP BY business_id, e HAVING COUNT(*) > 1` must return nothing, or the job fails on that batch.
+- Appointments `V11` makes the plaintext name and note columns of `appointment` and `appointment_request` nullable and adds encrypted ones; the new `appointments-encryptPlaintextSnapshots` job (every 10 minutes) then encrypts every existing appointment and request. Nothing to do.
 - User `V6` and business `V18` add `data_export.key_id` and delete every export document built before 0.18.0; affected users and owners just start a new export.
 - Appointments `V11` adds `business_has_appointments.owner_user_id` (nullable); the new `appointments-fillBusinessOwners` job (hourly, first run at start) fills it from business and drops businesses that no longer exist or whose owner is deleted. Nothing to do; 0.19.0 makes it NOT NULL.
 - Every service's migration adds `personal_data_encrypted` to `outbox_event` and `exhausted_event` (notifications: `exhausted_event` only); it cannot fail on existing data.

@@ -35,9 +35,10 @@ internal class UserDataExportDataSourceImplTest {
             AppointmentTable, AppointmentServicesTable, PriceAdjustmentTable, PriceAdjustmentServicesTable,
             AppointmentRequestTable, AppointmentRequestServicesTable,
         )
-        val sut = UserDataExportDataSourceImpl()
-        val appointmentSut = AppointmentDataSourceImpl()
-        val requestSut = AppointmentRequestDataSourceImpl(InMemoryCacheClient())
+        val snapshotCipher = testSnapshotCipher()
+        val sut = UserDataExportDataSourceImpl(snapshotCipher)
+        val appointmentSut = AppointmentDataSourceImpl(snapshotCipher)
+        val requestSut = AppointmentRequestDataSourceImpl(InMemoryCacheClient(), snapshotCipher)
         val subscriptionSut = AppointmentSubscriptionDataSourceImpl()
         val userId = Uuid.random()
 

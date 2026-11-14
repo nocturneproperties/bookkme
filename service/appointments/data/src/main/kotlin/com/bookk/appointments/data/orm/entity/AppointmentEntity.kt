@@ -1,5 +1,6 @@
 package com.bookk.appointments.data.orm.entity
 
+import com.bookk.appointments.data.datasource.SnapshotReader
 import com.bookk.appointments.data.orm.table.AppointmentBusinessTable
 import com.bookk.appointments.data.orm.table.AppointmentServicesTable
 import com.bookk.appointments.data.orm.table.AppointmentTable
@@ -32,56 +33,65 @@ internal class AppointmentEntity(id: EntityID<Uuid>) : UuidEntity(id) {
     var employeeId by AppointmentTable.employeeId
     var employeeUserId by AppointmentTable.employeeUserId
     var employeeName by AppointmentTable.employeeName
+    var employeeNameEncrypted by AppointmentTable.employeeNameEncrypted
     var clientId by AppointmentTable.clientId
     var clientUserId by AppointmentTable.clientUserId
     var clientName by AppointmentTable.clientName
+    var clientNameEncrypted by AppointmentTable.clientNameEncrypted
     var clientPhone by AppointmentTable.clientPhone
+    var clientPhoneEncrypted by AppointmentTable.clientPhoneEncrypted
     var clientEmail by AppointmentTable.clientEmail
+    var clientEmailEncrypted by AppointmentTable.clientEmailEncrypted
     val services by AppointmentServiceEntity referrersOn AppointmentServicesTable.appointmentId
     val priceAdjustments by PriceAdjustmentEntity referrersOn PriceAdjustmentTable.appointmentId
     var dateStart by AppointmentTable.dateStart
     var dateEnd by AppointmentTable.dateEnd
     var note by AppointmentTable.note
+    var noteEncrypted by AppointmentTable.noteEncrypted
     var status by AppointmentTable.status
     var cancellationReason by AppointmentTable.cancellationReason
     var completedBy by AppointmentTable.completedBy
     var updatedAt by AppointmentTable.updatedAt
 
-    fun domain(): Appointment = Appointment(
-        id = id.value,
-        initiatorUserId = initiatorUserId,
-        businessId = businessId.value,
-        employee = EmployeeSnapshot(
-            id = employeeId,
-            userId = employeeUserId,
-            fullName = employeeName,
-        ),
-        client = ClientSnapshot(
-            id = clientId,
-            fullName = clientName,
-            phone = clientPhone,
-            email = clientEmail,
-            userId = clientUserId,
-        ),
-        services = services.map {
-            ServiceSnapshot(
-                id = it.serviceId,
-                name = it.serviceName,
-                groupId = it.serviceGroupId,
-                price = Money.of(
-                    CurrencyUnit.of(it.priceCurrency),
-                    BigDecimal(BigInteger.valueOf(it.priceUnscaled), it.priceScale),
-                ),
-                duration = it.durationMinutes.minutes,
-            )
-        },
-        date = dateStart,
-        note = note,
-        status = status,
-        cancellationReason = cancellationReason,
-        completedBy = completedBy,
-        priceAdjustment = priceAdjustments.singleOrNull()?.domain(),
-    )
+    fun domain(reader: SnapshotReader): Appointment {
+        val snapshot = storedSnapshot()
+        val client = reader.client(snapshot)
+        return Appointment(
+            id = id.value,
+            initiatorUserId = initiatorUserId,
+            businessId = businessId.value,
+            employee = EmployeeSnapshot(
+                id = employeeId,
+                userId = employeeUserId,
+                fullName = reader.employeeName(snapshot),
+            ),
+            client = ClientSnapshot(
+                id = clientId,
+                fullName = client.fullName,
+                phone = client.phone,
+                email = client.email,
+                userId = clientUserId,
+            ),
+            services = services.map {
+                ServiceSnapshot(
+                    id = it.serviceId,
+                    name = it.serviceName,
+                    groupId = it.serviceGroupId,
+                    price = Money.of(
+                        CurrencyUnit.of(it.priceCurrency),
+                        BigDecimal(BigInteger.valueOf(it.priceUnscaled), it.priceScale),
+                    ),
+                    duration = it.durationMinutes.minutes,
+                )
+            },
+            date = dateStart,
+            note = client.note,
+            status = status,
+            cancellationReason = cancellationReason,
+            completedBy = completedBy,
+            priceAdjustment = priceAdjustments.singleOrNull()?.domain(),
+        )
+    }
 
     fun replacePriceAdjustment(adjustment: PriceAdjustment) {
         clearPriceAdjustment()
@@ -93,58 +103,83 @@ internal class AppointmentEntity(id: EntityID<Uuid>) : UuidEntity(id) {
         PriceAdjustmentTable.deleteWhere { PriceAdjustmentTable.appointmentId eq entityId }
     }
 
+    fun storedSnapshot(): StoredSnapshot {
+        return StoredSnapshot(
+            clientId = clientId,
+            employeeUserId = employeeUserId,
+            plaintextClient = clientName?.let { ClientDetails(it, clientPhone, clientEmail, note.orEmpty()) },
+            encryptedClient = clientNameEncrypted?.let {
+                EncryptedClientDetails(
+                    fullName = it,
+                    phone = clientPhoneEncrypted,
+                    email = clientEmailEncrypted,
+                    note = checkNotNull(noteEncrypted) { "Snapshot of client $clientId has no encrypted note" },
+                )
+            },
+            plaintextEmployeeName = employeeName,
+            encryptedEmployeeName = employeeNameEncrypted,
+        )
+    }
+
+    fun store(encrypted: EncryptedSnapshot) {
+        storeClient(encrypted.client)
+        employeeNameEncrypted = encrypted.employeeName
+        employeeName = null
+    }
+
+    fun storeClient(encrypted: EncryptedClientDetails?) {
+        clientNameEncrypted = encrypted?.fullName
+        clientPhoneEncrypted = encrypted?.phone
+        clientEmailEncrypted = encrypted?.email
+        noteEncrypted = encrypted?.note
+        clientName = null
+        clientPhone = null
+        clientEmail = null
+        note = null
+    }
+
     companion object : DecoratorUuidEntityClass<AppointmentEntity>(AppointmentTable) {
 
-        fun new(request: AppointmentRequest) = new {
+        fun new(request: AppointmentRequest, encrypted: EncryptedSnapshot) = new {
             initiatorUserId = request.initiatorUserId
             businessId = EntityID(request.businessId, table = AppointmentBusinessTable)
             employeeId = request.employee.id
             employeeUserId = request.employee.userId
-            employeeName = request.employee.fullName
             clientId = request.client.id
             clientUserId = request.client.userId
-            clientName = request.client.fullName
-            clientPhone = request.client.phone
-            clientEmail = request.client.email
             dateStart = request.date
             dateEnd = request.dateEnd
-            note = request.note
+            store(encrypted)
             status = AppointmentStatus.SCHEDULED
             cancellationReason = ""
         }
 
-        fun new(appointment: Appointment) = new {
+        fun new(appointment: Appointment, encrypted: EncryptedSnapshot) = new {
             initiatorUserId = appointment.initiatorUserId
             businessId = EntityID(appointment.businessId, table = AppointmentBusinessTable)
             employeeId = appointment.employee.id
             employeeUserId = appointment.employee.userId
-            employeeName = appointment.employee.fullName
             clientId = appointment.client.id
             clientUserId = appointment.client.userId
-            clientName = appointment.client.fullName
-            clientPhone = appointment.client.phone
-            clientEmail = appointment.client.email
             dateStart = appointment.date
             dateEnd = appointment.dateEnd
-            note = appointment.note
+            store(encrypted)
             status = AppointmentStatus.SCHEDULED
             cancellationReason = ""
         }
 
-        fun findByIdAndUpdate(appointment: Appointment) = findByIdAndUpdate(appointment.id) {
+        fun findByIdAndUpdate(appointment: Appointment, encrypted: EncryptedSnapshot) = findByIdAndUpdate(
+            appointment.id,
+        ) {
             it.initiatorUserId = appointment.initiatorUserId
             it.businessId = EntityID(appointment.businessId, table = AppointmentBusinessTable)
             it.employeeId = appointment.employee.id
             it.employeeUserId = appointment.employee.userId
-            it.employeeName = appointment.employee.fullName
             it.clientId = appointment.client.id
             it.clientUserId = appointment.client.userId
-            it.clientName = appointment.client.fullName
-            it.clientPhone = appointment.client.phone
-            it.clientEmail = appointment.client.email
             it.dateStart = appointment.date
             it.dateEnd = appointment.dateEnd
-            it.note = appointment.note
+            it.store(encrypted)
             it.updatedAt = Clock.System.now()
         }
     }

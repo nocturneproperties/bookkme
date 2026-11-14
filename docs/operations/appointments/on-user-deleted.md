@@ -19,8 +19,9 @@ this user's appointment footprint in every role, in one transaction:
   their account", and a client with an account is told through
   `AppointmentEvent.Cancelled`. This is a stopgap until such appointments
   can be reassigned to another employee (#137). The employee name on every
-  appointment they worked becomes "Deleted User" and its `employee_user_id`
-  the nil UUID, so nothing points to their account. An appointment they
+  appointment they worked is cleared (it reads as "Deleted User") and its
+  `employee_user_id` becomes the nil UUID, so nothing points to their
+  account. An appointment they
   booked with themselves is cancelled with the client reason and notifies
   nobody.
 - **As the initiator** (`initiator_user_id`, who booked): appointments
@@ -77,8 +78,8 @@ flowchart TD
     Each -- found --> Cancel
     Log --> Cancel
     Cancel["AppointmentDataSource.cancelAll - CANCELLED, reason 'User deleted their account' where the user is the client, 'Employee deleted their account' where the user is only the employee"]
-    Cancel --> AnonClient["AppointmentDataSource.anonymizeClientUser userId - client_name = Deleted User, phone, email and client_user_id null, note cleared, cancellation and price adjustment reasons kept"]
-    AnonClient --> AnonEmployee["AppointmentDataSource.anonymizeEmployee userId - employee_user_id match, employee_name = Deleted User, employee_user_id = nil UUID"]
+    Cancel --> AnonClient["AppointmentDataSource.anonymizeClientUser userId - client name, phone, email, note and their encrypted columns and client_user_id null, read as Deleted Client, cancellation and price adjustment reasons kept"]
+    AnonClient --> AnonEmployee["AppointmentDataSource.anonymizeEmployee userId - employee_user_id match, employee_name and employee_name_encrypted null, read as Deleted User, employee_user_id = nil UUID"]
     AnonEmployee --> Unlink["AppointmentDataSource.unlinkInitiator userId - initiator_user_id match set to the nil UUID"]
     Unlink --> DelReq["AppointmentRequestDataSource.deleteForUser userId - deletes rows where client_user_id or employee_user_id match, sets initiator_user_id to the nil UUID on requests they only booked"]
     DelReq --> DelPerm[AppointmentPermissionDataSource.deleteForUser userId]

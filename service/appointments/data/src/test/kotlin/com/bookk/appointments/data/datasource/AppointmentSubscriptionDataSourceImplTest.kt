@@ -52,8 +52,8 @@ internal class AppointmentSubscriptionDataSourceImplTest {
             AppointmentRequestServicesTable,
         )
         val sut = AppointmentSubscriptionDataSourceImpl()
-        val appointmentSut = AppointmentDataSourceImpl()
-        val requestSut = AppointmentRequestDataSourceImpl(InMemoryCacheClient())
+        val appointmentSut = AppointmentDataSourceImpl(testSnapshotCipher())
+        val requestSut = AppointmentRequestDataSourceImpl(InMemoryCacheClient(), testSnapshotCipher())
         val settingsSut = AppointmentSettingsDataSourceImpl()
 
         suspend fun attachWithClients(snapshot: BusinessSnapshot): Set<Uuid> {

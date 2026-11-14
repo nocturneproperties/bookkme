@@ -39,7 +39,7 @@ internal class AppointmentRequestDataSourceImplTest {
             AppointmentRequestServicesTable,
         )
         val cacheClient = InMemoryCacheClient()
-        val sut = AppointmentRequestDataSourceImpl(cacheClient)
+        val sut = AppointmentRequestDataSourceImpl(cacheClient, testSnapshotCipher())
         val subscriptionSut = AppointmentSubscriptionDataSourceImpl()
         lateinit var businessId: Uuid
 
