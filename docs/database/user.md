@@ -80,6 +80,10 @@ erDiagram
         timestamp created_at
         timestamp shredded_at "nullable; set when the key is shredded, the first time kept"
     }
+    SHREDDED_SUBJECT {
+        uuid subject_id PK "a person whose key in user_short_retention was shredded"
+        timestamp shredded_at "the first shredding time"
+    }
 ```
 
 `PROFILE` holds the name, last name, email and phone encrypted under the user's own key (`*_encrypted`, `library/encryption`, keyed by `id`), so deleting the account and shredding that key leaves nothing readable in backups. Email and phone stay unique and the email searchable through `email_index` and `phone_index`, keyed HMACs of the trimmed, lowercased value. Rows written before 0.18.0 keep their plaintext columns until the `user-encryptPlaintextProfiles` job encrypts them and sets those columns to NULL; until then a write to such a row encrypts it too, and a new contact is also checked against the plaintext columns, which the blind-index constraints can't see. 0.19.0 drops the plaintext columns.
@@ -93,3 +97,5 @@ erDiagram
 `OUTBOX_EVENT` is not part of the user domain model either — it's the shared transactional outbox (`library/outbox`, one instance per service schema). `eventProducer.send` inserts the encoded event in the same transaction as the user write, so an event exists exactly when its write committed; `OutboxRelay` then locks the oldest rows (`SELECT … FOR UPDATE`), publishes them to Kafka (or the embedded transport in the monolith) and deletes them. Delivery is at-least-once, deduplicated by consumers through the event's idempotency key. See [Transactional outbox](../transactional-outbox.md).
 
 `SUBJECT_KEY` lives in its own schema, `user_short_retention`, created by the same migration: it holds one AES-GCM key per person whose fields this service encrypts, wrapped by the master key from the vault (`library/encryption`). Erasing a person replaces their key with a tombstone in the erasure's transaction (`wrapped_key` and `master_key_version` NULL, `shredded_at` set; written even for a person who never had a key, and never deleted), so their encrypted fields become unreadable in the live database at once, and in backups once the last key backup holding the key expires after 7 days. The tombstone stops a late write from creating a fresh key for the erased person: `encryptor` gives none and `isShredded` reports it. That is why the key schema is separate: it stays out of the binary log and the 30-day dump and gets its own short-lived backup. It holds keys only: the outbox, parked events and exports stay in `user`, and any personal data they copy is encrypted under the person's key. No foreign keys; NocoDB can't read it.
+
+`SHREDDED_SUBJECT` is the binlogged record of those tombstones, written in the same transaction (`INSERT IGNORE`, first time kept). The key schema is backed up only every 5 minutes, so a restore loads the newest key dump and then turns every key listed here back into a tombstone: a person erased after that key dump doesn't get their key back. Ids only, never deleted, like the tombstones; NocoDB can't read it.

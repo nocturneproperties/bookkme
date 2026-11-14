@@ -22,7 +22,7 @@ BEGIN NOT ATOMIC DECLARE CONTINUE HANDLER FOR 1049, 1146 BEGIN END;{% for schema
 CREATE USER IF NOT EXISTS 'backup'@'%' IDENTIFIED BY '{{ vault_monolith_db_backup_password }}' WITH MAX_USER_CONNECTIONS 4;
 ALTER USER 'backup'@'%' IDENTIFIED BY '{{ vault_monolith_db_backup_password }}' WITH MAX_USER_CONNECTIONS 4;
 GRANT REPLICATION SLAVE, BINLOG MONITOR, RELOAD ON *.* TO 'backup'@'%';
-{% for schema in ['user', 'authorization', 'business', 'appointments', 'notifications'] %}
+{% for schema in ['user', 'authorization', 'business', 'appointments', 'notifications'] + short_retention_schemas %}
 GRANT SELECT, SHOW VIEW, TRIGGER ON `{{ schema }}`.* TO 'backup'@'%';
 {% endfor %}
 BEGIN NOT ATOMIC DECLARE CONTINUE HANDLER FOR 1133 BEGIN END;{% for schema in short_retention_schemas %} GRANT ALL PRIVILEGES ON `{{ schema }}`.* TO '{{ monolith_env.APPLICATION_DB_USER }}'@'%';{% endfor %} END;

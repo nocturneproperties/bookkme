@@ -28,7 +28,7 @@ fetch-backups:
 	ansible-playbook playbooks/fetch-backups.yml
 
 restore-drill:
-	scripts/backup-restore.sh drill $(BACKUPS) $(if $(until),--until "$(until)")
+	scripts/backup-restore.sh drill $(BACKUPS) --keys-from "$$(scripts/backup-keys-source.sh)" $(if $(until),--until "$(until)")
 
 migration-rehearsal:
 	scripts/backup-restore.sh rehearse $(BACKUPS) $(if $(until),--until "$(until)")

@@ -6,9 +6,11 @@ import com.bookk.core.test.given
 import com.bookk.core.test.runUnitTest
 import com.bookk.core.test.then
 import com.bookk.core.test.whenn
+import library.encryption.impl.orm.ShreddedSubjectTable
 import library.encryption.impl.orm.SubjectKeyTable
 import org.jetbrains.exposed.v1.core.Schema
 import org.jetbrains.exposed.v1.jdbc.SchemaUtils
+import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.junit.jupiter.api.Assertions.assertArrayEquals
@@ -28,7 +30,7 @@ internal class SubjectKeyDataSourceTest {
         val db = createTestDatabase().also { db ->
             transaction(db) {
                 SchemaUtils.createSchema(Schema(SCHEMA))
-                SchemaUtils.create(table)
+                SchemaUtils.create(table, ShreddedSubjectTable)
             }
         }
         val sut = SubjectKeyDataSource(table)
@@ -45,6 +47,14 @@ internal class SubjectKeyDataSourceTest {
 
         suspend fun read(subjectId: Uuid): StoredSubjectKey? {
             return suspendTransaction { sut.get(subjectId) }
+        }
+
+        suspend fun ledger(): Map<Uuid, Instant> {
+            return suspendTransaction {
+                ShreddedSubjectTable.selectAll().associate {
+                    it[ShreddedSubjectTable.subjectId] to it[ShreddedSubjectTable.shreddedAt]
+                }
+            }
         }
     }
 
@@ -183,7 +193,7 @@ internal class SubjectKeyDataSourceTest {
     }
 
     @Test
-    fun `should shred several subjects in one statement whatever their state`() = runUnitTest {
+    fun `should shred several subjects with one statement per table whatever their state`() = runUnitTest {
         given()
         val fixture = SutFixture()
         val live = fixture.key()
@@ -202,12 +212,53 @@ internal class SubjectKeyDataSourceTest {
         }
 
         then()
-        assertEquals(1, statements)
+        assertEquals(2, statements)
         val shreddedAt = listOf(live.subjectId, alreadyShredded, neverKeyed).map {
             (fixture.read(it) as StoredSubjectKey.Shredded).shreddedAt
         }
         assertEquals(listOf(later, fixture.shreddedAt, later), shreddedAt)
         assertTrue(fixture.read(kept.subjectId) is StoredSubjectKey.Live)
+    }
+
+    @Test
+    fun `should record every shredded subject in the shred ledger`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val keyed = fixture.key()
+        val neverKeyed = Uuid.random()
+        suspendTransaction { fixture.sut.insertIfAbsent(keyed) }
+
+        whenn()
+        suspendTransaction { fixture.sut.shred(setOf(keyed.subjectId, neverKeyed), fixture.shreddedAt) }
+
+        then()
+        assertEquals(mapOf(keyed.subjectId to fixture.shreddedAt, neverKeyed to fixture.shreddedAt), fixture.ledger())
+    }
+
+    @Test
+    fun `should keep the first shredding time in the shred ledger`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val subjectId = Uuid.random()
+        suspendTransaction { fixture.sut.shred(setOf(subjectId), fixture.shreddedAt) }
+
+        whenn()
+        suspendTransaction { fixture.sut.shred(setOf(subjectId), fixture.shreddedAt + 1.hours) }
+
+        then()
+        assertEquals(mapOf(subjectId to fixture.shreddedAt), fixture.ledger())
+    }
+
+    @Test
+    fun `should leave the shred ledger empty while nothing is shredded`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+
+        whenn()
+        suspendTransaction { fixture.sut.insertIfAbsent(fixture.key()) }
+
+        then()
+        assertEquals(emptyMap<Uuid, Instant>(), fixture.ledger())
     }
 
     @Test

@@ -75,6 +75,10 @@ erDiagram
         timestamp created_at
         timestamp shredded_at "nullable; set when the key is shredded, the first time kept"
     }
+    SHREDDED_SUBJECT {
+        uuid subject_id PK "a person whose key in notifications_short_retention was shredded"
+        timestamp shredded_at "the first shredding time"
+    }
 ```
 
 `notification_email_targets` and `notification_telegram_targets` are not
@@ -88,3 +92,5 @@ Both targets are stored encrypted under the user's own key (`email_encrypted`, `
 `device` is unique on `(auth_id, device_uuid)`, matching authorization. One installation UUID can belong to several accounts, with independent tokens and languages. Repeated `DeviceCreated` events preserve the existing association and reject a conflicting `user_id`.
 
 `SUBJECT_KEY` lives in its own schema, `notifications_short_retention`, created by the same migration: it holds one AES-GCM key per person whose fields this service encrypts, wrapped by the master key from the vault (`library/encryption`). Erasing a person replaces their key with a tombstone in the erasure's transaction (`wrapped_key` and `master_key_version` NULL, `shredded_at` set; written even for a person who never had a key, and never deleted), so their encrypted fields become unreadable in the live database at once, and in backups once the last key backup holding the key expires after 7 days. The tombstone stops a late write from creating a fresh key for the erased person: `encryptor` gives none and `isShredded` reports it. That is why the key schema is separate: it stays out of the binary log and the 30-day dump and gets its own short-lived backup. It holds keys only: parked events stay in `notifications`, and any personal data they copy is encrypted under the person's key. No foreign keys; NocoDB can't read it.
+
+`SHREDDED_SUBJECT` is the binlogged record of those tombstones, written in the same transaction (`INSERT IGNORE`, first time kept). The key schema is backed up only every 5 minutes, so a restore loads the newest key dump and then turns every key listed here back into a tombstone: a person erased after that key dump doesn't get their key back. Ids only, never deleted, like the tombstones; NocoDB can't read it.

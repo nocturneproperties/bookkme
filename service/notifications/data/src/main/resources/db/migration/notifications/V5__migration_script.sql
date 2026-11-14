@@ -4,3 +4,5 @@ CREATE TABLE IF NOT EXISTS `notifications_short_retention`.subject_key (subject_
 ALTER TABLE exhausted_event ADD COLUMN IF NOT EXISTS personal_data_encrypted BOOLEAN NOT NULL DEFAULT FALSE;
 ALTER TABLE notification_email_targets MODIFY COLUMN IF EXISTS email TEXT NULL, ADD COLUMN IF NOT EXISTS email_encrypted VARBINARY(1320) NULL;
 ALTER TABLE notification_telegram_targets MODIFY COLUMN IF EXISTS telegram_tag TEXT NULL, ADD COLUMN IF NOT EXISTS telegram_tag_encrypted VARBINARY(1100) NULL;
+CREATE TABLE IF NOT EXISTS shredded_subject (subject_id BINARY(16) NOT NULL PRIMARY KEY, shredded_at TIMESTAMP(6) NOT NULL);
+INSERT IGNORE INTO shredded_subject (subject_id, shredded_at) SELECT subject_id, shredded_at FROM `notifications_short_retention`.subject_key WHERE shredded_at IS NOT NULL;

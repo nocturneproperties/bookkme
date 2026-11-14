@@ -66,6 +66,7 @@ abstract class ShortRetentionSchemaContract(
             modules(module { scope(SCOPE) { subjectKeys(shortRetentionSchema, environment::get) } })
         }.koin
         val subjectId = Uuid.random()
+        val subjectHex = subjectId.toHexString()
         val transactionManager = ExposedTransactionManager(database)
         val sut = koin.createScope("keys", SCOPE).get<SubjectKeys>()
 
@@ -106,18 +107,34 @@ abstract class ShortRetentionSchemaContract(
     }
 
     @Test
-    fun `should keep the outbox, parked events and exports in the service schema`() = runIntegrationTest {
+    fun `should keep the outbox, parked events, exports and the shred ledger in the service schema`() =
+        runIntegrationTest {
+            given()
+            val binloggedTables = serviceTables + SHRED_LEDGER
+            val names = binloggedTables.joinToString { "'$it'" }
+            val query = "SELECT table_name, table_schema FROM information_schema.tables WHERE table_name IN ($names)"
+
+            whenn()
+            val schemasByTable = suspendTransaction(db = database) {
+                exec(query) { rows -> buildList { while (rows.next()) add(rows.getString(1) to rows.getString(2)) } }
+            }.orEmpty().groupBy({ it.first }, { it.second })
+
+            then()
+            assertEquals(binloggedTables.associateWith { listOf(serviceSchema) }, schemasByTable)
+        }
+
+    @Test
+    fun `should record a shredded subject in the service schema's shred ledger`() = runIntegrationTest {
         given()
-        val names = serviceTables.joinToString { "'$it'" }
-        val query = "SELECT table_name, table_schema FROM information_schema.tables WHERE table_name IN ($names)"
+        val fixture = SutFixture()
+        val query = "SELECT COUNT(*) FROM `$serviceSchema`.$SHRED_LEDGER WHERE subject_id = X'${fixture.subjectHex}'"
 
         whenn()
-        val schemasByTable = suspendTransaction(db = database) {
-            exec(query) { rows -> buildList { while (rows.next()) add(rows.getString(1) to rows.getString(2)) } }
-        }.orEmpty().groupBy({ it.first }, { it.second })
+        fixture.shred()
 
         then()
-        assertEquals(serviceTables.associateWith { listOf(serviceSchema) }, schemasByTable)
+        val recorded = suspendTransaction(db = database) { exec(query) { rows -> rows.next() && rows.getInt(1) == 1 } }
+        assertEquals(true, recorded)
     }
 
     @Test
@@ -162,6 +179,7 @@ abstract class ShortRetentionSchemaContract(
     private companion object {
         const val PASSWORD = "test-password"
         const val PORT = 3306
+        const val SHRED_LEDGER = "shredded_subject"
         const val MASTER_KEY = "APPLICATION_SUBJECT_MASTER_KEY"
         const val BLIND_INDEX_KEY = "APPLICATION_BLIND_INDEX_KEY"
         val SCOPE = named("ShortRetentionSchemaContract")

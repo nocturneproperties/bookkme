@@ -1,3 +1,4 @@
+
 networks:
   operational:
     external: true
@@ -26,7 +27,7 @@ configs:
     name: monolith-mariadb-encryption-v2
     file: ./db/my.cnf
   mariadb_tuning_config:
-    name: monolith-mariadb-tuning-v3
+    name: monolith-mariadb-tuning-v4
     file: ./db/tuning.cnf
   mariadb_init_schemas:
     name: monolith-mariadb-init-schemas-v1

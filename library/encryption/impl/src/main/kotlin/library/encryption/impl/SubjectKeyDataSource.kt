@@ -1,11 +1,13 @@
 package library.encryption.impl
 
 import com.bookk.core.data.DataSource
+import library.encryption.impl.orm.ShreddedSubjectTable
 import library.encryption.impl.orm.SubjectKeyTable
 import org.jetbrains.exposed.v1.core.Coalesce
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.inList
+import org.jetbrains.exposed.v1.jdbc.batchInsert
 import org.jetbrains.exposed.v1.jdbc.batchUpsert
 import org.jetbrains.exposed.v1.jdbc.insertIgnore
 import org.jetbrains.exposed.v1.jdbc.selectAll
@@ -53,6 +55,10 @@ internal class SubjectKeyDataSource(private val table: SubjectKeyTable) : DataSo
                 this[keys.subjectId] = subjectId
                 this[keys.createdAt] = at
                 this[keys.shreddedAt] = at
+            }
+            ShreddedSubjectTable.batchInsert(subjectIds, ignore = true) { subjectId ->
+                this[ShreddedSubjectTable.subjectId] = subjectId
+                this[ShreddedSubjectTable.shreddedAt] = at
             }
         }
     }

@@ -67,6 +67,11 @@ internal class SubjectKeysMariaDbTest {
                         "created_at TIMESTAMP(6) NOT NULL, " +
                         "shredded_at TIMESTAMP(6) NULL)",
                 )
+                exec(
+                    "CREATE TABLE IF NOT EXISTS shredded_subject (" +
+                        "subject_id BINARY(16) NOT NULL PRIMARY KEY, " +
+                        "shredded_at TIMESTAMP(6) NOT NULL)",
+                )
             }
         }
 

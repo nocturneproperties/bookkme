@@ -229,6 +229,10 @@ erDiagram
         timestamp created_at
         timestamp shredded_at "nullable; set when the key is shredded, the first time kept"
     }
+    SHREDDED_SUBJECT {
+        uuid subject_id PK "a person whose key in business_short_retention was shredded"
+        timestamp shredded_at "the first shredding time"
+    }
 ```
 
 `DATA_EXPORT` holds the business's data export (one row per business) from the moment the owner requests it until 72 hours after its document was built. It is the shared `library/export` table, so it has no foreign key to `BUSINESS`; deleting the business deletes the row in the same transaction. It holds a copy of every client of the business, so it is not readable in NocoDB, and the document is encrypted under a random key of its own (`key_id`), shredded when the row loses its document; any erasure of a client or employee of the business deletes the row. See [Data export](../data-export.md).
@@ -242,3 +246,5 @@ erDiagram
 `ERASED_CLIENT` records every client a business deleted (`DeleteClient` and the `business-deleteInactiveClients` retention job), in the same transaction as the deletion. Clients deleted with their user's account aren't recorded here: `authorization.erased_account` covers them. Like `ERASED_ACCOUNT`, the restore tool re-inserts the records from the latest backup with `reapply_requested`, and `business-reapplyErasures` deletes those clients again and sends `BusinessEvent.ClientDeleted`. Keyed by the client id alone, inserted once (`INSERT IGNORE`), kept 60 days, hidden from NocoDB.
 
 `SUBJECT_KEY` lives in its own schema, `business_short_retention`, created by the same migration: it holds one AES-GCM key per person whose fields this service encrypts, wrapped by the master key from the vault (`library/encryption`). Erasing a person replaces their key with a tombstone in the erasure's transaction (`wrapped_key` and `master_key_version` NULL, `shredded_at` set; written even for a person who never had a key, and never deleted), so their encrypted fields become unreadable in the live database at once, and in backups once the last key backup holding the key expires after 7 days. The tombstone stops a late write from creating a fresh key for the erased person: `encryptor` gives none and `isShredded` reports it. That is why the key schema is separate: it stays out of the binary log and the 30-day dump and gets its own short-lived backup. It holds keys only: the outbox, parked events and exports stay in `business`, and any personal data they copy is encrypted under the person's key. No foreign keys; NocoDB can't read it.
+
+`SHREDDED_SUBJECT` is the binlogged record of those tombstones, written in the same transaction (`INSERT IGNORE`, first time kept). The key schema is backed up only every 5 minutes, so a restore loads the newest key dump and then turns every key listed here back into a tombstone: a person erased after that key dump doesn't get their key back. Ids only, never deleted, like the tombstones; NocoDB can't read it.
