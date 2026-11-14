@@ -58,6 +58,7 @@ make deploy v=0.15.2 first=1   # the monolith, creating its stack
 | Hosts, swarm, networks, secrets and all infra stacks | `make infra` |
 | Only some stacks | `make infra tags=nginx,monitoring` |
 | Deploy / roll back the monolith | `make deploy v=0.15.2` |
+| Deploy with the old app stopped first, for a release that must not overlap the previous one | `make deploy v=0.18.0 stop_first=1` |
 | Edit secrets | `make vault-edit` |
 | Copy the encrypted backups to `backups/` | `make fetch-backups` |
 | Test-restore them into a throwaway container | `make restore-drill` (or `until='2026-11-02 14:30:00'`, UTC) |

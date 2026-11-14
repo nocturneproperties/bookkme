@@ -18,11 +18,11 @@ infra:
 
 deploy:
 	@test -n "$(v)" || (echo "usage: make deploy v=<version>" && exit 1)
-	ansible-playbook playbooks/deploy.yml -e version=$(v) $(if $(first),-e allow_new_stacks=true)
+	ansible-playbook playbooks/deploy.yml -e version=$(v) $(if $(first),-e allow_new_stacks=true) $(if $(stop_first),-e stop_first=true)
 
 deploy-check:
 	@test -n "$(v)" || (echo "usage: make deploy-check v=<version>" && exit 1)
-	ansible-playbook playbooks/deploy.yml -e version=$(v) --check --diff
+	ansible-playbook playbooks/deploy.yml -e version=$(v) $(if $(stop_first),-e stop_first=true) --check --diff
 
 fetch-backups:
 	ansible-playbook playbooks/fetch-backups.yml

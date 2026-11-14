@@ -219,6 +219,11 @@ services:
         max-file: 5
     deploy:
       <<: *replicated
+      update_config:
+        parallelism: 1
+        order: ${MONOLITH_UPDATE_ORDER:-start-first}
+        failure_action: rollback
+        delay: 10s
       restart_policy:
         condition: any
         delay: 10s

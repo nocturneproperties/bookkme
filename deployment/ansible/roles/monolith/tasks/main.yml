@@ -53,6 +53,7 @@
         stack_extra_env:
           APPLICATION_SERVICE_IMAGE: "{{ monolith.image }}"
           APPLICATION_SERVICE_VERSION: "{{ version | string }}"
+          MONOLITH_UPDATE_ORDER: "{{ 'stop-first' if (stop_first | default(false) | bool) else 'start-first' }}"
           MONOLITH_DB_ROOT_PASSWORD: "{{ vault_monolith_db_root_password }}"
           MONOLITH_DB_EXPORTER_PASSWORD: "{{ vault_monolith_db_exporter_password }}"
         stack_prune: true
