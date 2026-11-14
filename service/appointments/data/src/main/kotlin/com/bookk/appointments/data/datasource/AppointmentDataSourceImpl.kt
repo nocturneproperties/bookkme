@@ -2,8 +2,6 @@ package com.bookk.appointments.data.datasource
 
 import com.bookk.appointments.data.orm.entity.AppointmentEntity
 import com.bookk.appointments.data.orm.entity.AppointmentServiceEntity
-import com.bookk.appointments.data.orm.entity.ClientDetails
-import com.bookk.appointments.data.orm.entity.EncryptedSnapshot
 import com.bookk.appointments.data.orm.entity.withDetails
 import com.bookk.appointments.data.orm.table.AppointmentBusinessTable
 import com.bookk.appointments.data.orm.table.AppointmentServicesTable
@@ -15,8 +13,6 @@ import com.bookk.appointments.domain.api.entity.AppointmentPagination
 import com.bookk.appointments.domain.api.entity.AppointmentRepresentation
 import com.bookk.appointments.domain.api.entity.AppointmentRequest
 import com.bookk.appointments.domain.api.entity.AppointmentStatus
-import com.bookk.appointments.domain.api.entity.ClientSnapshot
-import com.bookk.appointments.domain.api.entity.EmployeeSnapshot
 import com.bookk.appointments.domain.api.entity.PriceAdjustment
 import com.bookk.appointments.domain.datasource.AppointmentDataSource
 import com.bookk.core.data.DataSource
@@ -136,12 +132,12 @@ internal class AppointmentDataSourceImpl(
             .find { AppointmentTable.businessId eq businessId }
             .orderBy(AppointmentTable.dateStart to SortOrder.DESC)
             .toList()
-        val snapshots = appointments.associateWith { it.storedSnapshot() }
-        val reader = snapshotCipher.reader(snapshots.values, AppointmentTable.tableName)
+        val decrypted = snapshotCipher.decryptAll(appointments.map { it.storedSnapshot() }, AppointmentTable.tableName)
+        val snapshots = appointments.zip(decrypted).toMap()
         val matches = appointments.filter {
-            it.id.value in serviceMatches || query in reader.client(snapshots.getValue(it)).fullName.lowercase()
+            it.id.value in serviceMatches || query in snapshots.getValue(it).client.fullName.lowercase()
         }
-        val page = matches.drop(offset.toInt()).take(limit).withDetails().map { it.domain(reader) }
+        val page = matches.drop(offset.toInt()).take(limit).withDetails().map { it.domain(snapshots.getValue(it)) }
         return pagination(page, total = matches.size.toLong(), limit, offset)
     }
 
@@ -172,7 +168,7 @@ internal class AppointmentDataSourceImpl(
     }
 
     override suspend fun create(request: AppointmentRequest): Appointment = dbQuery {
-        val encrypted = encrypt(request.client.toClientSnapshot(), request.note, request.employee)
+        val encrypted = snapshotCipher.encrypt(request)
         val appointment = AppointmentEntity.new(request, encrypted)
         request.services.forEach {
             AppointmentServiceEntity.new(appointment.id, it)
@@ -181,7 +177,7 @@ internal class AppointmentDataSourceImpl(
     }
 
     override suspend fun create(appointment: Appointment): Appointment = dbQuery {
-        val encrypted = encrypt(appointment.client, appointment.note, appointment.employee)
+        val encrypted = snapshotCipher.encrypt(appointment)
         val appointmentEntity = AppointmentEntity.new(appointment, encrypted)
         appointment.services.forEach {
             AppointmentServiceEntity.new(appointmentEntity.id, it)
@@ -190,7 +186,7 @@ internal class AppointmentDataSourceImpl(
     }
 
     override suspend fun update(appointment: Appointment): Appointment = dbQuery {
-        val encrypted = encrypt(appointment.client, appointment.note, appointment.employee)
+        val encrypted = snapshotCipher.encrypt(appointment)
         val appointmentEntity = AppointmentEntity.findByIdAndUpdate(appointment, encrypted) ?: throw Error.NotFound()
         AppointmentServicesTable.deleteWhere {
             AppointmentServicesTable.appointmentId eq appointment.id
@@ -199,11 +195,6 @@ internal class AppointmentDataSourceImpl(
             AppointmentServiceEntity.new(appointmentEntity.id, it)
         }
         appointmentEntity.decrypted()
-    }
-
-    private suspend fun encrypt(client: ClientSnapshot, note: String, employee: EmployeeSnapshot): EncryptedSnapshot {
-        val details = ClientDetails(fullName = client.fullName, phone = client.phone, email = client.email, note = note)
-        return snapshotCipher.encrypt(client.id, details, employee.userId, employee.fullName)
     }
 
     override suspend fun delete(id: Uuid) = dbQuery<Unit> {
@@ -348,10 +339,9 @@ internal class AppointmentDataSourceImpl(
                 }
                 .forUpdate()
                 .toList()
-            val snapshots = moved.associateWith { it.storedSnapshot() }
-            val reader = snapshotCipher.reader(snapshots.values, AppointmentTable.tableName)
-            snapshots.forEach { (entity, snapshot) ->
-                val client = snapshotCipher.reencryptClient(snapshot, reader, toClientId)
+            val snapshots = snapshotCipher.decryptAll(moved.map { it.storedSnapshot() }, AppointmentTable.tableName)
+            moved.zip(snapshots).forEach { (entity, snapshot) ->
+                val client = snapshotCipher.reencryptClient(snapshot, toClientId)
                 AppointmentEntity.findByIdAndUpdateClient(entity.id.value, toClientId, client)
             }
         }
@@ -400,11 +390,11 @@ internal class AppointmentDataSourceImpl(
     }
 
     private suspend fun AppointmentEntity.decrypted(): Appointment {
-        return listOf(this).decrypted().single()
+        return domain(snapshotCipher.decrypt(storedSnapshot(), AppointmentTable.tableName))
     }
 
     private suspend fun List<AppointmentEntity>.decrypted(): List<Appointment> {
-        val reader = snapshotCipher.reader(map { it.storedSnapshot() }, AppointmentTable.tableName)
-        return map { it.domain(reader) }
+        val snapshots = snapshotCipher.decryptAll(map { it.storedSnapshot() }, AppointmentTable.tableName)
+        return zip(snapshots) { entity, snapshot -> entity.domain(snapshot) }
     }
 }

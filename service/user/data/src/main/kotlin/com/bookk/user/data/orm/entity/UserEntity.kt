@@ -19,25 +19,63 @@ class UserEntity(id: EntityID<Uuid>) : UuidEntity(id) {
     var createdAt by UserTable.createdAt
     var updatedAt by UserTable.updatedAt
 
-    fun store(profile: EncryptedProfile, indexes: ContactIndexes, emailChanged: Boolean, phoneChanged: Boolean) {
-        nameEncrypted = profile.name
-        lastNameEncrypted = profile.lastName
-        emailEncrypted = profile.email
-        phoneEncrypted = profile.phone
-        if (emailChanged) emailIndex = indexes.email
-        if (phoneChanged) phoneIndex = indexes.phone
-    }
+    val profile: EncryptedProfile
+        get() {
+            return EncryptedProfile(
+                name = nameEncrypted,
+                lastName = lastNameEncrypted,
+                email = emailEncrypted,
+                phone = phoneEncrypted,
+            )
+        }
 
     companion object : DecoratorUuidEntityClass<UserEntity>(UserTable) {
         fun new(id: Uuid, profile: EncryptedProfile, indexes: ContactIndexes, updatedAt: Instant): UserEntity {
             return new(id) {
-                store(profile, indexes, emailChanged = true, phoneChanged = true)
-                this.updatedAt = updatedAt
+                writeProfile(profile, updatedAt)
+                emailIndex = indexes.email
+                phoneIndex = indexes.phone
             }
         }
 
         fun findByIdForUpdate(id: Uuid): UserEntity? {
             return find { UserTable.id eq id }.forUpdate().singleOrNull()
+        }
+
+        fun findByIdAndUpdateProfile(
+            id: Uuid,
+            profile: EncryptedProfile,
+            updatedAt: Instant,
+        ): UserEntity? = findByIdAndUpdate(id) {
+            it.writeProfile(profile, updatedAt)
+        }
+
+        fun findByIdAndUpdateEmail(
+            id: Uuid,
+            profile: EncryptedProfile,
+            emailIndex: String,
+            updatedAt: Instant,
+        ): UserEntity? = findByIdAndUpdate(id) {
+            it.writeProfile(profile, updatedAt)
+            it.emailIndex = emailIndex
+        }
+
+        fun findByIdAndUpdatePhone(
+            id: Uuid,
+            profile: EncryptedProfile,
+            phoneIndex: String?,
+            updatedAt: Instant,
+        ): UserEntity? = findByIdAndUpdate(id) {
+            it.writeProfile(profile, updatedAt)
+            it.phoneIndex = phoneIndex
+        }
+
+        private fun UserEntity.writeProfile(profile: EncryptedProfile, updatedAt: Instant) {
+            nameEncrypted = profile.name
+            lastNameEncrypted = profile.lastName
+            emailEncrypted = profile.email
+            phoneEncrypted = profile.phone
+            this.updatedAt = updatedAt
         }
     }
 }

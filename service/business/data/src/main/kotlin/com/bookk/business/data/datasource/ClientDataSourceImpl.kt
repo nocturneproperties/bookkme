@@ -179,9 +179,8 @@ internal class ClientDataSourceImpl(private val contactCipher: ContactCipher) : 
             (ClientTable.userId eq userId) and
                 (ClientTable.sourceUpdatedAt.isNull() or (ClientTable.sourceUpdatedAt less updatedAt))
         }.forUpdate().toList()
-        val reader = contactCipher.reader(clients.map { it.id.value }, SOURCE)
-        clients.count { entity ->
-            val current = entity.contact(reader)
+        val contacts = contactCipher.decryptAll(clients.map { it.storedContact() }, SOURCE)
+        clients.zip(contacts).count { (entity, current) ->
             val synced = current.copy(
                 name = name.trim(),
                 lastName = lastName.trim(),
@@ -278,7 +277,7 @@ internal class ClientDataSourceImpl(private val contactCipher: ContactCipher) : 
     }
 
     private suspend fun ClientEntity.readContact(): Contact {
-        return contact(contactCipher.reader(listOf(id.value), SOURCE))
+        return contactCipher.decrypt(storedContact(), SOURCE)
     }
 
     private suspend fun ClientEntity.domain(): Client {
@@ -286,8 +285,8 @@ internal class ClientDataSourceImpl(private val contactCipher: ContactCipher) : 
     }
 
     private suspend fun List<ClientEntity>.domains(): List<Client> {
-        val reader = contactCipher.reader(map { it.id.value }, SOURCE)
-        return map { it.toDomain(it.contact(reader)) }
+        val contacts = contactCipher.decryptAll(map { it.storedContact() }, SOURCE)
+        return zip(contacts) { entity, contact -> entity.toDomain(contact) }
     }
 
     private fun Client.trimmedContact(): Contact {

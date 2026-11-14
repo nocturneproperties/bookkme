@@ -1,5 +1,7 @@
 package com.bookk.business.data.orm.entity
 
+import kotlin.uuid.Uuid
+
 internal data class Contact(
     val name: String,
     val lastName: String,
@@ -19,3 +21,5 @@ internal class EncryptedContact(
     val email: ByteArray?,
     val description: ByteArray? = null,
 )
+
+internal class StoredContact(val subjectId: Uuid, val encrypted: EncryptedContact)

@@ -102,9 +102,8 @@ internal class EmployeeDataSourceImpl(private val contactCipher: ContactCipher) 
             (EmployeeTable.userId eq userId) and
                 (EmployeeTable.sourceUpdatedAt.isNull() or (EmployeeTable.sourceUpdatedAt less updatedAt))
         }.forUpdate().toList()
-        val reader = contactCipher.reader(listOf(userId), SOURCE)
-        employments.count { entity ->
-            val current = entity.contact(reader)
+        val contacts = contactCipher.decryptAll(employments.map { it.storedContact() }, SOURCE)
+        employments.zip(contacts).count { (entity, current) ->
             val synced = current.copy(
                 name = name.trim(),
                 lastName = lastName.trim(),
@@ -168,12 +167,12 @@ internal class EmployeeDataSourceImpl(private val contactCipher: ContactCipher) 
     }
 
     private suspend fun EmployeeEntity.domain(): Employee {
-        return toDomain(contact(contactCipher.reader(listOf(userId), SOURCE)))
+        return toDomain(contactCipher.decrypt(storedContact(), SOURCE))
     }
 
     private suspend fun List<EmployeeEntity>.domains(): List<Employee> {
-        val reader = contactCipher.reader(map { it.userId }, SOURCE)
-        return map { it.toDomain(it.contact(reader)) }
+        val contacts = contactCipher.decryptAll(map { it.storedContact() }, SOURCE)
+        return zip(contacts) { entity, contact -> entity.toDomain(contact) }
     }
 
     private companion object {

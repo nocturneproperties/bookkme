@@ -1,6 +1,5 @@
 package com.bookk.business.data.orm.entity
 
-import com.bookk.business.data.datasource.ContactReader
 import com.bookk.business.data.orm.table.ClientTable
 import com.bookk.business.domain.api.client.entity.Client
 import com.bookk.core.data.DecoratorUuidEntityClass
@@ -21,7 +20,7 @@ internal class ClientEntity(id: EntityID<Uuid>) : UuidEntity(id) {
     var sourceUpdatedAt by ClientTable.sourceUpdatedAt
     var lastActivityAt by ClientTable.lastActivityAt
 
-    fun contact(reader: ContactReader): Contact {
+    fun storedContact(): StoredContact {
         val encrypted = EncryptedContact(
             name = nameEncrypted,
             lastName = lastNameEncrypted,
@@ -29,7 +28,7 @@ internal class ClientEntity(id: EntityID<Uuid>) : UuidEntity(id) {
             email = emailEncrypted,
             description = descriptionEncrypted,
         )
-        return reader.read(id.value, encrypted)
+        return StoredContact(subjectId = id.value, encrypted = encrypted)
     }
 
     fun store(contact: EncryptedContact, emailIndex: String?, reindexEmail: Boolean) {

@@ -32,7 +32,7 @@ internal class UserDataSourceImpl(
 
     override suspend fun updateUser(id: Uuid, user: UserEditModel, updatedAt: Instant): User? = dbQuery {
         val entity = UserEntity.findByIdForUpdate(id) ?: return@dbQuery null
-        val current = profileCipher.decrypt(entity)
+        val current = profileCipher.decrypt(id, entity.profile)
         val phoneChanged = user.phone != null
         val edited = current.copy(
             name = user.firstName ?: current.name,
@@ -40,8 +40,11 @@ internal class UserDataSourceImpl(
             phone = if (phoneChanged) user.phone.normalizedPhone() else current.phone,
         )
         val encrypted = profileCipher.encrypt(edited) ?: return@dbQuery null
-        entity.store(encrypted, profileCipher.indexes(edited), emailChanged = false, phoneChanged = phoneChanged)
-        entity.updatedAt = updatedAt
+        if (phoneChanged) {
+            UserEntity.findByIdAndUpdatePhone(id, encrypted, edited.phone?.let(profileCipher::indexOf), updatedAt)
+        } else {
+            UserEntity.findByIdAndUpdateProfile(id, encrypted, updatedAt)
+        }
         edited
     }?.also {
         cacheClient.deleteUser(id)
@@ -49,10 +52,9 @@ internal class UserDataSourceImpl(
 
     override suspend fun changeEmail(id: Uuid, verifiedEmail: String, updatedAt: Instant): User? = dbQuery {
         val entity = UserEntity.findByIdForUpdate(id) ?: return@dbQuery null
-        val changed = profileCipher.decrypt(entity).copy(email = verifiedEmail)
+        val changed = profileCipher.decrypt(id, entity.profile).copy(email = verifiedEmail)
         val encrypted = profileCipher.encrypt(changed) ?: return@dbQuery null
-        entity.store(encrypted, profileCipher.indexes(changed), emailChanged = true, phoneChanged = false)
-        entity.updatedAt = updatedAt
+        UserEntity.findByIdAndUpdateEmail(id, encrypted, profileCipher.indexOf(verifiedEmail), updatedAt)
         changed
     }?.also {
         cacheClient.deleteUser(id)
@@ -62,7 +64,7 @@ internal class UserDataSourceImpl(
         val cached: User? = cacheClient.getUser(id)
         if (cached != null) return@dbQuery cached
         UserEntity.findById(id)
-            ?.let { profileCipher.decrypt(it) }
+            ?.let { profileCipher.decrypt(id, it.profile) }
             ?.also { user ->
                 runSuspendCatching { cacheClient.save(user) }
                     .onFailure { cacheClient.deleteUser(user.id) }
@@ -71,8 +73,8 @@ internal class UserDataSourceImpl(
 
     override suspend fun getUserByEmail(email: String): User? = dbQuery {
         UserEntity.find {
-            UserTable.emailIndex eq profileCipher.index(email)
-        }.singleOrNull()?.let { profileCipher.decrypt(it) }
+            UserTable.emailIndex eq profileCipher.indexOf(email)
+        }.singleOrNull()?.let { profileCipher.decrypt(it.id.value, it.profile) }
     }
 
     override suspend fun deleteUser(id: Uuid) = dbQuery<Unit> {

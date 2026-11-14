@@ -32,8 +32,11 @@ internal class UserDataExportDataSourceImpl(
             .toList()
             .withDetails()
             .let { appointments ->
-                val reader = snapshotCipher.reader(appointments.map { it.storedSnapshot() }, AppointmentTable.tableName)
-                appointments.map { it.domain(reader) }
+                val snapshots = snapshotCipher.decryptAll(
+                    appointments.map { it.storedSnapshot() },
+                    AppointmentTable.tableName,
+                )
+                appointments.zip(snapshots) { entity, snapshot -> entity.domain(snapshot) }
             }
     }
 
@@ -48,13 +51,11 @@ internal class UserDataExportDataSourceImpl(
             .with(AppointmentRequestEntity::services)
             .toList()
             .let { requests ->
-                val reader = snapshotCipher.reader(
-                    requests.map {
-                        it.storedSnapshot()
-                    },
+                val snapshots = snapshotCipher.decryptAll(
+                    requests.map { it.storedSnapshot() },
                     AppointmentRequestTable.tableName,
                 )
-                requests.map { it.domain(reader) }
+                requests.zip(snapshots) { entity, snapshot -> entity.domain(snapshot) }
             }
     }
 

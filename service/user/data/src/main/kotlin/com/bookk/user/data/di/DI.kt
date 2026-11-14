@@ -16,6 +16,7 @@ import library.encryption.impl.di.subjectKeys
 import library.export.impl.di.dataExportModule
 import library.outbox.di.exhaustedEventDataSource
 import library.outbox.di.personalDataCipher
+import org.koin.core.module.dsl.scopedOf
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
 
@@ -25,7 +26,7 @@ fun userDataModule(environment: (String) -> String? = System::getenv) = module {
         subjectKeys(USER_SHORT_RETENTION_SCHEMA, environment)
         personalDataCipher()
         exhaustedEventDataSource()
-        scoped { ProfileCipher(get(), get(), get()) }
+        scopedOf(::ProfileCipher)
         scoped<UserDataSource> { UserDataSourceImpl(get(), get()) }
         scoped<LegalDocumentDataSource> { LegalDocumentDataSourceImpl() }
         scoped<UserDataExportDataSource> { UserDataExportDataSourceImpl(get()) }

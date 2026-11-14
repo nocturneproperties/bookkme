@@ -1,6 +1,5 @@
 package com.bookk.appointments.data.orm.entity
 
-import com.bookk.appointments.data.datasource.SnapshotReader
 import com.bookk.appointments.data.orm.table.AppointmentBusinessTable
 import com.bookk.appointments.data.orm.table.AppointmentRequestServicesTable
 import com.bookk.appointments.data.orm.table.AppointmentRequestTable
@@ -40,9 +39,8 @@ internal class AppointmentRequestEntity(id: EntityID<Uuid>) : UuidEntity(id) {
     var declineReason by AppointmentRequestTable.declineReason
     var updatedAt by AppointmentRequestTable.updatedAt
 
-    fun domain(reader: SnapshotReader): AppointmentRequest {
-        val snapshot = storedSnapshot()
-        val client = reader.client(snapshot)
+    fun domain(snapshot: DecryptedSnapshot): AppointmentRequest {
+        val client = snapshot.client
         return AppointmentRequest(
             id = id.value,
             initiatorUserId = initiatorUserId,
@@ -50,7 +48,7 @@ internal class AppointmentRequestEntity(id: EntityID<Uuid>) : UuidEntity(id) {
             employee = EmployeeSnapshot(
                 id = employeeId,
                 userId = employeeUserId,
-                fullName = reader.employeeName(snapshot),
+                fullName = snapshot.employeeName,
             ),
             client = RequestClientSnapshot(
                 id = clientId,

@@ -1,6 +1,5 @@
 package com.bookk.business.data.orm.entity
 
-import com.bookk.business.data.datasource.ContactReader
 import com.bookk.business.data.orm.table.BusinessPermissionGrantsTable
 import com.bookk.business.data.orm.table.BusinessTable
 import com.bookk.business.data.orm.table.EmployeeCanProvideServiceTable
@@ -44,14 +43,14 @@ internal class EmployeeEntity(id: EntityID<Uuid>) : UuidEntity(id) {
     val dayOffs by EmployeeDayOffEntity referrersOn EmployeeDayOffTable.employeeId
     val grants by BusinessPermissionGrantEntity referrersOn BusinessPermissionGrantsTable.employeeId
 
-    fun contact(reader: ContactReader): Contact {
+    fun storedContact(): StoredContact {
         val encrypted = EncryptedContact(
             name = nameEncrypted,
             lastName = lastNameEncrypted,
             phone = phoneEncrypted,
             email = emailEncrypted,
         )
-        return reader.read(userId, encrypted)
+        return StoredContact(subjectId = userId, encrypted = encrypted)
     }
 
     fun store(contact: EncryptedContact) {
