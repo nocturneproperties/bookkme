@@ -1,7 +1,7 @@
 package com.bookk.appointments.domain.impl.event
 
+import com.bookk.appointments.domain.api.operation.DeleteBusinessAppointmentData
 import com.bookk.appointments.domain.api.operation.DeleteClientAppointmentData
-import com.bookk.appointments.domain.api.operation.DeleteModule
 import com.bookk.appointments.domain.api.operation.DeleteUserAppointmentData
 import com.bookk.appointments.domain.impl.operation.LinkClientUser
 import com.bookk.appointments.domain.impl.operation.SyncEmployeePermission
@@ -15,7 +15,7 @@ import kotlinx.coroutines.CoroutineScope
 
 internal class AppointmentEventHandler(
     private val consumer: StandardEventConsumer,
-    private val deleteModule: DeleteModule,
+    private val deleteBusinessAppointmentData: DeleteBusinessAppointmentData,
     private val updateBusinessInformation: UpdateBusinessInformation,
     private val deleteUserAppointmentData: DeleteUserAppointmentData,
     private val syncEmployeePermission: SyncEmployeePermission,
@@ -25,7 +25,7 @@ internal class AppointmentEventHandler(
     override fun start(scope: CoroutineScope) {
         consumer
             .registerResultReceiver(BusinessEvent.Deleted.TOPIC) { event: BusinessEvent.Deleted ->
-                deleteModule(event.businessId)
+                deleteBusinessAppointmentData(event.businessId)
             }
             .registerResultReceiver(BusinessEvent.Updated.TOPIC) { event: BusinessEvent.Updated ->
                 updateBusinessInformation(event.business, event.updatedAt)

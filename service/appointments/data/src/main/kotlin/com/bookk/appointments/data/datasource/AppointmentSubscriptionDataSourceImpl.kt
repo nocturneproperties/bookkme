@@ -2,11 +2,14 @@ package com.bookk.appointments.data.datasource
 
 import com.bookk.appointments.data.orm.entity.AppointmentBusinessEntity
 import com.bookk.appointments.data.orm.table.AppointmentBusinessTable
+import com.bookk.appointments.data.orm.table.AppointmentRequestTable
+import com.bookk.appointments.data.orm.table.AppointmentTable
 import com.bookk.appointments.domain.api.entity.BusinessSnapshot
 import com.bookk.appointments.domain.datasource.AppointmentSubscriptionDataSource
 import com.bookk.core.data.DataSource
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.core.isNull
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.select
@@ -29,18 +32,31 @@ internal class AppointmentSubscriptionDataSourceImpl : DataSource(), Appointment
         dbQuery { AppointmentBusinessEntity.findByIdAndUpdate(snapshot, updatedAt) }
     }
 
-    override suspend fun detachBusiness(businessId: Uuid) {
-        dbQuery {
-            AppointmentBusinessTable.deleteWhere {
-                AppointmentBusinessTable.id eq businessId
-            }
+    override suspend fun getBusinessIdsOwnedByForUpdate(ownerUserId: Uuid): List<Uuid> = dbQuery {
+        AppointmentBusinessTable.select(AppointmentBusinessTable.id)
+            .where { AppointmentBusinessTable.ownerUserId eq ownerUserId }
+            .forUpdate()
+            .map { it[AppointmentBusinessTable.id].value }
+    }
+
+    override suspend fun getClientIdsForUpdate(businessIds: Collection<Uuid>): Set<Uuid> {
+        if (businessIds.isEmpty()) return emptySet()
+        return dbQuery {
+            val appointmentClientIds = AppointmentTable.select(AppointmentTable.clientId)
+                .where { AppointmentTable.businessId inList businessIds }
+                .forUpdate()
+                .map { it[AppointmentTable.clientId] }
+            val requestClientIds = AppointmentRequestTable.select(AppointmentRequestTable.clientId)
+                .where { AppointmentRequestTable.businessId inList businessIds }
+                .forUpdate()
+                .map { it[AppointmentRequestTable.clientId] }
+            (appointmentClientIds + requestClientIds).toSet()
         }
     }
 
-    override suspend fun detachBusinessesOwnedBy(ownerUserId: Uuid) {
-        dbQuery {
-            AppointmentBusinessTable.deleteWhere { AppointmentBusinessTable.ownerUserId eq ownerUserId }
-        }
+    override suspend fun detachBusinesses(businessIds: Collection<Uuid>) {
+        if (businessIds.isEmpty()) return
+        dbQuery { AppointmentBusinessTable.deleteWhere { AppointmentBusinessTable.id inList businessIds } }
     }
 
     override suspend fun getBusinessIdsWithoutOwner(): List<Uuid> = dbQuery {

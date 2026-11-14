@@ -32,9 +32,7 @@ class ActionConfirmationTestTokens(val timeSource: TestTimeSource = TestTimeSour
             override val verifier: JWTVerifier = JWT.require(algorithm)
                 .withIssuer(ISSUER)
                 .withAudience(
-                    if (type ==
-                        ValidationType.ACTION_CONFIRMATION
-                    ) {
+                    if (type == ValidationType.ACTION_CONFIRMATION) {
                         TokenAudience.actionConfirmation
                     } else {
                         TokenAudience.access

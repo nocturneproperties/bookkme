@@ -91,6 +91,12 @@ internal class ClientRetentionMariaDbTest {
             clients.createDetachedClient(businessId, Client.Detached.stub(phone = null, email = null)).id
         }
 
+        suspend fun deleteInactiveClientsOf(businessId: Uuid): List<Uuid> {
+            val inactiveIds = clients.getInactiveClientIdsForUpdate(businessId, Clock.System.now() - 1.days)
+            clients.deleteClients(inactiveIds)
+            return inactiveIds
+        }
+
         suspend fun backdate(clientId: Uuid, to: Instant) = suspendTransaction(db = database) {
             ClientTable.update(where = { ClientTable.id eq clientId }) { it[lastActivityAt] = to }
         }
@@ -162,10 +168,7 @@ internal class ClientRetentionMariaDbTest {
 
         whenn()
         val deleted = suspendTransaction(db = database) {
-            fixture.clients.deleteInactiveClients(
-                businessId,
-                Clock.System.now() - 1.days,
-            )
+            fixture.deleteInactiveClientsOf(businessId)
         }
 
         then()
@@ -189,7 +192,7 @@ internal class ClientRetentionMariaDbTest {
         whenn()
         val creation = fixture.secondWhileFirstHolds(
             firstIsolation = Connection.TRANSACTION_READ_COMMITTED,
-            first = { fixture.clients.deleteInactiveClients(businessId, Clock.System.now() - 1.days) },
+            first = { fixture.deleteInactiveClientsOf(businessId) },
             second = {
                 fixture.clients.createDetachedClient(businessId, Client.Detached.stub(phone = null, email = null))
             },
@@ -209,7 +212,7 @@ internal class ClientRetentionMariaDbTest {
         whenn()
         val creation = fixture.secondWhileFirstHolds(
             firstIsolation = Connection.TRANSACTION_REPEATABLE_READ,
-            first = { fixture.clients.deleteInactiveClients(businessId, Clock.System.now() - 1.days) },
+            first = { fixture.deleteInactiveClientsOf(businessId) },
             second = {
                 fixture.clients.createDetachedClient(businessId, Client.Detached.stub(phone = null, email = null))
             },

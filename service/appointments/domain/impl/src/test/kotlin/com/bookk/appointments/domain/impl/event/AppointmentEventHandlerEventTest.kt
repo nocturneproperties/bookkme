@@ -1,7 +1,7 @@
 package com.bookk.appointments.domain.impl.event
 
+import com.bookk.appointments.domain.api.operation.DeleteBusinessAppointmentData
 import com.bookk.appointments.domain.api.operation.DeleteClientAppointmentData
-import com.bookk.appointments.domain.api.operation.DeleteModule
 import com.bookk.appointments.domain.api.operation.DeleteUserAppointmentData
 import com.bookk.appointments.domain.impl.operation.LinkClientUser
 import com.bookk.appointments.domain.impl.operation.SyncEmployeePermission
@@ -62,7 +62,7 @@ internal class AppointmentEventHandlerEventTest {
     }
 
     private class SutFixture {
-        val deleteModule = mockk<DeleteModule>()
+        val deleteBusinessAppointmentData = mockk<DeleteBusinessAppointmentData>()
         val updateBusinessInformation = mockk<UpdateBusinessInformation>()
         val deleteUserAppointmentData = mockk<DeleteUserAppointmentData>()
         val syncEmployeePermission = mockk<SyncEmployeePermission>()
@@ -80,7 +80,7 @@ internal class AppointmentEventHandlerEventTest {
         )
         val sut = AppointmentEventHandler(
             consumer,
-            deleteModule,
+            deleteBusinessAppointmentData,
             updateBusinessInformation,
             deleteUserAppointmentData,
             syncEmployeePermission,
@@ -178,12 +178,12 @@ internal class AppointmentEventHandlerEventTest {
     }
 
     @Test
-    fun `should delete the module when the business is deleted`() = runIntegrationTest {
+    fun `should delete business appointment data when the business is deleted`() = runIntegrationTest {
         given()
         val fixture = SutFixture()
         val businessId = Uuid.random()
         val arrived = CountDownLatch(1)
-        coEvery { fixture.deleteModule(businessId) } answers {
+        coEvery { fixture.deleteBusinessAppointmentData(businessId) } answers {
             arrived.countDown()
             Result.success(Unit)
         }
@@ -197,7 +197,7 @@ internal class AppointmentEventHandlerEventTest {
         fixture.stop()
 
         then()
-        coVerify(exactly = 1) { fixture.deleteModule(businessId) }
+        coVerify(exactly = 1) { fixture.deleteBusinessAppointmentData(businessId) }
     }
 
     @Test

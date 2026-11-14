@@ -50,7 +50,7 @@ inline fun <R, T : R> Result<T>.recoverSuspendCatching(
 
 suspend inline fun <R> runCleaningUpOnFailure(
     crossinline cleanUp: suspend () -> Unit,
-    action: () -> R
+    action: () -> R,
 ): R = try {
     action()
 } catch (failure: Throwable) {

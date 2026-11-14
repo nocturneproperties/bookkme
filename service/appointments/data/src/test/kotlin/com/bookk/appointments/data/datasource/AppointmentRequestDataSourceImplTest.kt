@@ -436,6 +436,26 @@ internal class AppointmentRequestDataSourceImplTest {
     }
 
     @Test
+    fun `should give the client ids of the requests the user made as the client only`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val userId = Uuid.random()
+        val asClient = suspendTransaction {
+            fixture.sut.create(fixture.buildRequest().let { it.copy(client = it.client.copy(userId = userId)) })
+        }
+        suspendTransaction {
+            fixture.sut.create(fixture.buildRequest().let { it.copy(employee = it.employee.copy(userId = userId)) })
+        }
+
+        whenn()
+        val clientIds = suspendTransaction { fixture.sut.getClientIdsOfUserForUpdate(userId) }
+
+        then()
+        assertEquals(setOf(asClient.client.id), clientIds)
+    }
+
+    @Test
     fun `should not delete requests belonging to other users`() = runUnitTest {
         given()
         val fixture = SutFixture()
@@ -568,7 +588,7 @@ internal class AppointmentRequestDataSourceImplTest {
         }
 
         whenn()
-        suspendTransaction { fixture.sut.reassignClient(fixture.businessId, fromClientId, toClientId) }
+        suspendTransaction { fixture.sut.reassignClients(fixture.businessId, listOf(fromClientId), toClientId) }
 
         then()
         assertEquals(toClientId, suspendTransaction { fixture.sut.get(merged.id) }?.client?.id)

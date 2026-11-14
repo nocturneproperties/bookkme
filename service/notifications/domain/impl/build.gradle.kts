@@ -15,6 +15,7 @@ dependencies {
     implementation(projects.service.notifications.client)
     implementation(projects.service.notifications.data.source)
     implementation(projects.library.email.api)
+    implementation(projects.library.encryption.api)
     implementation(libs.firebase.admin)
     testImplementation(testFixtures(projects.core))
     testImplementation(projects.core.data.eventstreaming.impl)

@@ -166,9 +166,7 @@ internal class FinishRegistrationImplTest {
         fixture.registrationSucceeds(request)
         fixture.sut.invoke(
             request.copy(
-                emailCode = if (request.emailCode ==
-                    "000000"
-                ) {
+                emailCode = if (request.emailCode == "000000") {
                     "000001"
                 } else {
                     "000000"

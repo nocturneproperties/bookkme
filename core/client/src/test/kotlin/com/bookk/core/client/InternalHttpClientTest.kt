@@ -77,9 +77,7 @@ internal class InternalHttpClientTest {
         given()
         val calls = AtomicInteger()
         val fixture = SutFixture {
-            if (calls.incrementAndGet() ==
-                1
-            ) {
+            if (calls.incrementAndGet() == 1) {
                 respond("", HttpStatusCode.ServiceUnavailable)
             } else {
                 respond("", HttpStatusCode.OK)

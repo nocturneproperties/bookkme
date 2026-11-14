@@ -5,12 +5,14 @@ import com.bookk.business.data.orm.table.BusinessDayOffTable
 import com.bookk.business.data.orm.table.BusinessPermissionGrantsTable
 import com.bookk.business.data.orm.table.BusinessTable
 import com.bookk.business.data.orm.table.BusinessWorkingHoursTable
+import com.bookk.business.data.orm.table.ClientTable
 import com.bookk.business.data.orm.table.EmployeeCanProvideServiceTable
 import com.bookk.business.data.orm.table.EmployeeDayOffTable
 import com.bookk.business.data.orm.table.EmployeeTable
 import com.bookk.business.data.orm.table.EmployeeWorkingHoursTable
 import com.bookk.business.domain.api.business.entity.Business
 import com.bookk.business.domain.api.business.entity.BusinessUpdateModel
+import com.bookk.business.domain.api.client.entity.Client
 import com.bookk.business.domain.api.employee.entity.Employee
 import com.bookk.business.domain.datasource.LockedBusiness
 import com.bookk.business.domain.datasource.RowLock
@@ -53,9 +55,11 @@ internal class BusinessDataSourceImplTest {
             EmployeeCanProvideServiceTable,
             EmployeeWorkingHoursTable,
             EmployeeDayOffTable,
+            ClientTable,
         )
         val sut = BusinessDataSourceImpl()
         val employeeSut = EmployeeDataSourceImpl()
+        val clientSut = ClientDataSourceImpl()
     }
 
     private fun updateModel(
@@ -557,7 +561,55 @@ internal class BusinessDataSourceImplTest {
         assertEquals(business.id, dashboard?.id)
     }
 
-    // deleteUserBusinesses uses deleteReturning which is not supported by Exposed's H2 dialect
+    @Test
+    fun `should give the ids of the user's businesses only`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val ownerId = Uuid.random()
+        val salon = suspendTransaction { fixture.sut.createBusiness(ownerId, "Salon", "USD", TimeZone.UTC) }
+        suspendTransaction { fixture.sut.createBusiness(Uuid.random(), "Other", "USD", TimeZone.UTC) }
+
+        whenn()
+        val found = suspendTransaction { fixture.sut.getUserBusinessIdsForUpdate(ownerId) }
+
+        then()
+        assertEquals(listOf(salon.id), found)
+    }
+
+    @Test
+    fun `should give no business ids when the user owns no business`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+
+        whenn()
+        val found = suspendTransaction { fixture.sut.getUserBusinessIdsForUpdate(Uuid.random()) }
+
+        then()
+        assertTrue(found.isEmpty())
+    }
+
+    @Test
+    fun `should delete the given businesses with their clients and keep the others`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val salon = suspendTransaction { fixture.sut.createBusiness(Uuid.random(), "Salon", "USD", TimeZone.UTC) }
+        val other = suspendTransaction { fixture.sut.createBusiness(Uuid.random(), "Other", "USD", TimeZone.UTC) }
+        val salonClient = suspendTransaction {
+            fixture.clientSut.createDetachedClient(salon.id, Client.Detached.stub(email = "a@example.com"))
+        }
+        val otherClient = suspendTransaction {
+            fixture.clientSut.createDetachedClient(other.id, Client.Detached.stub(email = "b@example.com"))
+        }
+
+        whenn()
+        suspendTransaction { fixture.sut.deleteBusinesses(listOf(salon.id)) }
+
+        then()
+        assertNull(suspendTransaction { fixture.sut.getBusinessById(salon.id) })
+        assertNull(suspendTransaction { fixture.clientSut.getClientById(salon.id, salonClient.id) })
+        assertNotNull(suspendTransaction { fixture.sut.getBusinessById(other.id) })
+        assertNotNull(suspendTransaction { fixture.clientSut.getClientById(other.id, otherClient.id) })
+    }
 
     @Test
     fun `should give a new business the default client data retention`() = runUnitTest {

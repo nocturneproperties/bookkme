@@ -33,11 +33,12 @@ flowchart TD
     Start([Consume UserEvent.Updated]) --> Dedup{idempotencyKey already processed?}
     Dedup -- Yes --> Skip([Skip - already handled])
     Dedup -- No --> Find[ClientDataSource.findClientMergesForUser userId email updatedAt]
-    Find --> Merge["ClientDataSource.deleteClient businessId fromClientId per merge, then per kept client - eventProducer.send BusinessEvent.ClientLinked businessId toClientId userId mergedClientIds"]
+    Find --> Merge["ClientDataSource.deleteClients every fromClientId - one DELETE, none without merges; then per kept client - eventProducer.send BusinessEvent.ClientLinked businessId toClientId userId mergedClientIds"]
     Merge --> UpdClients[ClientDataSource.updateIntegratedClients userId name lastName email phone updatedAt]
     UpdClients --> UpdEmployees[EmployeeDataSource.updateIntegratedEmployees userId name lastName email phone updatedAt]
-    UpdEmployees -- throws --> Dlt([Sent to UserEvent.Updated_dlt topic, logged - no auto-retry])
-    UpdEmployees -- ok --> Ack([Marked processed])
+    UpdEmployees --> Shred["SubjectKeys.shredAll the merged fromClientIds - last"]
+    Shred -- throws --> Dlt([Sent to UserEvent.Updated_dlt topic, logged - no auto-retry])
+    Shred -- ok --> Ack([Marked processed])
 ```
 
 **Consumed by:** `BusinessEvent.ClientLinked` → [appointments: move the duplicates' history and give the client's appointments the account](../appointments/on-client-linked.md).

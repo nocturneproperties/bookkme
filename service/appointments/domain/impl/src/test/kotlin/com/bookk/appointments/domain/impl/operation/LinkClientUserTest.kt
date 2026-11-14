@@ -16,6 +16,7 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.coVerifyOrder
 import io.mockk.mockk
+import library.encryption.test.ShredRecordingSubjectKeys
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -32,6 +33,7 @@ internal class LinkClientUserTest {
         val deleteClientAppointmentData = mockk<DeleteClientAppointmentData>()
         val transactionManager = mockk<TransactionManager>()
         val writesInTransaction = mutableListOf<Boolean>()
+        val subjectKeys = ShredRecordingSubjectKeys(transactionManager::isInTransaction)
         val sut = LinkClientUser(
             deletedUserDataSource,
             appointmentDataSource,
@@ -39,6 +41,7 @@ internal class LinkClientUserTest {
             deleteUserAppointmentData,
             deletedClientDataSource,
             deleteClientAppointmentData,
+            subjectKeys,
             transactionManager,
         )
 
@@ -53,8 +56,8 @@ internal class LinkClientUserTest {
             coEvery { deletedUserDataSource.isDeletedForShare(userId) } returns userDeleted
             coEvery { deletedClientDataSource.isDeletedForShare(businessId, clientId) } returns clientDeleted
             coEvery { deleteClientAppointmentData(businessId, clientId) } returns Result.success(Unit)
-            coEvery { appointmentDataSource.reassignClient(businessId, any(), clientId) } returns Unit
-            coEvery { appointmentRequestDataSource.reassignClient(businessId, any(), clientId) } returns Unit
+            coEvery { appointmentDataSource.reassignClients(businessId, any(), clientId) } returns Unit
+            coEvery { appointmentRequestDataSource.reassignClients(businessId, any(), clientId) } returns Unit
             coEvery { appointmentDataSource.linkClientUser(businessId, clientId, userId) } coAnswers {
                 writesInTransaction += transactionManager.isInTransaction()
             }
@@ -120,10 +123,8 @@ internal class LinkClientUserTest {
         assertTrue(result.isSuccess)
         coVerifyOrder {
             fixture.deletedUserDataSource.isDeletedForShare(userId)
-            fixture.appointmentDataSource.reassignClient(businessId, first, clientId)
-            fixture.appointmentRequestDataSource.reassignClient(businessId, first, clientId)
-            fixture.appointmentDataSource.reassignClient(businessId, second, clientId)
-            fixture.appointmentRequestDataSource.reassignClient(businessId, second, clientId)
+            fixture.appointmentDataSource.reassignClients(businessId, listOf(first, second), clientId)
+            fixture.appointmentRequestDataSource.reassignClients(businessId, listOf(first, second), clientId)
             fixture.appointmentDataSource.linkClientUser(businessId, clientId, userId)
             fixture.appointmentRequestDataSource.linkClientUser(businessId, clientId, userId)
         }
@@ -185,7 +186,7 @@ internal class LinkClientUserTest {
         coVerifyOrder {
             fixture.deletedUserDataSource.isDeletedForShare(userId)
             fixture.deletedClientDataSource.isDeletedForShare(businessId, clientId)
-            fixture.appointmentDataSource.reassignClient(businessId, any(), clientId)
+            fixture.appointmentDataSource.reassignClients(businessId, any(), clientId)
             fixture.appointmentDataSource.linkClientUser(businessId, clientId, userId)
         }
         coVerify(exactly = 0) { fixture.deleteClientAppointmentData(any(), any()) }
@@ -207,7 +208,7 @@ internal class LinkClientUserTest {
         then()
         assertTrue(result.isSuccess)
         coVerifyOrder {
-            fixture.appointmentDataSource.reassignClient(businessId, merged, clientId)
+            fixture.appointmentDataSource.reassignClients(businessId, listOf(merged), clientId)
             fixture.appointmentDataSource.linkClientUser(businessId, clientId, userId)
             fixture.appointmentRequestDataSource.linkClientUser(businessId, clientId, userId)
             fixture.deleteClientAppointmentData(businessId, clientId)
@@ -231,5 +232,22 @@ internal class LinkClientUserTest {
 
         then()
         assertTrue(result.isFailure)
+    }
+
+    @Test
+    fun `should shred the keys of the clients merged into the linked client in the transaction`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val businessId = Uuid.random()
+        val clientId = Uuid.random()
+        val userId = Uuid.random()
+        val mergedClientIds = listOf(Uuid.random(), Uuid.random())
+        fixture.stubLink(businessId, clientId, userId, userDeleted = false)
+
+        whenn()
+        fixture.sut(businessId, clientId, userId, mergedClientIds)
+
+        then()
+        assertEquals(mergedClientIds.toSet(), fixture.subjectKeys.shreddedInTransaction)
     }
 }

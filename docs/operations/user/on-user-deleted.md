@@ -21,7 +21,9 @@ flowchart TD
     Dedup -- No --> Tx[[Begin transaction]]
     Tx --> Delete[UserDataSource.deleteUser userId]
     Delete --> Discard["DataExports.discard userId - DELETE data_export row, SubjectKeys.shred its key_id"]
-    Discard -- throws --> Dlt([Sent to AuthEvent.UserDeleted_dlt topic, logged - no auto-retry])
+    Discard --> Shred["SubjectKeys.shred userId - tombstone the user's key, so unrelayed UserEvent.Updated rows are dropped"]
+    Shred -- throws --> Dlt([Sent to AuthEvent.UserDeleted_dlt topic, logged - no auto-retry])
+    Discard -- throws --> Dlt
     Delete -- throws --> Dlt
-    Discard -- ok --> Ack([Marked processed])
+    Shred -- ok --> Ack([Marked processed])
 ```

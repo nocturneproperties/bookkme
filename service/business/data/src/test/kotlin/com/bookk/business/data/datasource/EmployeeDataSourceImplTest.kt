@@ -752,10 +752,9 @@ internal class EmployeeDataSourceImplTest {
         }
 
         whenn()
-        val businessIds = suspendTransaction { fixture.sut.deleteEmployeesByUserId(userId) }
+        suspendTransaction { fixture.sut.deleteEmployeesByUserId(userId) }
 
         then()
-        assertEquals(listOf(fixture.businessId), businessIds)
         assertNull(suspendTransaction { fixture.sut.getEmployee(fixture.businessId, created.id) })
         assertEquals(0L, fixture.rowsOf(created.id))
     }
@@ -768,11 +767,28 @@ internal class EmployeeDataSourceImplTest {
         val other = suspendTransaction { fixture.sut.createEmployee(Employee.stub(businessId = fixture.businessId)) }
 
         whenn()
-        val businessIds = suspendTransaction { fixture.sut.deleteEmployeesByUserId(Uuid.random()) }
+        suspendTransaction { fixture.sut.deleteEmployeesByUserId(Uuid.random()) }
 
         then()
-        assertEquals(emptyList<Uuid>(), businessIds)
         assertNotNull(suspendTransaction { fixture.sut.getEmployee(fixture.businessId, other.id) })
+    }
+
+    @Test
+    fun `should give the businesses where the user is an employee only`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val userId = Uuid.random()
+        suspendTransaction {
+            fixture.sut.createEmployee(Employee.stub(businessId = fixture.businessId, userId = userId))
+        }
+        suspendTransaction { fixture.sut.createEmployee(Employee.stub(businessId = fixture.businessId)) }
+
+        whenn()
+        val found = suspendTransaction { fixture.sut.getBusinessIdsOfUserForUpdate(userId) }
+
+        then()
+        assertEquals(listOf(fixture.businessId), found)
     }
 
     @Test

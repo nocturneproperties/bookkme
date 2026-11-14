@@ -805,6 +805,24 @@ internal class AppointmentDataSourceImplTest {
     }
 
     @Test
+    fun `should give the client ids of the account's appointments only`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val clientUserId = Uuid.random()
+        val own = suspendTransaction {
+            fixture.sut.create(fixture.buildRequest().let { it.copy(client = it.client.copy(userId = clientUserId)) })
+        }
+        suspendTransaction { fixture.sut.create(fixture.buildRequest()) }
+
+        whenn()
+        val clientIds = suspendTransaction { fixture.sut.getClientIdsOfUserForUpdate(clientUserId) }
+
+        then()
+        assertEquals(setOf(own.client.id), clientIds)
+    }
+
+    @Test
     fun `should keep client PII on appointments of other clients when anonymizing a client's account`() = runUnitTest {
         given()
         val fixture = SutFixture()
@@ -844,7 +862,7 @@ internal class AppointmentDataSourceImplTest {
     }
 
     @Test
-    fun `should cancel the client's scheduled appointments that start after the given time`() = runUnitTest {
+    fun `should find the client's scheduled appointments that start after the given time`() = runUnitTest {
         given()
         val fixture = SutFixture()
         fixture.setup()
@@ -856,25 +874,14 @@ internal class AppointmentDataSourceImplTest {
         val upcoming = suspendTransaction { fixture.sut.create(request) }
 
         whenn()
-        val cancelled =
-            suspendTransaction {
-                fixture.sut.cancelUpcomingForUser(
-                    clientUserId,
-                    now,
-                    "User deleted their account",
-                    "Employee deleted their account",
-                )
-            }
-        val found = suspendTransaction { fixture.sut.get(upcoming.id) }
+        val found = suspendTransaction { fixture.sut.getUpcomingIdsOfUserForUpdate(clientUserId, now) }
 
         then()
-        assertEquals(AppointmentStatus.CANCELLED, found.status)
-        assertEquals("User deleted their account", found.cancellationReason)
-        assertEquals(listOf(found), cancelled)
+        assertEquals(listOf(upcoming.id), found)
     }
 
     @Test
-    fun `should keep the client's appointments that started before the given time`() = runUnitTest {
+    fun `should not find the user's appointments that started before the given time`() = runUnitTest {
         given()
         val fixture = SutFixture()
         fixture.setup()
@@ -883,27 +890,17 @@ internal class AppointmentDataSourceImplTest {
         val request = fixture.buildRequest(date = now - 24.hours).let {
             it.copy(client = it.client.copy(userId = clientUserId))
         }
-        val past = suspendTransaction { fixture.sut.create(request) }
+        suspendTransaction { fixture.sut.create(request) }
 
         whenn()
-        val cancelled =
-            suspendTransaction {
-                fixture.sut.cancelUpcomingForUser(
-                    clientUserId,
-                    now,
-                    "User deleted their account",
-                    "Employee deleted their account",
-                )
-            }
-        val found = suspendTransaction { fixture.sut.get(past.id) }
+        val found = suspendTransaction { fixture.sut.getUpcomingIdsOfUserForUpdate(clientUserId, now) }
 
         then()
-        assertEquals(AppointmentStatus.SCHEDULED, found.status)
-        assertTrue(cancelled.isEmpty())
+        assertTrue(found.isEmpty())
     }
 
     @Test
-    fun `should keep the client's upcoming appointments that are no longer scheduled`() = runUnitTest {
+    fun `should not find the user's upcoming appointments that are no longer scheduled`() = runUnitTest {
         given()
         val fixture = SutFixture()
         fixture.setup()
@@ -916,47 +913,29 @@ internal class AppointmentDataSourceImplTest {
         suspendTransaction { fixture.sut.cancel(created.id, "Business closed") }
 
         whenn()
-        val cancelled =
-            suspendTransaction {
-                fixture.sut.cancelUpcomingForUser(
-                    clientUserId,
-                    now,
-                    "User deleted their account",
-                    "Employee deleted their account",
-                )
-            }
-        val found = suspendTransaction { fixture.sut.get(created.id) }
+        val found = suspendTransaction { fixture.sut.getUpcomingIdsOfUserForUpdate(clientUserId, now) }
 
         then()
-        assertEquals("Business closed", found.cancellationReason)
-        assertTrue(cancelled.isEmpty())
+        assertTrue(found.isEmpty())
     }
 
     @Test
-    fun `should keep upcoming appointments of other users when cancelling a user's`() = runUnitTest {
+    fun `should not find upcoming appointments of other users`() = runUnitTest {
         given()
         val fixture = SutFixture()
         fixture.setup()
         val now = Clock.System.now()
-        val other = suspendTransaction { fixture.sut.create(fixture.buildRequest(date = now + 24.hours)) }
+        suspendTransaction { fixture.sut.create(fixture.buildRequest(date = now + 24.hours)) }
 
         whenn()
-        suspendTransaction {
-            fixture.sut.cancelUpcomingForUser(
-                Uuid.random(),
-                now,
-                "User deleted their account",
-                "Employee deleted their account",
-            )
-        }
-        val found = suspendTransaction { fixture.sut.get(other.id) }
+        val found = suspendTransaction { fixture.sut.getUpcomingIdsOfUserForUpdate(Uuid.random(), now) }
 
         then()
-        assertEquals(AppointmentStatus.SCHEDULED, found.status)
+        assertTrue(found.isEmpty())
     }
 
     @Test
-    fun `should cancel the employee's appointments after the given time with the employee reason`() = runUnitTest {
+    fun `should find the employee's scheduled appointments that start after the given time`() = runUnitTest {
         given()
         val fixture = SutFixture()
         fixture.setup()
@@ -967,54 +946,51 @@ internal class AppointmentDataSourceImplTest {
                 fixture.buildRequest(date = now + 24.hours, employee = EmployeeSnapshot.stub(userId = employeeUserId)),
             )
         }
-        val past = suspendTransaction {
+        suspendTransaction {
             fixture.sut.create(
                 fixture.buildRequest(date = now - 24.hours, employee = EmployeeSnapshot.stub(userId = employeeUserId)),
             )
         }
 
         whenn()
-        val cancelled = suspendTransaction {
-            fixture.sut.cancelUpcomingForUser(
-                employeeUserId,
-                now,
-                "User deleted their account",
-                "Employee deleted their account",
-            )
-        }
-        val found = suspendTransaction { fixture.sut.get(upcoming.id) }
+        val found = suspendTransaction { fixture.sut.getUpcomingIdsOfUserForUpdate(employeeUserId, now) }
 
         then()
-        assertEquals(AppointmentStatus.CANCELLED, found.status)
-        assertEquals("Employee deleted their account", found.cancellationReason)
-        assertEquals(listOf(found), cancelled)
-        assertEquals(AppointmentStatus.SCHEDULED, suspendTransaction { fixture.sut.get(past.id) }.status)
+        assertEquals(listOf(upcoming.id), found)
     }
 
     @Test
-    fun `should use the client reason for an appointment the user booked with themselves as employee`() = runUnitTest {
+    fun `should load the given appointments with their services`() = runUnitTest {
         given()
         val fixture = SutFixture()
         fixture.setup()
-        val userId = Uuid.random()
-        val now = Clock.System.now()
-        val request = fixture.buildRequest(date = now + 24.hours, employee = EmployeeSnapshot.stub(userId = userId))
-            .let { it.copy(client = it.client.copy(userId = userId)) }
-        val own = suspendTransaction { fixture.sut.create(request) }
+        val first = suspendTransaction { fixture.sut.create(fixture.buildRequest()) }
+        val second = suspendTransaction { fixture.sut.create(fixture.buildRequest()) }
+        suspendTransaction { fixture.sut.create(fixture.buildRequest()) }
 
         whenn()
-        val cancelled = suspendTransaction {
-            fixture.sut.cancelUpcomingForUser(
-                userId,
-                now,
-                "User deleted their account",
-                "Employee deleted their account",
-            )
-        }
+        val found = suspendTransaction { fixture.sut.getAllByIds(listOf(first.id, second.id)) }
 
         then()
-        assertEquals(listOf(own.id), cancelled.map { it.id })
-        assertEquals("User deleted their account", cancelled.single().cancellationReason)
+        assertEquals(setOf(first, second), found.toSet())
+    }
+
+    @Test
+    fun `should cancel the given appointments with the reason and keep the others`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val cancelled = suspendTransaction { fixture.sut.create(fixture.buildRequest()) }
+        val kept = suspendTransaction { fixture.sut.create(fixture.buildRequest()) }
+
+        whenn()
+        suspendTransaction { fixture.sut.cancelAll(listOf(cancelled.id), "User deleted their account") }
+
+        then()
+        val found = suspendTransaction { fixture.sut.get(cancelled.id) }
+        assertEquals(AppointmentStatus.CANCELLED, found.status)
+        assertEquals("User deleted their account", found.cancellationReason)
+        assertEquals(AppointmentStatus.SCHEDULED, suspendTransaction { fixture.sut.get(kept.id) }.status)
     }
 
     @Test
@@ -1387,7 +1363,7 @@ internal class AppointmentDataSourceImplTest {
         }
 
         whenn()
-        suspendTransaction { fixture.sut.reassignClient(fixture.businessId, fromClientId, toClientId) }
+        suspendTransaction { fixture.sut.reassignClients(fixture.businessId, listOf(fromClientId), toClientId) }
 
         then()
         assertEquals(toClientId, suspendTransaction { fixture.sut.get(merged.id) }.client.id)
@@ -1396,7 +1372,7 @@ internal class AppointmentDataSourceImplTest {
     }
 
     @Test
-    fun `should cancel the deleted client's scheduled appointments that start after the given time`() = runUnitTest {
+    fun `should find the deleted client's scheduled appointments that start after the given time`() = runUnitTest {
         given()
         val fixture = SutFixture()
         fixture.setup()
@@ -1404,24 +1380,16 @@ internal class AppointmentDataSourceImplTest {
         val upcoming = suspendTransaction { fixture.sut.create(fixture.buildRequest(date = now + 24.hours)) }
 
         whenn()
-        val cancelled = suspendTransaction {
-            fixture.sut.cancelUpcomingForClient(
-                fixture.businessId,
-                upcoming.client.id,
-                now,
-                "Client was removed by the business",
-            )
+        val found = suspendTransaction {
+            fixture.sut.getUpcomingIdsOfClientForUpdate(fixture.businessId, upcoming.client.id, now)
         }
-        val found = suspendTransaction { fixture.sut.get(upcoming.id) }
 
         then()
-        assertEquals(AppointmentStatus.CANCELLED, found.status)
-        assertEquals("Client was removed by the business", found.cancellationReason)
-        assertEquals(listOf(found), cancelled)
+        assertEquals(listOf(upcoming.id), found)
     }
 
     @Test
-    fun `should keep the deleted client's appointments that started before the given time`() = runUnitTest {
+    fun `should not find the deleted client's appointments that started before the given time`() = runUnitTest {
         given()
         val fixture = SutFixture()
         fixture.setup()
@@ -1429,23 +1397,16 @@ internal class AppointmentDataSourceImplTest {
         val past = suspendTransaction { fixture.sut.create(fixture.buildRequest(date = now - 24.hours)) }
 
         whenn()
-        val cancelled = suspendTransaction {
-            fixture.sut.cancelUpcomingForClient(
-                fixture.businessId,
-                past.client.id,
-                now,
-                "Client was removed by the business",
-            )
+        val found = suspendTransaction {
+            fixture.sut.getUpcomingIdsOfClientForUpdate(fixture.businessId, past.client.id, now)
         }
-        val found = suspendTransaction { fixture.sut.get(past.id) }
 
         then()
-        assertEquals(AppointmentStatus.SCHEDULED, found.status)
-        assertTrue(cancelled.isEmpty())
+        assertTrue(found.isEmpty())
     }
 
     @Test
-    fun `should keep the deleted client's upcoming appointments that are no longer scheduled`() = runUnitTest {
+    fun `should not find the deleted client's upcoming appointments that are no longer scheduled`() = runUnitTest {
         given()
         val fixture = SutFixture()
         fixture.setup()
@@ -1454,31 +1415,24 @@ internal class AppointmentDataSourceImplTest {
         suspendTransaction { fixture.sut.cancel(created.id, "Business closed") }
 
         whenn()
-        val cancelled = suspendTransaction {
-            fixture.sut.cancelUpcomingForClient(
-                fixture.businessId,
-                created.client.id,
-                now,
-                "Client was removed by the business",
-            )
+        val found = suspendTransaction {
+            fixture.sut.getUpcomingIdsOfClientForUpdate(fixture.businessId, created.client.id, now)
         }
-        val found = suspendTransaction { fixture.sut.get(created.id) }
 
         then()
-        assertEquals("Business closed", found.cancellationReason)
-        assertTrue(cancelled.isEmpty())
+        assertTrue(found.isEmpty())
     }
 
     @Test
-    fun `should not cancel upcoming appointments of other clients or of another business`() = runUnitTest {
+    fun `should not find upcoming appointments of other clients or of another business`() = runUnitTest {
         given()
         val fixture = SutFixture()
         fixture.setup()
         val now = Clock.System.now()
         val deleted = suspendTransaction { fixture.sut.create(fixture.buildRequest(date = now + 24.hours)) }
-        val otherClient = suspendTransaction { fixture.sut.create(fixture.buildRequest(date = now + 48.hours)) }
+        suspendTransaction { fixture.sut.create(fixture.buildRequest(date = now + 48.hours)) }
         val otherBusinessId = fixture.attachBusiness(automaticCompletion = true)
-        val otherBusiness = suspendTransaction {
+        suspendTransaction {
             fixture.sut.create(
                 fixture.buildRequest(date = now + 24.hours)
                     .let { it.copy(businessId = otherBusinessId, client = it.client.copy(id = deleted.client.id)) },
@@ -1486,18 +1440,45 @@ internal class AppointmentDataSourceImplTest {
         }
 
         whenn()
-        suspendTransaction {
-            fixture.sut.cancelUpcomingForClient(
-                fixture.businessId,
-                deleted.client.id,
-                now,
-                "Client was removed by the business",
-            )
+        val found = suspendTransaction {
+            fixture.sut.getUpcomingIdsOfClientForUpdate(fixture.businessId, deleted.client.id, now)
         }
 
         then()
-        assertEquals(AppointmentStatus.SCHEDULED, suspendTransaction { fixture.sut.get(otherClient.id) }.status)
-        assertEquals(AppointmentStatus.SCHEDULED, suspendTransaction { fixture.sut.get(otherBusiness.id) }.status)
+        assertEquals(listOf(deleted.id), found)
+    }
+
+    @Test
+    fun `should load nothing for no appointment ids`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        suspendTransaction { fixture.sut.create(fixture.buildRequest()) }
+
+        whenn()
+        val found = suspendTransaction { fixture.sut.getAllByIds(emptyList()) }
+
+        then()
+        assertTrue(found.isEmpty())
+    }
+
+    @Test
+    fun `should move appointments of every merged client in the business to the remaining client`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val toClientId = Uuid.random()
+        val first = suspendTransaction { fixture.sut.create(fixture.buildRequest()) }
+        val second = suspendTransaction { fixture.sut.create(fixture.buildRequest()) }
+
+        whenn()
+        suspendTransaction {
+            fixture.sut.reassignClients(fixture.businessId, listOf(first.client.id, second.client.id), toClientId)
+        }
+
+        then()
+        assertEquals(toClientId, suspendTransaction { fixture.sut.get(first.id) }.client.id)
+        assertEquals(toClientId, suspendTransaction { fixture.sut.get(second.id) }.client.id)
     }
 
     @Test

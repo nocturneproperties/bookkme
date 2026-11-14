@@ -22,6 +22,7 @@ import io.mockk.coVerifyOrder
 import io.mockk.mockk
 import library.actionconfirmation.ActionConfirmationGrant
 import library.actionconfirmation.test.ActionConfirmationTestTokens
+import library.encryption.test.ShredRecordingSubjectKeys
 import library.export.DataExports
 import library.permissions.ResourcePermission
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -46,6 +47,7 @@ internal class DeleteClientImplTest {
         val sentInTransaction = mutableListOf<Boolean>()
         val confirmationTokens = ActionConfirmationTestTokens()
         val tokenSpentWhenLocking = mutableListOf<Boolean>()
+        val subjectKeys = ShredRecordingSubjectKeys(transactionManager::isInTransaction)
         val sut = DeleteClientImpl(
             transactionManager,
             clientDataSource,
@@ -55,6 +57,7 @@ internal class DeleteClientImplTest {
             confirmationTokens.gate,
             erasedClientDataSource,
             dataExports,
+            subjectKeys,
         )
 
         init {
@@ -159,6 +162,32 @@ internal class DeleteClientImplTest {
 
         then()
         coVerify(exactly = 0) { fixture.dataExports.discard(any()) }
+    }
+
+    @Test
+    fun `should shred the client's key inside the transaction`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val id = fixture.stored(Client.Detached.stub())
+
+        whenn()
+        fixture.sut(fixture.requestUserId, fixture.businessId, id, fixture.tokenFor(id))
+
+        then()
+        assertEquals(setOf(id), fixture.subjectKeys.shreddedInTransaction)
+    }
+
+    @Test
+    fun `should shred no key when the client does not exist`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val id = fixture.stored(null)
+
+        whenn()
+        fixture.sut(fixture.requestUserId, fixture.businessId, id, fixture.tokenFor(id))
+
+        then()
+        assertEquals(emptySet<Uuid>(), fixture.subjectKeys.shredded)
     }
 
     @Test

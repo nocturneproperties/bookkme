@@ -31,6 +31,7 @@ Changes since `monolith/0.17.0`. Sign-up verifies the email with a code before t
 - `AppointmentEvent.RequestApproved`, `RequestRejected` and `Cancelled` no longer carry `clientName` (2) and `employeeName` (4); `RequestCreated` drops `employeeName` (4) and gains `clientId` (13); `clientUserId` (1) of `RequestCreated`, `RequestApproved` and `RequestRejected` is never null.
 - `AppointmentRequest.client.userId` (5) is always set to the client's own account.
 - `UserEvent.Updated`, `AppointmentEvent.RequestCreated` and `BusinessEvent.EmployeeInvitationRedeemed` are now stored encrypted under their person's key in `outbox_event` and `exhausted_event`; an event whose person was erased before delivery or replay is dropped.
+- Every erasure (account deletion, client deletion and retention, client merges, a dropped business) now also shreds the erased people's keys in each service, so their encrypted events and exports can no longer be read.
 - New counter `personal_data_key_missing_total{topic}` counts events dropped because a person's key is missing (a key lost in a restore, never an erasure); it should stay at zero.
 
 ### Upgrade

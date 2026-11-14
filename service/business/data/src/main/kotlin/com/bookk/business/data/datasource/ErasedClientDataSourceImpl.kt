@@ -7,6 +7,7 @@ import com.bookk.core.data.DataSource
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.less
+import org.jetbrains.exposed.v1.jdbc.batchInsert
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.insertIgnore
 import org.jetbrains.exposed.v1.jdbc.select
@@ -22,6 +23,18 @@ internal class ErasedClientDataSourceImpl : DataSource(), ErasedClientDataSource
             it[this.clientId] = clientId
             it[this.businessId] = businessId
             it[erasedAt] = Clock.System.now()
+        }
+    }
+
+    override suspend fun recordAll(businessId: Uuid, clientIds: Collection<Uuid>) {
+        if (clientIds.isEmpty()) return
+        val erasedAt = Clock.System.now()
+        dbQuery {
+            ErasedClientTable.batchInsert(clientIds, ignore = true, shouldReturnGeneratedValues = false) { clientId ->
+                this[ErasedClientTable.clientId] = clientId
+                this[ErasedClientTable.businessId] = businessId
+                this[ErasedClientTable.erasedAt] = erasedAt
+            }
         }
     }
 

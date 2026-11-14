@@ -1,9 +1,19 @@
 package com.bookk.appointments.data.datasource
 
 import com.bookk.appointments.data.orm.table.AppointmentBusinessTable
+import com.bookk.appointments.data.orm.table.AppointmentRequestServicesTable
+import com.bookk.appointments.data.orm.table.AppointmentRequestTable
+import com.bookk.appointments.data.orm.table.AppointmentServicesTable
+import com.bookk.appointments.data.orm.table.AppointmentTable
 import com.bookk.appointments.data.orm.table.DayOffsTable
+import com.bookk.appointments.data.orm.table.PriceAdjustmentServicesTable
+import com.bookk.appointments.data.orm.table.PriceAdjustmentTable
+import com.bookk.appointments.data.orm.table.SettingsTable
 import com.bookk.appointments.data.orm.table.WorkingHoursTable
+import com.bookk.appointments.domain.api.entity.AppointmentRequest
+import com.bookk.appointments.domain.api.entity.AppointmentSettings
 import com.bookk.appointments.domain.api.entity.BusinessSnapshot
+import com.bookk.core.data.cache.test.InMemoryCacheClient
 import com.bookk.core.data.test.createTestDatabase
 import com.bookk.core.test.given
 import com.bookk.core.test.runUnitTest
@@ -29,8 +39,32 @@ import kotlin.uuid.Uuid
 internal class AppointmentSubscriptionDataSourceImplTest {
 
     private class SutFixture {
-        val db = createTestDatabase(AppointmentBusinessTable, WorkingHoursTable, DayOffsTable)
+        val db = createTestDatabase(
+            AppointmentBusinessTable,
+            WorkingHoursTable,
+            DayOffsTable,
+            SettingsTable,
+            AppointmentTable,
+            AppointmentServicesTable,
+            PriceAdjustmentTable,
+            PriceAdjustmentServicesTable,
+            AppointmentRequestTable,
+            AppointmentRequestServicesTable,
+        )
         val sut = AppointmentSubscriptionDataSourceImpl()
+        val appointmentSut = AppointmentDataSourceImpl()
+        val requestSut = AppointmentRequestDataSourceImpl(InMemoryCacheClient())
+        val settingsSut = AppointmentSettingsDataSourceImpl()
+
+        suspend fun attachWithClients(snapshot: BusinessSnapshot): Set<Uuid> {
+            return suspendTransaction {
+                sut.attachBusiness(snapshot)
+                settingsSut.create(AppointmentSettings.stub(snapshot.id))
+                val appointment = appointmentSut.create(AppointmentRequest.stub(businessId = snapshot.id))
+                val request = requestSut.create(AppointmentRequest.stub(businessId = snapshot.id))
+                setOf(appointment.client.id, request.client.id)
+            }
+        }
     }
 
     private fun saturdaySchedule(dayOffs: List<DayOffRange> = emptyList()) = Schedule(
@@ -186,18 +220,49 @@ internal class AppointmentSubscriptionDataSourceImplTest {
     }
 
     @Test
-    fun `should detach business`() = runUnitTest {
+    fun `should give the ids of the owner's businesses only`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        val snapshot = BusinessSnapshot.stub()
-        suspendTransaction { fixture.sut.attachBusiness(snapshot) }
+        val ownerUserId = Uuid.random()
+        val first = BusinessSnapshot.stub(ownerUserId = ownerUserId)
+        val second = BusinessSnapshot.stub(ownerUserId = ownerUserId)
+        suspendTransaction { listOf(first, second, BusinessSnapshot.stub()).forEach { fixture.sut.attachBusiness(it) } }
 
         whenn()
-        suspendTransaction { fixture.sut.detachBusiness(snapshot.id) }
-        val found = suspendTransaction { fixture.sut.getBusinessSnapshot(snapshot.id) }
+        val found = suspendTransaction { fixture.sut.getBusinessIdsOwnedByForUpdate(ownerUserId) }
 
         then()
-        assertNull(found)
+        assertEquals(setOf(first.id, second.id), found.toSet())
+    }
+
+    @Test
+    fun `should give the client ids of the given businesses' appointments and requests only`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val first = BusinessSnapshot.stub()
+        val second = BusinessSnapshot.stub()
+        val firstClientIds = fixture.attachWithClients(first)
+        val secondClientIds = fixture.attachWithClients(second)
+        fixture.attachWithClients(BusinessSnapshot.stub())
+
+        whenn()
+        val found = suspendTransaction { fixture.sut.getClientIdsForUpdate(listOf(first.id, second.id)) }
+
+        then()
+        assertEquals(firstClientIds + secondClientIds, found)
+    }
+
+    @Test
+    fun `should give no client ids for no businesses`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.attachWithClients(BusinessSnapshot.stub())
+
+        whenn()
+        val found = suspendTransaction { fixture.sut.getClientIdsForUpdate(emptyList()) }
+
+        then()
+        assertTrue(found.isEmpty())
     }
 
     @Test
@@ -233,7 +298,7 @@ internal class AppointmentSubscriptionDataSourceImplTest {
     }
 
     @Test
-    fun `should detach every business of the owner and keep other owners' businesses`() = runUnitTest {
+    fun `should detach the given businesses and keep the others`() = runUnitTest {
         given()
         val fixture = SutFixture()
         val ownerUserId = Uuid.random()
@@ -243,7 +308,7 @@ internal class AppointmentSubscriptionDataSourceImplTest {
         suspendTransaction { listOf(first, second, other).forEach { fixture.sut.attachBusiness(it) } }
 
         whenn()
-        suspendTransaction { fixture.sut.detachBusinessesOwnedBy(ownerUserId) }
+        suspendTransaction { fixture.sut.detachBusinesses(listOf(first.id, second.id)) }
 
         then()
         assertNull(suspendTransaction { fixture.sut.getBusinessSnapshot(first.id) })

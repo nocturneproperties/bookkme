@@ -14,10 +14,12 @@ dependencies {
     implementation(projects.library.permissions)
     implementation(projects.library.money)
     implementation(projects.library.signing.api)
+    implementation(projects.library.encryption.api)
     testImplementation(testFixtures(projects.core))
     testImplementation(projects.core.data.eventstreaming.impl)
     testImplementation(testFixtures(projects.core.data.eventstreaming.impl))
     testImplementation(testFixtures(projects.core.domain.datasource))
+    testImplementation(testFixtures(projects.library.encryption.api))
     testImplementation(libs.joda.money)
     testImplementation(libs.kotlin.coroutines.test)
 }

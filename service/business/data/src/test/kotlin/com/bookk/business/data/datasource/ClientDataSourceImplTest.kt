@@ -578,7 +578,7 @@ internal class ClientDataSourceImplTest {
     }
 
     @Test
-    fun `should delete every client row of the deleted user`() = runUnitTest {
+    fun `should give the client rows of the user in every business`() = runUnitTest {
         given()
         val fixture = SutFixture()
         fixture.setup()
@@ -594,25 +594,22 @@ internal class ClientDataSourceImplTest {
         }
 
         whenn()
-        val erased = suspendTransaction { fixture.sut.deleteClientsByUserId(userId) }
+        val found = suspendTransaction { fixture.sut.getClientsOfUserForUpdate(userId) }
 
         then()
-        assertTrue(suspendTransaction { fixture.sut.getClients(fixture.businessId) }.isEmpty())
-        assertTrue(suspendTransaction { fixture.sut.getClients(otherBusinessId) }.isEmpty())
         assertEquals(
             setOf(ErasedClient(fixture.businessId, first.id), ErasedClient(otherBusinessId, second.id)),
-            erased.toSet(),
+            found.toSet(),
         )
     }
 
     @Test
-    fun `should keep the clients of other users and detached clients when deleting a user's clients`() = runUnitTest {
+    fun `should give no client rows of other users or of detached clients`() = runUnitTest {
         given()
         val fixture = SutFixture()
         fixture.setup()
-        val otherUser =
-            suspendTransaction { fixture.sut.getOrCreateIntegratedClient(fixture.businessId, Client.Integrated.stub()) }
-        val detached = suspendTransaction {
+        suspendTransaction { fixture.sut.getOrCreateIntegratedClient(fixture.businessId, Client.Integrated.stub()) }
+        suspendTransaction {
             fixture.sut.createDetachedClient(
                 fixture.businessId,
                 Client.Detached.stub(phone = "+10000000001", email = "detached@client.com"),
@@ -620,12 +617,52 @@ internal class ClientDataSourceImplTest {
         }
 
         whenn()
-        val erased = suspendTransaction { fixture.sut.deleteClientsByUserId(Uuid.random()) }
+        val found = suspendTransaction { fixture.sut.getClientsOfUserForUpdate(Uuid.random()) }
 
         then()
-        assertTrue(erased.isEmpty())
-        val remaining = suspendTransaction { fixture.sut.getClients(fixture.businessId) }.map { it.id }.toSet()
-        assertEquals(setOf(otherUser.id, detached.id), remaining)
+        assertTrue(found.isEmpty())
+    }
+
+    @Test
+    fun `should give the client ids of the given businesses only`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val otherBusinessId = suspendTransaction {
+            fixture.businessSut.createBusiness(Uuid.random(), "Other Business", "USD", TimeZone.UTC)
+        }.id
+        val own = suspendTransaction {
+            fixture.sut.createDetachedClient(fixture.businessId, Client.Detached.stub(email = "a@test.com"))
+        }
+        suspendTransaction {
+            fixture.sut.createDetachedClient(otherBusinessId, Client.Detached.stub(email = "b@test.com"))
+        }
+
+        whenn()
+        val found = suspendTransaction { fixture.sut.getClientIdsOfBusinessesForUpdate(listOf(fixture.businessId)) }
+
+        then()
+        assertEquals(setOf(own.id), found)
+    }
+
+    @Test
+    fun `should delete the given clients and keep the others`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val deleted = suspendTransaction {
+            fixture.sut.createDetachedClient(fixture.businessId, Client.Detached.stub(email = "a@test.com"))
+        }
+        val kept = suspendTransaction {
+            fixture.sut.createDetachedClient(fixture.businessId, Client.Detached.stub(email = "b@test.com"))
+        }
+
+        whenn()
+        suspendTransaction { fixture.sut.deleteClients(listOf(deleted.id)) }
+
+        then()
+        assertNull(suspendTransaction { fixture.sut.getClientById(fixture.businessId, deleted.id) })
+        assertNotNull(suspendTransaction { fixture.sut.getClientById(fixture.businessId, kept.id) })
     }
 
     @Test
@@ -1371,7 +1408,7 @@ internal class ClientDataSourceImplTest {
     }
 
     @Test
-    fun `should delete and return the business's clients inactive since the cutoff`() = runUnitTest {
+    fun `should give the business's clients inactive since the cutoff`() = runUnitTest {
         given()
         val fixture = SutFixture()
         fixture.setup()
@@ -1393,7 +1430,7 @@ internal class ClientDataSourceImplTest {
 
         whenn()
         val deleted = suspendTransaction {
-            fixture.sut.deleteInactiveClients(
+            fixture.sut.getInactiveClientIdsForUpdate(
                 fixture.businessId,
                 inactiveSince =
                 Clock.System.now() - 1.days,
@@ -1402,8 +1439,6 @@ internal class ClientDataSourceImplTest {
 
         then()
         assertEquals(listOf(inactive.id), deleted)
-        assertNull(suspendTransaction { fixture.sut.getClientById(fixture.businessId, inactive.id) })
-        assertNotNull(suspendTransaction { fixture.sut.getClientById(fixture.businessId, active.id) })
     }
 
     @Test
@@ -1418,7 +1453,7 @@ internal class ClientDataSourceImplTest {
 
         whenn()
         val deleted = suspendTransaction {
-            fixture.sut.deleteInactiveClients(
+            fixture.sut.getInactiveClientIdsForUpdate(
                 fixture.businessId,
                 inactiveSince =
                 Clock.System.now() + 1.days,
@@ -1454,7 +1489,7 @@ internal class ClientDataSourceImplTest {
 
         whenn()
         val deleted = suspendTransaction {
-            fixture.sut.deleteInactiveClients(
+            fixture.sut.getInactiveClientIdsForUpdate(
                 fixture.businessId,
                 inactiveSince =
                 Clock.System.now() - 1.days,
@@ -1463,11 +1498,10 @@ internal class ClientDataSourceImplTest {
 
         then()
         assertEquals(listOf(inactive.id), deleted)
-        assertNotNull(suspendTransaction { fixture.sut.getClientById(fixture.businessId, held.id) })
     }
 
     @Test
-    fun `should not delete inactive clients of another business`() = runUnitTest {
+    fun `should not give inactive clients of another business`() = runUnitTest {
         given()
         val fixture = SutFixture()
         fixture.setup()
@@ -1477,10 +1511,11 @@ internal class ClientDataSourceImplTest {
 
         whenn()
         val deleted =
-            suspendTransaction { fixture.sut.deleteInactiveClients(Uuid.random(), inactiveSince = Clock.System.now()) }
+            suspendTransaction {
+                fixture.sut.getInactiveClientIdsForUpdate(Uuid.random(), inactiveSince = Clock.System.now())
+            }
 
         then()
         assertTrue(deleted.isEmpty())
-        assertNotNull(suspendTransaction { fixture.sut.getClientById(fixture.businessId, created.id) })
     }
 }

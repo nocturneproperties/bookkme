@@ -15,6 +15,7 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.coVerifyOrder
 import io.mockk.mockk
+import library.encryption.test.ShredRecordingSubjectKeys
 import library.export.DataExports
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertSame
@@ -33,12 +34,14 @@ internal class ReapplyClientErasuresImplTest {
         val sentEvents = mutableListOf<BusinessEvent.ClientDeleted>()
         val sentInTransaction = mutableListOf<Boolean>()
         val discardedInTransaction = mutableMapOf<Uuid, Boolean>()
+        val subjectKeys = ShredRecordingSubjectKeys(transactionManager::isInTransaction)
         val sut = ReapplyClientErasuresImpl(
             erasedClientDataSource,
             clientDataSource,
             eventProducer,
             transactionManager,
             dataExports,
+            subjectKeys,
         )
 
         init {
@@ -112,6 +115,22 @@ internal class ReapplyClientErasuresImplTest {
     }
 
     @Test
+    fun `should shred the erased client's key inside the transaction even when the row is already gone`() =
+        runUnitTest {
+            given()
+            val fixture = SutFixture()
+            val client = ErasedClient.stub()
+            fixture.requested(client)
+            coEvery { fixture.clientDataSource.deleteClient(client.businessId, client.clientId) } returns false
+
+            whenn()
+            fixture.sut()
+
+            then()
+            assertEquals(setOf(client.clientId), fixture.subjectKeys.shreddedInTransaction)
+        }
+
+    @Test
     fun `should leave an erasure alone when another instance already claimed it`() = runUnitTest {
         given()
         val fixture = SutFixture()
@@ -127,6 +146,7 @@ internal class ReapplyClientErasuresImplTest {
         coVerify(exactly = 0) { fixture.clientDataSource.deleteClient(any(), any()) }
         coVerify(exactly = 0) { fixture.dataExports.discard(any()) }
         assertEquals(emptyList<BusinessEvent.ClientDeleted>(), fixture.sentEvents)
+        assertEquals(emptySet<Uuid>(), fixture.subjectKeys.shredded)
     }
 
     @Test

@@ -17,6 +17,7 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.coVerifyOrder
 import io.mockk.mockk
+import library.encryption.test.ShredRecordingSubjectKeys
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -30,8 +31,15 @@ internal class FillBusinessOwnersImplTest {
         val businessClient = mockk<BusinessClient>()
         val transactionManager = mockk<TransactionManager>()
         val writesInTransaction = mutableListOf<Boolean>()
-        val sut =
-            FillBusinessOwnersImpl(subscriptionDataSource, deletedUserDataSource, businessClient, transactionManager)
+        val subjectKeys = ShredRecordingSubjectKeys(transactionManager::isInTransaction)
+        val clientIdsOf = mutableMapOf<Uuid, Set<Uuid>>()
+        val sut = FillBusinessOwnersImpl(
+            subscriptionDataSource,
+            deletedUserDataSource,
+            businessClient,
+            subjectKeys,
+            transactionManager,
+        )
 
         init {
             transactionManager.mockTransaction()
@@ -39,7 +47,10 @@ internal class FillBusinessOwnersImplTest {
             coEvery { subscriptionDataSource.fillMissingOwner(any(), any()) } coAnswers {
                 writesInTransaction += transactionManager.isInTransaction()
             }
-            coEvery { subscriptionDataSource.detachBusiness(any()) } coAnswers {
+            coEvery { subscriptionDataSource.getClientIdsForUpdate(any()) } coAnswers {
+                firstArg<Collection<Uuid>>().flatMap { clientIdsOf[it].orEmpty() }.toSet()
+            }
+            coEvery { subscriptionDataSource.detachBusinesses(any()) } coAnswers {
                 writesInTransaction += transactionManager.isInTransaction()
             }
         }
@@ -110,7 +121,7 @@ internal class FillBusinessOwnersImplTest {
 
         then()
         assertTrue(result.isSuccess)
-        coVerify(exactly = 1) { fixture.subscriptionDataSource.detachBusiness(businessId) }
+        coVerify(exactly = 1) { fixture.subscriptionDataSource.detachBusinesses(listOf(businessId)) }
         coVerify(exactly = 0) { fixture.subscriptionDataSource.fillMissingOwner(any(), any()) }
     }
 
@@ -135,10 +146,67 @@ internal class FillBusinessOwnersImplTest {
 
         then()
         assertTrue(result.isSuccess)
-        coVerify(exactly = 1) { fixture.subscriptionDataSource.detachBusiness(inProcess) }
-        coVerify(exactly = 1) { fixture.subscriptionDataSource.detachBusiness(overHttp) }
-        coVerify(exactly = 1) { fixture.subscriptionDataSource.detachBusiness(withoutBody) }
+        coVerify(exactly = 1) { fixture.subscriptionDataSource.detachBusinesses(listOf(inProcess)) }
+        coVerify(exactly = 1) { fixture.subscriptionDataSource.detachBusinesses(listOf(overHttp)) }
+        coVerify(exactly = 1) { fixture.subscriptionDataSource.detachBusinesses(listOf(withoutBody)) }
     }
+
+    @Test
+    fun `should select the clients of a dropped business before detaching it`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val businessId = Uuid.random()
+        fixture.missing(businessId)
+        coEvery { fixture.businessClient.getBusinessById(businessId) } returns Result.failure(Error.NotFound())
+
+        whenn()
+        val result = fixture.sut()
+
+        then()
+        assertTrue(result.isSuccess)
+        coVerifyOrder {
+            fixture.subscriptionDataSource.getClientIdsForUpdate(listOf(businessId))
+            fixture.subscriptionDataSource.detachBusinesses(listOf(businessId))
+        }
+    }
+
+    @Test
+    fun `should shred the clients' keys of a business dropped for its deleted owner in the transaction`() =
+        runUnitTest {
+            given()
+            val fixture = SutFixture()
+            val businessId = Uuid.random()
+            val ownerUserId = Uuid.random()
+            val clientIds = setOf(Uuid.random(), Uuid.random())
+            fixture.missing(businessId)
+            fixture.ownedBy(businessId, ownerUserId)
+            fixture.clientIdsOf[businessId] = clientIds
+            coEvery { fixture.deletedUserDataSource.isDeletedForShare(ownerUserId) } returns true
+
+            whenn()
+            fixture.sut()
+
+            then()
+            assertEquals(clientIds, fixture.subjectKeys.shreddedInTransaction)
+        }
+
+    @Test
+    fun `should shred the clients' keys of a business the business service no longer has in the transaction`() =
+        runUnitTest {
+            given()
+            val fixture = SutFixture()
+            val businessId = Uuid.random()
+            val clientIds = setOf(Uuid.random())
+            fixture.missing(businessId)
+            fixture.clientIdsOf[businessId] = clientIds
+            coEvery { fixture.businessClient.getBusinessById(businessId) } returns Result.failure(Error.NotFound())
+
+            whenn()
+            fixture.sut()
+
+            then()
+            assertEquals(clientIds, fixture.subjectKeys.shreddedInTransaction)
+        }
 
     @Test
     fun `should leave the business alone and fail when the business service sends no owner`() = runUnitTest {
@@ -174,7 +242,7 @@ internal class FillBusinessOwnersImplTest {
         then()
         assertTrue(result.isFailure)
         coVerify(exactly = 1) { fixture.subscriptionDataSource.fillMissingOwner(reachable, ownerUserId) }
-        coVerify(exactly = 0) { fixture.subscriptionDataSource.detachBusiness(unreachable) }
+        coVerify(exactly = 0) { fixture.subscriptionDataSource.detachBusinesses(listOf(unreachable)) }
     }
 
     @Test

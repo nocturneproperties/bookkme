@@ -1,6 +1,6 @@
 # React to business deletion
 
-Kafka topic `BusinessEvent.Deleted` → `AppointmentEventHandler` → `DeleteModule`
+Kafka topic `BusinessEvent.Deleted` → `AppointmentEventHandler` → `DeleteBusinessAppointmentData`
 
 Produced by the business service's reaction to account deletion — see
 [React to user deletion (business)](../business/on-user-deleted.md), which
@@ -21,7 +21,10 @@ removed — a business without an owner is simply no longer bookable).
 flowchart TD
     Start([Consume BusinessEvent.Deleted]) --> Dedup{idempotencyKey already processed?}
     Dedup -- Yes --> Skip([Skip - already handled])
-    Dedup -- No --> Detach[AppointmentSubscriptionDataSource.detachBusiness businessId]
+    Dedup -- No --> Select["AppointmentSubscriptionDataSource.getClientIdsForUpdate businessId - SELECT the client ids of its appointments and requests FOR UPDATE"]
+    Select --> Detach["AppointmentSubscriptionDataSource.detachBusinesses businessId - DELETE it, everything under it by ON DELETE CASCADE"]
+    Detach --> Shred["SubjectKeys.shredAll the selected client ids"]
     Detach -- throws --> Dlt([Sent to BusinessEvent.Deleted_dlt topic, logged - no auto-retry])
-    Detach -- ok --> Ack([Marked processed])
+    Shred -- throws --> Dlt
+    Shred -- ok --> Ack([Marked processed])
 ```

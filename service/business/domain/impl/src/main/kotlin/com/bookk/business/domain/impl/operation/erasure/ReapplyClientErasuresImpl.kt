@@ -11,6 +11,7 @@ import com.bookk.core.domain.datasource.transaction.transactionOrThrow
 import com.bookk.core.domain.entity.runSuspendCatching
 import com.bookk.core.domain.entity.throwIfAnyFailed
 import com.bookk.server.business.client.api.event.BusinessEvent
+import library.encryption.SubjectKeys
 import library.export.DataExports
 
 internal class ReapplyClientErasuresImpl(
@@ -19,6 +20,7 @@ internal class ReapplyClientErasuresImpl(
     private val eventProducer: StandardEventProducer,
     private val transactionManager: TransactionManager,
     private val dataExports: DataExports,
+    private val subjectKeys: SubjectKeys,
 ) : ReapplyClientErasures {
     override suspend fun invoke(): Result<Unit> = runSuspendCatching {
         val requested = transactionManager.transactionOrThrow { erasedClientDataSource.getReapplyRequested() }
@@ -30,5 +32,6 @@ internal class ReapplyClientErasuresImpl(
         clientDataSource.deleteClient(client.businessId, client.clientId)
         dataExports.discard(client.businessId)
         eventProducer.send(BusinessEvent.ClientDeleted(businessId = client.businessId, clientId = client.clientId))
+        subjectKeys.shred(client.clientId)
     }
 }

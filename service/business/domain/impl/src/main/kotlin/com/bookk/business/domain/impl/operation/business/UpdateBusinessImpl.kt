@@ -45,9 +45,7 @@ internal class UpdateBusinessImpl(
             }
         }
         businessUpdateModel.clientDataRetentionMonths?.let { months ->
-            if (months !in
-                Business.CLIENT_DATA_RETENTION_MONTHS_RANGE
-            ) {
+            if (months !in Business.CLIENT_DATA_RETENTION_MONTHS_RANGE) {
                 throw UpdateBusiness.Error.ClientDataRetentionOutOfRange()
             }
         }

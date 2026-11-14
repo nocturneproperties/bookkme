@@ -15,6 +15,7 @@ import com.bookk.server.business.client.api.event.BusinessEvent
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.minus
+import library.encryption.SubjectKeys
 import library.export.DataExports
 import kotlin.time.Clock
 import kotlin.time.Instant
@@ -27,6 +28,7 @@ internal class DeleteInactiveClientsImpl(
     private val transactionManager: TransactionManager,
     private val eventProducer: StandardEventProducer,
     private val dataExports: DataExports,
+    private val subjectKeys: SubjectKeys,
 ) : DeleteInactiveClients {
     override suspend fun invoke(): Result<Unit> = runSuspendCatching {
         val retentionMonthsByBusiness = transactionManager.transactionOrThrow {
@@ -44,11 +46,14 @@ internal class DeleteInactiveClientsImpl(
         businessId: Uuid,
         inactiveSince: Instant,
     ): Result<Unit> = transactionManager.transaction(TransactionIsolation.READ_COMMITTED) {
-        val deletedClientIds = clientDataSource.deleteInactiveClients(businessId, inactiveSince)
-        deletedClientIds.forEach { clientId ->
-            erasedClientDataSource.record(businessId, clientId)
+        val inactiveIds = clientDataSource.getInactiveClientIdsForUpdate(businessId, inactiveSince)
+        if (inactiveIds.isEmpty()) return@transaction
+        clientDataSource.deleteClients(inactiveIds)
+        erasedClientDataSource.recordAll(businessId, inactiveIds)
+        inactiveIds.forEach { clientId ->
             eventProducer.send(BusinessEvent.ClientDeleted(businessId = businessId, clientId = clientId))
         }
-        if (deletedClientIds.isNotEmpty()) dataExports.discard(businessId)
+        dataExports.discard(businessId)
+        subjectKeys.shredAll(inactiveIds)
     }
 }

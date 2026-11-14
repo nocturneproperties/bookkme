@@ -49,23 +49,13 @@ internal class UpdateAppointmentImpl(
             val reschedules = update.reschedules(locked)
             val reservesSlot = reschedules || locked.status == AppointmentStatus.SCHEDULED
             if (reservesSlot) {
-                if (!settings.isInWorkday(
-                        rescheduled.date,
-                    )
-                ) {
+                if (!settings.isInWorkday(rescheduled.date)) {
                     throw UpdateAppointment.Error.RequestForThisDateNotAllowed()
                 }
-                if (!settings.isInWorktime(
-                        rescheduled.date,
-                        rescheduled.dateEnd,
-                    )
-                ) {
+                if (!settings.isInWorktime(rescheduled.date, rescheduled.dateEnd)) {
                     throw UpdateAppointment.Error.RequestForThisTimeNotAllowed()
                 }
-                if (appointmentDataSource.hasOverlapsWith(
-                        rescheduled,
-                    )
-                ) {
+                if (appointmentDataSource.hasOverlapsWith(rescheduled)) {
                     throw UpdateAppointment.Error.AppointmentForThisTimeExists()
                 }
             }
@@ -85,9 +75,7 @@ internal class UpdateAppointmentImpl(
         appointmentPermissionDataSource.getPermission(userId, appointment.businessId)
             .assertOrSelf(PermissionAction.UPDATE, actorId = userId, assigneeId = appointment.employee.userId)
         appointment.requireEditable()
-        if (update.reschedules(appointment) &&
-            update.date < Clock.System.now()
-        ) {
+        if (update.reschedules(appointment) && update.date < Clock.System.now()) {
             throw UpdateAppointment.Error.DateInThePastNotAllowed()
         }
     }
@@ -123,9 +111,7 @@ internal class UpdateAppointmentImpl(
         employeeId: Uuid?,
         serviceIds: List<Uuid>,
     ): AppointmentRescheduleContext {
-        if (employeeId == null &&
-            serviceIds.isEmpty()
-        ) {
+        if (employeeId == null && serviceIds.isEmpty()) {
             return AppointmentRescheduleContext(employee = null, services = emptyList())
         }
         return businessClient.getAppointmentRescheduleContext(businessId, employeeId, serviceIds).getOrThrow()

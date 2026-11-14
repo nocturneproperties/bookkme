@@ -10,6 +10,7 @@ import com.bookk.user.domain.datasource.UserDataSource
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
+import library.encryption.SubjectKeys
 import library.export.DataExports
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -21,9 +22,11 @@ internal class DeleteUserImplTest {
     private class SutFixture {
         val userDataSource = mockk<UserDataSource>()
         val dataExports = mockk<DataExports>()
+        val subjectKeys = mockk<SubjectKeys>()
         val transactionManager = mockk<TransactionManager>()
-        val sut = DeleteUserImpl(userDataSource, dataExports, transactionManager)
+        val sut = DeleteUserImpl(userDataSource, dataExports, subjectKeys, transactionManager)
         val discardedInTransaction = mutableListOf<Boolean>()
+        val shreddedInTransaction = mutableListOf<Boolean>()
         val userId = Uuid.random()
 
         init {
@@ -31,6 +34,8 @@ internal class DeleteUserImplTest {
             coEvery { userDataSource.deleteUser(userId) } returns Unit
             coEvery { dataExports.discard(userId) } coAnswers
                 { discardedInTransaction += transactionManager.isInTransaction() }
+            coEvery { subjectKeys.shred(userId) } coAnswers
+                { shreddedInTransaction += transactionManager.isInTransaction() }
         }
     }
 
@@ -57,6 +62,18 @@ internal class DeleteUserImplTest {
 
         then()
         assertEquals(listOf(true), fixture.discardedInTransaction)
+    }
+
+    @Test
+    fun `should shred the user's key in the same transaction`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+
+        whenn()
+        fixture.sut.invoke(fixture.userId)
+
+        then()
+        assertEquals(listOf(true), fixture.shreddedInTransaction)
     }
 
     @Test

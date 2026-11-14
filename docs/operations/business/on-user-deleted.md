@@ -21,14 +21,17 @@ flowchart TD
     Start([Consume AuthEvent.UserDeleted]) --> Dedup{idempotencyKey already processed?}
     Dedup -- Yes --> Skip([Skip - already handled])
     Dedup -- No --> DeleteBiz[DeleteBusiness userId]
-    DeleteBiz --> GetBiz[BusinessDataSource.deleteUserBusinesses userId - returns owned business ids]
-    GetBiz --> Loop["DataExports.discardAll owned business ids - one SELECT FOR UPDATE and one DELETE of their data_export rows, SubjectKeys.shredAll their key_ids in one upsert; then per business eventProducer.send BusinessEvent.Deleted businessId"]
+    DeleteBiz --> GetBiz["BusinessDataSource.getUserBusinessIdsForUpdate userId, then ClientDataSource.getClientIdsOfBusinessesForUpdate - SELECT the owned business ids, then their client ids, FOR UPDATE"]
+    GetBiz --> DelBiz["BusinessDataSource.deleteBusinesses owned business ids - one DELETE, clients go by ON DELETE CASCADE"]
+    DelBiz --> Loop["DataExports.discardAll owned business ids - one SELECT FOR UPDATE and one DELETE of their data_export rows, SubjectKeys.shredAll their key_ids in one upsert; then per business eventProducer.send BusinessEvent.Deleted businessId; SubjectKeys.shredAll the selected client ids last"]
     Loop -- consumed by --> Downstream[[See appointments/on-business-deleted.md]]
     Loop -- deleteBusiness throws --> Dlt([Sent to AuthEvent.UserDeleted_dlt topic, logged - no auto-retry])
     Loop --> DeleteData[[DeleteUserBusinessData userId - one transaction]]
-    DeleteData --> DelClients["ClientDataSource.deleteClientsByUserId userId - SELECT business_id, id FOR UPDATE WHERE user_id, then DELETE them, in every business; returns the erased ids"]
-    DelClients --> DelEmployees["EmployeeDataSource.deleteEmployeesByUserId userId - SELECT business_id FOR UPDATE WHERE user_id, then DELETE them; services, working hours, days off and permission grants go by ON DELETE CASCADE; returns the business ids"]
-    DelEmployees --> DiscardExports["DataExports.discardAll distinct business ids of the erased clients and employees - one SELECT FOR UPDATE, one DELETE, SubjectKeys.shredAll in one upsert"]
+    DeleteData --> SelClients["ClientDataSource.getClientsOfUserForUpdate userId and EmployeeDataSource.getBusinessIdsOfUserForUpdate userId - SELECT business_id, id and the employee business ids FOR UPDATE WHERE user_id"]
+    SelClients --> DelClients["ClientDataSource.deleteClients the selected ids - one DELETE, in every business"]
+    DelClients --> DelEmployees["EmployeeDataSource.deleteEmployeesByUserId userId - DELETE; services, working hours, days off and permission grants go by ON DELETE CASCADE"]
+    DelEmployees --> DiscardExports["DataExports.discardAll distinct business ids of the selected clients and employees - one SELECT FOR UPDATE, one DELETE, SubjectKeys.shredAll in one upsert"]
+    DiscardExports --> ShredUser["SubjectKeys.shredAll userId and the selected client ids - last"]
     DelEmployees -- throws --> Dlt
-    DiscardExports -- ok --> Ack([Marked processed])
+    ShredUser -- ok --> Ack([Marked processed])
 ```

@@ -14,6 +14,7 @@ import com.bookk.core.domain.entity.Error
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.greater
+import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.core.less
 import org.jetbrains.exposed.v1.core.or
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
@@ -126,6 +127,14 @@ internal class AppointmentRequestDataSourceImpl(
         }
     }
 
+    override suspend fun getClientIdsOfUserForUpdate(clientUserId: Uuid): Set<Uuid> = dbQuery {
+        AppointmentRequestTable.select(AppointmentRequestTable.clientId)
+            .where { AppointmentRequestTable.clientUserId eq clientUserId }
+            .forUpdate()
+            .map { it[AppointmentRequestTable.clientId] }
+            .toSet()
+    }
+
     override suspend fun deleteForUser(userId: Uuid) = dbQuery<Unit> {
         AppointmentRequestTable.deleteWhere {
             (AppointmentRequestTable.clientUserId eq userId) or (AppointmentRequestTable.employeeUserId eq userId)
@@ -143,12 +152,15 @@ internal class AppointmentRequestDataSourceImpl(
         cacheClient.delete(token)
     }
 
-    override suspend fun reassignClient(businessId: Uuid, fromClientId: Uuid, toClientId: Uuid) = dbQuery<Unit> {
-        AppointmentRequestTable.update(where = {
-            (AppointmentRequestTable.businessId eq businessId) and
-                (AppointmentRequestTable.clientId eq fromClientId)
-        }) {
-            it[clientId] = toClientId
+    override suspend fun reassignClients(businessId: Uuid, fromClientIds: Collection<Uuid>, toClientId: Uuid) {
+        if (fromClientIds.isEmpty()) return
+        dbQuery {
+            AppointmentRequestTable.update(where = {
+                (AppointmentRequestTable.businessId eq businessId) and
+                    (AppointmentRequestTable.clientId inList fromClientIds)
+            }) {
+                it[clientId] = toClientId
+            }
         }
     }
 

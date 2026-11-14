@@ -58,16 +58,17 @@ flowchart TD
     Claim -- claimed --> Tx[[Begin transaction]]
     Tx --> Deleted["DeletedUserDataSource.isDeletedForShare userId - LOCK IN SHARE MODE"]
     Deleted --> ClientDeleted["DeletedClientDataSource.isDeletedForShare businessId clientId - LOCK IN SHARE MODE"]
-    ClientDeleted --> Move["Per merged id - AppointmentDataSource.reassignClient + AppointmentRequestDataSource.reassignClient businessId mergedId clientId"]
+    ClientDeleted --> Move["AppointmentDataSource.reassignClients + AppointmentRequestDataSource.reassignClients businessId mergedIds clientId - one UPDATE per table, none without merged ids"]
     Move --> LinkA["AppointmentDataSource.linkClientUser businessId clientId userId - client_user_id = userId"]
     LinkA --> LinkR["AppointmentRequestDataSource.linkClientUser businessId clientId userId"]
     LinkR --> Was{account already deleted?}
     Was -- No --> WasClient
     Was -- Yes --> Erase["DeleteUserAppointmentData userId - same transaction, see on-user-deleted"]
     Erase --> WasClient{client already deleted?}
-    WasClient -- No --> Processed([markProcessed - kept 1 hour])
+    WasClient -- No --> ShredMerged
     WasClient -- Yes --> EraseClient["DeleteClientAppointmentData businessId clientId - same transaction, see on-client-deleted"]
-    EraseClient --> Processed
+    EraseClient --> ShredMerged["SubjectKeys.shredAll merged ids - last, business deleted those client rows"]
+    ShredMerged --> Processed([markProcessed - kept 1 hour])
     Erase -- throws, rolled back --> Release[Release the claim]
     EraseClient -- throws, rolled back --> Release
     LinkR -- throws, rolled back --> Release

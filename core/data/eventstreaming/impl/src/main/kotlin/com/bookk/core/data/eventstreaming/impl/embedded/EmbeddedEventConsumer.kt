@@ -73,7 +73,7 @@ class EmbeddedEventConsumer(
         val dltEvent = EmbeddedDltEvent(
             originalEvent = event,
             attempt = FIRST_ATTEMPT,
-            topic = dltTopicOf(originalTopic)
+            topic = dltTopicOf(originalTopic),
         )
         topicQueueHolder.publish(dltEvent)
         return true

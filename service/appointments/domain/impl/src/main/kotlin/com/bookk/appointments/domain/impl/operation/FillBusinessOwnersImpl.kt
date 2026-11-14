@@ -11,12 +11,14 @@ import com.bookk.core.domain.entity.Error
 import com.bookk.core.domain.entity.runSuspendCatching
 import com.bookk.core.domain.entity.throwIfAnyFailed
 import com.bookk.server.business.client.api.BusinessClient
+import library.encryption.SubjectKeys
 import kotlin.uuid.Uuid
 
 internal class FillBusinessOwnersImpl(
     private val subscriptionDataSource: AppointmentSubscriptionDataSource,
     private val deletedUserDataSource: DeletedUserDataSource,
     private val businessClient: BusinessClient,
+    private val subjectKeys: SubjectKeys,
     private val transactionManager: TransactionManager,
 ) : FillBusinessOwners {
     override suspend fun invoke(): Result<Unit> = runSuspendCatching {
@@ -32,7 +34,7 @@ internal class FillBusinessOwnersImpl(
             ?: return Result.failure(IllegalStateException("Business $businessId came without its owner"))
         return transactionManager.transaction {
             if (deletedUserDataSource.isDeletedForShare(ownerUserId)) {
-                subscriptionDataSource.detachBusiness(businessId)
+                detachWithClientKeys(businessId)
             } else {
                 subscriptionDataSource.fillMissingOwner(businessId, ownerUserId)
             }
@@ -40,7 +42,14 @@ internal class FillBusinessOwnersImpl(
     }
 
     private suspend fun detach(businessId: Uuid): Result<Unit> = transactionManager.transaction {
-        subscriptionDataSource.detachBusiness(businessId)
+        detachWithClientKeys(businessId)
+    }
+
+    private suspend fun detachWithClientKeys(businessId: Uuid) {
+        val businessIds = listOf(businessId)
+        val clientIds = subscriptionDataSource.getClientIdsForUpdate(businessIds)
+        subscriptionDataSource.detachBusinesses(businessIds)
+        subjectKeys.shredAll(clientIds)
     }
 
     private fun Throwable.isUnknownBusiness(): Boolean {

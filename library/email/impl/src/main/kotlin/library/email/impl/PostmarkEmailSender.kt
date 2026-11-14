@@ -38,9 +38,7 @@ internal class PostmarkEmailSender(
         }
         if (response.status.isSuccess()) return@runSuspendCatching
         val refusal = response.refusal()
-        if (response.status == HttpStatusCode.UnprocessableEntity &&
-            refusal?.errorCode in UNDELIVERABLE_ERROR_CODES
-        ) {
+        if (response.status == HttpStatusCode.UnprocessableEntity && refusal?.errorCode in UNDELIVERABLE_ERROR_CODES) {
             throw EmailSendError.Undeliverable()
         }
         throw IllegalStateException(

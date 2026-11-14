@@ -51,17 +51,13 @@ internal class CompleteAppointmentImpl(
 
     private fun PriceAdjustmentDraft.throwIfInvalid() {
         if (price.isNegative) throw CompleteAppointment.Error.NegativePrice()
-        if (reason.orEmpty().length >
-            PriceAdjustmentDraft.REASON_MAX_LENGTH
-        ) {
+        if (reason.orEmpty().length > PriceAdjustmentDraft.REASON_MAX_LENGTH) {
             throw CompleteAppointment.Error.ReasonTooLong()
         }
     }
 
     private suspend fun resolveAdjustment(appointment: Appointment, draft: PriceAdjustmentDraft): PriceAdjustment {
-        if (draft.price.currencyUnit !=
-            appointment.totalAmount.currencyUnit
-        ) {
+        if (draft.price.currencyUnit != appointment.totalAmount.currencyUnit) {
             throw CompleteAppointment.Error.CurrencyMismatch()
         }
         return PriceAdjustment(
