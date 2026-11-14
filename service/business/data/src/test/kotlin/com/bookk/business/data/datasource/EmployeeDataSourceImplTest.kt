@@ -48,11 +48,20 @@ internal class EmployeeDataSourceImplTest {
 
     private class SutFixture {
         val db = createTestDatabase(
-            BusinessTable, BusinessDashboardTable, BusinessPermissionGrantsTable, BusinessWorkingHoursTable, BusinessDayOffTable,
-            ServiceGroupTable, ServiceTable, EmployeeTable, EmployeeCanProvideServiceTable,
-            EmployeeWorkingHoursTable, EmployeeDayOffTable,
+            BusinessTable,
+            BusinessDashboardTable,
+            BusinessPermissionGrantsTable,
+            BusinessWorkingHoursTable,
+            BusinessDayOffTable,
+            ServiceGroupTable,
+            ServiceTable,
+            EmployeeTable,
+            EmployeeCanProvideServiceTable,
+            EmployeeWorkingHoursTable,
+            EmployeeDayOffTable,
         )
-        val sut = EmployeeDataSourceImpl()
+        val contactCipher = testContactCipher()
+        val sut = EmployeeDataSourceImpl(contactCipher)
         val businessSut = BusinessDataSourceImpl()
         val serviceSut = ServiceDataSourceImpl()
         val permissionSut = BusinessPermissionDataSourceImpl()
@@ -73,11 +82,22 @@ internal class EmployeeDataSourceImplTest {
             }
         }
 
-        suspend fun rowsOf(employeeId: Uuid): Long = suspendTransaction {
-            EmployeeCanProvideServiceTable.selectAll().where { EmployeeCanProvideServiceTable.employeeId eq employeeId }.count() +
-                EmployeeWorkingHoursTable.selectAll().where { EmployeeWorkingHoursTable.employeeId eq employeeId }.count() +
-                EmployeeDayOffTable.selectAll().where { EmployeeDayOffTable.employeeId eq employeeId }.count() +
-                BusinessPermissionGrantsTable.selectAll().where { BusinessPermissionGrantsTable.employeeId eq employeeId }.count()
+        suspend fun rowsOf(employeeId: Uuid): Long {
+            return suspendTransaction {
+                val services = EmployeeCanProvideServiceTable.selectAll()
+                    .where { EmployeeCanProvideServiceTable.employeeId eq employeeId }
+                    .count()
+                val workingHours = EmployeeWorkingHoursTable.selectAll()
+                    .where { EmployeeWorkingHoursTable.employeeId eq employeeId }
+                    .count()
+                val daysOff = EmployeeDayOffTable.selectAll()
+                    .where { EmployeeDayOffTable.employeeId eq employeeId }
+                    .count()
+                val grants = BusinessPermissionGrantsTable.selectAll()
+                    .where { BusinessPermissionGrantsTable.employeeId eq employeeId }
+                    .count()
+                services + workingHours + daysOff + grants
+            }
         }
     }
 
@@ -226,7 +246,14 @@ internal class EmployeeDataSourceImplTest {
 
         whenn()
         val updated = suspendTransaction {
-            fixture.sut.updateIntegratedEmployees(userId, "New", "Surname", "new@test.com", null, Instant.fromEpochMilliseconds(1000))
+            fixture.sut.updateIntegratedEmployees(
+                userId,
+                "New",
+                "Surname",
+                "new@test.com",
+                null,
+                Instant.fromEpochMilliseconds(1000),
+            )
         }
         val found = suspendTransaction { fixture.sut.getEmployee(fixture.businessId, created.id) }
 
@@ -258,7 +285,14 @@ internal class EmployeeDataSourceImplTest {
 
         whenn()
         val updated = suspendTransaction {
-            fixture.sut.updateIntegratedEmployees(Uuid.random(), "New", "Surname", "new@test.com", null, Instant.fromEpochMilliseconds(1000))
+            fixture.sut.updateIntegratedEmployees(
+                Uuid.random(),
+                "New",
+                "Surname",
+                "new@test.com",
+                null,
+                Instant.fromEpochMilliseconds(1000),
+            )
         }
         val found = suspendTransaction { fixture.sut.getEmployee(fixture.businessId, created.id) }
 
@@ -468,11 +502,15 @@ internal class EmployeeDataSourceImplTest {
         val fixture = SutFixture()
         fixture.setup()
         val userId = Uuid.random()
-        suspendTransaction { fixture.sut.createEmployee(Employee.stub(businessId = fixture.businessId, userId = userId)) }
+        suspendTransaction {
+            fixture.sut.createEmployee(Employee.stub(businessId = fixture.businessId, userId = userId))
+        }
 
         whenn()
         val result = runCatching {
-            suspendTransaction { fixture.sut.createEmployee(Employee.stub(businessId = fixture.businessId, userId = userId)) }
+            suspendTransaction {
+                fixture.sut.createEmployee(Employee.stub(businessId = fixture.businessId, userId = userId))
+            }
         }
 
         then()
@@ -488,11 +526,15 @@ internal class EmployeeDataSourceImplTest {
         val otherBusinessId = suspendTransaction {
             fixture.businessSut.createBusiness(Uuid.random(), "Other Business", "USD", TimeZone.UTC)
         }.id
-        suspendTransaction { fixture.sut.createEmployee(Employee.stub(businessId = fixture.businessId, userId = userId)) }
+        suspendTransaction {
+            fixture.sut.createEmployee(Employee.stub(businessId = fixture.businessId, userId = userId))
+        }
 
         whenn()
         val result = runCatching {
-            suspendTransaction { fixture.sut.createEmployee(Employee.stub(businessId = otherBusinessId, userId = userId)) }
+            suspendTransaction {
+                fixture.sut.createEmployee(Employee.stub(businessId = otherBusinessId, userId = userId))
+            }
         }
 
         then()
@@ -554,9 +596,15 @@ internal class EmployeeDataSourceImplTest {
 
         then()
         assertEquals(listOf(DayOfWeek.MONDAY, DayOfWeek.TUESDAY), created.schedule.activeDays())
-        assertEquals(listOf(WorkHour(LocalTime(9, 0), LocalTime(13, 0))), created.schedule.workingHours()[DayOfWeek.MONDAY])
+        assertEquals(
+            listOf(WorkHour(LocalTime(9, 0), LocalTime(13, 0))),
+            created.schedule.workingHours()[DayOfWeek.MONDAY],
+        )
         assertEquals(listOf(DayOfWeek.MONDAY, DayOfWeek.TUESDAY), found!!.schedule.activeDays())
-        assertEquals(listOf(WorkHour(LocalTime(9, 0), LocalTime(13, 0))), found.schedule.workingHours()[DayOfWeek.MONDAY])
+        assertEquals(
+            listOf(WorkHour(LocalTime(9, 0), LocalTime(13, 0))),
+            found.schedule.workingHours()[DayOfWeek.MONDAY],
+        )
     }
 
     @Test
@@ -584,7 +632,13 @@ internal class EmployeeDataSourceImplTest {
         fixture.setup()
         val created = suspendTransaction {
             fixture.sut.createEmployee(
-                Employee.stub(businessId = fixture.businessId, name = "Old", lastName = "Name", phone = "+1000", email = "old@test.com"),
+                Employee.stub(
+                    businessId = fixture.businessId,
+                    name = "Old",
+                    lastName = "Name",
+                    phone = "+1000",
+                    email = "old@test.com",
+                ),
             )
         }
 
@@ -663,7 +717,11 @@ internal class EmployeeDataSourceImplTest {
 
         whenn()
         val result = runCatching {
-            suspendTransaction { fixture.sut.updateEmployee(updateModel(Employee.stub(id = Uuid.random(), businessId = fixture.businessId))) }
+            suspendTransaction {
+                fixture.sut.updateEmployee(
+                    updateModel(Employee.stub(id = Uuid.random(), businessId = fixture.businessId)),
+                )
+            }
         }
 
         then()
@@ -671,7 +729,7 @@ internal class EmployeeDataSourceImplTest {
     }
 
     @Test
-    fun `should delete the deleted user's employee rows together with their services, schedule and grants`() = runUnitTest {
+    fun `should delete the deleted user's employee rows with their services, schedule and grants`() = runUnitTest {
         given()
         val fixture = SutFixture()
         fixture.setup()
@@ -717,11 +775,31 @@ internal class EmployeeDataSourceImplTest {
     }
 
     @Test
+    fun `should give the businesses where the user is an employee only`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val userId = Uuid.random()
+        suspendTransaction {
+            fixture.sut.createEmployee(Employee.stub(businessId = fixture.businessId, userId = userId))
+        }
+        suspendTransaction { fixture.sut.createEmployee(Employee.stub(businessId = fixture.businessId)) }
+
+        whenn()
+        val found = suspendTransaction { fixture.sut.getBusinessIdsOfUserForUpdate(userId) }
+
+        then()
+        assertEquals(listOf(fixture.businessId), found)
+    }
+
+    @Test
     fun `should persist employee permissions on creation`() = runUnitTest {
         given()
         val fixture = SutFixture()
         fixture.setup()
-        val permissions = BusinessPermissions.stub(clients = ResourcePermission(view = true, update = true, delete = false))
+        val permissions = BusinessPermissions.stub(
+            clients = ResourcePermission(view = true, update = true, delete = false),
+        )
 
         whenn()
         val created = suspendTransaction {
@@ -740,11 +818,18 @@ internal class EmployeeDataSourceImplTest {
         val fixture = SutFixture()
         fixture.setup()
         val owner = suspendTransaction {
-            fixture.sut.createEmployee(Employee.stub(businessId = fixture.businessId, permissions = BusinessPermissions.FULL))
+            fixture.sut.createEmployee(
+                Employee.stub(businessId = fixture.businessId, permissions = BusinessPermissions.FULL),
+            )
         }
         val viewer = suspendTransaction {
             fixture.sut.createEmployee(
-                Employee.stub(businessId = fixture.businessId, permissions = BusinessPermissions.stub(services = ResourcePermission(view = true, update = false, delete = false))),
+                Employee.stub(
+                    businessId = fixture.businessId,
+                    permissions = BusinessPermissions.stub(
+                        services = ResourcePermission(view = true, update = false, delete = false),
+                    ),
+                ),
             )
         }
 
@@ -763,9 +848,16 @@ internal class EmployeeDataSourceImplTest {
         val fixture = SutFixture()
         fixture.setup()
         val created = suspendTransaction {
-            fixture.sut.createEmployee(Employee.stub(businessId = fixture.businessId, permissions = BusinessPermissions.FULL))
+            fixture.sut.createEmployee(
+                Employee.stub(businessId = fixture.businessId, permissions = BusinessPermissions.FULL),
+            )
         }
-        suspendTransaction { BusinessPermissionGrantsTable.deleteWhere { BusinessPermissionGrantsTable.employeeId eq created.id } }
+        suspendTransaction {
+            BusinessPermissionGrantsTable.deleteWhere {
+                BusinessPermissionGrantsTable.employeeId eq
+                    created.id
+            }
+        }
 
         whenn()
         val employees = suspendTransaction { fixture.sut.getEmployees(fixture.businessId) }
@@ -789,9 +881,13 @@ internal class EmployeeDataSourceImplTest {
                 Employee.stub(businessId = otherBusinessId, userId = userId, permissions = BusinessPermissions.FULL),
             )
         }
-        val permissions = BusinessPermissions.stub(appointments = ResourcePermission(view = true, update = false, delete = false))
+        val permissions = BusinessPermissions.stub(
+            appointments = ResourcePermission(view = true, update = false, delete = false),
+        )
         val created = suspendTransaction {
-            fixture.sut.createEmployee(Employee.stub(businessId = fixture.businessId, userId = userId, permissions = permissions))
+            fixture.sut.createEmployee(
+                Employee.stub(businessId = fixture.businessId, userId = userId, permissions = permissions),
+            )
         }
 
         whenn()
@@ -811,7 +907,9 @@ internal class EmployeeDataSourceImplTest {
         val fixture = SutFixture()
         fixture.setup()
         val created = suspendTransaction {
-            fixture.sut.createEmployee(Employee.stub(businessId = fixture.businessId, permissions = BusinessPermissions.NONE))
+            fixture.sut.createEmployee(
+                Employee.stub(businessId = fixture.businessId, permissions = BusinessPermissions.NONE),
+            )
         }
         val granted = ResourcePermission(view = true, update = true, delete = false)
 
@@ -830,7 +928,9 @@ internal class EmployeeDataSourceImplTest {
         given()
         val fixture = SutFixture()
         fixture.setup()
-        val permissions = BusinessPermissions.stub(employees = ResourcePermission(view = true, update = false, delete = false))
+        val permissions = BusinessPermissions.stub(
+            employees = ResourcePermission(view = true, update = false, delete = false),
+        )
         val created = suspendTransaction {
             fixture.sut.createEmployee(Employee.stub(businessId = fixture.businessId, permissions = permissions))
         }
@@ -849,7 +949,9 @@ internal class EmployeeDataSourceImplTest {
         val fixture = SutFixture()
         fixture.setup()
         val service = fixture.createService()
-        val permissions = BusinessPermissions.stub(services = ResourcePermission(view = true, update = false, delete = false))
+        val permissions = BusinessPermissions.stub(
+            services = ResourcePermission(view = true, update = false, delete = false),
+        )
         suspendTransaction {
             fixture.sut.createEmployee(
                 Employee.stub(businessId = fixture.businessId, services = listOf(service), permissions = permissions),
@@ -915,11 +1017,16 @@ internal class EmployeeDataSourceImplTest {
         val fixture = SutFixture()
         fixture.setup()
         val created = suspendTransaction {
-            fixture.sut.createEmployee(Employee.stub(businessId = fixture.businessId, permissions = BusinessPermissions.VIEW_ONLY))
+            fixture.sut.createEmployee(
+                Employee.stub(businessId = fixture.businessId, permissions = BusinessPermissions.VIEW_ONLY),
+            )
         }
 
         whenn()
-        val updated = suspendTransaction { fixture.sut.setSuspendedAt(created.id, Instant.fromEpochMilliseconds(1_700_000_000_000)) }
+        val updated =
+            suspendTransaction {
+                fixture.sut.setSuspendedAt(created.id, Instant.fromEpochMilliseconds(1_700_000_000_000))
+            }
 
         then()
         assertEquals(BusinessPermissions.VIEW_ONLY, updated.permissions)
@@ -932,7 +1039,10 @@ internal class EmployeeDataSourceImplTest {
         fixture.setup()
 
         whenn()
-        val result = runCatching { suspendTransaction { fixture.sut.setSuspendedAt(Uuid.random(), Instant.fromEpochMilliseconds(1)) } }
+        val result =
+            runCatching {
+                suspendTransaction { fixture.sut.setSuspendedAt(Uuid.random(), Instant.fromEpochMilliseconds(1)) }
+            }
 
         then()
         assertTrue(result.exceptionOrNull() is Error.NotFound)
@@ -957,7 +1067,8 @@ internal class EmployeeDataSourceImplTest {
         val memberId = Uuid.random()
         val otherOwnerId = Uuid.random()
         val owned = suspendTransaction { fixture.businessSut.createBusiness(ownerId, "Owned", "USD", TimeZone.UTC) }
-        val other = suspendTransaction { fixture.businessSut.createBusiness(otherOwnerId, "Other", "USD", TimeZone.UTC) }
+        val other =
+            suspendTransaction { fixture.businessSut.createBusiness(otherOwnerId, "Other", "USD", TimeZone.UTC) }
         suspendTransaction {
             fixture.sut.createEmployee(Employee.stub(businessId = owned.id, userId = ownerId))
             fixture.sut.createEmployee(Employee.stub(businessId = owned.id, userId = memberId))
@@ -977,7 +1088,9 @@ internal class EmployeeDataSourceImplTest {
         val fixture = SutFixture()
         fixture.setup()
         val employeeUserId = Uuid.random()
-        suspendTransaction { fixture.sut.createEmployee(Employee.stub(businessId = fixture.businessId, userId = employeeUserId)) }
+        suspendTransaction {
+            fixture.sut.createEmployee(Employee.stub(businessId = fixture.businessId, userId = employeeUserId))
+        }
 
         whenn()
         val members = suspendTransaction { fixture.sut.getOwnedBusinessMemberUserIds(employeeUserId) }

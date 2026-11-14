@@ -1,7 +1,7 @@
 package com.bookk.appointments.domain.impl.event
 
+import com.bookk.appointments.domain.api.operation.DeleteBusinessAppointmentData
 import com.bookk.appointments.domain.api.operation.DeleteClientAppointmentData
-import com.bookk.appointments.domain.api.operation.DeleteModule
 import com.bookk.appointments.domain.api.operation.DeleteUserAppointmentData
 import com.bookk.appointments.domain.impl.operation.LinkClientUser
 import com.bookk.appointments.domain.impl.operation.SyncEmployeePermission
@@ -62,7 +62,7 @@ internal class AppointmentEventHandlerEventTest {
     }
 
     private class SutFixture {
-        val deleteModule = mockk<DeleteModule>()
+        val deleteBusinessAppointmentData = mockk<DeleteBusinessAppointmentData>()
         val updateBusinessInformation = mockk<UpdateBusinessInformation>()
         val deleteUserAppointmentData = mockk<DeleteUserAppointmentData>()
         val syncEmployeePermission = mockk<SyncEmployeePermission>()
@@ -80,7 +80,7 @@ internal class AppointmentEventHandlerEventTest {
         )
         val sut = AppointmentEventHandler(
             consumer,
-            deleteModule,
+            deleteBusinessAppointmentData,
             updateBusinessInformation,
             deleteUserAppointmentData,
             syncEmployeePermission,
@@ -97,14 +97,6 @@ internal class AppointmentEventHandlerEventTest {
     private fun producer() = KafkaEventProducer(KafkaTestBroker.servers, "appointment-test", KafkaTestBroker.protoBuf)
 
     private val updatedAt = Instant.fromEpochMilliseconds(1_700_000_000_000)
-
-    private fun businessDto(businessId: Uuid, schedule: Schedule) = BusinessDTO(
-        id = businessId,
-        name = "Salon",
-        address = "1 Main St",
-        timeZone = TimeZone.of("Europe/Kyiv"),
-        schedule = schedule,
-    )
 
     @Test
     fun `should replicate a business schedule published by the business service`() = runIntegrationTest {
@@ -127,7 +119,12 @@ internal class AppointmentEventHandlerEventTest {
         whenn()
         withContext(Dispatchers.IO) {
             fixture.start()
-            producer().send(BusinessEvent.Updated(businessDto(businessId, schedule), updatedAt))
+            producer().send(
+                BusinessEvent.Updated(
+                    BusinessDTO.stub(id = businessId, timeZone = TimeZone.of("Europe/Kyiv"), schedule = schedule),
+                    updatedAt,
+                ),
+            )
             arrived.await(20, TimeUnit.SECONDS)
         }
         fixture.stop()
@@ -159,24 +156,34 @@ internal class AppointmentEventHandlerEventTest {
         whenn()
         withContext(Dispatchers.IO) {
             fixture.start()
-            producer().send(BusinessEvent.Updated(businessDto(businessId, schedule), updatedAt))
+            producer().send(
+                BusinessEvent.Updated(
+                    BusinessDTO.stub(id = businessId, timeZone = TimeZone.of("Europe/Kyiv"), schedule = schedule),
+                    updatedAt,
+                ),
+            )
             arrived.await(20, TimeUnit.SECONDS)
         }
         fixture.stop()
 
         then()
         coVerify(exactly = 1) {
-            fixture.updateBusinessInformation(match { it.id == businessId && it.schedule.dayOffs == dayOffs }, updatedAt)
+            fixture.updateBusinessInformation(
+                match {
+                    it.id == businessId && it.schedule.dayOffs == dayOffs
+                },
+                updatedAt,
+            )
         }
     }
 
     @Test
-    fun `should delete the module when the business is deleted`() = runIntegrationTest {
+    fun `should delete business appointment data when the business is deleted`() = runIntegrationTest {
         given()
         val fixture = SutFixture()
         val businessId = Uuid.random()
         val arrived = CountDownLatch(1)
-        coEvery { fixture.deleteModule(businessId) } answers {
+        coEvery { fixture.deleteBusinessAppointmentData(businessId) } answers {
             arrived.countDown()
             Result.success(Unit)
         }
@@ -190,7 +197,7 @@ internal class AppointmentEventHandlerEventTest {
         fixture.stop()
 
         then()
-        coVerify(exactly = 1) { fixture.deleteModule(businessId) }
+        coVerify(exactly = 1) { fixture.deleteBusinessAppointmentData(businessId) }
     }
 
     @Test
@@ -217,12 +224,14 @@ internal class AppointmentEventHandlerEventTest {
     }
 
     @Test
-    fun `should sync employee permission when the business service publishes a permission change`() = runIntegrationTest {
+    fun `should sync employee permission when the business service publishes a change`() = runIntegrationTest {
         given()
         val fixture = SutFixture()
         val employeeUserId = Uuid.random()
         val businessId = Uuid.random()
-        val permissions = BusinessPermissions.stub(appointments = ResourcePermission(view = true, update = false, delete = false))
+        val permissions = BusinessPermissions.stub(
+            appointments = ResourcePermission(view = true, update = false, delete = false),
+        )
         val arrived = CountDownLatch(1)
         coEvery {
             fixture.syncEmployeePermission(employeeUserId, businessId, permissions.appointments, false)
@@ -240,7 +249,9 @@ internal class AppointmentEventHandlerEventTest {
         fixture.stop()
 
         then()
-        coVerify(exactly = 1) { fixture.syncEmployeePermission(employeeUserId, businessId, permissions.appointments, false) }
+        coVerify(exactly = 1) {
+            fixture.syncEmployeePermission(employeeUserId, businessId, permissions.appointments, false)
+        }
     }
 
     @Test
@@ -261,17 +272,21 @@ internal class AppointmentEventHandlerEventTest {
         whenn()
         withContext(Dispatchers.IO) {
             fixture.start()
-            producer().send(BusinessEvent.EmployeePermissionsChanged(employeeUserId, businessId, permissions, suspended = true))
+            producer().send(
+                BusinessEvent.EmployeePermissionsChanged(employeeUserId, businessId, permissions, suspended = true),
+            )
             arrived.await(20, TimeUnit.SECONDS)
         }
         fixture.stop()
 
         then()
-        coVerify(exactly = 1) { fixture.syncEmployeePermission(employeeUserId, businessId, permissions.appointments, true) }
+        coVerify(exactly = 1) {
+            fixture.syncEmployeePermission(employeeUserId, businessId, permissions.appointments, true)
+        }
     }
 
     @Test
-    fun `should merge and link the client's rows when the business service gives a client an account`() = runIntegrationTest {
+    fun `should merge and link the client's rows when the business service links a client`() = runIntegrationTest {
         given()
         val fixture = SutFixture()
         val businessId = Uuid.random()
@@ -287,7 +302,14 @@ internal class AppointmentEventHandlerEventTest {
         whenn()
         withContext(Dispatchers.IO) {
             fixture.start()
-            producer().send(BusinessEvent.ClientLinked(businessId, clientId = clientId, userId = userId, mergedClientIds = mergedClientIds))
+            producer().send(
+                BusinessEvent.ClientLinked(
+                    businessId,
+                    clientId = clientId,
+                    userId = userId,
+                    mergedClientIds = mergedClientIds,
+                ),
+            )
             arrived.await(20, TimeUnit.SECONDS)
         }
         fixture.stop()

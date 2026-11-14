@@ -7,7 +7,7 @@ dependencies {
     implementation(projects.core.domain.datasource)
     api(projects.core.data)
     implementation(projects.core.data.eventstreaming.api)
-    implementation(projects.core.data.eventstreaming.data)
+    implementation(projects.library.outbox)
     implementation(projects.core.data.cache.api)
     api(projects.service.authorization.domain.api)
     implementation(projects.service.authorization.data.source)

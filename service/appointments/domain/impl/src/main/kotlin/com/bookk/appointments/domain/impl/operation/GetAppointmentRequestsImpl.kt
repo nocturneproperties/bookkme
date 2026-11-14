@@ -10,7 +10,10 @@ internal class GetAppointmentRequestsImpl(
     private val requestsDataSource: AppointmentRequestDataSource,
     private val transactionManager: TransactionManager,
 ) : GetAppointmentRequests {
-    override suspend fun invoke(userId: Uuid, businessId: Uuid): Result<List<AppointmentRequest>> = transactionManager.transaction {
+    override suspend fun invoke(
+        userId: Uuid,
+        businessId: Uuid,
+    ): Result<List<AppointmentRequest>> = transactionManager.transaction {
         requestsDataSource.getPendingByUser(userId, businessId)
     }
 }

@@ -29,7 +29,7 @@ These throw `UnsupportedByDialectException` in H2 even with `MODE=MySQL`. Omit t
 | Operation | Used by | Workaround for reads |
 |---|---|---|
 | `updateReturning` | — | rewrite as `update {}` + a follow-up `selectAll()` read, which H2 supports and makes the method testable (`BusinessDataSourceImpl.updateBusiness` was converted this way) |
-| `deleteReturning` | `BusinessDataSourceImpl.deleteUserBusinesses`, `DeviceDataSourceImpl.deleteInactiveDevices` | — |
+| `deleteReturning` | `DeviceDataSourceImpl.deleteInactiveDevices` | — |
 | `upsertReturning` | `NotificationSettingsDataSourceImpl.upsert(settings)` | insert via DAO entity directly |
 | `upsert(where = …)` | — | split into `insert`/`update` datasource methods and let the operation choose (`NotificationTargetDataSourceImpl` + `UpdateTargetInformation`) |
 

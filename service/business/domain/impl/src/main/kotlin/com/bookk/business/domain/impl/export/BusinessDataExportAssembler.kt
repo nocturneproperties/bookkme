@@ -66,7 +66,14 @@ internal class BusinessDataExportAssembler(
             businessId = ownerId,
             business = own.business.toExport(),
             serviceGroups = own.groups.map { group ->
-                BusinessDataExport.ServiceGroupExport(group.id, group.name, own.services.filter { it.group.id == group.id }.map { it.toExport() })
+                BusinessDataExport.ServiceGroupExport(
+                    group.id,
+                    group.name,
+                    own.services.filter {
+                        it.group.id ==
+                            group.id
+                    }.map { it.toExport() },
+                )
             },
             employees = own.employees.map { it.toExport(own.business.ownerId) },
             pendingInvitations = own.pendingInvitations.map { invitation ->
@@ -84,7 +91,9 @@ internal class BusinessDataExportAssembler(
 
     override suspend fun announceReady(ownerId: Uuid, expiresAt: Instant) {
         val business = businessDataSource.getBusinessById(ownerId) ?: return
-        eventProducer.send(BusinessEvent.ExportReady(businessId = ownerId, ownerUserId = business.ownerId, expiresAt = expiresAt))
+        eventProducer.send(
+            BusinessEvent.ExportReady(businessId = ownerId, ownerUserId = business.ownerId, expiresAt = expiresAt),
+        )
     }
 
     private fun Business.toExport() = BusinessDataExport.ProfileExport(
@@ -95,7 +104,9 @@ internal class BusinessDataExportAssembler(
         longitude = location?.lng,
         currency = currencyCode,
         timeZone = timeZone.id,
-        contacts = socials.mapNotNull { social -> social.value?.takeIf { it.isNotBlank() }?.let { BusinessDataExport.ContactExport(social.kind.name, it) } },
+        contacts = socials.mapNotNull { social ->
+            social.value?.takeIf { it.isNotBlank() }?.let { BusinessDataExport.ContactExport(social.kind.name, it) }
+        },
         workingHours = schedule.workingHoursExport(),
         daysOff = schedule.daysOffExport(),
         clientDataRetentionMonths = clientDataRetentionMonths,

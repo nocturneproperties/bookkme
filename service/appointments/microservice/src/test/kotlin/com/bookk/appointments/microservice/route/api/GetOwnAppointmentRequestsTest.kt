@@ -58,7 +58,7 @@ internal class GetOwnAppointmentRequestsTest {
     }
 
     @Test
-    fun `should return unauthorized when getting own pending appointment requests without authentication`() = routeTest {
+    fun `should return unauthorized for own pending appointment requests without authentication`() = routeTest {
         given()
         val useCase: GetAppointmentRequests = mockk()
 

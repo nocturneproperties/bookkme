@@ -27,7 +27,10 @@ internal class CancelAppointmentImpl(
     private val transactionManager: TransactionManager,
 ) : CancelAppointment {
 
-    override suspend fun invoke(userId: Uuid, cancellation: AppointmentCancellation): Result<Appointment> = transactionManager.transaction {
+    override suspend fun invoke(
+        userId: Uuid,
+        cancellation: AppointmentCancellation,
+    ): Result<Appointment> = transactionManager.transaction {
         val appointment = appointmentDataSource.getForUpdate(cancellation.id)
         appointmentPermissionDataSource.getPermission(userId, appointment.businessId)
             .assertOrSelf(PermissionAction.UPDATE, actorId = userId, assigneeId = appointment.employee.userId)
@@ -45,13 +48,11 @@ internal class CancelAppointmentImpl(
         eventProducer.send(
             AppointmentEvent.Cancelled(
                 clientUserId = appointment.client.userId,
-                clientName = appointment.client.fullName,
                 from = appointment.date,
                 to = appointment.dateEnd,
                 timeZone = business.timeZone,
                 businessName = business.name,
                 employeeUserId = appointment.employee.userId,
-                employeeName = appointment.employee.fullName,
                 address = business.address,
                 price = moneyFormatter.print(appointment.totalAmount),
                 reason = appointment.cancellationReason,

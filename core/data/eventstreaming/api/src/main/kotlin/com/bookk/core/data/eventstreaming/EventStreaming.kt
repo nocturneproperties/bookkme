@@ -18,7 +18,7 @@ interface EventStreaming {
 
         fun start(scope: CoroutineScope): Job
 
-        suspend fun replay(exhausted: DltEvent): Boolean
+        suspend fun replay(parked: ExhaustedEvent): Boolean
     }
 
     interface Producer<K> {

@@ -1,7 +1,9 @@
 package com.bookk.server.business.client.api.event
 
 import com.bookk.business.domain.api.business.entity.BusinessPermissions
+import com.bookk.core.data.eventstreaming.DataSubject
 import com.bookk.core.data.eventstreaming.EventStreaming
+import com.bookk.core.data.eventstreaming.PersonalEvent
 import com.bookk.server.business.client.api.BusinessDTO
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.protobuf.ProtoNumber
@@ -47,9 +49,11 @@ interface BusinessEvent : EventStreaming.Event<String> {
         @ProtoNumber(4) val businessId: Uuid,
         @ProtoNumber(5) val businessName: String,
         @ProtoNumber(6) override val idempotencyKey: String = Uuid.random().toString(),
-    ) : BusinessEvent {
+    ) : BusinessEvent, PersonalEvent {
         @ProtoNumber(7)
         override val topic: String = TOPIC
+
+        override val dataSubject: DataSubject get() = DataSubject.User(employeeUserId)
 
         companion object {
             const val TOPIC = "business.employee_invitation_redeemed"

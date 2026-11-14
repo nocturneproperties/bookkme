@@ -21,7 +21,15 @@ internal class ActionConfirmationGrantTest {
         val grant = ActionConfirmationGrant.accountDeletion(userId)
 
         then()
-        assertEquals(ActionConfirmationGrant(userId, ActionConfirmationClaims.ACTION_DELETE_ACCOUNT, businessId = Uuid.NIL, targetId = userId), grant)
+        assertEquals(
+            ActionConfirmationGrant(
+                userId,
+                ActionConfirmationClaims.ACTION_DELETE_ACCOUNT,
+                businessId = Uuid.NIL,
+                targetId = userId,
+            ),
+            grant,
+        )
     }
 
     @Test
@@ -33,7 +41,15 @@ internal class ActionConfirmationGrantTest {
         val grant = ActionConfirmationGrant.personalDataExport(userId)
 
         then()
-        assertEquals(ActionConfirmationGrant(userId, ActionConfirmationClaims.ACTION_EXPORT_PERSONAL_DATA, businessId = Uuid.NIL, targetId = userId), grant)
+        assertEquals(
+            ActionConfirmationGrant(
+                userId,
+                ActionConfirmationClaims.ACTION_EXPORT_PERSONAL_DATA,
+                businessId = Uuid.NIL,
+                targetId = userId,
+            ),
+            grant,
+        )
     }
 
     @Test
@@ -46,7 +62,15 @@ internal class ActionConfirmationGrantTest {
         val grant = ActionConfirmationGrant.businessDataExport(userId, businessId)
 
         then()
-        assertEquals(ActionConfirmationGrant(userId, ActionConfirmationClaims.ACTION_EXPORT_BUSINESS_DATA, businessId = businessId, targetId = businessId), grant)
+        assertEquals(
+            ActionConfirmationGrant(
+                userId,
+                ActionConfirmationClaims.ACTION_EXPORT_BUSINESS_DATA,
+                businessId = businessId,
+                targetId = businessId,
+            ),
+            grant,
+        )
     }
 
     @Test
@@ -60,6 +84,14 @@ internal class ActionConfirmationGrantTest {
         val grant = ActionConfirmationGrant.clientDeletion(userId, businessId, clientId)
 
         then()
-        assertEquals(ActionConfirmationGrant(userId, ActionConfirmationClaims.ACTION_DELETE_CLIENT, businessId = businessId, targetId = clientId), grant)
+        assertEquals(
+            ActionConfirmationGrant(
+                userId,
+                ActionConfirmationClaims.ACTION_DELETE_CLIENT,
+                businessId = businessId,
+                targetId = clientId,
+            ),
+            grant,
+        )
     }
 }

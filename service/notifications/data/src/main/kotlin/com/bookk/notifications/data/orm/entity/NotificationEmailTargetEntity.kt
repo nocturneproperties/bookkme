@@ -9,6 +9,7 @@ import kotlin.uuid.Uuid
 internal class NotificationEmailTargetEntity(id: EntityID<Uuid>) : UuidEntity(id) {
     var userId by NotificationEmailTargetTable.userId
     var email by NotificationEmailTargetTable.email
+    var emailEncrypted by NotificationEmailTargetTable.emailEncrypted
 
     companion object : DecoratorUuidEntityClass<NotificationEmailTargetEntity>(NotificationEmailTargetTable)
 }

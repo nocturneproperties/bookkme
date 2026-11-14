@@ -1,7 +1,6 @@
 package com.bookk.core.data.eventstreaming.impl.embedded
 
 import com.bookk.core.data.eventstreaming.DltRetry
-import com.bookk.core.data.eventstreaming.ExhaustedEventDataSource
 import com.bookk.core.data.eventstreaming.impl.FlakyExhaustedEventDataSource
 import com.bookk.core.data.eventstreaming.impl.InMemoryExhaustedEventDataSource
 import com.bookk.core.data.eventstreaming.impl.inMemoryEventIdempotencyStorage
@@ -32,7 +31,9 @@ import kotlin.time.Duration.Companion.milliseconds
 internal class EmbeddedDltRetryTest {
 
     private class SutFixture(
-        exhaustedEventDataSourceIn: (TransactionManager) -> ExhaustedEventDataSource = ::InMemoryExhaustedEventDataSource,
+        exhaustedEventDataSourceIn: (
+            TransactionManager,
+        ) -> InMemoryExhaustedEventDataSource = ::InMemoryExhaustedEventDataSource,
     ) {
         val transactionManager = mockedTransactionManager()
         val exhaustedEventDataSource = exhaustedEventDataSourceIn(transactionManager)
@@ -138,7 +139,10 @@ internal class EmbeddedDltRetryTest {
     @Test
     fun `should retry persisting without re-invoking the business handler when the save fails`() = runUnitTest {
         given()
-        val fixture = SutFixture { transactionManager -> FlakyExhaustedEventDataSource(failuresBeforeSuccess = 2, transactionManager) }
+        val fixture =
+            SutFixture { transactionManager ->
+                FlakyExhaustedEventDataSource(failuresBeforeSuccess = 2, transactionManager)
+            }
         val topic = "embedded.dlt.retry.persist"
         val attempts = AtomicInteger(0)
         fixture.consumer.registerReceiver<KeyedTestEvent, String>(topic) {
@@ -210,7 +214,7 @@ internal class EmbeddedDltRetryTest {
         given()
         val fixture = SutFixture { transactionManager ->
             spyk(InMemoryExhaustedEventDataSource(transactionManager)).apply {
-                coEvery { save(any()) } throws CancellationException("stray")
+                coEvery { save(any(), any()) } throws CancellationException("stray")
             }
         }
         val topic = "embedded.dlt.retry.stray"
@@ -232,7 +236,7 @@ internal class EmbeddedDltRetryTest {
         advanceThroughRetries()
 
         then()
-        coVerify(exactly = 1) { fixture.exhaustedEventDataSource.save(any()) }
+        coVerify(exactly = 1) { fixture.exhaustedEventDataSource.save(any(), any()) }
         assertEquals(listOf("flaky"), received.map(KeyedTestEvent::entityId))
     }
 }

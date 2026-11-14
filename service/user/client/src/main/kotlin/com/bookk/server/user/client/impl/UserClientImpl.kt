@@ -32,5 +32,8 @@ internal class UserClientImpl(
         ),
     ).map { it.id }
 
-    override suspend fun changeEmail(userId: Uuid, verifiedEmail: String): Result<Unit> = changeUserEmail.invoke(userId, verifiedEmail)
+    override suspend fun changeEmail(userId: Uuid, verifiedEmail: String): Result<Unit> = changeUserEmail.invoke(
+        userId,
+        verifiedEmail,
+    )
 }

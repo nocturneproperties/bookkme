@@ -36,7 +36,8 @@ internal class KafkaEventIdempotencyTest {
     private class SutFixture {
         val eventIdempotencyStorage: EventIdempotencyStorage = inMemoryEventIdempotencyStorage()
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-        val producer = KafkaEventProducer(KafkaTestBroker.servers, "idempotency-test-${Uuid.random()}", KafkaTestBroker.protoBuf)
+        val producer =
+            KafkaEventProducer(KafkaTestBroker.servers, "idempotency-test-${Uuid.random()}", KafkaTestBroker.protoBuf)
 
         val transactionManager = mockedTransactionManager()
 

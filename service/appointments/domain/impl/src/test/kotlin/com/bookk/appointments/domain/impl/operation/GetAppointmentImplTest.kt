@@ -38,7 +38,8 @@ internal class GetAppointmentImplTest {
         with(fixture) {
             transactionManager.mockTransaction()
             coEvery { appointmentDataSource.get(appointment.id) } returns appointment
-            coEvery { appointmentPermissionDataSource.getPermission(userId, appointment.businessId) } returns ResourcePermission(view = true, update = false, delete = false)
+            coEvery { appointmentPermissionDataSource.getPermission(userId, appointment.businessId) } returns
+                ResourcePermission(view = true, update = false, delete = false)
         }
 
         whenn()
@@ -57,7 +58,8 @@ internal class GetAppointmentImplTest {
         with(fixture) {
             transactionManager.mockTransaction()
             coEvery { appointmentDataSource.get(appointment.id) } returns appointment
-            coEvery { appointmentPermissionDataSource.getPermission(userId, appointment.businessId) } returns ResourcePermission.NONE
+            coEvery { appointmentPermissionDataSource.getPermission(userId, appointment.businessId) } returns
+                ResourcePermission.NONE
         }
 
         whenn()
@@ -76,7 +78,8 @@ internal class GetAppointmentImplTest {
         with(fixture) {
             transactionManager.mockTransaction()
             coEvery { appointmentDataSource.get(appointment.id) } returns appointment
-            coEvery { appointmentPermissionDataSource.getPermission(userId, appointment.businessId) } returns ResourcePermission(view = false, update = true, delete = true)
+            coEvery { appointmentPermissionDataSource.getPermission(userId, appointment.businessId) } returns
+                ResourcePermission(view = false, update = true, delete = true)
         }
 
         whenn()
@@ -95,7 +98,8 @@ internal class GetAppointmentImplTest {
         with(fixture) {
             transactionManager.mockTransaction()
             coEvery { appointmentDataSource.get(appointment.id) } returns appointment
-            coEvery { appointmentPermissionDataSource.getPermission(userId, appointment.businessId) } throws EmployeeAccessSuspended()
+            coEvery { appointmentPermissionDataSource.getPermission(userId, appointment.businessId) } throws
+                EmployeeAccessSuspended()
         }
 
         whenn()

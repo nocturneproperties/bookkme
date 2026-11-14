@@ -59,10 +59,20 @@ internal class AccountDataSourceImpl : DataSource(), AccountDataSource {
     }
 
     override suspend fun getAccountActivity(userId: Uuid): AccountActivity? = dbQuery {
-        AuthenticationTable.select(AuthenticationTable.id, AuthenticationTable.createdAt, AuthenticationTable.lastActiveAt)
+        AuthenticationTable.select(
+            AuthenticationTable.id,
+            AuthenticationTable.createdAt,
+            AuthenticationTable.lastActiveAt,
+        )
             .where { AuthenticationTable.userId eq userId }
             .singleOrNull()
-            ?.let { AccountActivity(it[AuthenticationTable.id].value, it[AuthenticationTable.createdAt], it[AuthenticationTable.lastActiveAt]) }
+            ?.let {
+                AccountActivity(
+                    it[AuthenticationTable.id].value,
+                    it[AuthenticationTable.createdAt],
+                    it[AuthenticationTable.lastActiveAt],
+                )
+            }
     }
 
     override suspend fun deleteAuthorization(authId: Uuid) = dbQuery<Unit> {
@@ -75,7 +85,10 @@ internal class AccountDataSourceImpl : DataSource(), AccountDataSource {
         AuthenticationTable.update(
             where = {
                 (AuthenticationTable.id eq authId) and
-                    ((AuthenticationTable.lastActiveAt less unlessRecordedSince) or (AuthenticationTable.dormancyStage neq DormancyStage.ACTIVE))
+                    (
+                        (AuthenticationTable.lastActiveAt less unlessRecordedSince) or
+                            (AuthenticationTable.dormancyStage neq DormancyStage.ACTIVE)
+                        )
             },
         ) {
             it[lastActiveAt] = at
@@ -86,7 +99,10 @@ internal class AccountDataSourceImpl : DataSource(), AccountDataSource {
 
     override suspend fun getDormantAccounts(inactiveSince: Instant): List<DormantAccount> = dbQuery {
         AuthenticationTable.selectAll()
-            .where { (AuthenticationTable.lastActiveAt less inactiveSince) and (AuthenticationTable.deletionHold eq false) }
+            .where {
+                (AuthenticationTable.lastActiveAt less inactiveSince) and
+                    (AuthenticationTable.deletionHold eq false)
+            }
             .map { it.toDormantAccount() }
     }
 

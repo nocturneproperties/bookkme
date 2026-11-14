@@ -31,11 +31,17 @@ internal class AccountDataSourceImplTest {
         val sut = AccountDataSourceImpl()
 
         suspend fun backdate(authId: Uuid, lastActiveAt: Instant) = suspendTransaction {
-            AuthenticationTable.update(where = { AuthenticationTable.id eq authId }) { it[AuthenticationTable.lastActiveAt] = lastActiveAt }
+            AuthenticationTable.update(where = { AuthenticationTable.id eq authId }) {
+                it[AuthenticationTable.lastActiveAt] =
+                    lastActiveAt
+            }
         }
 
         suspend fun hold(authId: Uuid) = suspendTransaction {
-            AuthenticationTable.update(where = { AuthenticationTable.id eq authId }) { it[AuthenticationTable.deletionHold] = true }
+            AuthenticationTable.update(where = { AuthenticationTable.id eq authId }) {
+                it[AuthenticationTable.deletionHold] =
+                    true
+            }
         }
     }
 
@@ -156,7 +162,13 @@ internal class AccountDataSourceImplTest {
         val fixture = SutFixture()
         val created = suspendTransaction { fixture.sut.createAuthorization(Authentication.stub()) }
         fixture.backdate(created.id, Instant.fromEpochMilliseconds(0))
-        suspendTransaction { fixture.sut.setDormancyStage(created.userId, DormancyStage.SENT_60_DAY_WARNING, Instant.fromEpochMilliseconds(1000)) }
+        suspendTransaction {
+            fixture.sut.setDormancyStage(
+                created.userId,
+                DormancyStage.SENT_60_DAY_WARNING,
+                Instant.fromEpochMilliseconds(1000),
+            )
+        }
         val now = Clock.System.now()
 
         whenn()
@@ -164,8 +176,17 @@ internal class AccountDataSourceImplTest {
 
         then()
         assertEquals(now, suspendTransaction { fixture.sut.getLastActiveAt(listOf(created.userId)) }[created.userId])
-        assertNull(suspendTransaction { fixture.sut.getDormantAccounts(inactiveSince = now + 1.days) }.single().warnedAt)
-        assertEquals(DormancyStage.ACTIVE, suspendTransaction { fixture.sut.getDormantAccountForUpdate(created.userId) }?.stage)
+        assertNull(
+            suspendTransaction {
+                fixture.sut.getDormantAccounts(inactiveSince = now + 1.days)
+            }.single().warnedAt,
+        )
+        assertEquals(
+            DormancyStage.ACTIVE,
+            suspendTransaction {
+                fixture.sut.getDormantAccountForUpdate(created.userId)
+            }?.stage,
+        )
     }
 
     @Test
@@ -181,7 +202,12 @@ internal class AccountDataSourceImplTest {
         suspendTransaction { fixture.sut.recordActivity(created.id, at = now, unlessRecordedSince = now - 1.days) }
 
         then()
-        assertEquals(recorded, suspendTransaction { fixture.sut.getLastActiveAt(listOf(created.userId)) }[created.userId])
+        assertEquals(
+            recorded,
+            suspendTransaction {
+                fixture.sut.getLastActiveAt(listOf(created.userId))
+            }[created.userId],
+        )
     }
 
     @Test
@@ -196,7 +222,19 @@ internal class AccountDataSourceImplTest {
         val found = suspendTransaction { fixture.sut.getDormantAccounts(inactiveSince = Clock.System.now() - 1.days) }
 
         then()
-        assertEquals(listOf(DormantAccount(dormant.id, dormant.userId, Instant.fromEpochMilliseconds(0), DormancyStage.ACTIVE, null, deletionHold = false)), found)
+        assertEquals(
+            listOf(
+                DormantAccount(
+                    dormant.id,
+                    dormant.userId,
+                    Instant.fromEpochMilliseconds(0),
+                    DormancyStage.ACTIVE,
+                    null,
+                    deletionHold = false,
+                ),
+            ),
+            found,
+        )
         assertTrue(found.none { it.userId == active.userId })
     }
 

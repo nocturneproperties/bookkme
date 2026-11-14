@@ -7,6 +7,7 @@ import com.bookk.core.data.DataSource
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.less
+import org.jetbrains.exposed.v1.jdbc.batchInsert
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.insertIgnore
 import org.jetbrains.exposed.v1.jdbc.select
@@ -25,10 +26,24 @@ internal class ErasedClientDataSourceImpl : DataSource(), ErasedClientDataSource
         }
     }
 
+    override suspend fun recordAll(businessId: Uuid, clientIds: Collection<Uuid>) {
+        if (clientIds.isEmpty()) return
+        val erasedAt = Clock.System.now()
+        dbQuery {
+            ErasedClientTable.batchInsert(clientIds, ignore = true, shouldReturnGeneratedValues = false) { clientId ->
+                this[ErasedClientTable.clientId] = clientId
+                this[ErasedClientTable.businessId] = businessId
+                this[ErasedClientTable.erasedAt] = erasedAt
+            }
+        }
+    }
+
     override suspend fun getReapplyRequested(): List<ErasedClient> = dbQuery {
         ErasedClientTable.select(ErasedClientTable.businessId, ErasedClientTable.clientId)
             .where { ErasedClientTable.reapplyRequested eq true }
-            .map { ErasedClient(businessId = it[ErasedClientTable.businessId], clientId = it[ErasedClientTable.clientId]) }
+            .map {
+                ErasedClient(businessId = it[ErasedClientTable.businessId], clientId = it[ErasedClientTable.clientId])
+            }
     }
 
     override suspend fun claimReapply(clientId: Uuid): Boolean = dbQuery {

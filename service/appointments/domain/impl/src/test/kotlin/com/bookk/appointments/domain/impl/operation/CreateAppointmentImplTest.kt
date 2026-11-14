@@ -68,7 +68,11 @@ internal class CreateAppointmentImplTest {
 
         val userId = Uuid.random()
         val request = AppointmentRequest.stub(initiatorUserId = userId, date = futureDate)
-        val appointment = Appointment.stub(initiatorUserId = userId, businessId = request.businessId, date = request.date)
+        val appointment = Appointment.stub(
+            initiatorUserId = userId,
+            businessId = request.businessId,
+            date = request.date,
+        )
         val settings = mockk<AppointmentSettings>()
         val sutFixture = SutFixture()
 
@@ -98,7 +102,11 @@ internal class CreateAppointmentImplTest {
 
         val userId = Uuid.random()
         val request = AppointmentRequest.stub(initiatorUserId = userId, date = futureDate)
-        val appointment = Appointment.stub(initiatorUserId = userId, businessId = request.businessId, date = request.date)
+        val appointment = Appointment.stub(
+            initiatorUserId = userId,
+            businessId = request.businessId,
+            date = request.date,
+        )
         val settings = mockk<AppointmentSettings>()
         val sutFixture = SutFixture()
 
@@ -128,7 +136,11 @@ internal class CreateAppointmentImplTest {
 
         val userId = Uuid.random()
         val request = AppointmentRequest.stub(initiatorUserId = userId, date = futureDate)
-        val appointment = Appointment.stub(initiatorUserId = userId, businessId = request.businessId, date = request.date)
+        val appointment = Appointment.stub(
+            initiatorUserId = userId,
+            businessId = request.businessId,
+            date = request.date,
+        )
         val settings = mockk<AppointmentSettings>()
         val sutFixture = SutFixture()
 
@@ -157,7 +169,11 @@ internal class CreateAppointmentImplTest {
         given()
         val userId = Uuid.random()
         val request = AppointmentRequest.stub(initiatorUserId = userId, date = futureDate)
-        val appointment = Appointment.stub(initiatorUserId = userId, businessId = request.businessId, date = request.date)
+        val appointment = Appointment.stub(
+            initiatorUserId = userId,
+            businessId = request.businessId,
+            date = request.date,
+        )
         val settings = mockk<AppointmentSettings>()
         val sutFixture = SutFixture()
 
@@ -208,7 +224,11 @@ internal class CreateAppointmentImplTest {
         given()
         val userId = Uuid.random()
         val request = AppointmentRequest.stub(initiatorUserId = userId, date = futureDate)
-        val appointment = Appointment.stub(initiatorUserId = userId, businessId = request.businessId, date = request.date)
+        val appointment = Appointment.stub(
+            initiatorUserId = userId,
+            businessId = request.businessId,
+            date = request.date,
+        )
         val settings = mockk<AppointmentSettings>()
         val sutFixture = SutFixture()
 
@@ -337,7 +357,11 @@ internal class CreateAppointmentImplTest {
         val bookingUserId = Uuid.random()
         val businessId = Uuid.random()
         val clientUserId = Uuid.random()
-        val request = AppointmentRequest.stub(initiatorUserId = bookingUserId, businessId = businessId, date = futureDate)
+        val request = AppointmentRequest.stub(
+            initiatorUserId = bookingUserId,
+            businessId = businessId,
+            date = futureDate,
+        )
             .let { it.copy(client = it.client.copy(userId = clientUserId)) }
         val appointment = Appointment.stub(initiatorUserId = bookingUserId, businessId = businessId, date = futureDate)
         val settings = mockk<AppointmentSettings>()
@@ -372,7 +396,11 @@ internal class CreateAppointmentImplTest {
         given()
         val userId = Uuid.random()
         val request = AppointmentRequest.stub(initiatorUserId = userId, date = futureDate)
-        val appointment = Appointment.stub(initiatorUserId = userId, businessId = request.businessId, date = request.date)
+        val appointment = Appointment.stub(
+            initiatorUserId = userId,
+            businessId = request.businessId,
+            date = request.date,
+        )
         val settings = mockk<AppointmentSettings>()
         val fixture = SutFixture()
 
@@ -381,7 +409,8 @@ internal class CreateAppointmentImplTest {
             coEvery { settingsDataSource.getForUpdate(request.businessId) } returns settings
             coEvery { settings.isInWorkday(request.date) } returns true
             coEvery { settings.isInWorktime(request.date, request.dateEnd) } returns true
-            coEvery { appointmentPermissionDataSource.getPermission(userId, request.businessId) } returns ResourcePermission(view = false, update = true, delete = false)
+            coEvery { appointmentPermissionDataSource.getPermission(userId, request.businessId) } returns
+                ResourcePermission(view = false, update = true, delete = false)
             coEvery { appointmentDataSource.hasOverlapsWith(request) } returns false
             coEvery { appointmentDataSource.create(request) } returns appointment
             coEvery { requestDataSource.approve(request) } returns Unit
@@ -399,7 +428,7 @@ internal class CreateAppointmentImplTest {
     }
 
     @Test
-    fun `should return failure when approving request with READ permissions and not the assigned employee`() = runUnitTest {
+    fun `should return failure when approving with READ permissions and not the assigned employee`() = runUnitTest {
         given()
         val userId = Uuid.random()
         val request = AppointmentRequest.stub(date = futureDate)
@@ -408,7 +437,8 @@ internal class CreateAppointmentImplTest {
         with(fixture) {
             coEvery { requestDataSource.getForUpdate(request.id) } returns request
             coEvery { settingsDataSource.getForUpdate(request.businessId) } returns mockk()
-            coEvery { appointmentPermissionDataSource.getPermission(userId, request.businessId) } returns ResourcePermission(view = true, update = false, delete = false)
+            coEvery { appointmentPermissionDataSource.getPermission(userId, request.businessId) } returns
+                ResourcePermission(view = true, update = false, delete = false)
             transactionManager.mockTransaction()
         }
 
@@ -426,7 +456,11 @@ internal class CreateAppointmentImplTest {
         val userId = Uuid.random()
         val request = AppointmentRequest.stub(date = futureDate)
             .copy(employee = EmployeeSnapshot.stub(userId = userId))
-        val appointment = Appointment.stub(initiatorUserId = request.initiatorUserId, businessId = request.businessId, date = request.date)
+        val appointment = Appointment.stub(
+            initiatorUserId = request.initiatorUserId,
+            businessId = request.businessId,
+            date = request.date,
+        )
         val settings = mockk<AppointmentSettings>()
         val fixture = SutFixture()
 
@@ -435,7 +469,8 @@ internal class CreateAppointmentImplTest {
             coEvery { settingsDataSource.getForUpdate(request.businessId) } returns settings
             coEvery { settings.isInWorkday(request.date) } returns true
             coEvery { settings.isInWorktime(request.date, request.dateEnd) } returns true
-            coEvery { appointmentPermissionDataSource.getPermission(userId, request.businessId) } returns ResourcePermission(view = true, update = false, delete = false)
+            coEvery { appointmentPermissionDataSource.getPermission(userId, request.businessId) } returns
+                ResourcePermission(view = true, update = false, delete = false)
             coEvery { appointmentDataSource.hasOverlapsWith(request) } returns false
             coEvery { appointmentDataSource.create(request) } returns appointment
             coEvery { requestDataSource.approve(request) } returns Unit
@@ -481,7 +516,8 @@ internal class CreateAppointmentImplTest {
         with(fixture) {
             coEvery { requestDataSource.getForUpdate(request.id) } returns request
             coEvery { settingsDataSource.getForUpdate(request.businessId) } returns mockk()
-            coEvery { appointmentPermissionDataSource.getPermission(userId, request.businessId) } returns ResourcePermission(view = false, update = true, delete = false)
+            coEvery { appointmentPermissionDataSource.getPermission(userId, request.businessId) } returns
+                ResourcePermission(view = false, update = true, delete = false)
             transactionManager.mockTransaction()
         }
 
@@ -504,7 +540,8 @@ internal class CreateAppointmentImplTest {
         with(fixture) {
             coEvery { requestDataSource.getForUpdate(request.id) } returns request
             coEvery { settingsDataSource.getForUpdate(request.businessId) } returns mockk()
-            coEvery { appointmentPermissionDataSource.getPermission(userId, request.businessId) } returns ResourcePermission(view = false, update = true, delete = false)
+            coEvery { appointmentPermissionDataSource.getPermission(userId, request.businessId) } returns
+                ResourcePermission(view = false, update = true, delete = false)
             transactionManager.mockTransaction()
         }
 
@@ -527,7 +564,8 @@ internal class CreateAppointmentImplTest {
         with(fixture) {
             coEvery { requestDataSource.getForUpdate(request.id) } returns request
             coEvery { settingsDataSource.getForUpdate(request.businessId) } returns mockk()
-            coEvery { appointmentPermissionDataSource.getPermission(userId, request.businessId) } returns ResourcePermission(view = false, update = true, delete = false)
+            coEvery { appointmentPermissionDataSource.getPermission(userId, request.businessId) } returns
+                ResourcePermission(view = false, update = true, delete = false)
             transactionManager.mockTransaction()
         }
 
@@ -549,7 +587,8 @@ internal class CreateAppointmentImplTest {
 
         with(fixture) {
             coEvery { requestDataSource.getForUpdate(request.id) } returns request
-            coEvery { appointmentPermissionDataSource.getPermission(userId, request.businessId) } returns ResourcePermission.NONE
+            coEvery { appointmentPermissionDataSource.getPermission(userId, request.businessId) } returns
+                ResourcePermission.NONE
             transactionManager.mockTransaction()
         }
 
@@ -574,9 +613,11 @@ internal class CreateAppointmentImplTest {
             coEvery { settingsDataSource.getForUpdate(request.businessId) } returns settings
             coEvery { settings.isInWorkday(request.date) } returns true
             coEvery { settings.isInWorktime(request.date, request.dateEnd) } returns true
-            coEvery { appointmentPermissionDataSource.getPermission(userId, request.businessId) } returns ResourcePermission(view = false, update = true, delete = false)
+            coEvery { appointmentPermissionDataSource.getPermission(userId, request.businessId) } returns
+                ResourcePermission(view = false, update = true, delete = false)
             coEvery { appointmentDataSource.hasOverlapsWith(request) } returns false
-            coEvery { appointmentDataSource.create(request) } returns Appointment.stub(businessId = request.businessId, date = request.date)
+            coEvery { appointmentDataSource.create(request) } returns
+                Appointment.stub(businessId = request.businessId, date = request.date)
             coEvery { requestDataSource.approve(request) } returns Unit
             coEvery { subscriptionDataSource.getBusinessSnapshot(request.businessId) } returns mockk(relaxed = true)
             coEvery { eventProducer.send(any(), any()) } returns Unit
@@ -607,7 +648,8 @@ internal class CreateAppointmentImplTest {
         with(fixture) {
             coEvery { requestDataSource.getForUpdate(request.id) } returns request
             coEvery { settingsDataSource.getForUpdate(request.businessId) } returns mockk()
-            coEvery { appointmentPermissionDataSource.getPermission(userId, request.businessId) } returns ResourcePermission.NONE
+            coEvery { appointmentPermissionDataSource.getPermission(userId, request.businessId) } returns
+                ResourcePermission.NONE
             transactionManager.mockTransaction()
         }
 
@@ -648,7 +690,11 @@ internal class CreateAppointmentImplTest {
         assertTrue(result.isSuccess)
         coVerify(exactly = 1) {
             fixture.eventProducer.send(
-                match<AppointmentEvent.ClientVisitBooked> { it.businessId == businessId && it.clientId == request.client.id && it.visitEnd == request.dateEnd },
+                match<AppointmentEvent.ClientVisitBooked> {
+                    it.businessId == businessId &&
+                        it.clientId == request.client.id &&
+                        it.visitEnd == request.dateEnd
+                },
                 any(),
             )
         }

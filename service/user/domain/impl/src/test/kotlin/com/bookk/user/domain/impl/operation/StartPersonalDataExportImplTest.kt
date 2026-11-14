@@ -32,7 +32,13 @@ internal class StartPersonalDataExportImplTest {
         val dataExports = mockk<DataExports>()
         val userDataExportDataSource = mockk<UserDataExportDataSource>()
         val transactionManager = mockk<TransactionManager>()
-        val sut = StartPersonalDataExportImpl(confirmationTokens.gate, dataExports, userDataExportDataSource, transactionManager)
+        val sut =
+            StartPersonalDataExportImpl(
+                confirmationTokens.gate,
+                dataExports,
+                userDataExportDataSource,
+                transactionManager,
+            )
         val started = DataExport.stub()
         val startedInTransaction = mutableListOf<Boolean>()
 
@@ -45,7 +51,11 @@ internal class StartPersonalDataExportImplTest {
             coEvery { userDataExportDataSource.getProfile(userId) } returns ProfileExport.stub(id = userId)
         }
 
-        fun token(grant: ActionConfirmationGrant = ActionConfirmationGrant.personalDataExport(userId)) = confirmationTokens.tokenFor(grant, tokenId = TOKEN_ID)
+        fun token(
+            grant: ActionConfirmationGrant = ActionConfirmationGrant.personalDataExport(
+                userId,
+            ),
+        ) = confirmationTokens.tokenFor(grant, tokenId = TOKEN_ID)
     }
 
     @Test

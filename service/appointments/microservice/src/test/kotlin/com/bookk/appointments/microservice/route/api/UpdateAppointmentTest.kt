@@ -382,7 +382,8 @@ internal class UpdateAppointmentTest {
         given()
         val useCase: UpdateAppointment = mockk()
         val userId = Uuid.random()
-        coEvery { useCase.invoke(userId, testUpdate) } returns Result.failure(UpdateAppointment.Error.InvalidServiceSelection())
+        coEvery { useCase.invoke(userId, testUpdate) } returns
+            Result.failure(UpdateAppointment.Error.InvalidServiceSelection())
 
         setupApplication(
             extension = {
@@ -414,7 +415,8 @@ internal class UpdateAppointmentTest {
         given()
         val useCase: UpdateAppointment = mockk()
         val userId = Uuid.random()
-        coEvery { useCase.invoke(userId, testUpdate) } returns Result.failure(BusinessError(HttpStatusCode.NotFound.value, 200024, "Employee with this id is missing"))
+        coEvery { useCase.invoke(userId, testUpdate) } returns
+            Result.failure(BusinessError(HttpStatusCode.NotFound.value, 200024, "Employee with this id is missing"))
 
         setupApplication(
             extension = {
@@ -446,7 +448,14 @@ internal class UpdateAppointmentTest {
         given()
         val useCase: UpdateAppointment = mockk()
         val userId = Uuid.random()
-        coEvery { useCase.invoke(userId, testUpdate) } returns Result.failure(BusinessError(HttpStatusCode.UnprocessableEntity.value, 200033, "Employee is suspended and cannot be booked"))
+        coEvery { useCase.invoke(userId, testUpdate) } returns
+            Result.failure(
+                BusinessError(
+                    HttpStatusCode.UnprocessableEntity.value,
+                    200033,
+                    "Employee is suspended and cannot be booked",
+                ),
+            )
 
         setupApplication(
             extension = {
@@ -478,7 +487,10 @@ internal class UpdateAppointmentTest {
         given()
         val useCase: UpdateAppointment = mockk()
         val userId = Uuid.random()
-        coEvery { useCase.invoke(userId, testUpdate) } returns Result.failure(BusinessError(HttpStatusCode.UnprocessableEntity.value, 200013, "One or more services not found"))
+        coEvery { useCase.invoke(userId, testUpdate) } returns
+            Result.failure(
+                BusinessError(HttpStatusCode.UnprocessableEntity.value, 200013, "One or more services not found"),
+            )
 
         setupApplication(
             extension = {

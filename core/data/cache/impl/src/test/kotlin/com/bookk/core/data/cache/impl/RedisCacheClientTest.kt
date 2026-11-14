@@ -42,15 +42,37 @@ internal class RedisCacheClientTest {
         }
 
         private fun connectedClients(): Int {
-            val info = container.execInContainer("valkey-cli", "-a", PASSWORD, "--no-auth-warning", "info", "clients").stdout
+            val info = container.execInContainer(
+                "valkey-cli",
+                "-a",
+                PASSWORD,
+                "--no-auth-warning",
+                "info",
+                "clients",
+            ).stdout
             return info.lineSequence().first { it.startsWith("connected_clients:") }.substringAfter(':').trim().toInt()
         }
 
-        private fun remainingMillis(key: String): Long = container.execInContainer("valkey-cli", "-a", PASSWORD, "--no-auth-warning", "pttl", key).stdout.trim().toLong()
+        private fun remainingMillis(key: String): Long = container.execInContainer(
+            "valkey-cli",
+            "-a",
+            PASSWORD,
+            "--no-auth-warning",
+            "pttl",
+            key,
+        ).stdout.trim().toLong()
     }
 
     private class SutFixture {
-        val sut = RedisCacheClient(container.host, container.getMappedPort(6379), PASSWORD, ProtoBuf { encodeDefaults = true })
+        val sut = RedisCacheClient(
+            container.host,
+            container.getMappedPort(6379),
+            PASSWORD,
+            ProtoBuf {
+                encodeDefaults =
+                    true
+            },
+        )
     }
 
     @Test

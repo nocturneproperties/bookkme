@@ -18,7 +18,7 @@ document.
 |---|---|---|
 | `PENDING` | Requested, waiting for the build job | `RUNNING` |
 | `RUNNING` | A build holds the row's claim (`claim_id`, `claimed_until`) | `RUNNING` |
-| `READY` | `document` holds the gzipped JSON until `expires_at` | `READY` (`NONE` once expired) |
+| `READY` | `document` holds the encrypted gzipped JSON until `expires_at` | `READY` (`NONE` once expired) |
 | `FAILED` | Three builds failed | `FAILED` |
 
 - **Start** (`DataExports.start`, inside the caller's transaction) locks the
@@ -36,32 +36,49 @@ document.
   claim) and, per row, claims it with a conditional `UPDATE` (a fresh
   `claim_id`, a 10-minute lease, `attempts + 1`), so only one instance builds
   it during a `start-first` deploy. The assembler runs outside any
-  transaction (it calls other services). The gzipped document is stored
+  transaction (it calls other services). The gzipped document is encrypted
+  under a new random key (`SubjectKeys.encryptor(keyId)`, `key_id`) and stored
   with `UPDATE … WHERE claim_id = <ours> AND state = RUNNING`, and only when
   that matched does the same transaction call `announceReady` (the
-  service's ready event, through the outbox). An export deleted while it was
-  being built (account deletion) therefore gets no document and no event. A
+  service's ready event, through the outbox); otherwise it shreds the new key.
+  An export deleted while it was being built (an erasure) therefore gets no
+  document and no event. A
   failed build is given back: `PENDING` while attempts remain, `FAILED`
   after the third. A build must finish within the 10-minute lease.
 - **Cleanup job** (`DeleteExpiredDataExports`, `<svc>-deleteExpiredDataExports`,
-  hourly) deletes rows whose `expires_at` passed: `READY` and `FAILED` rows
+  hourly) locks and deletes rows whose `expires_at` passed and shreds their
+  documents' keys in the same transaction: `READY` and `FAILED` rows
   both get `finished_at + 72 hours`. Downloads refuse an expired row even
-  before the job ran.
-- **Download** (`respondDataExport`, `library/export/route`) sends the
-  stored gzip bytes with `Content-Encoding: gzip` when the request accepts
+  before the job ran. Restarting an export and `DataExports.discard` shred the
+  old document's key the same way. `discardAll(ownerIds)` discards many
+  exports in at most three statements whatever their number (a locking
+  read, one `DELETE … IN`, and `SubjectKeys.shredAll`, one upsert writing
+  every tombstone), so an erasure touching many businesses never loops
+  per business.
+- **Download** (`DataExports.document` decrypts with `key_id`;
+  `respondDataExport`, `library/export/route`) sends the gzip bytes with `Content-Encoding: gzip` when the request accepts
   gzip, and unpacks them otherwise, always as an `application/json`
   attachment with `Cache-Control: no-store`. It needs the requester's
   session, not a one-time link, so a broken download can be retried until
-  the document expires.
+  the document expires. A document whose key is shredded or missing, or a
+  row without `key_id` (only a 0.17.0 instance finishing a build during the
+  0.18.0 deploy writes one), is never served; a missing key is logged as an
+  error.
 
 The document is stored once, in a `LONGBLOB`, so a single `INSERT` is capped
 by MariaDB's `max_allowed_packet` (16 MB by default; prod's `tuning.cnf`
 doesn't set it), which applies to the gzipped size. A larger export fails
 and ends `FAILED` after three attempts; raise `max_allowed_packet` if that
 ever happens. Export rows hold copies of personal data, so they stay out of
-NocoDB (not in `nocodb_readable_tables`). They are in the binlogs and
-nightly dumps like any other row, so a document outlives its 72 hours in
-backups for up to 30 days, the same as the data it copies.
+NocoDB (not in `nocodb_readable_tables`), and since 0.18.0 every document is
+encrypted under its own random key in the service's short-retention schema
+(`subject_key`, `docs/agents/personal-data.md`), so no plaintext copy reaches
+the table or its binlogs. The rows are in the binlogs and nightly dumps for
+up to 30 days like any other row, but a document's key is shredded when the
+document expires, is replaced or is discarded, and key backups are kept 7
+days, so a document can't be read from any backup 7 days after that. The
+0.18.0 migrations (user `V6`, business `V18`) delete every older, plaintext
+document.
 
 ## Personal export
 
@@ -127,8 +144,14 @@ data in one transaction and asks appointments for its part over
 It holds nothing the business is not the controller of: no user ids of
 employees or clients, no account data (passkeys, devices, notification
 settings, legal acceptances), and no appointments its employees have
-elsewhere. A client deleted after the document was built stays in it until
-it expires: the export is a copy as of that time. Deleting the business
+elsewhere. Any erasure of a person the business holds discards its export
+(the row and its key, in the erasure's own transaction), so an erased person
+never stays readable in a stored document: deleting a client
+([Delete client](operations/business/delete-client.md)), the retention job
+for every business that lost a client in its run, re-applying a client
+erasure after a restore, and account deletion for every business where the
+user had a client or employee record. The owner can start a new export at
+once, since the row is gone. Deleting the business
 (the owner's account deletion) deletes its export in the same transaction
 ([React to user deletion](operations/business/on-user-deleted.md)). When the
 build is done, business sends `BusinessEvent.ExportReady(businessId, ownerUserId, expiresAt)`, and notifications tells the owner ([React to a ready business data export](operations/notifications/on-business-export-ready.md)).

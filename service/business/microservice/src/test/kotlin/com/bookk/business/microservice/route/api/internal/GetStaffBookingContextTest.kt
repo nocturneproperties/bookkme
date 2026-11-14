@@ -41,7 +41,11 @@ internal class GetStaffBookingContextTest {
         return createTestClient()
     }
 
-    private suspend fun HttpClient.postBody(): HttpResponse = post(BusinessRouting.Api.Internal.Business.Id.StaffBookingContext(parent = BusinessRouting.Api.Internal.Business.Id(id = businessId))) {
+    private suspend fun HttpClient.postBody(): HttpResponse = post(
+        BusinessRouting.Api.Internal.Business.Id.StaffBookingContext(
+            parent = BusinessRouting.Api.Internal.Business.Id(id = businessId),
+        ),
+    ) {
         setBody(request)
     }
 

@@ -6,13 +6,13 @@ import com.bookk.business.domain.api.business.operation.DeleteDayOffsInThePast
 import com.bookk.business.domain.api.client.operation.DeleteInactiveClients
 import com.bookk.business.domain.api.employee.operation.DeleteProcessedEmployeeInvitations
 import com.bookk.business.domain.api.employee.operation.ExpireEmployeeInvitations
+import com.bookk.business.domain.api.encryption.operation.EncryptPlaintextContacts
 import com.bookk.business.domain.api.erasure.operation.DeleteExpiredErasureRecords
 import com.bookk.business.domain.api.erasure.operation.ReapplyClientErasures
 import com.bookk.business.domain.impl.di.BusinessScope
 import com.bookk.business.domain.impl.di.businessDomainModule
 import com.bookk.business.microservice.route.businessRoute
 import com.bookk.core.data.cache.impl.di.cacheModule
-import com.bookk.core.data.eventstreaming.data.di.outboxModule
 import com.bookk.core.data.eventstreaming.di.embeddedEventStreamingTransportModule
 import com.bookk.core.data.eventstreaming.di.eventStreamingTransportModule
 import com.bookk.core.data.eventstreaming.startEventHandling
@@ -26,6 +26,7 @@ import io.ktor.server.routing.application
 import library.actionconfirmation.impl.di.actionConfirmationModule
 import library.export.BuildDataExports
 import library.export.DeleteExpiredDataExports
+import library.outbox.di.outboxModule
 import library.scheduler.Scheduler
 import library.scheduler.SchedulerConfiguration
 import library.signing.RotateSigningKeys
@@ -36,10 +37,10 @@ import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
 
-fun businessModule() = module {
+fun businessModule(environment: (String) -> String? = System::getenv) = module {
     includes(
         businessDomainModule(),
-        businessDataModule(),
+        businessDataModule(environment),
         actionConfirmationModule(BusinessScope),
         cacheModule(),
         eventStreamingTransportModule(BusinessScope, BUSINESS_SERVICE_NAME),
@@ -48,10 +49,10 @@ fun businessModule() = module {
     )
 }
 
-fun businessEmbeddedModule() = module {
+fun businessEmbeddedModule(environment: (String) -> String? = System::getenv) = module {
     includes(
         businessDomainModule(),
-        businessDataModule(),
+        businessDataModule(environment),
         actionConfirmationModule(BusinessScope),
         cacheModule(),
         embeddedEventStreamingTransportModule(BusinessScope, BUSINESS_SERVICE_NAME),
@@ -103,5 +104,8 @@ fun Application.registerBusinessJobs(scheduler: SchedulerConfiguration) {
     }
     scheduler.job("$BUSINESS_SERVICE_NAME-deleteExpiredDataExports", interval = 1.hours) {
         scope.get<DeleteExpiredDataExports>().invoke().getOrThrow()
+    }
+    scheduler.job("$BUSINESS_SERVICE_NAME-encryptPlaintextContacts", interval = 10.minutes) {
+        scope.get<EncryptPlaintextContacts>().invoke().getOrThrow()
     }
 }

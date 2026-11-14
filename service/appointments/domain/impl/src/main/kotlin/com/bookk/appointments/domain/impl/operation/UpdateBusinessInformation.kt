@@ -14,7 +14,7 @@ internal class UpdateBusinessInformation(
     suspend operator fun invoke(
         business: BusinessDTO,
         updatedAt: Instant,
-    ) = transactionManager.transaction {
+    ): Result<Unit> = transactionManager.transaction {
         subscriptionDataSource.updateBusiness(
             snapshot = BusinessSnapshot(
                 id = business.id,
@@ -23,6 +23,7 @@ internal class UpdateBusinessInformation(
                 timeZone = business.timeZone,
                 isEnabled = true,
                 schedule = business.schedule,
+                ownerUserId = business.ownerUserId,
             ),
             updatedAt = updatedAt,
         )

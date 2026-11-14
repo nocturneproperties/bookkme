@@ -28,7 +28,9 @@ internal class ExportBusinessAppointmentsImpl(
     private val transactionManager: TransactionManager,
 ) : ExportBusinessAppointments {
 
-    override suspend fun invoke(businessId: Uuid): Result<AppointmentsBusinessDataExport> = transactionManager.transaction {
+    override suspend fun invoke(
+        businessId: Uuid,
+    ): Result<AppointmentsBusinessDataExport> = transactionManager.transaction {
         AppointmentsBusinessDataExport(
             settings = settingsDataSource.get(businessId)?.toExport(),
             appointments = appointmentDataSource.getAll(businessId).sortedBy { it.date }.map { it.toExport() },
@@ -69,13 +71,24 @@ internal class ExportBusinessAppointmentsImpl(
         end = dateEnd,
         services = services.map { it.toExport() },
         employee = employee.toExport(),
-        client = client.toExport(),
+        client = client.toClientSnapshot().toExport(),
         note = note.ifBlank { null },
     )
 
     private fun EmployeeSnapshot.toExport() = EmployeeExport(id = id, name = fullName)
 
-    private fun ClientSnapshot.toExport() = ClientExport(id = id, name = fullName, phone = phone, email = email, hasAccount = userId != null)
+    private fun ClientSnapshot.toExport() = ClientExport(
+        id = id,
+        name = fullName,
+        phone = phone,
+        email = email,
+        hasAccount =
+        userId != null,
+    )
 
-    private fun ServiceSnapshot.toExport() = ServiceExport(name = name, price = price.toString(), durationMinutes = duration.inWholeMinutes)
+    private fun ServiceSnapshot.toExport() = ServiceExport(
+        name = name,
+        price = price.toString(),
+        durationMinutes = duration.inWholeMinutes,
+    )
 }

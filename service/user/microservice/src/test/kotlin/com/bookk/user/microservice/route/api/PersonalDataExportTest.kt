@@ -47,7 +47,10 @@ internal class PersonalDataExportTest {
     private val start: StartPersonalDataExport = mockk()
     private val status: GetPersonalDataExport = mockk()
     private val download: DownloadPersonalDataExport = mockk()
-    private val running = DataExport.stub(status = DataExportStatus.RUNNING, requestedAt = Instant.fromEpochMilliseconds(1_000))
+    private val running = DataExport.stub(
+        status = DataExportStatus.RUNNING,
+        requestedAt = Instant.fromEpochMilliseconds(1_000),
+    )
 
     private fun io.ktor.server.testing.ApplicationTestBuilder.serve(authenticated: Boolean = true) = setupApplication(
         extension = { if (authenticated) authenticateAs(userId) else rejectEveryToken() },
@@ -66,7 +69,9 @@ internal class PersonalDataExportTest {
         serve()
 
         whenn()
-        val response = createTestClient().post(UserRouting.Api.User.Export()) { setBody(DataExportRequest(confirmationToken = "action-confirmation-token")) }
+        val response = createTestClient().post(UserRouting.Api.User.Export()) {
+            setBody(DataExportRequest(confirmationToken = "action-confirmation-token"))
+        }
 
         then()
         assertEquals(HttpStatusCode.OK, response.status)
@@ -94,7 +99,9 @@ internal class PersonalDataExportTest {
         serve()
 
         whenn()
-        val response = createTestClient().post(UserRouting.Api.User.Export()) { setBody(DataExportRequest(confirmationToken = "action-confirmation-token")) }
+        val response = createTestClient().post(UserRouting.Api.User.Export()) {
+            setBody(DataExportRequest(confirmationToken = "action-confirmation-token"))
+        }
 
         then()
         assertEquals(HttpStatusCode.TooManyRequests, response.status)
@@ -137,7 +144,9 @@ internal class PersonalDataExportTest {
         serve()
 
         whenn()
-        val response = createTestClient().get(UserRouting.Api.User.Export.Download()) { header(HttpHeaders.AcceptEncoding, "gzip") }
+        val response = createTestClient().get(UserRouting.Api.User.Export.Download()) {
+            header(HttpHeaders.AcceptEncoding, "gzip")
+        }
 
         then()
         assertEquals(HttpStatusCode.NotFound, response.status)

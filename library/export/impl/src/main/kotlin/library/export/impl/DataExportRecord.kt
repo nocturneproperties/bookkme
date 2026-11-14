@@ -9,6 +9,7 @@ internal data class DataExportRecord(
     val requestedAt: Instant,
     val attempts: Int,
     val expiresAt: Instant?,
+    val keyId: Uuid? = null,
 ) {
     companion object {
         fun stub(
@@ -17,6 +18,9 @@ internal data class DataExportRecord(
             requestedAt: Instant = Instant.fromEpochMilliseconds(0),
             attempts: Int = 0,
             expiresAt: Instant? = null,
-        ) = DataExportRecord(ownerId, state, requestedAt, attempts, expiresAt)
+            keyId: Uuid? = null,
+        ): DataExportRecord {
+            return DataExportRecord(ownerId, state, requestedAt, attempts, expiresAt, keyId)
+        }
     }
 }

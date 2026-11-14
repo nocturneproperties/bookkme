@@ -53,7 +53,10 @@ internal class TicksTest {
 
         then()
         assertEquals(1, beforeInterval)
-        assertEquals(listOf(0L, INTERVAL.inWholeMilliseconds, 2 * INTERVAL.inWholeMilliseconds), fixture.tickedAt.toList())
+        assertEquals(
+            listOf(0L, INTERVAL.inWholeMilliseconds, 2 * INTERVAL.inWholeMilliseconds),
+            fixture.tickedAt.toList(),
+        )
     }
 
     @Test

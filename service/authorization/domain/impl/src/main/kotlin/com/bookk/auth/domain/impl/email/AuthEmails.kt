@@ -7,9 +7,13 @@ import library.email.EmailContent
 internal object AuthEmails {
     private val strings = LocalizedStrings("i18n.auth_emails")
 
-    fun signUpCode(language: Language, code: String): EmailContent = codeEmail(language, "sign_up", code, tag = "sign-up-code")
+    fun signUpCode(language: Language, code: String): EmailContent {
+        return codeEmail(language, "sign_up", code, tag = "sign-up-code")
+    }
 
-    fun emailChangeCode(language: Language, code: String): EmailContent = codeEmail(language, "email_change", code, tag = "email-change-code")
+    fun emailChangeCode(language: Language, code: String): EmailContent {
+        return codeEmail(language, "email_change", code, tag = "email-change-code")
+    }
 
     private fun codeEmail(language: Language, kind: String, code: String, tag: String): EmailContent {
         val intro = strings.message(language, "$kind.body")
@@ -17,7 +21,9 @@ internal object AuthEmails {
         return EmailContent(
             subject = strings.message(language, "$kind.subject"),
             textBody = "$intro\n\n$code\n\n$notYou",
-            htmlBody = "<p>$intro</p><p style=\"font-size:28px;font-weight:bold;letter-spacing:6px\">$code</p><p>$notYou</p>",
+            htmlBody = "<p>$intro</p>" +
+                "<p style=\"font-size:28px;font-weight:bold;letter-spacing:6px\">$code</p>" +
+                "<p>$notYou</p>",
             tag = tag,
         )
     }

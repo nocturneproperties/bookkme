@@ -14,7 +14,11 @@ internal class GetBusinessPermissionClientImpl(
     private val httpClient: HttpClient,
 ) : GetBusinessPermission {
 
-    override suspend fun invoke(userId: Uuid, businessId: Uuid, resource: BusinessResource): Result<ResourcePermission> = runSuspendCatching {
+    override suspend fun invoke(
+        userId: Uuid,
+        businessId: Uuid,
+        resource: BusinessResource,
+    ): Result<ResourcePermission> = runSuspendCatching {
         httpClient.get(
             BusinessRouting.Api.Internal.Business.Id.Permissions(
                 parent = BusinessRouting.Api.Internal.Business.Id(id = businessId),

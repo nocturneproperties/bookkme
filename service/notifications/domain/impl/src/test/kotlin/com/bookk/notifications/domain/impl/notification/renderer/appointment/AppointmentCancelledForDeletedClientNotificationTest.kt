@@ -17,7 +17,9 @@ import kotlin.uuid.Uuid
 
 internal class AppointmentCancelledForDeletedClientNotificationTest {
 
-    private fun event(cause: ClientDeletionCause = ClientDeletionCause.ACCOUNT_DELETED) = AppointmentEvent.CancelledForDeletedClient(
+    private fun event(
+        cause: ClientDeletionCause = ClientDeletionCause.ACCOUNT_DELETED,
+    ) = AppointmentEvent.CancelledForDeletedClient(
         employeeUserId = Uuid.random(),
         from = Instant.parse("2026-03-05T14:30:00Z"),
         to = Instant.parse("2026-03-05T15:00:00Z"),
@@ -49,7 +51,10 @@ internal class AppointmentCancelledForDeletedClientNotificationTest {
 
         then()
         assertEquals("Appointment cancelled", push.title)
-        assertEquals("A client deleted their account, so the appointment at Barbershop on $whenText was cancelled", push.body)
+        assertEquals(
+            "A client deleted their account, so the appointment at Barbershop on $whenText was cancelled",
+            push.body,
+        )
     }
 
     @Test
@@ -110,7 +115,10 @@ internal class AppointmentCancelledForDeletedClientNotificationTest {
         val text = event.notification.text(Language.EN)
 
         then()
-        assertEquals("A client deleted their account, so the appointment at Barbershop on $whenText was cancelled.", text.text)
+        assertEquals(
+            "A client deleted their account, so the appointment at Barbershop on $whenText was cancelled.",
+            text.text,
+        )
     }
 
     @Test
@@ -136,7 +144,10 @@ internal class AppointmentCancelledForDeletedClientNotificationTest {
         val push = event.notification.push(Language.EN)
 
         then()
-        assertEquals("A client was removed from the business, so the appointment at Barbershop on $whenText was cancelled", push.body)
+        assertEquals(
+            "A client was removed from the business, so the appointment at Barbershop on $whenText was cancelled",
+            push.body,
+        )
     }
 
     @Test
@@ -150,7 +161,10 @@ internal class AppointmentCancelledForDeletedClientNotificationTest {
 
         then()
         assertEquals("Appointment at Barbershop cancelled", email.subject)
-        assertEquals("A client was removed from the business, so the appointment at Barbershop on $whenText was cancelled. The time is free again.", email.body)
+        assertEquals(
+            "A client was removed from the business, so the appointment at Barbershop on $whenText was cancelled. The time is free again.",
+            email.body,
+        )
     }
 
     @Test
@@ -163,7 +177,10 @@ internal class AppointmentCancelledForDeletedClientNotificationTest {
         val text = event.notification.text(Language.EN)
 
         then()
-        assertEquals("A client was removed from the business, so the appointment at Barbershop on $whenText was cancelled.", text.text)
+        assertEquals(
+            "A client was removed from the business, so the appointment at Barbershop on $whenText was cancelled.",
+            text.text,
+        )
     }
 
     @Test
@@ -190,7 +207,10 @@ internal class AppointmentCancelledForDeletedClientNotificationTest {
 
         then()
         assertEquals("Запис до Barbershop скасовано", email.subject)
-        assertEquals("Клієнта видалено з бізнесу, тож запис до Barbershop на $whenText скасовано. Цей час знову вільний.", email.body)
+        assertEquals(
+            "Клієнта видалено з бізнесу, тож запис до Barbershop на $whenText скасовано. Цей час знову вільний.",
+            email.body,
+        )
     }
 
     @Test

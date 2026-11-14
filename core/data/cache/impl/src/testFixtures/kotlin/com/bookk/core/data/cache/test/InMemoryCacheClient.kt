@@ -19,11 +19,23 @@ class InMemoryCacheClient(
     private class InMemCacheEntry(val value: ByteArray, val ttl: Duration, val keepsExpiration: Boolean = false)
 
     private class WritingExpiry : Expiry<String, InMemCacheEntry> {
-        override fun expireAfterCreate(key: String, value: InMemCacheEntry, currentTime: Long): Long = value.ttl.inWholeNanoseconds
+        override fun expireAfterCreate(key: String, value: InMemCacheEntry, currentTime: Long): Long {
+            return value.ttl.inWholeNanoseconds
+        }
 
-        override fun expireAfterUpdate(key: String, value: InMemCacheEntry, currentTime: Long, currentDuration: Long): Long = if (value.keepsExpiration) currentDuration else value.ttl.inWholeNanoseconds
+        override fun expireAfterUpdate(
+            key: String,
+            value: InMemCacheEntry,
+            currentTime: Long,
+            currentDuration: Long,
+        ): Long = if (value.keepsExpiration) currentDuration else value.ttl.inWholeNanoseconds
 
-        override fun expireAfterRead(key: String, value: InMemCacheEntry, currentTime: Long, currentDuration: Long): Long = currentDuration
+        override fun expireAfterRead(
+            key: String,
+            value: InMemCacheEntry,
+            currentTime: Long,
+            currentDuration: Long,
+        ): Long = currentDuration
     }
 
     private val createdAt = timeSource.markNow()
@@ -80,7 +92,9 @@ class InMemoryCacheClient(
 
     override suspend fun increment(key: String, expiration: Duration): Long {
         val entry = cache.asMap().compute(key) { _, current ->
-            current?.let { InMemCacheEntry(it.count().plus(1).toString().toByteArray(), it.ttl, keepsExpiration = true) }
+            current?.let {
+                InMemCacheEntry(it.count().plus(1).toString().toByteArray(), it.ttl, keepsExpiration = true)
+            }
                 ?: InMemCacheEntry("1".toByteArray(), expiration)
         }
         return requireNotNull(entry).count()

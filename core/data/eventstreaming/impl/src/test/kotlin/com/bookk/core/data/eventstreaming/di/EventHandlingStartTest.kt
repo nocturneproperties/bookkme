@@ -62,7 +62,10 @@ internal class EventHandlingStartTest {
         startEventHandling(backgroundScope, scopes)
 
         then()
-        assertEquals(listOf("user-handler", "business-handler", "user-replayer", "business-replayer"), fixture.started.toList())
+        assertEquals(
+            listOf("user-handler", "business-handler", "user-replayer", "business-replayer"),
+            fixture.started.toList(),
+        )
     }
 
     @Test

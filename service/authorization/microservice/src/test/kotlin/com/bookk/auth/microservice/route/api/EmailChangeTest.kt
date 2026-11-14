@@ -43,7 +43,11 @@ internal class EmailChangeTest {
         setupApplication(
             extension = {
                 install(Authentication) {
-                    provider { authenticate { context -> context.principal(AppPrincipal(Uuid.random(), userId, Uuid.random())) } }
+                    provider {
+                        authenticate { context ->
+                            context.principal(AppPrincipal(Uuid.random(), userId, Uuid.random()))
+                        }
+                    }
                 }
             },
             diModule = module {
@@ -77,7 +81,9 @@ internal class EmailChangeTest {
         val useCase: ConfirmEmailChange = mockk()
         coEvery { useCase.invoke(any(), any(), any()) } returns Result.failure(error)
         signedInAs(Uuid.random(), useCase)
-        return createTestClient().post(AuthRouting.Api.Auth.Email.Confirm()) { setBody(EmailConfirmation(Uuid.random(), "123456")) }
+        return createTestClient().post(AuthRouting.Api.Auth.Email.Confirm()) {
+            setBody(EmailConfirmation(Uuid.random(), "123456"))
+        }
     }
 
     @Test
@@ -175,7 +181,9 @@ internal class EmailChangeTest {
         signedInAs(userId, useCase)
 
         whenn()
-        val response = createTestClient().post(AuthRouting.Api.Auth.Email.Confirm()) { setBody(EmailConfirmation(verificationId, "123456")) }
+        val response = createTestClient().post(AuthRouting.Api.Auth.Email.Confirm()) {
+            setBody(EmailConfirmation(verificationId, "123456"))
+        }
 
         then()
         assertEquals(HttpStatusCode.NoContent, response.status)
@@ -240,7 +248,9 @@ internal class EmailChangeTest {
         signedOut()
 
         whenn()
-        val response = createTestClient().post(AuthRouting.Api.Auth.Email.Confirm()) { setBody(EmailConfirmation(Uuid.random(), "123456")) }
+        val response = createTestClient().post(AuthRouting.Api.Auth.Email.Confirm()) {
+            setBody(EmailConfirmation(Uuid.random(), "123456"))
+        }
 
         then()
         assertEquals(HttpStatusCode.Unauthorized, response.status)

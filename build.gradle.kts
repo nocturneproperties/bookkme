@@ -55,21 +55,28 @@ dependencies {
     testImplementation(projects.service.authorization.domain.api)
     testImplementation(projects.service.business.domain.api)
     testImplementation(projects.service.appointments.domain.api)
+    testImplementation(projects.service.notifications.domain.api)
     testImplementation(testFixtures(projects.core))
     testImplementation(testFixtures(projects.core.service))
     testImplementation(testFixtures(projects.library.scheduler))
 }
 
+val ktlintOverrides = mapOf(
+    "ktlint_standard_function-expression-body" to "disabled",
+    "ktlint_ignore_back_ticked_identifier" to "true",
+    "ktlint_standard_function-signature" to "disabled",
+)
+
 spotless {
     kotlin {
         target("**/*.kt")
         targetExclude("**/build/**", ".gradle/**", ".kotlin/**")
-        ktlint(libs.versions.ktlint.get())
+        ktlint(libs.versions.ktlint.get()).editorConfigOverride(ktlintOverrides)
     }
     kotlinGradle {
         target("**/*.gradle.kts")
         targetExclude("**/build/**", ".gradle/**", ".kotlin/**")
-        ktlint(libs.versions.ktlint.get())
+        ktlint(libs.versions.ktlint.get()).editorConfigOverride(ktlintOverrides)
     }
 }
 

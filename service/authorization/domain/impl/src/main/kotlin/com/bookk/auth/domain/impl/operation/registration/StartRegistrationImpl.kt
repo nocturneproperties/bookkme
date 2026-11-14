@@ -23,7 +23,10 @@ internal class StartRegistrationImpl(
     private val emailCodeIssuer: EmailCodeIssuer,
 ) : StartRegistration {
 
-    override suspend fun invoke(request: CreateAccountRequest, language: Language): Result<SignUpChallengeResponse> = runSuspendCatching {
+    override suspend fun invoke(
+        request: CreateAccountRequest,
+        language: Language,
+    ): Result<SignUpChallengeResponse> = runSuspendCatching {
         if (!EmailValidator.isValid(request.email)) throw InvalidEmailFormat()
         userClient.getUserByEmail(request.email)
             .onSuccess { throw EmailAlreadyExist() }

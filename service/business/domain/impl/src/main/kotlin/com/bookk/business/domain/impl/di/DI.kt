@@ -34,6 +34,7 @@ import com.bookk.business.domain.api.employee.operation.RevokeEmployeeInvitation
 import com.bookk.business.domain.api.employee.operation.SetEmployeePermissions
 import com.bookk.business.domain.api.employee.operation.SetEmployeeSuspension
 import com.bookk.business.domain.api.employee.operation.UpdateEmployee
+import com.bookk.business.domain.api.encryption.operation.EncryptPlaintextContacts
 import com.bookk.business.domain.api.erasure.operation.DeleteExpiredErasureRecords
 import com.bookk.business.domain.api.erasure.operation.ReapplyClientErasures
 import com.bookk.business.domain.api.export.DownloadBusinessDataExport
@@ -85,6 +86,7 @@ import com.bookk.business.domain.impl.operation.employee.RevokeEmployeeInvitatio
 import com.bookk.business.domain.impl.operation.employee.SetEmployeePermissionsImpl
 import com.bookk.business.domain.impl.operation.employee.SetEmployeeSuspensionImpl
 import com.bookk.business.domain.impl.operation.employee.UpdateEmployeeImpl
+import com.bookk.business.domain.impl.operation.encryption.EncryptPlaintextContactsImpl
 import com.bookk.business.domain.impl.operation.erasure.DeleteExpiredErasureRecordsImpl
 import com.bookk.business.domain.impl.operation.erasure.ReapplyClientErasuresImpl
 import com.bookk.business.domain.impl.operation.export.DownloadBusinessDataExportImpl
@@ -147,6 +149,7 @@ fun businessDomainModule() = module {
         }
         scopedOf(::DeleteInactiveClientsImpl) bind DeleteInactiveClients::class
         scopedOf(::ReapplyClientErasuresImpl) bind ReapplyClientErasures::class
+        scopedOf(::EncryptPlaintextContactsImpl) bind EncryptPlaintextContacts::class
         scopedOf(::DeleteExpiredErasureRecordsImpl) bind DeleteExpiredErasureRecords::class
         scopedOf(::RecordClientVisitImpl) bind RecordClientVisit::class
         scopedOf(::UpdateClientImpl) bind UpdateClient::class

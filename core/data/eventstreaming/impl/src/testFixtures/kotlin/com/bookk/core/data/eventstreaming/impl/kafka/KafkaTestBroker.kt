@@ -32,7 +32,9 @@ object KafkaTestBroker {
         }
     }
 
-    fun drain(topic: String, expected: Int): List<ConsumerRecord<String, ByteArray>> = awaitRecords(topic, expected) { true }
+    fun drain(topic: String, expected: Int): List<ConsumerRecord<String, ByteArray>> = awaitRecords(topic, expected) {
+        true
+    }
 
     fun awaitRecords(
         topic: String,

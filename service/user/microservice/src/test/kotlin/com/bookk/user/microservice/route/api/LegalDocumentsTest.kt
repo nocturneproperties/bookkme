@@ -69,7 +69,10 @@ internal class LegalDocumentsTest {
         val useCase: GetLegalDocumentStatus = mockk()
         val statuses = listOf(
             LegalDocumentStatus.stub(acceptedAt = Instant.fromEpochSeconds(1_700_000_000)),
-            LegalDocumentStatus.stub(current = LegalDocumentVersion.stub(document = LegalDocument.TERMS_OF_SERVICE), acceptedAt = null),
+            LegalDocumentStatus.stub(
+                current = LegalDocumentVersion.stub(document = LegalDocument.TERMS_OF_SERVICE),
+                acceptedAt = null,
+            ),
         )
         coEvery { useCase.invoke(userId) } returns Result.success(statuses)
         setupApplication(

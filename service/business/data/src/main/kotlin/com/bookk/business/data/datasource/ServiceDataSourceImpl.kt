@@ -85,7 +85,10 @@ internal class ServiceDataSourceImpl : DataSource(), ServiceDataSource {
 
     override suspend fun deleteServiceGroup(id: Uuid, businessId: Uuid) {
         dbQuery {
-            ServiceGroupTable.deleteWhere { (ServiceGroupTable.id eq id) and (ServiceGroupTable.businessId eq businessId) }
+            ServiceGroupTable.deleteWhere {
+                (ServiceGroupTable.id eq id) and
+                    (ServiceGroupTable.businessId eq businessId)
+            }
         }
     }
 

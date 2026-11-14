@@ -52,7 +52,12 @@ class RedisCacheClient(
         }
     }
 
-    override suspend fun <V : Any> setIfAbsent(key: String, value: V, kType: KType, expiration: Duration?): Boolean = withPooledConnection {
+    override suspend fun <V : Any> setIfAbsent(
+        key: String,
+        value: V,
+        kType: KType,
+        expiration: Duration?,
+    ): Boolean = withPooledConnection {
         val serializer = protobuf.serializersModule.serializer(kType)
         val setArgs = SetArgs().nx()
         expiration?.let { setArgs.ex(it.toJavaDuration()) }
@@ -108,7 +113,9 @@ class RedisCacheClient(
         )
     }
 
-    private inline fun <T> withPooledConnection(action: StatefulRedisConnection<String, ByteBuffer>.() -> T): T = connectionPool.borrowObject().use { connection -> connection.action() }
+    private inline fun <T> withPooledConnection(action: StatefulRedisConnection<String, ByteBuffer>.() -> T): T {
+        return connectionPool.borrowObject().use { connection -> connection.action() }
+    }
 
     override fun close() {
         connectionPool.close()
@@ -125,19 +132,44 @@ class RedisCacheClient(
             )
         }
 
-        override suspend fun <V : Any> setIfAbsent(key: String, value: V, kType: KType, expiration: Duration?): Boolean = throw UnsupportedOperationException("Conditional set inside transaction is not supported, its result is only known after EXEC")
+        override suspend fun <V : Any> setIfAbsent(
+            key: String,
+            value: V,
+            kType: KType,
+            expiration: Duration?,
+        ): Boolean = throw UnsupportedOperationException(
+            "Conditional set inside transaction is not supported, its result is only known after EXEC",
+        )
 
-        override suspend fun <V : Any> get(key: String, kType: KType): V? = throw UnsupportedOperationException("Reading inside transaction is not supported, values are only known after EXEC")
+        override suspend fun <V : Any> get(
+            key: String,
+            kType: KType,
+        ): V? = throw UnsupportedOperationException(
+            "Reading inside transaction is not supported, values are only known after EXEC",
+        )
 
         override suspend fun delete(key: String) {
             this@asTransactionCache.del(key)
         }
 
-        override suspend fun <V : Any> deleteIfEquals(key: String, expected: V, kType: KType): Unit = throw UnsupportedOperationException("Conditional delete inside transaction is not supported, the compared value is only known after EXEC")
+        override suspend fun <V : Any> deleteIfEquals(
+            key: String,
+            expected: V,
+            kType: KType,
+        ): Unit = throw UnsupportedOperationException(
+            "Conditional delete inside transaction is not supported, the compared value is only known after EXEC",
+        )
 
-        override suspend fun increment(key: String, expiration: Duration): Long = throw UnsupportedOperationException("Incrementing inside transaction is not supported, the count is only known after EXEC")
+        override suspend fun increment(
+            key: String,
+            expiration: Duration,
+        ): Long = throw UnsupportedOperationException(
+            "Incrementing inside transaction is not supported, the count is only known after EXEC",
+        )
 
-        override suspend fun withTransaction(action: suspend CacheClient<String>.() -> Unit): Unit = throw UnsupportedOperationException("Transaction inside transaction is not supported")
+        override suspend fun withTransaction(action: suspend CacheClient<String>.() -> Unit) {
+            throw UnsupportedOperationException("Transaction inside transaction is not supported")
+        }
 
         override fun close(): Unit = throw UnsupportedOperationException("Redis transaction is not closeable")
     }

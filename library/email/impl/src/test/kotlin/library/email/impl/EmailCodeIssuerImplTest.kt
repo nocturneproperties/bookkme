@@ -61,7 +61,7 @@ internal class EmailCodeIssuerImplTest {
     }
 
     @Test
-    fun `should email a six digit code to the address and say when it expires and when a new one can be sent`() = runUnitTest {
+    fun `should email a six digit code and say when it expires and when a new one can be sent`() = runUnitTest {
         given()
         val fixture = SutFixture()
 

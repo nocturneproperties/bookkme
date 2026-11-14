@@ -23,7 +23,10 @@ internal class ExportUserNotificationDataClientImplTest {
 
     private class SutFixture(status: HttpStatusCode = HttpStatusCode.OK) {
         val export = NotificationsUserDataExport.stub(
-            settings = NotificationsUserDataExport.SettingsExport(true, listOf(NotificationsUserDataExport.ChannelExport("PUSH_NOTIFICATIONS", enabled = true))),
+            settings = NotificationsUserDataExport.SettingsExport(
+                true,
+                listOf(NotificationsUserDataExport.ChannelExport("PUSH_NOTIFICATIONS", enabled = true)),
+            ),
             devices = listOf(NotificationsUserDataExport.DeviceExport("UK", pushNotificationsRegistered = true)),
             email = "olena@example.com",
         )

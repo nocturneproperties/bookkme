@@ -281,6 +281,9 @@ internal class EmailCodeRedeemerImplTest {
         const val EMAIL = "client@example.com"
         const val PURPOSE = "verify"
 
-        fun wrongCode(code: String) = ((code.toInt() + 1) % 1_000_000).toString().padStart(EmailCodeIssuerImpl.CODE_LENGTH, '0')
+        fun wrongCode(code: String) = ((code.toInt() + 1) % 1_000_000).toString().padStart(
+            EmailCodeIssuerImpl.CODE_LENGTH,
+            '0',
+        )
     }
 }

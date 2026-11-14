@@ -34,7 +34,10 @@ internal class FinishRegistrationImpl(
     private val emailCodeRedeemer: EmailCodeRedeemer,
 ) : FinishRegistration {
 
-    override suspend fun invoke(request: VerifyAccountCreationRequest, language: Language): Result<AuthTokens> = runSuspendCatching {
+    override suspend fun invoke(
+        request: VerifyAccountCreationRequest,
+        language: Language,
+    ): Result<AuthTokens> = runSuspendCatching {
         val signUpAttempt = Uuid.parseOrNull(request.requestId) ?: throw ChallengeWindowExpired()
         emailCodeRedeemer.redeem(request.verificationId, request.emailCode, ownerId = signUpAttempt) { verified ->
             if (verified.purpose != EmailPurpose.SIGN_UP) throw EmailCodeError.Invalid()
@@ -42,7 +45,11 @@ internal class FinishRegistrationImpl(
         }.getOrThrow()
     }
 
-    private suspend fun register(request: VerifyAccountCreationRequest, verifiedEmail: String, language: Language): Result<AuthTokens> = runSuspendCatching {
+    private suspend fun register(
+        request: VerifyAccountCreationRequest,
+        verifiedEmail: String,
+        language: Language,
+    ): Result<AuthTokens> = runSuspendCatching {
         val verifiedPasskey = finishPasskeyRegistration.verifyRequest(request).getOrThrow()
         val userId = userClient.createUser(createUserFrom(request, verifiedEmail)).getOrThrow()
         val deviceName = request.deviceInfo.deviceName
@@ -69,7 +76,10 @@ internal class FinishRegistrationImpl(
         }
     }
 
-    private fun createUserFrom(request: VerifyAccountCreationRequest, verifiedEmail: String): CreateUserRequest = CreateUserRequest(
+    private fun createUserFrom(
+        request: VerifyAccountCreationRequest,
+        verifiedEmail: String,
+    ): CreateUserRequest = CreateUserRequest(
         name = request.userInfo.name,
         lastName = request.userInfo.lastName,
         email = verifiedEmail,

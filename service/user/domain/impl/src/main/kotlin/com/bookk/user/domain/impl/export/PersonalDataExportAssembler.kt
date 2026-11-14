@@ -38,7 +38,11 @@ internal class PersonalDataExportAssembler(
             OwnData(
                 profile = userDataExportDataSource.getProfile(ownerId) ?: throw Error.NotFound(),
                 legalAcceptances = legalDocumentDataSource.getAcceptances(ownerId).map {
-                    PersonalDataExport.LegalAcceptanceExport(document = it.document.name, version = it.version, acceptedAt = it.acceptedAt)
+                    PersonalDataExport.LegalAcceptanceExport(
+                        document = it.document.name,
+                        version = it.version,
+                        acceptedAt = it.acceptedAt,
+                    )
                 },
             )
         }

@@ -35,7 +35,11 @@ internal class EmailModuleTest {
 
         whenn()
         val resolved = runCatching {
-            listOf(fixture.scope.get<EmailSender>(), fixture.scope.get<EmailCodeIssuer>(), fixture.scope.get<EmailCodeRedeemer>())
+            listOf(
+                fixture.scope.get<EmailSender>(),
+                fixture.scope.get<EmailCodeIssuer>(),
+                fixture.scope.get<EmailCodeRedeemer>(),
+            )
         }
 
         then()
@@ -75,7 +79,11 @@ internal class EmailModuleTest {
         val resolved = runCatching { fixture.scope.get<EmailSender>() }
 
         then()
-        assertTrue(generateSequence(resolved.exceptionOrNull()) { it.cause }.any { it.message.orEmpty().contains("APPLICATION_POSTMARK_SERVER_TOKEN") }) { resolved.toString() }
+        assertTrue(
+            generateSequence(resolved.exceptionOrNull()) {
+                it.cause
+            }.any { it.message.orEmpty().contains("APPLICATION_POSTMARK_SERVER_TOKEN") },
+        ) { resolved.toString() }
     }
 
     @Test
@@ -87,7 +95,11 @@ internal class EmailModuleTest {
         val resolved = runCatching { fixture.scope.get<EmailSender>() }
 
         then()
-        assertTrue(generateSequence(resolved.exceptionOrNull()) { it.cause }.any { it.message.orEmpty().contains("APPLICATION_EMAIL_FROM") }) { resolved.toString() }
+        assertTrue(
+            generateSequence(resolved.exceptionOrNull()) {
+                it.cause
+            }.any { it.message.orEmpty().contains("APPLICATION_EMAIL_FROM") },
+        ) { resolved.toString() }
     }
 
     @Test
@@ -99,7 +111,11 @@ internal class EmailModuleTest {
         val resolved = runCatching { fixture.scope.get<EmailCodeIssuer>() }
 
         then()
-        assertTrue(generateSequence(resolved.exceptionOrNull()) { it.cause }.any { it.message.orEmpty().contains("APPLICATION_EMAIL_CODE_SECRET") }) { resolved.toString() }
+        assertTrue(
+            generateSequence(resolved.exceptionOrNull()) {
+                it.cause
+            }.any { it.message.orEmpty().contains("APPLICATION_EMAIL_CODE_SECRET") },
+        ) { resolved.toString() }
     }
 
     @Test
@@ -111,7 +127,11 @@ internal class EmailModuleTest {
         val resolved = runCatching { fixture.scope.get<EmailCodeRedeemer>() }
 
         then()
-        assertTrue(generateSequence(resolved.exceptionOrNull()) { it.cause }.any { it.message.orEmpty().contains("APPLICATION_EMAIL_CODE_SECRET") }) { resolved.toString() }
+        assertTrue(
+            generateSequence(resolved.exceptionOrNull()) {
+                it.cause
+            }.any { it.message.orEmpty().contains("APPLICATION_EMAIL_CODE_SECRET") },
+        ) { resolved.toString() }
     }
 
     private companion object {

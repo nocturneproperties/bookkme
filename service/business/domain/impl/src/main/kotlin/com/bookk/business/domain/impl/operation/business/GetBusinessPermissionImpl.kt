@@ -11,7 +11,11 @@ internal class GetBusinessPermissionImpl(
     private val businessPermissionDataSource: BusinessPermissionDataSource,
     private val transactionManager: TransactionManager,
 ) : GetBusinessPermission {
-    override suspend fun invoke(userId: Uuid, businessId: Uuid, resource: BusinessResource): Result<ResourcePermission> = transactionManager.transaction {
+    override suspend fun invoke(
+        userId: Uuid,
+        businessId: Uuid,
+        resource: BusinessResource,
+    ): Result<ResourcePermission> = transactionManager.transaction {
         businessPermissionDataSource.getPermission(userId, businessId, resource)
     }
 }

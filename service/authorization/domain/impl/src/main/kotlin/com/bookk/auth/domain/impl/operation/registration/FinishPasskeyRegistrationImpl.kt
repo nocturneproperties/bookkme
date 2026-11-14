@@ -32,7 +32,9 @@ internal class FinishPasskeyRegistrationImpl(
     private val credentialRepo: CacheableCredentialRepository,
     private val transactionManager: TransactionManager,
 ) : FinishPasskeyRegistration {
-    override suspend fun verifyRequest(request: FinishRegistrationRequest): Result<PasskeyCredential> = transactionManager.transaction {
+    override suspend fun verifyRequest(
+        request: FinishRegistrationRequest,
+    ): Result<PasskeyCredential> = transactionManager.transaction {
         val pkc = PublicKeyCredential.parseRegistrationResponseJson(request.publicKeyCredentialJson)
         val challengeJson = passKeyDS.getCachedChallenge(request.requestId) ?: throw ChallengeWindowExpired()
         val challenge = PublicKeyCredentialCreationOptions.fromJson(challengeJson)
@@ -71,7 +73,10 @@ internal class FinishPasskeyRegistrationImpl(
 
     // This is actually OptIn for not yet mature FIDO standards
     @Suppress("DEPRECATION")
-    private fun RegistrationResult.asPasskeyCredential(pkc: PKS, challenge: PublicKeyCredentialCreationOptions): PasskeyCredential = PasskeyCredential(
+    private fun RegistrationResult.asPasskeyCredential(
+        pkc: PKS,
+        challenge: PublicKeyCredentialCreationOptions,
+    ): PasskeyCredential = PasskeyCredential(
         id = Uuid.random(),
         authId = Uuid.random(),
         authInfo = Authentication(Uuid.random(), Uuid.random(), Uuid.random()), // Ignored

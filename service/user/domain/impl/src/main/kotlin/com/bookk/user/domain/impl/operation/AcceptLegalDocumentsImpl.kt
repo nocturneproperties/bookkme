@@ -15,7 +15,10 @@ internal class AcceptLegalDocumentsImpl(
     private val transactionManager: TransactionManager,
 ) : AcceptLegalDocuments {
 
-    override suspend fun invoke(userId: Uuid, documents: AcceptedLegalDocuments): Result<Unit> = transactionManager.transaction {
+    override suspend fun invoke(
+        userId: Uuid,
+        documents: AcceptedLegalDocuments,
+    ): Result<Unit> = transactionManager.transaction {
         userDataSource.getUserById(userId) ?: throw Error.NotFound()
         legalDocumentDataSource.publishedAcceptances(documents, Clock.System.now())
             .forEach { legalDocumentDataSource.recordAcceptance(userId, it) }

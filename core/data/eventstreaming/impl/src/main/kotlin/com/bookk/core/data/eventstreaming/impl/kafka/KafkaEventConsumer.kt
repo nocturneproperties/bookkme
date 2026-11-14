@@ -5,9 +5,12 @@ import com.bookk.core.data.eventstreaming.DltRetry
 import com.bookk.core.data.eventstreaming.EventIdempotencyStorage
 import com.bookk.core.data.eventstreaming.EventStreaming
 import com.bookk.core.data.eventstreaming.EventStreaming.Event
+import com.bookk.core.data.eventstreaming.ExhaustedEvent
 import com.bookk.core.data.eventstreaming.ExhaustedEventDataSource
+import com.bookk.core.data.eventstreaming.Parked
 import com.bookk.core.data.eventstreaming.impl.IdempotentDelivery
 import com.bookk.core.data.eventstreaming.impl.logDelivered
+import com.bookk.core.data.eventstreaming.impl.replayReadable
 import com.bookk.core.data.eventstreaming.send
 import com.bookk.core.domain.datasource.transaction.TransactionManager
 import io.ktor.util.collections.ConcurrentMap
@@ -49,6 +52,7 @@ class KafkaEventConsumer(
     private val logger = KtorSimpleLogger("KafkaEventConsumer")
     private val idempotentDelivery = IdempotentDelivery(consumerGroup, eventIdempotencyStorage, logger)
     private val receivers = ConcurrentMap<String, suspend (ByteArray, Int) -> Unit>()
+    private val types = ConcurrentMap<String, KType>()
 
     private val consumer = KafkaConsumer(
         mutableMapOf<String, Any>(
@@ -67,6 +71,7 @@ class KafkaEventConsumer(
         type: KType,
         onEvent: suspend (T) -> Unit,
     ): EventStreaming.Consumer<String> {
+        types[topic] = type
         receivers[topic] = { rawBytes, attempt ->
             runCatching {
                 val serializer = protoBuf.serializersModule.serializer(type)
@@ -86,15 +91,14 @@ class KafkaEventConsumer(
         return this
     }
 
-    override suspend fun replay(exhausted: DltEvent): Boolean {
-        if (exhausted.originalTopic !in receivers) return false
-        dltProducer.send(
-            DltEvent(
-                payload = exhausted.payload,
-                originalTopic = exhausted.originalTopic,
-                topic = DltRetry.dltTopic(exhausted.originalTopic, consumerGroup),
-            ),
-        )
+    override suspend fun replay(parked: ExhaustedEvent): Boolean {
+        if (parked.originalTopic !in types || parked.originalTopic !in receivers) return false
+        return parked.replayReadable(logger) { payload -> sendToDlt(parked.originalTopic, payload) }
+    }
+
+    private suspend fun sendToDlt(originalTopic: String, payload: ByteArray): Boolean {
+        val dltTopic = DltRetry.dltTopic(originalTopic, consumerGroup)
+        dltProducer.send(DltEvent(payload = payload, originalTopic = originalTopic, topic = dltTopic))
         return true
     }
 
@@ -126,7 +130,13 @@ class KafkaEventConsumer(
 
     private suspend fun handleFailure(topic: String, rawBytes: ByteArray, attempt: Int) {
         val nextAttempt = attempt + 1
-        val dltEvent = DltEvent(payload = rawBytes, originalTopic = topic, attempt = nextAttempt, topic = DltRetry.dltTopic(topic, consumerGroup))
+        val dltEvent =
+            DltEvent(
+                payload = rawBytes,
+                originalTopic = topic,
+                attempt = nextAttempt,
+                topic = DltRetry.dltTopic(topic, consumerGroup),
+            )
         if (DltRetry.isExhausted(nextAttempt, maxAttempts)) {
             persistOrRequeue(dltEvent)
         } else {
@@ -150,11 +160,27 @@ class KafkaEventConsumer(
     }
 
     private suspend fun persistOrRequeue(dltEvent: DltEvent) {
-        transactionManager.transaction { exhaustedEventDataSource.save(dltEvent) }
+        transactionManager.transaction { park(dltEvent) }
             .onFailure {
-                logger.error("Failed to persist exhausted event for topic: {}. Retrying. Error: {}", dltEvent.originalTopic, it.message)
+                logger.error(
+                    "Failed to persist exhausted event for topic: {}. Retrying. Error: {}",
+                    dltEvent.originalTopic,
+                    it.message,
+                )
                 dltProducer.send(dltEvent.copy(attempt = dltEvent.attempt + 1))
             }
+    }
+
+    private suspend fun park(dltEvent: DltEvent) {
+        val type = types[dltEvent.originalTopic] ?: return
+        if (exhaustedEventDataSource.save(decode(type, dltEvent.payload), dltEvent) == Parked.SubjectErased) {
+            logger.info("Dropped a failing event of an erased data subject, topic: {}", dltEvent.originalTopic)
+        }
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun decode(type: KType, payload: ByteArray): Event<String> {
+        return protoBuf.decodeFromByteArray(protoBuf.serializersModule.serializer(type), payload) as Event<String>
     }
 
     private suspend fun processPartition(records: List<ConsumerRecord<String, ByteArray>>) {

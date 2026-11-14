@@ -10,7 +10,11 @@ internal class RecordClientVisitImpl(
     private val clientDataSource: ClientDataSource,
     private val transactionManager: TransactionManager,
 ) : RecordClientVisit {
-    override suspend fun invoke(businessId: Uuid, clientId: Uuid, visitEnd: Instant): Result<Unit> = transactionManager.transaction {
+    override suspend fun invoke(
+        businessId: Uuid,
+        clientId: Uuid,
+        visitEnd: Instant,
+    ): Result<Unit> = transactionManager.transaction {
         clientDataSource.recordVisit(businessId, clientId, visitEnd)
     }
 }

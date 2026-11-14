@@ -262,7 +262,8 @@ internal class CreateAppointmentTest {
         val useCase: CreateAppointment = mockk()
         val requestId = Uuid.random()
         val userId = Uuid.random()
-        coEvery { useCase.invoke(userId, requestId) } returns Result.failure(AppointmentRequestStatusError.AlreadyDeclined())
+        coEvery { useCase.invoke(userId, requestId) } returns
+            Result.failure(AppointmentRequestStatusError.AlreadyDeclined())
 
         setupApplication(
             extension = {
@@ -295,7 +296,8 @@ internal class CreateAppointmentTest {
         val useCase: CreateAppointment = mockk()
         val requestId = Uuid.random()
         val userId = Uuid.random()
-        coEvery { useCase.invoke(userId, requestId) } returns Result.failure(AppointmentRequestStatusError.AlreadyApproved())
+        coEvery { useCase.invoke(userId, requestId) } returns
+            Result.failure(AppointmentRequestStatusError.AlreadyApproved())
 
         setupApplication(
             extension = {

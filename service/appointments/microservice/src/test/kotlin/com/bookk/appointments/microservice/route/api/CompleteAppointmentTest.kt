@@ -45,7 +45,10 @@ internal class CompleteAppointmentTest {
         given()
         val useCase: CompleteAppointment = mockk()
         val userId = Uuid.random()
-        val appointment = Appointment.stub().copy(status = AppointmentStatus.COMPLETED, completedBy = AppointmentCompletedBy.USER)
+        val appointment = Appointment.stub().copy(
+            status = AppointmentStatus.COMPLETED,
+            completedBy = AppointmentCompletedBy.USER,
+        )
         coEvery { useCase.invoke(userId, appointment.id, null) } returns Result.success(appointment)
 
         setupApplication(
@@ -79,7 +82,8 @@ internal class CompleteAppointmentTest {
         val useCase: CompleteAppointment = mockk()
         val userId = Uuid.random()
         val appointmentId = Uuid.random()
-        coEvery { useCase.invoke(userId, appointmentId, null) } returns Result.failure(AppointmentStatusError.AlreadyCancelled())
+        coEvery { useCase.invoke(userId, appointmentId, null) } returns
+            Result.failure(AppointmentStatusError.AlreadyCancelled())
 
         setupApplication(
             extension = {
@@ -110,7 +114,8 @@ internal class CompleteAppointmentTest {
         val useCase: CompleteAppointment = mockk()
         val userId = Uuid.random()
         val appointmentId = Uuid.random()
-        coEvery { useCase.invoke(userId, appointmentId, null) } returns Result.failure(AppointmentStatusError.NotStarted())
+        coEvery { useCase.invoke(userId, appointmentId, null) } returns
+            Result.failure(AppointmentStatusError.NotStarted())
 
         setupApplication(
             extension = {
@@ -141,7 +146,12 @@ internal class CompleteAppointmentTest {
         val useCase: CompleteAppointment = mockk()
         val userId = Uuid.random()
         val appointmentId = Uuid.random()
-        coEvery { useCase.invoke(userId, appointmentId, null) } returns Result.success(Appointment.stub(id = appointmentId).copy(status = AppointmentStatus.COMPLETED, completedBy = AppointmentCompletedBy.USER))
+        coEvery { useCase.invoke(userId, appointmentId, null) } returns
+            Result.success(
+                Appointment.stub(
+                    id = appointmentId,
+                ).copy(status = AppointmentStatus.COMPLETED, completedBy = AppointmentCompletedBy.USER),
+            )
 
         setupApplication(
             extension = {
@@ -255,7 +265,11 @@ internal class CompleteAppointmentTest {
         given()
         val useCase: CompleteAppointment = mockk()
         val userId = Uuid.random()
-        val draft = PriceAdjustmentDraft.stub(additionalServiceIds = listOf(Uuid.random()), price = Money.parse("USD 80"), reason = "Discount")
+        val draft = PriceAdjustmentDraft.stub(
+            additionalServiceIds = listOf(Uuid.random()),
+            price = Money.parse("USD 80"),
+            reason = "Discount",
+        )
         val adjustment = PriceAdjustment.stub(price = draft.price, reason = draft.reason)
         val appointment = Appointment.stub().copy(
             status = AppointmentStatus.COMPLETED,
@@ -286,7 +300,10 @@ internal class CompleteAppointmentTest {
         given()
         val useCase: CompleteAppointment = mockk()
         val userId = Uuid.random()
-        val appointment = Appointment.stub().copy(status = AppointmentStatus.COMPLETED, completedBy = AppointmentCompletedBy.USER)
+        val appointment = Appointment.stub().copy(
+            status = AppointmentStatus.COMPLETED,
+            completedBy = AppointmentCompletedBy.USER,
+        )
         coEvery { useCase.invoke(userId, appointment.id, null) } returns Result.success(appointment)
 
         setupApplication(
@@ -308,19 +325,28 @@ internal class CompleteAppointmentTest {
     @Test
     fun `should return unprocessable entity when adjusted price is negative`() = routeTest {
         given()
-        assertAdjustmentRejected(CompleteAppointment.Error.NegativePrice(), AppointmentErrorCodes.PRICE_ADJUSTMENT_NEGATIVE_PRICE)
+        assertAdjustmentRejected(
+            CompleteAppointment.Error.NegativePrice(),
+            AppointmentErrorCodes.PRICE_ADJUSTMENT_NEGATIVE_PRICE,
+        )
     }
 
     @Test
-    fun `should return unprocessable entity when adjusted price currency differs from appointment currency`() = routeTest {
+    fun `should return unprocessable entity when adjusted price currency differs from the appointment's`() = routeTest {
         given()
-        assertAdjustmentRejected(CompleteAppointment.Error.CurrencyMismatch(), AppointmentErrorCodes.PRICE_ADJUSTMENT_CURRENCY_MISMATCH)
+        assertAdjustmentRejected(
+            CompleteAppointment.Error.CurrencyMismatch(),
+            AppointmentErrorCodes.PRICE_ADJUSTMENT_CURRENCY_MISMATCH,
+        )
     }
 
     @Test
     fun `should return unprocessable entity when adjustment reason is too long`() = routeTest {
         given()
-        assertAdjustmentRejected(CompleteAppointment.Error.ReasonTooLong(), AppointmentErrorCodes.PRICE_ADJUSTMENT_REASON_TOO_LONG)
+        assertAdjustmentRejected(
+            CompleteAppointment.Error.ReasonTooLong(),
+            AppointmentErrorCodes.PRICE_ADJUSTMENT_REASON_TOO_LONG,
+        )
     }
 
     @Test
@@ -328,7 +354,11 @@ internal class CompleteAppointmentTest {
         given()
         val serviceNotFoundCode = 200013
         assertAdjustmentRejected(
-            BusinessError(HttpStatusCode.UnprocessableEntity.value, serviceNotFoundCode, "One or more services not found"),
+            BusinessError(
+                HttpStatusCode.UnprocessableEntity.value,
+                serviceNotFoundCode,
+                "One or more services not found",
+            ),
             serviceNotFoundCode,
         )
     }
@@ -373,7 +403,8 @@ internal class CompleteAppointmentTest {
         val useCase: CompleteAppointment = mockk()
         val userId = Uuid.random()
         val appointmentId = Uuid.random()
-        coEvery { useCase.invoke(userId, appointmentId, null) } returns Result.failure(AppointmentStatusError.EditWindowClosed())
+        coEvery { useCase.invoke(userId, appointmentId, null) } returns
+            Result.failure(AppointmentStatusError.EditWindowClosed())
 
         setupApplication(
             extension = {

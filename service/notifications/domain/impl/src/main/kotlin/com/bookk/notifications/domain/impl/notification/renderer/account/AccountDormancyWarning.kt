@@ -30,6 +30,8 @@ internal val AuthEvent.AccountDormancyWarning.notification: NotificationParamete
             )
         },
         text = { language ->
-            TextNotification(message(language, "$keyPrefix.text.body", deletesAt.formatLocalized(TimeZone.UTC, language)))
+            TextNotification(
+                message(language, "$keyPrefix.text.body", deletesAt.formatLocalized(TimeZone.UTC, language)),
+            )
         },
     )

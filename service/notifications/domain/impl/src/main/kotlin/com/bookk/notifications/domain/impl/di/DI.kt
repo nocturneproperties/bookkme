@@ -5,6 +5,7 @@ import com.bookk.notifications.client.api.export.ExportUserNotificationData
 import com.bookk.notifications.domain.api.CreateDeviceEntry
 import com.bookk.notifications.domain.api.DeleteDeviceByUUID
 import com.bookk.notifications.domain.api.DeleteUserNotificationData
+import com.bookk.notifications.domain.api.EncryptPlaintextTargets
 import com.bookk.notifications.domain.api.GetNotificationSettings
 import com.bookk.notifications.domain.api.NOTIFICATIONS_SCHEMA
 import com.bookk.notifications.domain.api.UpdateNotificationSettings
@@ -13,6 +14,7 @@ import com.bookk.notifications.domain.api.entity.CommunicationChannel
 import com.bookk.notifications.domain.impl.CreateDeviceEntryImpl
 import com.bookk.notifications.domain.impl.DeleteDeviceByUUIDImpl
 import com.bookk.notifications.domain.impl.DeleteUserNotificationDataImpl
+import com.bookk.notifications.domain.impl.EncryptPlaintextTargetsImpl
 import com.bookk.notifications.domain.impl.ExportUserNotificationDataImpl
 import com.bookk.notifications.domain.impl.GetNotificationSettingsImpl
 import com.bookk.notifications.domain.impl.UpdateDeviceLanguage
@@ -44,6 +46,7 @@ fun notificationsDomainModule() = module {
         scopedOf(::UpdateNotificationSettingsImpl) bind UpdateNotificationSettings::class
         scopedOf(::GetNotificationSettingsImpl) bind GetNotificationSettings::class
         scopedOf(::ExportUserNotificationDataImpl) bind ExportUserNotificationData::class
+        scopedOf(::EncryptPlaintextTargetsImpl) bind EncryptPlaintextTargets::class
         scopedOf(::FirebaseNotificationSender) bind NotificationSender::class
         scopedOf(::EmailNotificationSender) bind NotificationSender::class
         scopedOf(::TelegramNotificationSender) bind NotificationSender::class

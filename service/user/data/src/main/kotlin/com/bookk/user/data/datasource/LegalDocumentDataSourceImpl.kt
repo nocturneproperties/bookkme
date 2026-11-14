@@ -28,7 +28,9 @@ internal class LegalDocumentDataSourceImpl : DataSource(), LegalDocumentDataSour
 
     override suspend fun getVersion(document: LegalDocument, version: String): LegalDocumentVersion? = dbQuery {
         LegalDocumentVersionTable.selectAll()
-            .where { (LegalDocumentVersionTable.document eq document) and (LegalDocumentVersionTable.version eq version) }
+            .where {
+                (LegalDocumentVersionTable.document eq document) and (LegalDocumentVersionTable.version eq version)
+            }
             .singleOrNull()
             ?.toVersion()
     }

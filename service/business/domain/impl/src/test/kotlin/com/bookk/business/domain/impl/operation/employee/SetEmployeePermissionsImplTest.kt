@@ -37,7 +37,14 @@ internal class SetEmployeePermissionsImplTest {
         val businessPermissionDataSource = mockk<BusinessPermissionDataSource>()
         val transactionManager = mockk<TransactionManager>()
         val eventProducer = mockk<StandardEventProducer>(relaxed = true)
-        val sut = SetEmployeePermissionsImpl(employeeDataSource, businessDataSource, businessPermissionDataSource, transactionManager, eventProducer)
+        val sut =
+            SetEmployeePermissionsImpl(
+                employeeDataSource,
+                businessDataSource,
+                businessPermissionDataSource,
+                transactionManager,
+                eventProducer,
+            )
 
         init {
             coEvery { businessDataSource.isOwner(any(), any()) } returns false
@@ -51,7 +58,9 @@ internal class SetEmployeePermissionsImplTest {
         val fixture = SutFixture(requestUserId, businessId)
         val employee = Employee.stub(
             businessId = businessId,
-            permissions = BusinessPermissions.stub(appointments = ResourcePermission(view = true, update = false, delete = false)),
+            permissions = BusinessPermissions.stub(
+                appointments = ResourcePermission(view = true, update = false, delete = false),
+            ),
         )
         val grants = mapOf(
             BusinessResource.CLIENTS to ResourcePermission.FULL,
@@ -107,7 +116,8 @@ internal class SetEmployeePermissionsImplTest {
         coVerify(exactly = 1) {
             fixture.eventProducer.send(
                 match<BusinessEvent.EmployeePermissionsChanged> {
-                    it.employeeUserId == employee.userId && it.businessId == businessId && it.permissions == expected && !it.suspended
+                    it.employeeUserId == employee.userId && it.businessId == businessId && it.permissions == expected &&
+                        !it.suspended
                 },
                 any(),
             )
@@ -143,7 +153,7 @@ internal class SetEmployeePermissionsImplTest {
     }
 
     @Test
-    fun `should return the employee unchanged without writing or publishing when no grants are requested`() = runUnitTest {
+    fun `should return the employee unchanged without writing or publishing when no grants are given`() = runUnitTest {
         given()
         val fixture = SutFixture(requestUserId, businessId)
         val employee = Employee.stub(businessId = businessId, permissions = BusinessPermissions.VIEW_ONLY)
@@ -158,7 +168,9 @@ internal class SetEmployeePermissionsImplTest {
         then()
         assertEquals(employee, result.getOrNull())
         coVerify(exactly = 0) { fixture.businessPermissionDataSource.setPermissions(any(), any()) }
-        coVerify(exactly = 0) { fixture.eventProducer.send(any(BusinessEvent.EmployeePermissionsChanged::class), any()) }
+        coVerify(exactly = 0) {
+            fixture.eventProducer.send(any(BusinessEvent.EmployeePermissionsChanged::class), any())
+        }
     }
 
     @Test
@@ -172,7 +184,12 @@ internal class SetEmployeePermissionsImplTest {
         }
 
         whenn()
-        val result = fixture.sut(requestUserId, businessId, employeeId, mapOf(BusinessResource.CLIENTS to ResourcePermission.FULL))
+        val result = fixture.sut(
+            requestUserId,
+            businessId,
+            employeeId,
+            mapOf(BusinessResource.CLIENTS to ResourcePermission.FULL),
+        )
 
         then()
         assertTrue(result.exceptionOrNull() is Error.NotFound)
@@ -182,39 +199,58 @@ internal class SetEmployeePermissionsImplTest {
     fun `should reject changing permissions of the business owner`() = runUnitTest {
         given()
         val fixture = SutFixture(requestUserId, businessId)
-        val owner = Employee.stub(businessId = businessId, userId = requestUserId, permissions = BusinessPermissions.FULL)
+        val owner = Employee.stub(
+            businessId = businessId,
+            userId = requestUserId,
+            permissions = BusinessPermissions.FULL,
+        )
         with(fixture) {
             transactionManager.mockTransaction()
             coEvery { employeeDataSource.getEmployee(businessId, owner.id) } returns owner
         }
 
         whenn()
-        val result = fixture.sut(requestUserId, businessId, owner.id, mapOf(BusinessResource.CLIENTS to ResourcePermission.NONE))
+        val result = fixture.sut(
+            requestUserId,
+            businessId,
+            owner.id,
+            mapOf(BusinessResource.CLIENTS to ResourcePermission.NONE),
+        )
 
         then()
         assertTrue(result.exceptionOrNull() is SetEmployeePermissions.Error.OwnerPermissionsImmutable)
         coVerify(exactly = 0) { fixture.businessPermissionDataSource.setPermissions(any(), any()) }
-        coVerify(exactly = 0) { fixture.eventProducer.send(any(BusinessEvent.EmployeePermissionsChanged::class), any()) }
+        coVerify(exactly = 0) {
+            fixture.eventProducer.send(any(BusinessEvent.EmployeePermissionsChanged::class), any())
+        }
     }
 
     @Test
-    fun `should return failure when caller is not the business owner even with full employee permissions`() = runUnitTest {
+    fun `should return failure when caller is not the owner even with full employee permissions`() = runUnitTest {
         given()
         val fixture = SutFixture(requestUserId, businessId)
         val employee = Employee.stub(businessId = businessId)
         with(fixture) {
             transactionManager.mockTransaction()
             coEvery { businessDataSource.isOwner(requestUserId, businessId) } returns false
-            coEvery { businessPermissionDataSource.getPermission(requestUserId, businessId, any()) } returns ResourcePermission.FULL
+            coEvery { businessPermissionDataSource.getPermission(requestUserId, businessId, any()) } returns
+                ResourcePermission.FULL
         }
 
         whenn()
-        val result = fixture.sut(requestUserId, businessId, employee.id, mapOf(BusinessResource.CLIENTS to ResourcePermission.FULL))
+        val result = fixture.sut(
+            requestUserId,
+            businessId,
+            employee.id,
+            mapOf(BusinessResource.CLIENTS to ResourcePermission.FULL),
+        )
 
         then()
         assertTrue(result.exceptionOrNull() is Error.OperationNotAllowed)
         coVerify(exactly = 0) { fixture.employeeDataSource.getEmployee(any(), any()) }
         coVerify(exactly = 0) { fixture.businessPermissionDataSource.setPermissions(any(), any()) }
-        coVerify(exactly = 0) { fixture.eventProducer.send(any(BusinessEvent.EmployeePermissionsChanged::class), any()) }
+        coVerify(exactly = 0) {
+            fixture.eventProducer.send(any(BusinessEvent.EmployeePermissionsChanged::class), any())
+        }
     }
 }

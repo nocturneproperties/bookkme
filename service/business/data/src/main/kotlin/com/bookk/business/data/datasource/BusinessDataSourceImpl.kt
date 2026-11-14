@@ -23,7 +23,6 @@ import org.jetbrains.exposed.v1.core.isNotNull
 import org.jetbrains.exposed.v1.core.isNull
 import org.jetbrains.exposed.v1.core.less
 import org.jetbrains.exposed.v1.core.or
-import org.jetbrains.exposed.v1.jdbc.deleteReturning
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.upsert
@@ -32,7 +31,12 @@ import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
 internal class BusinessDataSourceImpl : DataSource(), BusinessDataSource {
-    override suspend fun createBusiness(userId: Uuid, name: String, currencyCode: String, timeZone: TimeZone): Business = dbQuery {
+    override suspend fun createBusiness(
+        userId: Uuid,
+        name: String,
+        currencyCode: String,
+        timeZone: TimeZone,
+    ): Business = dbQuery {
         val entity = BusinessEntity.new(userId, name, currencyCode, timeZone)
         BusinessDashboardTable.upsert {
             it[this.userId] = userId
@@ -73,10 +77,16 @@ internal class BusinessDataSourceImpl : DataSource(), BusinessDataSource {
             .not()
     }
 
-    override suspend fun deleteUserBusinesses(userId: Uuid) = dbQuery {
-        BusinessTable.deleteReturning(listOf(BusinessTable.id)) {
-            BusinessTable.userId eq userId
-        }.map { it[BusinessTable.id].value }
+    override suspend fun getUserBusinessIdsForUpdate(userId: Uuid): List<Uuid> = dbQuery {
+        BusinessTable.select(BusinessTable.id)
+            .where { BusinessTable.userId eq userId }
+            .forUpdate()
+            .map { it[BusinessTable.id].value }
+    }
+
+    override suspend fun deleteBusinesses(businessIds: Collection<Uuid>) {
+        if (businessIds.isEmpty()) return
+        dbQuery { BusinessTable.deleteWhere { BusinessTable.id inList businessIds } }
     }
 
     override suspend fun getDashboardBusiness(userId: Uuid): Business? = dbQuery {

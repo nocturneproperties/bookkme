@@ -19,8 +19,9 @@ have `client_user_id` empty. In one transaction this moves every row of
 the duplicates onto `clientId`, then records the account on all of the
 kept client's appointments and requests, so that [account
 deletion](on-user-deleted.md), which erases by `client_user_id`, finds
-them. The stored name, phone and email are a snapshot of booking time and
-are left as they are. Moving and linking travel in one event, because two
+them. The stored name, phone, email and note are a snapshot of booking
+time and keep their values, but the moved rows are re-encrypted under the
+kept client's key before the duplicates' keys are shredded. Moving and linking travel in one event, because two
 events on separate topics could arrive in either order and leave moved rows
 without the account.
 
@@ -58,16 +59,17 @@ flowchart TD
     Claim -- claimed --> Tx[[Begin transaction]]
     Tx --> Deleted["DeletedUserDataSource.isDeletedForShare userId - LOCK IN SHARE MODE"]
     Deleted --> ClientDeleted["DeletedClientDataSource.isDeletedForShare businessId clientId - LOCK IN SHARE MODE"]
-    ClientDeleted --> Move["Per merged id - AppointmentDataSource.reassignClient + AppointmentRequestDataSource.reassignClient businessId mergedId clientId"]
+    ClientDeleted --> Move["AppointmentDataSource.reassignClients + AppointmentRequestDataSource.reassignClients businessId mergedIds clientId - per table, lock the merged rows FOR UPDATE, decrypt each under its old client key and store it under clientId's key, none without merged ids"]
     Move --> LinkA["AppointmentDataSource.linkClientUser businessId clientId userId - client_user_id = userId"]
     LinkA --> LinkR["AppointmentRequestDataSource.linkClientUser businessId clientId userId"]
     LinkR --> Was{account already deleted?}
     Was -- No --> WasClient
     Was -- Yes --> Erase["DeleteUserAppointmentData userId - same transaction, see on-user-deleted"]
     Erase --> WasClient{client already deleted?}
-    WasClient -- No --> Processed([markProcessed - kept 1 hour])
+    WasClient -- No --> ShredMerged
     WasClient -- Yes --> EraseClient["DeleteClientAppointmentData businessId clientId - same transaction, see on-client-deleted"]
-    EraseClient --> Processed
+    EraseClient --> ShredMerged["SubjectKeys.shredAll merged ids - last, business deleted those client rows"]
+    ShredMerged --> Processed([markProcessed - kept 1 hour])
     Erase -- throws, rolled back --> Release[Release the claim]
     EraseClient -- throws, rolled back --> Release
     LinkR -- throws, rolled back --> Release

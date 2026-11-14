@@ -21,6 +21,7 @@ import io.mockk.coVerify
 import io.mockk.coVerifyOrder
 import io.mockk.mockk
 import kotlinx.datetime.TimeZone
+import library.encryption.test.ShredRecordingSubjectKeys
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -41,34 +42,35 @@ internal class DeleteClientAppointmentDataImplTest {
         val writesInTransaction = mutableListOf<Boolean>()
         val sentEvents = mutableListOf<AppointmentEvent>()
         val sentInTransaction = mutableListOf<Boolean>()
+        val subjectKeys = ShredRecordingSubjectKeys(transactionManager::isInTransaction)
         val sut = DeleteClientAppointmentDataImpl(
             deletedClientDataSource,
             appointmentDataSource,
             requestDataSource,
             subscriptionDataSource,
             eventProducer,
+            subjectKeys,
             transactionManager,
         )
 
-        fun stubWrites(businessId: Uuid, clientId: Uuid, cancelled: List<Appointment> = emptyList()) {
+        fun stubErasure(businessId: Uuid, clientId: Uuid, upcoming: List<Appointment> = emptyList()) {
             transactionManager.mockTransaction()
-            coEvery { deletedClientDataSource.markDeleted(businessId, clientId) } coAnswers {
-                writesInTransaction += transactionManager.isInTransaction()
-            }
-            coEvery { appointmentDataSource.cancelUpcomingForClient(businessId, clientId, any(), any()) } coAnswers {
-                writesInTransaction += transactionManager.isInTransaction()
-                cancelled
-            }
-            coEvery { appointmentDataSource.anonymizeClient(businessId, clientId) } coAnswers {
-                writesInTransaction += transactionManager.isInTransaction()
-            }
-            coEvery { requestDataSource.deleteForClient(businessId, clientId) } coAnswers {
-                writesInTransaction += transactionManager.isInTransaction()
-            }
+            coEvery { deletedClientDataSource.markDeleted(businessId, clientId) } coAnswers { recordWrite() }
+            coEvery {
+                appointmentDataSource.getUpcomingIdsOfClientForUpdate(businessId, clientId, any())
+            } returns upcoming.map { it.id }
+            coEvery { appointmentDataSource.getAllByIds(upcoming.map { it.id }) } returns upcoming
+            coEvery { appointmentDataSource.cancelAll(any(), any()) } coAnswers { recordWrite() }
+            coEvery { appointmentDataSource.anonymizeClient(businessId, clientId) } coAnswers { recordWrite() }
+            coEvery { requestDataSource.deleteForClient(businessId, clientId) } coAnswers { recordWrite() }
             coEvery { eventProducer.send(any<AppointmentEvent>(), any()) } coAnswers {
                 sentEvents += firstArg<AppointmentEvent>()
                 sentInTransaction += transactionManager.isInTransaction()
             }
+        }
+
+        private suspend fun recordWrite() {
+            writesInTransaction += transactionManager.isInTransaction()
         }
 
         fun employeeNotifications() = sentEvents.filterIsInstance<AppointmentEvent.CancelledForDeletedClient>()
@@ -80,15 +82,13 @@ internal class DeleteClientAppointmentDataImplTest {
 
     private fun AppointmentEvent.Cancelled.withoutIdempotencyKey() = copy(idempotencyKey = "")
 
-    private fun Appointment.cancelledForRemoval() = copy(cancellationReason = DeleteClientAppointmentDataImpl.CLIENT_REMOVED_CANCELLATION_REASON)
-
     @Test
     fun `should erase the client from the business's appointments and requests in one transaction`() = runUnitTest {
         given()
         val fixture = SutFixture()
         val businessId = Uuid.random()
         val clientId = Uuid.random()
-        fixture.stubWrites(businessId, clientId)
+        fixture.stubErasure(businessId, clientId)
 
         whenn()
         val result = fixture.sut(businessId, clientId)
@@ -101,35 +101,40 @@ internal class DeleteClientAppointmentDataImplTest {
     }
 
     @Test
-    fun `should record the deletion first, then lock and cancel the client's upcoming appointments before anonymizing`() = runUnitTest {
+    fun `should record the deletion, lock and read the upcoming appointments, then write`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        val businessId = Uuid.random()
+        val business = BusinessSnapshot.stub()
         val clientId = Uuid.random()
-        fixture.stubWrites(businessId, clientId)
+        val upcoming = Appointment.stub(businessId = business.id)
+        fixture.stubErasure(business.id, clientId, upcoming = listOf(upcoming))
+        coEvery { fixture.subscriptionDataSource.getBusinessSnapshot(business.id) } returns business
 
         whenn()
-        fixture.sut(businessId, clientId)
+        fixture.sut(business.id, clientId)
 
         then()
         coVerifyOrder {
-            fixture.deletedClientDataSource.markDeleted(businessId, clientId)
-            fixture.appointmentDataSource.cancelUpcomingForClient(businessId, clientId, any(), any())
-            fixture.appointmentDataSource.anonymizeClient(businessId, clientId)
-            fixture.requestDataSource.deleteForClient(businessId, clientId)
+            fixture.deletedClientDataSource.markDeleted(business.id, clientId)
+            fixture.appointmentDataSource.getUpcomingIdsOfClientForUpdate(business.id, clientId, any())
+            fixture.appointmentDataSource.getAllByIds(listOf(upcoming.id))
+            fixture.subscriptionDataSource.getBusinessSnapshot(business.id)
+            fixture.appointmentDataSource.cancelAll(listOf(upcoming.id), any())
+            fixture.appointmentDataSource.anonymizeClient(business.id, clientId)
+            fixture.requestDataSource.deleteForClient(business.id, clientId)
         }
     }
 
     @Test
-    fun `should cancel the client's upcoming appointments with the removal reason`() = runUnitTest {
+    fun `should look for the client's appointments that start from now on`() = runUnitTest {
         given()
         val fixture = SutFixture()
         val businessId = Uuid.random()
         val clientId = Uuid.random()
         val startingAfter = mutableListOf<Instant>()
-        fixture.stubWrites(businessId, clientId)
+        fixture.stubErasure(businessId, clientId)
         coEvery {
-            fixture.appointmentDataSource.cancelUpcomingForClient(businessId, clientId, capture(startingAfter), any())
+            fixture.appointmentDataSource.getUpcomingIdsOfClientForUpdate(businessId, clientId, capture(startingAfter))
         } returns emptyList()
         val before = Clock.System.now()
 
@@ -138,10 +143,43 @@ internal class DeleteClientAppointmentDataImplTest {
 
         then()
         assertTrue(result.isSuccess)
-        coVerify(exactly = 1) {
-            fixture.appointmentDataSource.cancelUpcomingForClient(businessId, clientId, any(), "Client was removed by the business")
-        }
         assertTrue(startingAfter.single() in before..(before + 5.seconds))
+    }
+
+    @Test
+    fun `should cancel the client's upcoming appointments with the removal reason`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val business = BusinessSnapshot.stub()
+        val clientId = Uuid.random()
+        val upcoming = listOf(Appointment.stub(businessId = business.id), Appointment.stub(businessId = business.id))
+        fixture.stubErasure(business.id, clientId, upcoming = upcoming)
+        coEvery { fixture.subscriptionDataSource.getBusinessSnapshot(business.id) } returns business
+
+        whenn()
+        val result = fixture.sut(business.id, clientId)
+
+        then()
+        assertTrue(result.isSuccess)
+        coVerify(exactly = 1) {
+            fixture.appointmentDataSource.cancelAll(upcoming.map { it.id }, "Client was removed by the business")
+        }
+    }
+
+    @Test
+    fun `should not read the business when no upcoming appointment is cancelled`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val businessId = Uuid.random()
+        val clientId = Uuid.random()
+        fixture.stubErasure(businessId, clientId)
+
+        whenn()
+        val result = fixture.sut(businessId, clientId)
+
+        then()
+        assertTrue(result.isSuccess)
+        coVerify(exactly = 0) { fixture.subscriptionDataSource.getBusinessSnapshot(any()) }
     }
 
     @Test
@@ -150,9 +188,9 @@ internal class DeleteClientAppointmentDataImplTest {
         val fixture = SutFixture()
         val business = BusinessSnapshot.stub().copy(timeZone = TimeZone.of("Europe/Kyiv"))
         val clientId = Uuid.random()
-        val first = Appointment.stub(businessId = business.id).cancelledForRemoval()
-        val second = Appointment.stub(businessId = business.id).cancelledForRemoval()
-        fixture.stubWrites(business.id, clientId, cancelled = listOf(first, second))
+        val first = Appointment.stub(businessId = business.id)
+        val second = Appointment.stub(businessId = business.id)
+        fixture.stubErasure(business.id, clientId, upcoming = listOf(first, second))
         coEvery { fixture.subscriptionDataSource.getBusinessSnapshot(business.id) } returns business
 
         whenn()
@@ -183,8 +221,7 @@ internal class DeleteClientAppointmentDataImplTest {
         val clientId = Uuid.random()
         val appointment = Appointment.stub(businessId = business.id)
             .let { it.copy(client = it.client.copy(id = clientId, userId = Uuid.random())) }
-            .cancelledForRemoval()
-        fixture.stubWrites(business.id, clientId, cancelled = listOf(appointment))
+        fixture.stubErasure(business.id, clientId, upcoming = listOf(appointment))
         coEvery { fixture.subscriptionDataSource.getBusinessSnapshot(business.id) } returns business
 
         whenn()
@@ -194,9 +231,7 @@ internal class DeleteClientAppointmentDataImplTest {
         assertTrue(result.isSuccess)
         val expected = AppointmentEvent.Cancelled(
             clientUserId = appointment.client.userId,
-            clientName = appointment.client.fullName,
             employeeUserId = appointment.employee.userId,
-            employeeName = appointment.employee.fullName,
             from = appointment.date,
             to = appointment.dateEnd,
             timeZone = business.timeZone,
@@ -217,8 +252,7 @@ internal class DeleteClientAppointmentDataImplTest {
         val clientId = Uuid.random()
         val appointment = Appointment.stub(businessId = business.id)
             .let { it.copy(client = it.client.copy(id = clientId, userId = null)) }
-            .cancelledForRemoval()
-        fixture.stubWrites(business.id, clientId, cancelled = listOf(appointment))
+        fixture.stubErasure(business.id, clientId, upcoming = listOf(appointment))
         coEvery { fixture.subscriptionDataSource.getBusinessSnapshot(business.id) } returns business
 
         whenn()
@@ -237,9 +271,13 @@ internal class DeleteClientAppointmentDataImplTest {
         val clientId = Uuid.random()
         val userId = Uuid.random()
         val ownAppointment = Appointment.stub(businessId = business.id)
-            .let { it.copy(client = it.client.copy(id = clientId, userId = userId), employee = it.employee.copy(userId = userId)) }
-            .cancelledForRemoval()
-        fixture.stubWrites(business.id, clientId, cancelled = listOf(ownAppointment))
+            .let {
+                it.copy(
+                    client = it.client.copy(id = clientId, userId = userId),
+                    employee = it.employee.copy(userId = userId),
+                )
+            }
+        fixture.stubErasure(business.id, clientId, upcoming = listOf(ownAppointment))
         coEvery { fixture.subscriptionDataSource.getBusinessSnapshot(business.id) } returns business
 
         whenn()
@@ -256,7 +294,7 @@ internal class DeleteClientAppointmentDataImplTest {
         val fixture = SutFixture()
         val businessId = Uuid.random()
         val clientId = Uuid.random()
-        fixture.stubWrites(businessId, clientId, cancelled = listOf(Appointment.stub(businessId = businessId)))
+        fixture.stubErasure(businessId, clientId, upcoming = listOf(Appointment.stub(businessId = businessId)))
         coEvery { fixture.subscriptionDataSource.getBusinessSnapshot(businessId) } returns null
 
         whenn()
@@ -274,7 +312,7 @@ internal class DeleteClientAppointmentDataImplTest {
         val fixture = SutFixture()
         val businessId = Uuid.random()
         val clientId = Uuid.random()
-        fixture.stubWrites(businessId, clientId)
+        fixture.stubErasure(businessId, clientId)
 
         whenn()
         val result = fixture.sut(businessId, clientId)
@@ -290,13 +328,29 @@ internal class DeleteClientAppointmentDataImplTest {
         val fixture = SutFixture()
         val businessId = Uuid.random()
         val clientId = Uuid.random()
-        fixture.stubWrites(businessId, clientId)
-        coEvery { fixture.appointmentDataSource.anonymizeClient(businessId, clientId) } throws IllegalStateException("database down")
+        fixture.stubErasure(businessId, clientId)
+        coEvery { fixture.appointmentDataSource.anonymizeClient(businessId, clientId) } throws
+            IllegalStateException("database down")
 
         whenn()
         val result = fixture.sut(businessId, clientId)
 
         then()
         assertTrue(result.isFailure)
+    }
+
+    @Test
+    fun `should shred the client's key in the transaction`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val businessId = Uuid.random()
+        val clientId = Uuid.random()
+        fixture.stubErasure(businessId, clientId)
+
+        whenn()
+        fixture.sut(businessId, clientId)
+
+        then()
+        assertEquals(setOf(clientId), fixture.subjectKeys.shreddedInTransaction)
     }
 }

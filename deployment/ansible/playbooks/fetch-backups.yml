@@ -10,4 +10,6 @@
         delete: true
         rsync_opts:
           - "--exclude=*.partial"
+          - "--exclude=/keys/"
+          - "--delete-excluded"
       when: (swarm_labels | default({})).get('backup') == 'true'

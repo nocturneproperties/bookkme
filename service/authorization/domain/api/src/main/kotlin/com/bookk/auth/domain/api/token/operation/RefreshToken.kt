@@ -10,6 +10,10 @@ interface RefreshToken {
     suspend operator fun invoke(token: String): Result<AuthTokens>
 
     sealed interface Error {
-        class InvalidRefreshToken : BusinessError(HttpStatusCode.UnprocessableEntity.value, AuthErrorCodes.INVALID_CREDENTIALS, "Invalid refresh token")
+        class InvalidRefreshToken : BusinessError(
+            HttpStatusCode.UnprocessableEntity.value,
+            AuthErrorCodes.INVALID_CREDENTIALS,
+            "Invalid refresh token",
+        )
     }
 }

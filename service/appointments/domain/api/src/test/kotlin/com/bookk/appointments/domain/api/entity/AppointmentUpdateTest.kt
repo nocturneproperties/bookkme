@@ -48,7 +48,9 @@ internal class AppointmentUpdateTest {
     @Test
     fun `should not reschedule when only the note and services change`() = runUnitTest {
         given()
-        val update = keeping(appointment).copy(note = "Corrected note", services = listOf(RequestedService.stub(count = 3)))
+        val update = keeping(
+            appointment,
+        ).copy(note = "Corrected note", services = listOf(RequestedService.stub(count = 3)))
 
         whenn()
         val reschedules = update.reschedules(appointment)

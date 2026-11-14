@@ -40,7 +40,8 @@ internal class InternalUserTest {
     fun `should create user with the documents it accepted`() = routeTest {
         given()
         val useCase: CreateUser = mockk()
-        val newUser = NewUser("Ann", "Lee", email, AcceptedLegalDocuments(privacyPolicy = "2026-01-01", termsOfService = null))
+        val newUser =
+            NewUser("Ann", "Lee", email, AcceptedLegalDocuments(privacyPolicy = "2026-01-01", termsOfService = null))
 
         coEvery { useCase.invoke(newUser) } returns Result.success(UserId(userId))
 
@@ -125,7 +126,14 @@ internal class InternalUserTest {
         whenn()
         val client = createTestClient()
         val response = client.post(UserRouting.Api.Internal.User()) {
-            setBody(NewUser("Ann", "Lee", email, AcceptedLegalDocuments(privacyPolicy = "unpublished", termsOfService = null)))
+            setBody(
+                NewUser(
+                    "Ann",
+                    "Lee",
+                    email,
+                    AcceptedLegalDocuments(privacyPolicy = "unpublished", termsOfService = null),
+                ),
+            )
         }
 
         then()

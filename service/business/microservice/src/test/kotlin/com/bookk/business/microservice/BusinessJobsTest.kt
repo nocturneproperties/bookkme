@@ -4,6 +4,7 @@ import com.bookk.business.domain.api.business.operation.DeleteDayOffsInThePast
 import com.bookk.business.domain.api.client.operation.DeleteInactiveClients
 import com.bookk.business.domain.api.employee.operation.DeleteProcessedEmployeeInvitations
 import com.bookk.business.domain.api.employee.operation.ExpireEmployeeInvitations
+import com.bookk.business.domain.api.encryption.operation.EncryptPlaintextContacts
 import com.bookk.business.domain.api.erasure.operation.DeleteExpiredErasureRecords
 import com.bookk.business.domain.api.erasure.operation.ReapplyClientErasures
 import com.bookk.business.domain.impl.di.BusinessScope
@@ -41,6 +42,7 @@ internal class BusinessJobsTest {
         val deleteExpiredErasureRecords = mockk<DeleteExpiredErasureRecords>()
         val buildDataExports = mockk<BuildDataExports>()
         val deleteExpiredDataExports = mockk<DeleteExpiredDataExports>()
+        val encryptPlaintextContacts = mockk<EncryptPlaintextContacts>()
         val scheduler = SchedulerConfiguration()
 
         suspend fun registerJobs(builder: ApplicationTestBuilder) {
@@ -54,6 +56,7 @@ internal class BusinessJobsTest {
                 scoped { deleteExpiredErasureRecords }
                 scoped { buildDataExports }
                 scoped { deleteExpiredDataExports }
+                scoped { encryptPlaintextContacts }
             }
             application.registerBusinessJobs(scheduler)
         }
@@ -79,6 +82,7 @@ internal class BusinessJobsTest {
                 "business-deleteExpiredErasureRecords" to 1.days,
                 "business-buildDataExports" to 1.minutes,
                 "business-deleteExpiredDataExports" to 1.hours,
+                "business-encryptPlaintextContacts" to 10.minutes,
             ),
             fixture.scheduler.registeredJobs(),
         )
@@ -340,6 +344,35 @@ internal class BusinessJobsTest {
 
         whenn()
         val result = runCatching { fixture.scheduler.runJob("business-deleteExpiredDataExports") }
+
+        then()
+        assertSame(error, result.exceptionOrNull())
+    }
+
+    @Test
+    fun `should encrypt plaintext contacts`() = routeTest {
+        given()
+        val fixture = SutFixture()
+        coEvery { fixture.encryptPlaintextContacts.invoke() } returns Result.success(Unit)
+        fixture.registerJobs(this)
+
+        whenn()
+        fixture.scheduler.runJob("business-encryptPlaintextContacts")
+
+        then()
+        coVerify(exactly = 1) { fixture.encryptPlaintextContacts.invoke() }
+    }
+
+    @Test
+    fun `should surface a failed plaintext contact encryption`() = routeTest {
+        given()
+        val fixture = SutFixture()
+        val error = IllegalStateException("The stored client has a shredded key")
+        coEvery { fixture.encryptPlaintextContacts.invoke() } returns Result.failure(error)
+        fixture.registerJobs(this)
+
+        whenn()
+        val result = runCatching { fixture.scheduler.runJob("business-encryptPlaintextContacts") }
 
         then()
         assertSame(error, result.exceptionOrNull())

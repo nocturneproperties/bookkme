@@ -52,32 +52,35 @@ internal class CreateAppointmentRequestImpl(
 
     override suspend fun invoke(userId: Uuid, draft: AppointmentRequestDraft): Result<Unit> = runSuspendCatching {
         if (!requestDataSource.reserveOfferToken(draft.offerToken)) throw BookingQuoteError.TokenAlreadyUsed()
-        runCleaningUpOnFailure(cleanUp = { releaseOfferTokenBestEffort(draft.offerToken) }) {
-            book(userId, draft)
-        }
+        runCleaningUpOnFailure(
+            action = { book(userId, draft) },
+            cleanUp = { releaseOfferTokenBestEffort(draft.offerToken) },
+        )
     }
 
     private suspend fun book(userId: Uuid, draft: AppointmentRequestDraft) {
-        val quoteOffer = quoteVerifier.verify(draft.businessId, draft.services, draft.offerToken)
+        val verifiedOffer = quoteVerifier.verify(draft.businessId, draft.services, draft.offerToken)
+        val bookingContext = businessClient.getAppointmentBookingContext(
+            businessId = draft.businessId,
+            employeeId = draft.employeeId,
+            userId = userId,
+            serviceIds = draft.services.map { it.serviceId },
+        ).getOrThrow()
+        val request = buildAppointmentRequest(userId, draft, bookingContext)
 
-        val context = businessClient
-            .getAppointmentBookingContext(
-                businessId = draft.businessId,
-                employeeId = draft.employeeId,
-                userId = userId,
-                serviceIds = draft.services.map { it.serviceId },
-            )
-            .getOrThrow()
-
-        val request = buildAppointmentRequest(userId, draft, context)
-        quoteVerifier.requireUnchanged(quoteOffer, request.totalAmount, request.dateEnd - request.date)
+        quoteVerifier.verifyOfferUnchanged(verifiedOffer, request.totalAmount, request.dateEnd - request.date)
 
         createOrRequestAppointment(userId, request).getOrThrow()
     }
 
-    private suspend fun createOrRequestAppointment(userId: Uuid, request: AppointmentRequest): Result<Unit> = transactionManager.transaction<Unit> {
+    private suspend fun createOrRequestAppointment(
+        userId: Uuid,
+        request: AppointmentRequest,
+    ): Result<Unit> = transactionManager.transaction<Unit> {
         if (deletedUserDataSource.isDeletedForShare(userId)) throw Error.OperationNotAllowed()
-        if (deletedClientDataSource.isDeletedForShare(request.businessId, request.client.id)) throw Error.OperationNotAllowed()
+        if (deletedClientDataSource.isDeletedForShare(request.businessId, request.client.id)) {
+            throw Error.OperationNotAllowed()
+        }
         val settings = settingsDataSource.getForUpdate(request.businessId) ?: throw Error.NotFound()
 
         if (settings.automaticApproval) {
@@ -89,14 +92,21 @@ internal class CreateAppointmentRequestImpl(
         assertRequestIsSchedulable(request, settings)
 
         requestDataSource.create(request).also {
-            eventProducer.send(AppointmentEvent.ClientVisitBooked(request.businessId, request.client.id, request.dateEnd))
+            eventProducer.send(
+                AppointmentEvent.ClientVisitBooked(request.businessId, request.client.id, request.dateEnd),
+            )
             sendRequestCreatedNotification(request)
         }
     }
 
     private suspend fun releaseOfferTokenBestEffort(offerToken: String) {
         runSuspendCatching { requestDataSource.releaseOfferToken(offerToken) }
-            .onFailure { createAppointmentRequestLogger.error("Failed to release offer token, it stays unusable until it expires", it) }
+            .onFailure {
+                createAppointmentRequestLogger.error(
+                    "Failed to release offer token, it stays unusable until it expires",
+                    it,
+                )
+            }
     }
 
     private suspend fun assertRequestIsSchedulable(request: AppointmentRequest, settings: AppointmentSettings) {
@@ -114,10 +124,10 @@ internal class CreateAppointmentRequestImpl(
         }
         eventProducer.send(
             AppointmentEvent.RequestCreated(
+                clientId = request.client.id,
                 clientUserId = request.client.userId,
                 clientName = request.client.fullName,
                 employeeUserId = request.employee.userId,
-                employeeName = request.employee.fullName,
                 from = request.date,
                 to = request.dateEnd,
                 timeZone = business.timeZone,
@@ -128,12 +138,16 @@ internal class CreateAppointmentRequestImpl(
         )
     }
 
-    private fun buildAppointmentRequest(userId: Uuid, draft: AppointmentRequestDraft, context: AppointmentBookingContext) = AppointmentRequest(
+    private fun buildAppointmentRequest(
+        userId: Uuid,
+        draft: AppointmentRequestDraft,
+        context: AppointmentBookingContext,
+    ) = AppointmentRequest(
         id = Uuid.random(),
         initiatorUserId = userId,
         businessId = draft.businessId,
         employee = context.employeeSnapshot(),
-        client = context.clientSnapshot(),
+        client = context.requestClientSnapshot(userId),
         services = context.serviceSnapshots(draft.services),
         status = AppointmentRequestStatus.PENDING,
         date = draft.date,

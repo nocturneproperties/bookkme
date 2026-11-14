@@ -115,7 +115,7 @@ flowchart TD
     ClientCreate --> ServicesResolve[ServiceDataSource.getServicesByIds distinct serviceIds]
     ServicesResolve -- service missing --> R422g([422 BUSINESS_QUOTE_SERVICE_NOT_FOUND 200013])
     ServicesResolve -- resolved --> Expand[Expand each resolved service by its RequestedService.count]
-    Expand --> BuildRequest[Build AppointmentRequest from resolved employee/client and expanded services]
+    Expand --> BuildRequest[Build AppointmentRequest from resolved employee/client and expanded services - RequestClientSnapshot.userId = userId, the caller]
     BuildRequest --> PriceCheck{request.totalAmount == token.total?}
     PriceCheck -- No --> R400a([400 PRICE_CHANGED 300013])
     PriceCheck -- Yes --> DurationCheck{request.dateEnd - request.date == token.duration?}
@@ -145,7 +145,7 @@ flowchart TD
     Create --> Snapshot[AppointmentSubscriptionDataSource.getBusinessSnapshot businessId]
     Snapshot -- missing --> R404d([404 Error.NotFound - logged as data inconsistency])
     Snapshot -- found --> Visit[eventProducer.send AppointmentEvent.ClientVisitBooked businessId client.id dateEnd]
-    Visit --> Event["eventProducer.send AppointmentEvent.RequestCreated - clientUserId = request.client.userId"]
+    Visit --> Event["eventProducer.send AppointmentEvent.RequestCreated - clientId = request.client.id, clientUserId = request.client.userId; stored sealed under the key of clientId"]
     Event --> Commit[[Commit transaction]]
     Commit --> R204([204 No Content - offerToken stays reserved])
 ```

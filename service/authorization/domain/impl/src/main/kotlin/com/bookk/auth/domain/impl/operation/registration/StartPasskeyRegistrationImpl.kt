@@ -20,7 +20,10 @@ internal class StartPasskeyRegistrationImpl(
     private val transactionManager: TransactionManager,
 ) : StartPasskeyRegistration {
 
-    override suspend fun invoke(userHandle: Uuid, passkeyDisplayName: String): Result<RegistrationChallengeResponse> = transactionManager.transaction {
+    override suspend fun invoke(
+        userHandle: Uuid,
+        passkeyDisplayName: String,
+    ): Result<RegistrationChallengeResponse> = transactionManager.transaction {
         val requestId = Uuid.random().toString()
         val challenge = createChallenge(requestId, passkeyDisplayName, YubicoByteArray(userHandle.toByteArray()))
         passKeyDataSource.saveChallengeToCache(requestId, challenge.toJson())

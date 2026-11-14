@@ -13,6 +13,8 @@ flowchart TD
     Dedup -- Yes --> Skip([Skip - already handled])
     Dedup -- No --> DelSettings[NotificationSettingsDataSource.deleteByUserId userId]
     DelSettings --> DelTargets[NotificationTargetDataSource.deleteByUserId userId]
+    DelTargets --> Shred["SubjectKeys.shred userId - tombstone the key its parked events about the user (as account, employee or client) are sealed under"]
     DelTargets -- throws --> Dlt([Sent to AuthEvent.UserDeleted_dlt topic, logged - no auto-retry])
-    DelTargets -- ok --> Ack([Marked processed])
+    Shred -- throws --> Dlt
+    Shred -- ok --> Ack([Marked processed])
 ```

@@ -27,7 +27,10 @@ import kotlin.uuid.Uuid
 
 internal class ConfirmActionImplTest {
 
-    private class SutFixture(val userId: Uuid = Uuid.random(), action: ConfirmableAction = ConfirmableAction.DELETE_CLIENT) {
+    private class SutFixture(
+        val userId: Uuid = Uuid.random(),
+        action: ConfirmableAction = ConfirmableAction.DELETE_CLIENT,
+    ) {
         val finishAssertion = mockk<FinishAssertion>()
         val tokenIssuer = mockk<TokenIssuer>()
         val sut = ConfirmActionImpl(finishAssertion, tokenIssuer)
@@ -47,12 +50,13 @@ internal class ConfirmActionImplTest {
         }
 
         fun passkeyOwnedBy(ownerId: Uuid) {
-            coEvery { finishAssertion(request) } returns Result.success(PasskeyCredential.stub(authInfo = Authentication.stub(userId = ownerId)))
+            coEvery { finishAssertion(request) } returns
+                Result.success(PasskeyCredential.stub(authInfo = Authentication.stub(userId = ownerId)))
         }
     }
 
     @Test
-    fun `should issue a short-lived action confirmation token bound to the caller, the action, the business and the target`() = runUnitTest {
+    fun `should issue a short-lived confirmation token bound to caller, action, business and target`() = runUnitTest {
         given()
         val fixture = SutFixture()
         fixture.passkeyOwnedBy(fixture.userId)
@@ -64,9 +68,18 @@ internal class ConfirmActionImplTest {
         val decoded = JWT.decode(result.getOrThrow().token)
         assertEquals(listOf(TokenAudience.actionConfirmation), decoded.audience)
         assertEquals(fixture.userId.toString(), decoded.getClaim(ActionConfirmationClaims.CLAIM_USER_ID).asString())
-        assertEquals(ActionConfirmationClaims.ACTION_DELETE_CLIENT, decoded.getClaim(ActionConfirmationClaims.CLAIM_ACTION).asString())
-        assertEquals(fixture.request.businessId.toString(), decoded.getClaim(ActionConfirmationClaims.CLAIM_BUSINESS_ID).asString())
-        assertEquals(fixture.request.targetId.toString(), decoded.getClaim(ActionConfirmationClaims.CLAIM_TARGET_ID).asString())
+        assertEquals(
+            ActionConfirmationClaims.ACTION_DELETE_CLIENT,
+            decoded.getClaim(ActionConfirmationClaims.CLAIM_ACTION).asString(),
+        )
+        assertEquals(
+            fixture.request.businessId.toString(),
+            decoded.getClaim(ActionConfirmationClaims.CLAIM_BUSINESS_ID).asString(),
+        )
+        assertEquals(
+            fixture.request.targetId.toString(),
+            decoded.getClaim(ActionConfirmationClaims.CLAIM_TARGET_ID).asString(),
+        )
         assertNotNull(decoded.id)
         coVerify(exactly = 1) { fixture.tokenIssuer.issue(ConfirmActionImpl.ACTION_CONFIRMATION_TTL, any()) }
     }
@@ -85,7 +98,9 @@ internal class ConfirmActionImplTest {
         val claims = ConfirmableAction.entries.associateWith { action ->
             val fixture = SutFixture(action = action)
             fixture.passkeyOwnedBy(fixture.userId)
-            JWT.decode(fixture.sut(fixture.userId, fixture.request).getOrThrow().token).getClaim(ActionConfirmationClaims.CLAIM_ACTION).asString()
+            JWT.decode(
+                fixture.sut(fixture.userId, fixture.request).getOrThrow().token,
+            ).getClaim(ActionConfirmationClaims.CLAIM_ACTION).asString()
         }
 
         then()
@@ -124,7 +139,8 @@ internal class ConfirmActionImplTest {
     fun `should not issue a token when the passkey assertion fails`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        coEvery { fixture.finishAssertion(fixture.request) } returns Result.failure(FinishAssertion.Error.ChallengeWindowExpired())
+        coEvery { fixture.finishAssertion(fixture.request) } returns
+            Result.failure(FinishAssertion.Error.ChallengeWindowExpired())
 
         whenn()
         val result = fixture.sut(fixture.userId, fixture.request)

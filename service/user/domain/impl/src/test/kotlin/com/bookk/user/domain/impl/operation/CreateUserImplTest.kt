@@ -137,7 +137,7 @@ internal class CreateUserImplTest {
     }
 
     @Test
-    fun `should fail with LegalDocumentsNotAccepted and create nothing when a document in effect is not accepted`() = runUnitTest {
+    fun `should fail with LegalDocumentsNotAccepted and create nothing for an unaccepted document`() = runUnitTest {
         given()
         val fixture = SutFixture()
         with(fixture) {
@@ -147,7 +147,9 @@ internal class CreateUserImplTest {
         }
 
         whenn()
-        val result = fixture.sut.invoke(newUser(AcceptedLegalDocuments(privacyPolicy = policy.version, termsOfService = null)))
+        val result = fixture.sut.invoke(
+            newUser(AcceptedLegalDocuments(privacyPolicy = policy.version, termsOfService = null)),
+        )
 
         then()
         assertTrue(result.exceptionOrNull() is CreateUser.Error.LegalDocumentsNotAccepted)
@@ -156,18 +158,21 @@ internal class CreateUserImplTest {
     }
 
     @Test
-    fun `should fail with LegalDocumentsNotAccepted when an earlier version than the one in effect is accepted`() = runUnitTest {
+    fun `should fail with LegalDocumentsNotAccepted when only an outdated version is accepted`() = runUnitTest {
         given()
         val fixture = SutFixture()
         val earlierPolicy = LegalDocumentVersion.stub(version = "2025-01-01")
         with(fixture) {
             transactionManager.mockTransaction()
             coEvery { legalDocumentDataSource.getVersionsInEffect(any()) } returns listOf(policy)
-            coEvery { legalDocumentDataSource.getVersion(earlierPolicy.document, earlierPolicy.version) } returns earlierPolicy
+            coEvery { legalDocumentDataSource.getVersion(earlierPolicy.document, earlierPolicy.version) } returns
+                earlierPolicy
         }
 
         whenn()
-        val result = fixture.sut.invoke(newUser(AcceptedLegalDocuments(privacyPolicy = earlierPolicy.version, termsOfService = null)))
+        val result = fixture.sut.invoke(
+            newUser(AcceptedLegalDocuments(privacyPolicy = earlierPolicy.version, termsOfService = null)),
+        )
 
         then()
         assertTrue(result.exceptionOrNull() is CreateUser.Error.LegalDocumentsNotAccepted)
@@ -175,7 +180,7 @@ internal class CreateUserImplTest {
     }
 
     @Test
-    fun `should fail with VersionUnknown and create nothing when an accepted version was never published`() = runUnitTest {
+    fun `should fail with VersionUnknown and create nothing for a version that was never published`() = runUnitTest {
         given()
         val fixture = SutFixture()
         with(fixture) {
@@ -185,7 +190,9 @@ internal class CreateUserImplTest {
         }
 
         whenn()
-        val result = fixture.sut.invoke(newUser(AcceptedLegalDocuments(privacyPolicy = "unpublished", termsOfService = null)))
+        val result = fixture.sut.invoke(
+            newUser(AcceptedLegalDocuments(privacyPolicy = "unpublished", termsOfService = null)),
+        )
 
         then()
         assertTrue(result.exceptionOrNull() is LegalDocumentError.VersionUnknown)

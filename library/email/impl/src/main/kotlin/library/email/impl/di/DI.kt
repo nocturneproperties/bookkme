@@ -42,7 +42,8 @@ fun emailModule(qualifier: Qualifier, environment: (String) -> String? = System:
     }
 }
 
-private fun ((String) -> String?).require(variable: String): String = this(variable) ?: throw IllegalStateException("$variable is not set, so email can't be sent")
+private fun ((String) -> String?).require(variable: String): String =
+    this(variable) ?: throw IllegalStateException("$variable is not set, so email can't be sent")
 
 private fun ((String) -> String?).codeHasher(): EmailCodeHasher {
     val secret = require(EMAIL_CODE_SECRET)

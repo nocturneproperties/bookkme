@@ -25,7 +25,7 @@ internal class BookingQuoteVerifier(private val tokenValidatorFactory: TokenVali
         return offer
     }
 
-    fun requireUnchanged(offer: QuoteOffer, totalAmount: Money, duration: Duration) {
+    fun verifyOfferUnchanged(offer: QuoteOffer, totalAmount: Money, duration: Duration) {
         if (totalAmount != Money.parse(offer.total)) throw BookingQuoteError.PriceChanged()
         if (duration != Duration.parse(offer.duration)) throw BookingQuoteError.DurationChanged()
     }
@@ -40,11 +40,14 @@ internal class BookingQuoteVerifier(private val tokenValidatorFactory: TokenVali
         val decodedOffer = tokenValidatorFactory.forType(ValidationType.SERVICE_QUOTE).verifier.verify(offerToken)
         QuoteOffer(
             businessId = decodedOffer.getClaim(QuoteClaims.CLAIM_BUSINESS_ID).asString(),
-            serviceCounts = QuoteClaims.decodeServiceCounts(decodedOffer.getClaim(QuoteClaims.CLAIM_SERVICES).asList(String::class.java)),
+            serviceCounts = QuoteClaims.decodeServiceCounts(
+                decodedOffer.getClaim(QuoteClaims.CLAIM_SERVICES).asList(String::class.java),
+            ),
             total = decodedOffer.getClaim(QuoteClaims.CLAIM_TOTAL).asString(),
             duration = decodedOffer.getClaim(QuoteClaims.CLAIM_DURATION).asString(),
         )
     }.getOrNull()
 
-    private fun QuoteOffer.matches(businessId: Uuid, services: List<RequestedService>): Boolean = services.associate { it.serviceId to it.count } == serviceCounts && businessId.toString() == this.businessId
+    private fun QuoteOffer.matches(businessId: Uuid, services: List<RequestedService>): Boolean =
+        services.associate { it.serviceId to it.count } == serviceCounts && businessId.toString() == this.businessId
 }

@@ -41,7 +41,13 @@ internal class DeleteAccountImplTest {
         val transactionManager = mockk<TransactionManager>()
         val tokenSpentWhenReading = mutableListOf<Boolean>()
         val recordedInTransaction = mutableListOf<Boolean>()
-        val sut = DeleteAccountImpl(confirmationTokens.gate, accountDataSource, AccountEraser(accountDataSource, deviceDataSource, erasedAccountDataSource, eventProducer), transactionManager)
+        val sut =
+            DeleteAccountImpl(
+                confirmationTokens.gate,
+                accountDataSource,
+                AccountEraser(accountDataSource, deviceDataSource, erasedAccountDataSource, eventProducer),
+                transactionManager,
+            )
 
         init {
             transactionManager.mockTransaction()
@@ -56,7 +62,11 @@ internal class DeleteAccountImplTest {
             coEvery { accountDataSource.deleteAuthorization(authRecord.id) } returns Unit
         }
 
-        fun token(grant: ActionConfirmationGrant = ActionConfirmationGrant.accountDeletion(userId)) = confirmationTokens.tokenFor(grant, tokenId = TOKEN_ID)
+        fun token(
+            grant: ActionConfirmationGrant = ActionConfirmationGrant.accountDeletion(
+                userId,
+            ),
+        ) = confirmationTokens.tokenFor(grant, tokenId = TOKEN_ID)
     }
 
     private fun makeDevice(authRecord: Authentication, deviceUUID: Uuid = Uuid.random()): Device = Device(
@@ -76,7 +86,8 @@ internal class DeleteAccountImplTest {
         given()
         val fixture = SutFixture()
         val deviceUUID = Uuid.random()
-        coEvery { fixture.deviceDataSource.getDevices(fixture.authRecord.id) } returns listOf(makeDevice(fixture.authRecord, deviceUUID))
+        coEvery { fixture.deviceDataSource.getDevices(fixture.authRecord.id) } returns
+            listOf(makeDevice(fixture.authRecord, deviceUUID))
 
         whenn()
         val result = fixture.sut(fixture.userId, fixture.token())
@@ -84,8 +95,19 @@ internal class DeleteAccountImplTest {
         then()
         assertTrue(result.isSuccess)
         coVerify(exactly = 1) { fixture.accountDataSource.deleteAuthorization(fixture.authRecord.id) }
-        coVerify(exactly = 1) { fixture.eventProducer.send(match<AuthEvent.UserDeleted> { it.userId == fixture.userId }, any()) }
-        coVerify(exactly = 1) { fixture.eventProducer.send(match<AuthEvent.DeviceDeleted> { it.authId == fixture.authRecord.id && it.deviceUuid == deviceUUID }, any()) }
+        coVerify(exactly = 1) {
+            fixture.eventProducer.send(match<AuthEvent.UserDeleted> { it.userId == fixture.userId }, any())
+        }
+        coVerify(exactly = 1) {
+            fixture.eventProducer.send(
+                match<AuthEvent.DeviceDeleted> {
+                    it.authId ==
+                        fixture.authRecord.id &&
+                        it.deviceUuid == deviceUUID
+                },
+                any(),
+            )
+        }
         assertEquals(listOf(true), fixture.recordedInTransaction)
         assertEquals(listOf(true), fixture.tokenSpentWhenReading)
         assertTrue(fixture.confirmationTokens.isSpent(TOKEN_ID))
@@ -105,7 +127,16 @@ internal class DeleteAccountImplTest {
         assertTrue(result.isSuccess)
         coVerify(exactly = 1) { fixture.eventProducer.send(any<AuthEvent.UserDeleted>(), any()) }
         devices.forEach { device ->
-            coVerify(exactly = 1) { fixture.eventProducer.send(match<AuthEvent.DeviceDeleted> { it.authId == fixture.authRecord.id && it.deviceUuid == device.deviceInfo.deviceUUID }, any()) }
+            coVerify(exactly = 1) {
+                fixture.eventProducer.send(
+                    match<AuthEvent.DeviceDeleted> {
+                        it.authId ==
+                            fixture.authRecord.id &&
+                            it.deviceUuid == device.deviceInfo.deviceUUID
+                    },
+                    any(),
+                )
+            }
         }
     }
 
@@ -136,7 +167,10 @@ internal class DeleteAccountImplTest {
     fun `should refuse missing malformed and expired action confirmation tokens`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        val expired = fixture.confirmationTokens.tokenFor(ActionConfirmationGrant.accountDeletion(fixture.userId), expiresIn = (-1).seconds)
+        val expired = fixture.confirmationTokens.tokenFor(
+            ActionConfirmationGrant.accountDeletion(fixture.userId),
+            expiresIn = (-1).seconds,
+        )
 
         whenn()
         val results = listOf("", "not-a-token", expired).map { fixture.sut(fixture.userId, it) }
@@ -206,7 +240,8 @@ internal class DeleteAccountImplTest {
     fun `should release the token and propagate cancellation`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        coEvery { fixture.accountDataSource.getAuthRecordByUserId(fixture.userId) } throws CancellationException("request cancelled")
+        coEvery { fixture.accountDataSource.getAuthRecordByUserId(fixture.userId) } throws
+            CancellationException("request cancelled")
 
         whenn()
         val result = runCatching { fixture.sut(fixture.userId, fixture.token()) }

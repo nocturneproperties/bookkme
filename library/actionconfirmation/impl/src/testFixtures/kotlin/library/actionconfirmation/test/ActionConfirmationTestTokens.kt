@@ -31,14 +31,28 @@ class ActionConfirmationTestTokens(val timeSource: TestTimeSource = TestTimeSour
         override fun forType(type: ValidationType): TokenValidator = object : TokenValidator {
             override val verifier: JWTVerifier = JWT.require(algorithm)
                 .withIssuer(ISSUER)
-                .withAudience(if (type == ValidationType.ACTION_CONFIRMATION) TokenAudience.actionConfirmation else TokenAudience.access)
+                .withAudience(
+                    if (type == ValidationType.ACTION_CONFIRMATION) {
+                        TokenAudience.actionConfirmation
+                    } else {
+                        TokenAudience.access
+                    },
+                )
                 .build()
         }
     }
 
-    val gate: ActionConfirmationGate = ActionConfirmationGateImpl(ActionConfirmationVerifier(validatorFactory), ActionConfirmationTokenStore(cacheClient))
+    val gate: ActionConfirmationGate =
+        ActionConfirmationGateImpl(
+            ActionConfirmationVerifier(validatorFactory),
+            ActionConfirmationTokenStore(cacheClient),
+        )
 
-    fun tokenFor(grant: ActionConfirmationGrant, tokenId: String? = Uuid.random().toString(), expiresIn: Duration = 2.minutes): String = sign {
+    fun tokenFor(
+        grant: ActionConfirmationGrant,
+        tokenId: String? = Uuid.random().toString(),
+        expiresIn: Duration = 2.minutes,
+    ): String = sign {
         withAudience(TokenAudience.actionConfirmation)
             .withExpiresAt((Clock.System.now() + expiresIn).toJavaInstant())
             .apply { if (tokenId != null) withJWTId(tokenId) }
@@ -53,7 +67,9 @@ class ActionConfirmationTestTokens(val timeSource: TestTimeSource = TestTimeSour
         .claims()
         .sign(algorithm)
 
-    suspend fun isSpent(tokenId: String): Boolean = cacheClient.get<String, String>(ActionConfirmationTokenStore.key(tokenId)) != null
+    suspend fun isSpent(tokenId: String): Boolean {
+        return cacheClient.get<String, String>(ActionConfirmationTokenStore.key(tokenId)) != null
+    }
 
     private companion object {
         const val ISSUER = "action-confirmation-test-issuer"

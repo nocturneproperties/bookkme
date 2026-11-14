@@ -21,15 +21,25 @@ import kotlin.uuid.Uuid
 
 internal class AppointmentSettingsTest {
 
-    private fun settingsWithDayOffs(dayOffs: List<DayOffRange>) = AppointmentSettings.stub(businessId = Uuid.random()).copy(
+    private fun settingsWithDayOffs(dayOffs: List<DayOffRange>) = AppointmentSettings.stub(
+        businessId = Uuid.random(),
+    ).copy(
         schedule = Schedule(
-            workingDays = listOf(DayOfWeek.MONDAY, DayOfWeek.TUESDAY, DayOfWeek.WEDNESDAY, DayOfWeek.THURSDAY, DayOfWeek.FRIDAY),
+            workingDays = listOf(
+                DayOfWeek.MONDAY,
+                DayOfWeek.TUESDAY,
+                DayOfWeek.WEDNESDAY,
+                DayOfWeek.THURSDAY,
+                DayOfWeek.FRIDAY,
+            ),
             workingHours = mapOf(),
             dayOffs = dayOffs,
         ),
     )
 
-    private fun settingsWithWorkingHours(workingHours: List<WorkHour>) = AppointmentSettings.stub(businessId = Uuid.random()).copy(
+    private fun settingsWithWorkingHours(workingHours: List<WorkHour>) = AppointmentSettings.stub(
+        businessId = Uuid.random(),
+    ).copy(
         schedule = Schedule(
             workingDays = listOf(DayOfWeek.MONDAY),
             workingHours = mapOf(DayOfWeek.MONDAY to workingHours),

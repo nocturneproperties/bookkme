@@ -14,7 +14,11 @@ internal class ActionConfirmationProof(val tokenId: String, val remainingLifetim
 internal class ActionConfirmationVerifier(private val tokenValidatorFactory: TokenValidatorFactory) {
 
     fun verify(token: String, grant: ActionConfirmationGrant): ActionConfirmationProof? {
-        val decoded = runCatching { tokenValidatorFactory.forType(ValidationType.ACTION_CONFIRMATION).verifier.verify(token) }.getOrNull() ?: return null
+        val decoded =
+            runCatching {
+                tokenValidatorFactory.forType(ValidationType.ACTION_CONFIRMATION).verifier.verify(token)
+            }.getOrNull()
+                ?: return null
         val tokenId = decoded.id ?: return null
         val expiresAt = decoded.expiresAtAsInstant?.toKotlinInstant() ?: return null
         val grantsAction = decoded.claim(ActionConfirmationClaims.CLAIM_USER_ID) == grant.userId.toString() &&

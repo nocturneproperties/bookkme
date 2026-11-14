@@ -27,7 +27,9 @@ object BusinessTable : UuidTable("business") {
     val viber = varchar("viber", 255).nullable()
     val whatsapp = varchar("whatsapp", 255).nullable()
     val phone = varchar("phone", 255).nullable()
-    val clientDataRetentionMonths = integer("client_data_retention_months").default(Business.DEFAULT_CLIENT_DATA_RETENTION_MONTHS)
+    val clientDataRetentionMonths = integer(
+        "client_data_retention_months",
+    ).default(Business.DEFAULT_CLIENT_DATA_RETENTION_MONTHS)
     val createdAt = timestamp("created_at").clientDefault { Clock.System.now() }
     val updatedAt = timestamp("updated_at").clientDefault { Clock.System.now() }
 }

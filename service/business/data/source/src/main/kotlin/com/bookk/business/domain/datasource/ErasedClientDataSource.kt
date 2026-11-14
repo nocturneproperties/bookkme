@@ -6,6 +6,7 @@ import kotlin.uuid.Uuid
 
 interface ErasedClientDataSource {
     suspend fun record(businessId: Uuid, clientId: Uuid)
+    suspend fun recordAll(businessId: Uuid, clientIds: Collection<Uuid>)
     suspend fun getReapplyRequested(): List<ErasedClient>
     suspend fun claimReapply(clientId: Uuid): Boolean
     suspend fun deleteRecordedBefore(cutoff: Instant)

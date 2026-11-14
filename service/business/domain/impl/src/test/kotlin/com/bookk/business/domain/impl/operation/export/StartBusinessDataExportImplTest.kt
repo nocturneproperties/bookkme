@@ -32,7 +32,8 @@ internal class StartBusinessDataExportImplTest {
         val dataExports = mockk<DataExports>()
         val businessDataSource = mockk<BusinessDataSource>()
         val transactionManager = mockk<TransactionManager>()
-        val sut = StartBusinessDataExportImpl(confirmationTokens.gate, dataExports, businessDataSource, transactionManager)
+        val sut =
+            StartBusinessDataExportImpl(confirmationTokens.gate, dataExports, businessDataSource, transactionManager)
         val started = DataExport.stub()
         val startedInTransaction = mutableListOf<Boolean>()
 
@@ -45,7 +46,12 @@ internal class StartBusinessDataExportImplTest {
             }
         }
 
-        fun token(grant: ActionConfirmationGrant = ActionConfirmationGrant.businessDataExport(userId, businessId)) = confirmationTokens.tokenFor(grant, tokenId = TOKEN_ID)
+        fun token(
+            grant: ActionConfirmationGrant = ActionConfirmationGrant.businessDataExport(
+                userId,
+                businessId,
+            ),
+        ) = confirmationTokens.tokenFor(grant, tokenId = TOKEN_ID)
 
         fun notOwner() {
             coEvery { businessDataSource.isOwner(userId, businessId) } returns false
@@ -117,7 +123,11 @@ internal class StartBusinessDataExportImplTest {
         val fixture = SutFixture()
 
         whenn()
-        val result = fixture.sut(fixture.userId, fixture.businessId, fixture.token(ActionConfirmationGrant.businessDataExport(fixture.userId, Uuid.random())))
+        val result = fixture.sut(
+            fixture.userId,
+            fixture.businessId,
+            fixture.token(ActionConfirmationGrant.businessDataExport(fixture.userId, Uuid.random())),
+        )
 
         then()
         assertTrue(result.exceptionOrNull() is StartBusinessDataExport.Error.ActionConfirmationInvalid)
@@ -130,7 +140,11 @@ internal class StartBusinessDataExportImplTest {
         val fixture = SutFixture()
 
         whenn()
-        val result = fixture.sut(fixture.userId, fixture.businessId, fixture.token(ActionConfirmationGrant.personalDataExport(fixture.userId)))
+        val result = fixture.sut(
+            fixture.userId,
+            fixture.businessId,
+            fixture.token(ActionConfirmationGrant.personalDataExport(fixture.userId)),
+        )
 
         then()
         assertTrue(result.exceptionOrNull() is StartBusinessDataExport.Error.ActionConfirmationInvalid)
@@ -169,7 +183,8 @@ internal class StartBusinessDataExportImplTest {
     fun `should refuse when the caller stopped owning the business while waiting for the lock`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        coEvery { fixture.businessDataSource.isOwner(fixture.userId, fixture.businessId) } returnsMany listOf(true, false)
+        coEvery { fixture.businessDataSource.isOwner(fixture.userId, fixture.businessId) } returnsMany
+            listOf(true, false)
 
         whenn()
         val result = fixture.sut(fixture.userId, fixture.businessId, fixture.token())

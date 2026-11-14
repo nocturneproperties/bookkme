@@ -124,7 +124,8 @@ internal class FirebaseNotificationSenderTest {
         with(fixture) {
             transactionManager.mockTransaction()
             coEvery { deviceDataSource.getByUserId(userId) } returns listOf(device)
-            coEvery { deviceDataSource.updateToken(device.authId, deviceId, null) } returns device.copy(notificationToken = null)
+            coEvery { deviceDataSource.updateToken(device.authId, deviceId, null) } returns
+                device.copy(notificationToken = null)
             every { firebaseMessaging.send(any()) } throws exception
             every { exception.messagingErrorCode } returns MessagingErrorCode.UNREGISTERED
         }

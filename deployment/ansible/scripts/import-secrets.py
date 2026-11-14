@@ -32,6 +32,8 @@ def generated_secrets():
         "vault_monolith_redis_password": secrets.token_urlsafe(32),
         "vault_dozzle_session_secret": base64.b64encode(secrets.token_bytes(32)).decode(),
         "vault_email_code_secret": secrets.token_urlsafe(48),
+        "vault_subject_master_key": base64.b64encode(secrets.token_bytes(32)).decode(),
+        "vault_blind_index_key": base64.b64encode(secrets.token_bytes(32)).decode(),
         "vault_swarm_secrets": {
             "mariadb_encryption_key": f"1;{secrets.token_hex(32)}\n",
             "signing_key_encryption_key": base64.b64encode(secrets.token_bytes(32)).decode(),

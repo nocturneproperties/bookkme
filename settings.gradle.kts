@@ -35,7 +35,6 @@ include(":core:data:cache:api")
 include(":core:data:cache:impl")
 include(":core:data:eventstreaming:api")
 include(":core:data:eventstreaming:impl")
-include(":core:data:eventstreaming:data")
 include(":core:service")
 include(":core:client")
 
@@ -56,6 +55,9 @@ include(":library:export:impl")
 include(":library:export:route")
 include(":library:email:api")
 include(":library:email:impl")
+include(":library:encryption:api")
+include(":library:encryption:impl")
+include(":library:outbox")
 
 // Authorization
 include(":service:authorization:microservice")

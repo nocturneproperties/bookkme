@@ -15,8 +15,15 @@ internal class GetEmployeesImpl(
     private val businessPermissionDataSource: BusinessPermissionDataSource,
     private val transactionManager: TransactionManager,
 ) : GetEmployees {
-    override suspend fun invoke(userId: Uuid, businessId: Uuid): Result<List<Employee>> = transactionManager.transaction {
-        businessPermissionDataSource.getPermission(userId, businessId, BusinessResource.EMPLOYEES).assert(PermissionAction.VIEW)
+    override suspend fun invoke(
+        userId: Uuid,
+        businessId: Uuid,
+    ): Result<List<Employee>> = transactionManager.transaction {
+        businessPermissionDataSource.getPermission(
+            userId,
+            businessId,
+            BusinessResource.EMPLOYEES,
+        ).assert(PermissionAction.VIEW)
         employeeDataSource.getEmployees(businessId)
     }
 }

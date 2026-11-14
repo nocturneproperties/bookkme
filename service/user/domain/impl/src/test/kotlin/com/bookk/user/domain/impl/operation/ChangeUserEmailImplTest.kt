@@ -41,7 +41,8 @@ internal class ChangeUserEmailImplTest {
         given()
         val fixture = SutFixture()
         val userId = Uuid.random()
-        coEvery { fixture.userDataSource.changeEmail(userId, NEW_EMAIL, any()) } returns User.stub(id = userId, email = NEW_EMAIL)
+        coEvery { fixture.userDataSource.changeEmail(userId, NEW_EMAIL, any()) } returns
+            User.stub(id = userId, email = NEW_EMAIL)
 
         whenn()
         val result = fixture.sut.invoke(userId, NEW_EMAIL)
@@ -56,7 +57,13 @@ internal class ChangeUserEmailImplTest {
         given()
         val fixture = SutFixture()
         val userId = Uuid.random()
-        val changed = User.stub(id = userId, name = "Jane", lastName = "Smith", email = NEW_EMAIL, phone = "+10000000000")
+        val changed = User.stub(
+            id = userId,
+            name = "Jane",
+            lastName = "Smith",
+            email = NEW_EMAIL,
+            phone = "+10000000000",
+        )
         coEvery { fixture.userDataSource.changeEmail(userId, NEW_EMAIL, any()) } returns changed
 
         whenn()

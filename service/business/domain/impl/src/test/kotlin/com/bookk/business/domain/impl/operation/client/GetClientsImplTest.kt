@@ -32,11 +32,13 @@ internal class GetClientsImplTest {
         val sut = GetClientsImpl(clientDataSource, businessPermissionDataSource, transactionManager)
 
         init {
-            coEvery { businessPermissionDataSource.getPermission(any(), any(), BusinessResource.CLIENTS) } returns ResourcePermission.FULL
+            coEvery { businessPermissionDataSource.getPermission(any(), any(), BusinessResource.CLIENTS) } returns
+                ResourcePermission.FULL
         }
 
         fun grantPermission(permission: ResourcePermission) {
-            coEvery { businessPermissionDataSource.getPermission(any(), any(), BusinessResource.CLIENTS) } returns permission
+            coEvery { businessPermissionDataSource.getPermission(any(), any(), BusinessResource.CLIENTS) } returns
+                permission
         }
     }
 
@@ -124,6 +126,8 @@ internal class GetClientsImplTest {
 
         then()
         assertTrue(result.isSuccess)
-        coVerify(exactly = 1) { fixture.businessPermissionDataSource.getPermission(requestUserId, businessId, BusinessResource.CLIENTS) }
+        coVerify(exactly = 1) {
+            fixture.businessPermissionDataSource.getPermission(requestUserId, businessId, BusinessResource.CLIENTS)
+        }
     }
 }

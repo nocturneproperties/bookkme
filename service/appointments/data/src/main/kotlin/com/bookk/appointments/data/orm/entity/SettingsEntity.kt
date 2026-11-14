@@ -42,7 +42,10 @@ internal class SettingsEntity(id: EntityID<Uuid>) : UuidEntity(id) {
             automaticCompletion = settings.automaticCompletion
         }
 
-        fun findByBusinessIdAndUpdate(update: AppointmentSettingsUpdate): SettingsEntity? = findSingleByAndUpdate(op = SettingsTable.businessId eq update.businessId) {
+        fun findByBusinessIdAndUpdate(update: AppointmentSettingsUpdate): SettingsEntity? = findSingleByAndUpdate(
+            op =
+            SettingsTable.businessId eq update.businessId,
+        ) {
             it.inBetweenBreakInMinutes = update.inBetweenBreakInMinutes
             it.appointmentNote = update.appointmentNote
             it.automaticApproval = update.automaticApproval

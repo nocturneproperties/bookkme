@@ -14,11 +14,14 @@ import com.bookk.core.test.whenn
 import com.bookk.server.business.client.api.event.BusinessEvent
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.coVerifyOrder
 import io.mockk.mockk
 import io.mockk.slot
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.minus
+import library.encryption.test.ShredRecordingSubjectKeys
+import library.export.DataExports
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -35,17 +38,36 @@ internal class DeleteInactiveClientsImplTest {
         val erasedClientDataSource = mockk<ErasedClientDataSource>()
         val recorded = mutableListOf<Pair<Uuid, Uuid>>()
         val recordedInTransaction = mutableListOf<Boolean>()
+        val deletedInTransaction = mutableListOf<Boolean>()
         val transactionManager = mockk<TransactionManager>()
         val eventProducer = mockk<StandardEventProducer>()
+        val dataExports = mockk<DataExports>()
+        val discardedInTransaction = mutableMapOf<Uuid, Boolean>()
         val sentEvents = mutableListOf<BusinessEvent.ClientDeleted>()
         val sentInTransaction = mutableListOf<Boolean>()
-        val sut = DeleteInactiveClientsImpl(businessDataSource, clientDataSource, erasedClientDataSource, transactionManager, eventProducer)
+        val subjectKeys = ShredRecordingSubjectKeys(transactionManager::isInTransaction)
+        val sut =
+            DeleteInactiveClientsImpl(
+                businessDataSource,
+                clientDataSource,
+                erasedClientDataSource,
+                transactionManager,
+                eventProducer,
+                dataExports,
+                subjectKeys,
+            )
 
         init {
             transactionManager.mockTransaction()
-            coEvery { erasedClientDataSource.record(any(), any()) } coAnswers {
-                recorded += firstArg<Uuid>() to secondArg<Uuid>()
+            coEvery { clientDataSource.deleteClients(any()) } coAnswers {
+                deletedInTransaction += transactionManager.isInTransaction()
+            }
+            coEvery { erasedClientDataSource.recordAll(any(), any()) } coAnswers {
+                recorded += secondArg<Collection<Uuid>>().map { firstArg<Uuid>() to it }
                 recordedInTransaction += transactionManager.isInTransaction()
+            }
+            coEvery { dataExports.discard(any()) } coAnswers {
+                discardedInTransaction[firstArg()] = transactionManager.isInTransaction()
             }
             coEvery { eventProducer.send(any<BusinessEvent.ClientDeleted>(), any()) } coAnswers {
                 sentEvents += firstArg<BusinessEvent.ClientDeleted>()
@@ -57,6 +79,47 @@ internal class DeleteInactiveClientsImplTest {
     private fun Instant.monthsEarlier(months: Int) = minus(months, DateTimeUnit.MONTH, TimeZone.UTC)
 
     @Test
+    fun `should discard the data export only of businesses that lost a client in this run`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val lostClients = Uuid.random()
+        val keptClients = Uuid.random()
+        with(fixture) {
+            coEvery { businessDataSource.getClientDataRetentionMonths() } returns
+                mapOf(lostClients to 12, keptClients to 12)
+            coEvery { clientDataSource.getInactiveClientIdsForUpdate(lostClients, any()) } returns
+                listOf(Uuid.random(), Uuid.random())
+            coEvery { clientDataSource.getInactiveClientIdsForUpdate(keptClients, any()) } returns emptyList()
+        }
+
+        whenn()
+        val result = fixture.sut()
+
+        then()
+        assertTrue(result.isSuccess)
+        assertEquals(mapOf(lostClients to true), fixture.discardedInTransaction)
+        coVerify(exactly = 1) { fixture.dataExports.discard(lostClients) }
+    }
+
+    @Test
+    fun `should shred the key of every deleted client inside the transaction`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val businessId = Uuid.random()
+        val deletedClientIds = listOf(Uuid.random(), Uuid.random())
+        with(fixture) {
+            coEvery { businessDataSource.getClientDataRetentionMonths() } returns mapOf(businessId to 12)
+            coEvery { clientDataSource.getInactiveClientIdsForUpdate(businessId, any()) } returns deletedClientIds
+        }
+
+        whenn()
+        fixture.sut()
+
+        then()
+        assertEquals(deletedClientIds.toSet(), fixture.subjectKeys.shreddedInTransaction)
+    }
+
+    @Test
     fun `should delete each business's clients inactive for longer than its retention period`() = runUnitTest {
         given()
         val fixture = SutFixture()
@@ -65,9 +128,12 @@ internal class DeleteInactiveClientsImplTest {
         val shortCutoff = slot<Instant>()
         val longCutoff = slot<Instant>()
         with(fixture) {
-            coEvery { businessDataSource.getClientDataRetentionMonths() } returns mapOf(shortRetentionId to 12, longRetentionId to 120)
-            coEvery { clientDataSource.deleteInactiveClients(shortRetentionId, capture(shortCutoff)) } returns emptyList()
-            coEvery { clientDataSource.deleteInactiveClients(longRetentionId, capture(longCutoff)) } returns emptyList()
+            coEvery { businessDataSource.getClientDataRetentionMonths() } returns
+                mapOf(shortRetentionId to 12, longRetentionId to 120)
+            coEvery { clientDataSource.getInactiveClientIdsForUpdate(shortRetentionId, capture(shortCutoff)) } returns
+                emptyList()
+            coEvery { clientDataSource.getInactiveClientIdsForUpdate(longRetentionId, capture(longCutoff)) } returns
+                emptyList()
         }
         val startedAt = Clock.System.now()
 
@@ -89,7 +155,7 @@ internal class DeleteInactiveClientsImplTest {
         val deletedIds = listOf(Uuid.random(), Uuid.random())
         with(fixture) {
             coEvery { businessDataSource.getClientDataRetentionMonths() } returns mapOf(businessId to 36)
-            coEvery { clientDataSource.deleteInactiveClients(businessId, any()) } returns deletedIds
+            coEvery { clientDataSource.getInactiveClientIdsForUpdate(businessId, any()) } returns deletedIds
         }
 
         whenn()
@@ -109,7 +175,7 @@ internal class DeleteInactiveClientsImplTest {
         val deletedIds = listOf(Uuid.random(), Uuid.random())
         with(fixture) {
             coEvery { businessDataSource.getClientDataRetentionMonths() } returns mapOf(businessId to 36)
-            coEvery { clientDataSource.deleteInactiveClients(businessId, any()) } returns deletedIds
+            coEvery { clientDataSource.getInactiveClientIdsForUpdate(businessId, any()) } returns deletedIds
         }
 
         whenn()
@@ -117,7 +183,49 @@ internal class DeleteInactiveClientsImplTest {
 
         then()
         assertEquals(deletedIds.map { businessId to it }, fixture.recorded)
-        assertEquals(listOf(true, true), fixture.recordedInTransaction)
+        assertEquals(listOf(true), fixture.recordedInTransaction)
+    }
+
+    @Test
+    fun `should select a business's inactive clients and then delete them at once`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val businessId = Uuid.random()
+        val inactiveIds = listOf(Uuid.random(), Uuid.random())
+        with(fixture) {
+            coEvery { businessDataSource.getClientDataRetentionMonths() } returns mapOf(businessId to 36)
+            coEvery { clientDataSource.getInactiveClientIdsForUpdate(businessId, any()) } returns inactiveIds
+        }
+
+        whenn()
+        fixture.sut()
+
+        then()
+        coVerifyOrder {
+            fixture.clientDataSource.getInactiveClientIdsForUpdate(businessId, any())
+            fixture.clientDataSource.deleteClients(inactiveIds)
+            fixture.erasedClientDataSource.recordAll(businessId, inactiveIds)
+        }
+        assertEquals(listOf(true), fixture.deletedInTransaction)
+    }
+
+    @Test
+    fun `should write nothing for a business without inactive clients`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val businessId = Uuid.random()
+        with(fixture) {
+            coEvery { businessDataSource.getClientDataRetentionMonths() } returns mapOf(businessId to 36)
+            coEvery { clientDataSource.getInactiveClientIdsForUpdate(businessId, any()) } returns emptyList()
+        }
+
+        whenn()
+        val result = fixture.sut()
+
+        then()
+        assertTrue(result.isSuccess)
+        coVerify(exactly = 0) { fixture.clientDataSource.deleteClients(any()) }
+        coVerify(exactly = 0) { fixture.erasedClientDataSource.recordAll(any(), any()) }
     }
 
     @Test
@@ -125,15 +233,18 @@ internal class DeleteInactiveClientsImplTest {
         given()
         val fixture = SutFixture()
         with(fixture) {
-            coEvery { businessDataSource.getClientDataRetentionMonths() } returns mapOf(Uuid.random() to 36, Uuid.random() to 36)
-            coEvery { clientDataSource.deleteInactiveClients(any(), any()) } returns emptyList()
+            coEvery { businessDataSource.getClientDataRetentionMonths() } returns
+                mapOf(Uuid.random() to 36, Uuid.random() to 36)
+            coEvery { clientDataSource.getInactiveClientIdsForUpdate(any(), any()) } returns emptyList()
         }
 
         whenn()
         fixture.sut()
 
         then()
-        coVerify(exactly = 2) { fixture.transactionManager.transaction<Any>(TransactionIsolation.READ_COMMITTED, any()) }
+        coVerify(exactly = 2) {
+            fixture.transactionManager.transaction<Any>(TransactionIsolation.READ_COMMITTED, any())
+        }
     }
 
     @Test
@@ -144,9 +255,10 @@ internal class DeleteInactiveClientsImplTest {
         val otherId = Uuid.random()
         val error = IllegalStateException("deletion failed")
         with(fixture) {
-            coEvery { businessDataSource.getClientDataRetentionMonths() } returns linkedMapOf(failingId to 36, otherId to 36)
-            coEvery { clientDataSource.deleteInactiveClients(failingId, any()) } throws error
-            coEvery { clientDataSource.deleteInactiveClients(otherId, any()) } returns emptyList()
+            coEvery { businessDataSource.getClientDataRetentionMonths() } returns
+                linkedMapOf(failingId to 36, otherId to 36)
+            coEvery { clientDataSource.getInactiveClientIdsForUpdate(failingId, any()) } throws error
+            coEvery { clientDataSource.getInactiveClientIdsForUpdate(otherId, any()) } returns emptyList()
         }
 
         whenn()
@@ -154,7 +266,7 @@ internal class DeleteInactiveClientsImplTest {
 
         then()
         assertSame(error, result.exceptionOrNull())
-        coVerify(exactly = 1) { fixture.clientDataSource.deleteInactiveClients(otherId, any()) }
+        coVerify(exactly = 1) { fixture.clientDataSource.getInactiveClientIdsForUpdate(otherId, any()) }
     }
 
     @Test
@@ -166,9 +278,10 @@ internal class DeleteInactiveClientsImplTest {
         val firstError = IllegalStateException("first deletion failed")
         val secondError = IllegalStateException("second deletion failed")
         with(fixture) {
-            coEvery { businessDataSource.getClientDataRetentionMonths() } returns linkedMapOf(firstId to 36, secondId to 36)
-            coEvery { clientDataSource.deleteInactiveClients(firstId, any()) } throws firstError
-            coEvery { clientDataSource.deleteInactiveClients(secondId, any()) } throws secondError
+            coEvery { businessDataSource.getClientDataRetentionMonths() } returns
+                linkedMapOf(firstId to 36, secondId to 36)
+            coEvery { clientDataSource.getInactiveClientIdsForUpdate(firstId, any()) } throws firstError
+            coEvery { clientDataSource.getInactiveClientIdsForUpdate(secondId, any()) } throws secondError
         }
 
         whenn()
@@ -187,9 +300,11 @@ internal class DeleteInactiveClientsImplTest {
         val otherId = Uuid.random()
         val otherDeleted = Uuid.random()
         with(fixture) {
-            coEvery { businessDataSource.getClientDataRetentionMonths() } returns linkedMapOf(failingId to 36, otherId to 36)
-            coEvery { clientDataSource.deleteInactiveClients(failingId, any()) } throws IllegalStateException("deletion failed")
-            coEvery { clientDataSource.deleteInactiveClients(otherId, any()) } returns listOf(otherDeleted)
+            coEvery { businessDataSource.getClientDataRetentionMonths() } returns
+                linkedMapOf(failingId to 36, otherId to 36)
+            coEvery { clientDataSource.getInactiveClientIdsForUpdate(failingId, any()) } throws
+                IllegalStateException("deletion failed")
+            coEvery { clientDataSource.getInactiveClientIdsForUpdate(otherId, any()) } returns listOf(otherDeleted)
         }
 
         whenn()
@@ -211,6 +326,6 @@ internal class DeleteInactiveClientsImplTest {
 
         then()
         assertSame(error, result.exceptionOrNull())
-        coVerify(exactly = 0) { fixture.clientDataSource.deleteInactiveClients(any(), any()) }
+        coVerify(exactly = 0) { fixture.clientDataSource.getInactiveClientIdsForUpdate(any(), any()) }
     }
 }

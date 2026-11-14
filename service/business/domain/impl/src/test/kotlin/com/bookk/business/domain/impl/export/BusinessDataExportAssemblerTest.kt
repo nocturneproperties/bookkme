@@ -77,14 +77,25 @@ internal class BusinessDataExportAssemblerTest {
             timeZone = TimeZone.of("Europe/Kyiv"),
             location = Business.Location(50.45, 30.52),
             currencyCode = "UAH",
-            socials = listOf(Business.Social(Business.SocialKind.INSTAGRAM, "@studio"), Business.Social(Business.SocialKind.PHONE, "")),
+            socials = listOf(
+                Business.Social(Business.SocialKind.INSTAGRAM, "@studio"),
+                Business.Social(Business.SocialKind.PHONE, ""),
+            ),
             schedule = monday,
             ownerId = ownerId,
             clientDataRetentionMonths = 24,
         )
         val group = ServiceGroup.stub(businessId = business.id, name = "Hair")
-        val haircut = Service.stub(businessId = business.id, group = group, name = "Haircut", duration = 45.minutes, price = Money.parse("UAH 450.00"))
-        val appointments = AppointmentsBusinessDataExport.stub(settings = AppointmentsBusinessDataExport.SettingsExport(true, true, 10, ""))
+        val haircut = Service.stub(
+            businessId = business.id,
+            group = group,
+            name = "Haircut",
+            duration = 45.minutes,
+            price = Money.parse("UAH 450.00"),
+        )
+        val appointments = AppointmentsBusinessDataExport.stub(
+            settings = AppointmentsBusinessDataExport.SettingsExport(true, true, 10, ""),
+        )
         val readInTransaction = mutableListOf<Boolean>()
         val sentEvents = mutableListOf<BusinessEvent.ExportReady>()
 
@@ -100,7 +111,8 @@ internal class BusinessDataExportAssemblerTest {
             coEvery { exportDataSource.getPendingInvitations(business.id) } returns emptyList()
             coEvery { exportDataSource.getClients(business.id) } returns emptyList()
             coEvery { exportBusinessAppointments(business.id) } returns Result.success(appointments)
-            coEvery { eventProducer.send(any<BusinessEvent.ExportReady>(), any()) } coAnswers { sentEvents += firstArg<BusinessEvent.ExportReady>() }
+            coEvery { eventProducer.send(any<BusinessEvent.ExportReady>(), any()) } coAnswers
+                { sentEvents += firstArg<BusinessEvent.ExportReady>() }
         }
 
         suspend fun export(): BusinessDataExport = Json.decodeFromString(sut.assemble(business.id))
@@ -149,7 +161,15 @@ internal class BusinessDataExportAssemblerTest {
                 BusinessDataExport.ServiceGroupExport(
                     fixture.group.id,
                     "Hair",
-                    listOf(BusinessDataExport.ServiceExport(fixture.haircut.id, "Haircut", "UAH 450.00", durationMinutes = 45, available = true)),
+                    listOf(
+                        BusinessDataExport.ServiceExport(
+                            fixture.haircut.id,
+                            "Haircut",
+                            "UAH 450.00",
+                            durationMinutes = 45,
+                            available = true,
+                        ),
+                    ),
                 ),
             ),
             export.serviceGroups,
@@ -160,7 +180,12 @@ internal class BusinessDataExportAssemblerTest {
     fun `should export every employee with role, services, schedule and permissions`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        val owner = Employee.stub(businessId = fixture.business.id, userId = fixture.ownerId, name = "Olena", permissions = BusinessPermissions.FULL)
+        val owner = Employee.stub(
+            businessId = fixture.business.id,
+            userId = fixture.ownerId,
+            name = "Olena",
+            permissions = BusinessPermissions.FULL,
+        )
         val suspendedAt = Instant.fromEpochMilliseconds(1_000)
         val stylist = Employee.stub(
             businessId = fixture.business.id,
@@ -179,7 +204,12 @@ internal class BusinessDataExportAssemblerTest {
         val export = fixture.export()
 
         then()
-        assertEquals(listOf(BusinessDataExport.Role.OWNER, BusinessDataExport.Role.EMPLOYEE), export.employees.map { it.role })
+        assertEquals(
+            listOf(BusinessDataExport.Role.OWNER, BusinessDataExport.Role.EMPLOYEE),
+            export.employees.map {
+                it.role
+            },
+        )
         val exported = export.employees[1]
         assertEquals(
             BusinessDataExport.EmployeeExport(
@@ -198,8 +228,20 @@ internal class BusinessDataExportAssemblerTest {
             ),
             exported,
         )
-        assertEquals(PermissionExport("CLIENTS", view = false, update = false, delete = false), exported.permissions.single { it.resource == "CLIENTS" })
-        assertEquals(PermissionExport("CLIENTS", view = true, update = true, delete = true), export.employees[0].permissions.single { it.resource == "CLIENTS" })
+        assertEquals(
+            PermissionExport("CLIENTS", view = false, update = false, delete = false),
+            exported.permissions.single {
+                it.resource ==
+                    "CLIENTS"
+            },
+        )
+        assertEquals(
+            PermissionExport("CLIENTS", view = true, update = true, delete = true),
+            export.employees[0].permissions.single {
+                it.resource ==
+                    "CLIENTS"
+            },
+        )
     }
 
     @Test
@@ -209,8 +251,10 @@ internal class BusinessDataExportAssemblerTest {
         val owner = Employee.stub(businessId = fixture.business.id, userId = fixture.ownerId)
         coEvery { fixture.employeeDataSource.getEmployees(fixture.business.id) } returns listOf(owner)
         val fromOwner = PendingInvitationExport(Uuid.random(), fixture.ownerId, Instant.fromEpochMilliseconds(1_000))
-        val fromFormerEmployee = PendingInvitationExport(Uuid.random(), Uuid.random(), Instant.fromEpochMilliseconds(2_000))
-        coEvery { fixture.exportDataSource.getPendingInvitations(fixture.business.id) } returns listOf(fromOwner, fromFormerEmployee)
+        val fromFormerEmployee =
+            PendingInvitationExport(Uuid.random(), Uuid.random(), Instant.fromEpochMilliseconds(2_000))
+        coEvery { fixture.exportDataSource.getPendingInvitations(fixture.business.id) } returns
+            listOf(fromOwner, fromFormerEmployee)
 
         whenn()
         val export = fixture.export()
@@ -218,8 +262,16 @@ internal class BusinessDataExportAssemblerTest {
         then()
         assertEquals(
             listOf(
-                BusinessDataExport.InvitationExport(fromOwner.id, invitedByEmployeeId = owner.id, createdAt = fromOwner.createdAt),
-                BusinessDataExport.InvitationExport(fromFormerEmployee.id, invitedByEmployeeId = null, createdAt = fromFormerEmployee.createdAt),
+                BusinessDataExport.InvitationExport(
+                    fromOwner.id,
+                    invitedByEmployeeId = owner.id,
+                    createdAt = fromOwner.createdAt,
+                ),
+                BusinessDataExport.InvitationExport(
+                    fromFormerEmployee.id,
+                    invitedByEmployeeId = null,
+                    createdAt = fromFormerEmployee.createdAt,
+                ),
             ),
             export.pendingInvitations,
         )
@@ -269,7 +321,8 @@ internal class BusinessDataExportAssemblerTest {
     fun `should fail when appointments can't hand over the business's appointments`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        coEvery { fixture.exportBusinessAppointments(fixture.business.id) } returns Result.failure(IllegalStateException("appointments unreachable"))
+        coEvery { fixture.exportBusinessAppointments(fixture.business.id) } returns
+            Result.failure(IllegalStateException("appointments unreachable"))
 
         whenn()
         val result = runSuspendCatching { fixture.sut.assemble(fixture.business.id) }
@@ -288,7 +341,12 @@ internal class BusinessDataExportAssemblerTest {
         fixture.sut.announceReady(fixture.business.id, expiresAt)
 
         then()
-        assertEquals(listOf(Triple(fixture.business.id, fixture.ownerId, expiresAt)), fixture.sentEvents.map { Triple(it.businessId, it.ownerUserId, it.expiresAt) })
+        assertEquals(
+            listOf(Triple(fixture.business.id, fixture.ownerId, expiresAt)),
+            fixture.sentEvents.map {
+                Triple(it.businessId, it.ownerUserId, it.expiresAt)
+            },
+        )
     }
 
     @Test

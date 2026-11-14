@@ -83,5 +83,6 @@ internal class NotificationEventHandler(
             .start(scope)
     }
 
-    private suspend fun notifyClient(clientUserId: Uuid?, notification: NotificationParameters): Result<Unit> = clientUserId?.let { sendNotification(it, notification) } ?: Result.success(Unit)
+    private suspend fun notifyClient(clientUserId: Uuid?, notification: NotificationParameters): Result<Unit> =
+        clientUserId?.let { sendNotification(it, notification) } ?: Result.success(Unit)
 }

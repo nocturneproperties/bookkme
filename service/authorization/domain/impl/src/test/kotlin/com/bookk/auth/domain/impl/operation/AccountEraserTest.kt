@@ -51,7 +51,14 @@ internal class AccountEraserTest {
         val deviceUUID = Uuid.random()
         val device = Device(
             authRecord = authRecord,
-            deviceInfo = DeviceInfo(id = Uuid.random(), deviceUUID = deviceUUID, refreshToken = null, previousRefreshToken = null, deviceName = "Phone", isSignedIn = true),
+            deviceInfo = DeviceInfo(
+                id = Uuid.random(),
+                deviceUUID = deviceUUID,
+                refreshToken = null,
+                previousRefreshToken = null,
+                deviceName = "Phone",
+                isSignedIn = true,
+            ),
         )
         coEvery { fixture.deviceDataSource.getDevices(authRecord.id) } returns listOf(device)
 
@@ -60,7 +67,17 @@ internal class AccountEraserTest {
 
         then()
         coVerify(exactly = 1) { fixture.accountDataSource.deleteAuthorization(authRecord.id) }
-        coVerify(exactly = 1) { fixture.eventProducer.send(match<AuthEvent.UserDeleted> { it.userId == authRecord.userId }, any()) }
-        coVerify(exactly = 1) { fixture.eventProducer.send(match<AuthEvent.DeviceDeleted> { it.authId == authRecord.id && it.deviceUuid == deviceUUID }, any()) }
+        coVerify(exactly = 1) {
+            fixture.eventProducer.send(match<AuthEvent.UserDeleted> { it.userId == authRecord.userId }, any())
+        }
+        coVerify(exactly = 1) {
+            fixture.eventProducer.send(
+                match<AuthEvent.DeviceDeleted> {
+                    it.authId == authRecord.id &&
+                        it.deviceUuid == deviceUUID
+                },
+                any(),
+            )
+        }
     }
 }

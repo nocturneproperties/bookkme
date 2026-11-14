@@ -31,4 +31,21 @@ data class DltEvent(
         result = 31 * result + idempotencyKey.hashCode()
         return result
     }
+
+    companion object {
+        fun stub(
+            payload: ByteArray = byteArrayOf(),
+            originalTopic: String = "topic",
+            attempt: Int = DltRetry.DEFAULT_MAX_ATTEMPTS,
+            idempotencyKey: String = Uuid.random().toString(),
+        ): DltEvent {
+            return DltEvent(
+                payload = payload,
+                originalTopic = originalTopic,
+                attempt = attempt,
+                topic = originalTopic,
+                idempotencyKey = idempotencyKey,
+            )
+        }
+    }
 }

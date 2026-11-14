@@ -23,7 +23,9 @@ internal class ExportUserBusinessDataImplTest {
         val sut = ExportUserBusinessDataImpl(dataSource, transactionManager)
         val exportedInTransaction = mutableListOf<Boolean>()
         val userId = Uuid.random()
-        val export = BusinessUserDataExport.stub(clientRecords = listOf(BusinessUserDataExport.ClientRecordExport.stub()))
+        val export = BusinessUserDataExport.stub(
+            clientRecords = listOf(BusinessUserDataExport.ClientRecordExport.stub()),
+        )
 
         init {
             transactionManager.mockTransaction()

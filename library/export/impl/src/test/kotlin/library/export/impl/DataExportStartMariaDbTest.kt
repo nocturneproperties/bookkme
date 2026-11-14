@@ -8,12 +8,14 @@ import com.bookk.core.test.runIntegrationTest
 import com.bookk.core.test.then
 import com.bookk.core.test.whenn
 import io.mockk.coEvery
+import io.mockk.mockk
 import io.mockk.spyk
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+import library.encryption.SubjectKeys
 import library.export.DataExportStatus
 import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
@@ -71,7 +73,7 @@ internal class DataExportStartMariaDbTest {
         val ownerId = Uuid.random()
         val dataSource = spyk(DataExportDataSource())
         val transactionManager = ExposedTransactionManager(database)
-        val sut = DataExportsImpl(dataSource, TestClock())
+        val sut = DataExportsImpl(dataSource, mockk<SubjectKeys>(), TestClock())
         val firstLockTaken = CompletableDeferred<Unit>()
         val resumeFirst = CompletableDeferred<Unit>()
         private val lockReads = AtomicInteger()
@@ -98,7 +100,7 @@ internal class DataExportStartMariaDbTest {
     }
 
     @Test
-    fun `should give both of two first exports started at the same moment the one queued export`() = runIntegrationTest {
+    fun `should give two first exports started at the same moment the one queued export`() = runIntegrationTest {
         given()
         val fixture = SutFixture()
 

@@ -49,23 +49,35 @@ internal class UpdateAppointmentImpl(
             val reschedules = update.reschedules(locked)
             val reservesSlot = reschedules || locked.status == AppointmentStatus.SCHEDULED
             if (reservesSlot) {
-                if (!settings.isInWorkday(rescheduled.date)) throw UpdateAppointment.Error.RequestForThisDateNotAllowed()
-                if (!settings.isInWorktime(rescheduled.date, rescheduled.dateEnd)) throw UpdateAppointment.Error.RequestForThisTimeNotAllowed()
-                if (appointmentDataSource.hasOverlapsWith(rescheduled)) throw UpdateAppointment.Error.AppointmentForThisTimeExists()
+                if (!settings.isInWorkday(rescheduled.date)) {
+                    throw UpdateAppointment.Error.RequestForThisDateNotAllowed()
+                }
+                if (!settings.isInWorktime(rescheduled.date, rescheduled.dateEnd)) {
+                    throw UpdateAppointment.Error.RequestForThisTimeNotAllowed()
+                }
+                if (appointmentDataSource.hasOverlapsWith(rescheduled)) {
+                    throw UpdateAppointment.Error.AppointmentForThisTimeExists()
+                }
             }
             if (reschedules) appointmentDataSource.reopen(update.id)
             appointmentDataSource.update(rescheduled).also {
                 eventProducer.send(AppointmentEvent.ClientVisitBooked(it.businessId, it.client.id, it.dateEnd))
             }
         }
-        stored ?: throw Error.TransactionConflict("Appointment ${update.id} changed while it was being rescheduled", ConcurrentModificationException())
+        stored
+            ?: throw Error.TransactionConflict(
+                "Appointment ${update.id} changed while it was being rescheduled",
+                ConcurrentModificationException(),
+            )
     }
 
     private suspend fun requireReschedulable(userId: Uuid, appointment: Appointment, update: AppointmentUpdate) {
         appointmentPermissionDataSource.getPermission(userId, appointment.businessId)
             .assertOrSelf(PermissionAction.UPDATE, actorId = userId, assigneeId = appointment.employee.userId)
         appointment.requireEditable()
-        if (update.reschedules(appointment) && update.date < Clock.System.now()) throw UpdateAppointment.Error.DateInThePastNotAllowed()
+        if (update.reschedules(appointment) && update.date < Clock.System.now()) {
+            throw UpdateAppointment.Error.DateInThePastNotAllowed()
+        }
     }
 
     private fun AppointmentUpdate.hasValidServiceSelection(): Boolean {
@@ -83,7 +95,9 @@ internal class UpdateAppointmentImpl(
 
         return existing.copy(
             employee = context.employee?.toSnapshot() ?: existing.employee,
-            services = update.services.flatMap { requested -> List(requested.count) { availableServices.getValue(requested.serviceId) } },
+            services = update.services.flatMap { requested ->
+                List(requested.count) { availableServices.getValue(requested.serviceId) }
+            },
             date = update.date,
             note = update.note,
             status = if (rescheduling) AppointmentStatus.SCHEDULED else existing.status,
@@ -92,12 +106,24 @@ internal class UpdateAppointmentImpl(
         )
     }
 
-    private suspend fun resolveChanges(businessId: Uuid, employeeId: Uuid?, serviceIds: List<Uuid>): AppointmentRescheduleContext {
-        if (employeeId == null && serviceIds.isEmpty()) return AppointmentRescheduleContext(employee = null, services = emptyList())
+    private suspend fun resolveChanges(
+        businessId: Uuid,
+        employeeId: Uuid?,
+        serviceIds: List<Uuid>,
+    ): AppointmentRescheduleContext {
+        if (employeeId == null && serviceIds.isEmpty()) {
+            return AppointmentRescheduleContext(employee = null, services = emptyList())
+        }
         return businessClient.getAppointmentRescheduleContext(businessId, employeeId, serviceIds).getOrThrow()
     }
 
     private fun Employee.toSnapshot() = EmployeeSnapshot(id = id, userId = userId, fullName = "$name $lastName".trim())
 
-    private fun Service.toSnapshot() = ServiceSnapshot(id = id, name = name, groupId = group.id, price = price, duration = duration)
+    private fun Service.toSnapshot() = ServiceSnapshot(
+        id = id,
+        name = name,
+        groupId = group.id,
+        price = price,
+        duration = duration,
+    )
 }

@@ -119,7 +119,9 @@ internal class KafkaEventProducerTest {
         }
 
         then()
-        val sequences = records.map { KafkaTestBroker.protoBuf.decodeFromByteArray<KeyedTestEvent>(it.value()).sequence }
+        val sequences = records.map {
+            KafkaTestBroker.protoBuf.decodeFromByteArray<KeyedTestEvent>(it.value()).sequence
+        }
         assertEquals((0 until 10).toList(), sequences)
     }
 

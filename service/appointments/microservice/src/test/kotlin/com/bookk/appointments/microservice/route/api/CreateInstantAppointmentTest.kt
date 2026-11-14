@@ -58,7 +58,9 @@ internal class CreateInstantAppointmentTest {
         return createTestClient()
     }
 
-    private suspend fun HttpClient.postDraft(): HttpResponse = post(AppointmentsRouting.Api.Appointment.Instant()) { setBody(draft) }
+    private suspend fun HttpClient.postDraft(): HttpResponse = post(AppointmentsRouting.Api.Appointment.Instant()) {
+        setBody(draft)
+    }
 
     private suspend fun ApplicationTestBuilder.respondsWithError(error: Throwable): HttpResponse {
         val useCase: CreateInstantAppointment = mockk()
@@ -256,7 +258,7 @@ internal class CreateInstantAppointmentTest {
     }
 
     @Test
-    fun `should return not found when the caller may not book into that schedule, or the client or their account was deleted`() = routeTest {
+    fun `should return not found when the caller may not book or the client or their account is gone`() = routeTest {
         given()
         val error = Error.OperationNotAllowed()
 

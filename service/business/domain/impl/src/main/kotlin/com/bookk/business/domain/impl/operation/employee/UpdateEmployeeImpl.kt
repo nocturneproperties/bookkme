@@ -20,7 +20,10 @@ internal class UpdateEmployeeImpl(
     private val businessPermissionDataSource: BusinessPermissionDataSource,
     private val transactionManager: TransactionManager,
 ) : UpdateEmployee {
-    override suspend fun invoke(requestUserId: Uuid, employee: EmployeeUpdateModel): Result<Employee> = transactionManager.transaction {
+    override suspend fun invoke(
+        requestUserId: Uuid,
+        employee: EmployeeUpdateModel,
+    ): Result<Employee> = transactionManager.transaction {
         businessPermissionDataSource.getPermission(requestUserId, employee.businessId, BusinessResource.EMPLOYEES)
             .assert(PermissionAction.UPDATE)
         employeeDataSource.getEmployee(employee.businessId, employee.id) ?: throw Error.NotFound()

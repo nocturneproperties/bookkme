@@ -20,7 +20,11 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.protobuf.ProtoBuf
 import kotlin.uuid.Uuid
 
-fun internalHttpClient(hostnameVariable: String, clientTag: String): HttpClient = internalHttpClient(CIO, hostnameVariable, clientTag)
+fun internalHttpClient(hostnameVariable: String, clientTag: String): HttpClient = internalHttpClient(
+    CIO,
+    hostnameVariable,
+    clientTag,
+)
 
 fun <T : HttpClientEngineConfig> internalHttpClient(
     engineFactory: HttpClientEngineFactory<T>,
@@ -53,7 +57,11 @@ fun <T : HttpClientEngineConfig> internalHttpClient(
         }
         installInternalCallLogging()
         defaultRequest {
-            host = hostname ?: throw IllegalStateException("$hostnameVariable is not set, so $clientTag can't call that service")
+            host =
+                hostname
+                    ?: throw IllegalStateException(
+                        "$hostnameVariable is not set, so $clientTag can't call that service",
+                    )
             headers["Idempotency-Key"] = Uuid.random().toString()
             url { protocol = URLProtocol.HTTP }
             when (AppLevelConstants.SERIALIZER) {

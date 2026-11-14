@@ -142,7 +142,10 @@ internal class DeviceDataSourceImpl : DataSource(), DeviceDataSource {
 
     override suspend fun deleteInactiveDevices(olderThan: Instant): List<DeviceIdentity> = dbQuery {
         AuthDeviceTable
-            .deleteReturning(listOf(AuthDeviceTable.userAuthId, AuthDeviceTable.deviceUUID)) { AuthDeviceTable.lastLogInAt less olderThan }
+            .deleteReturning(listOf(AuthDeviceTable.userAuthId, AuthDeviceTable.deviceUUID)) {
+                AuthDeviceTable.lastLogInAt less
+                    olderThan
+            }
             .map { DeviceIdentity(it[AuthDeviceTable.userAuthId].value, it[AuthDeviceTable.deviceUUID]) }
     }
 

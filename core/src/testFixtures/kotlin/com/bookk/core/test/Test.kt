@@ -37,7 +37,10 @@ class TestHolder : AbstractCoroutineContextElement(Key) {
     companion object Key : CoroutineContext.Key<TestHolder>
 }
 
-fun runUnitTest(context: CoroutineContext = TestHolder(), body: suspend TestScope.() -> Unit) = runTest(context, timeout = 30.seconds) {
+fun runUnitTest(context: CoroutineContext = TestHolder(), body: suspend TestScope.() -> Unit) = runTest(
+    context,
+    timeout = 30.seconds,
+) {
     body()
     requireNotNull(currentCoroutineContext()[TestHolder.Key]).assertFormat()
 }

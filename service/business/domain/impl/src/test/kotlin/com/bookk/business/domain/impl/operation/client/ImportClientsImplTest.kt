@@ -36,7 +36,8 @@ internal class ImportClientsImplTest {
 
         init {
             transactionManager.mockTransaction()
-            coEvery { businessPermissionDataSource.getPermission(any(), any(), BusinessResource.CLIENTS) } returns ResourcePermission.FULL
+            coEvery { businessPermissionDataSource.getPermission(any(), any(), BusinessResource.CLIENTS) } returns
+                ResourcePermission.FULL
             coEvery { clientDataSource.getClientsByEmails(any(), any()) } returns emptyList()
             coEvery { clientDataSource.createDetachedClients(any(), any()) } answers { secondArg() }
         }
@@ -58,7 +59,13 @@ internal class ImportClientsImplTest {
         assertEquals(listOf("Ann", "Ben"), result.getOrThrow().created.map { it.name })
         assertTrue(result.getOrThrow().rejected.isEmpty())
         coVerify(exactly = 1) {
-            fixture.clientDataSource.createDetachedClients(businessId, match { it.map(Client::name) == listOf("Ann", "Ben") })
+            fixture.clientDataSource.createDetachedClients(
+                businessId,
+                match {
+                    it.map(Client::name) ==
+                        listOf("Ann", "Ben")
+                },
+            )
         }
     }
 
@@ -77,7 +84,13 @@ internal class ImportClientsImplTest {
 
         then()
         coVerify(exactly = 1) {
-            fixture.clientDataSource.getClientsByEmails(businessId, match { it.toSet() == setOf("a@client.com", "b@client.com") })
+            fixture.clientDataSource.getClientsByEmails(
+                businessId,
+                match {
+                    it.toSet() ==
+                        setOf("a@client.com", "b@client.com")
+                },
+            )
         }
     }
 
@@ -182,7 +195,8 @@ internal class ImportClientsImplTest {
     fun `should accept an import of exactly the maximum size`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        val clients = List(ImportClients.MAX_CLIENTS) { index -> Client.Detached.stub(phone = "+1$index", email = null) }
+        val clients =
+            List(ImportClients.MAX_CLIENTS) { index -> Client.Detached.stub(phone = "+1$index", email = null) }
 
         whenn()
         val result = fixture.sut(requestUserId, businessId, clients)
@@ -195,7 +209,8 @@ internal class ImportClientsImplTest {
     fun `should return TooManyClients when the import is larger than the maximum`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        val clients = List(ImportClients.MAX_CLIENTS + 1) { index -> Client.Detached.stub(phone = "+1$index", email = null) }
+        val clients =
+            List(ImportClients.MAX_CLIENTS + 1) { index -> Client.Detached.stub(phone = "+1$index", email = null) }
 
         whenn()
         val result = fixture.sut(requestUserId, businessId, clients)

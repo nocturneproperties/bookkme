@@ -162,10 +162,12 @@ internal class DeviceDataSourceImplTest {
         given()
         val fixture = SutFixture()
         val deviceUuid = Uuid.random()
-        val first = suspendTransaction { fixture.sut.getOrCreate(Uuid.random(), deviceUuid, Uuid.random(), Language.EN) }
+        val first =
+            suspendTransaction { fixture.sut.getOrCreate(Uuid.random(), deviceUuid, Uuid.random(), Language.EN) }
 
         whenn()
-        val second = suspendTransaction { fixture.sut.getOrCreate(Uuid.random(), deviceUuid, Uuid.random(), Language.UK) }
+        val second =
+            suspendTransaction { fixture.sut.getOrCreate(Uuid.random(), deviceUuid, Uuid.random(), Language.UK) }
 
         then()
         assertTrue(first.id != second.id)
@@ -178,8 +180,10 @@ internal class DeviceDataSourceImplTest {
         given()
         val fixture = SutFixture()
         val deviceUuid = Uuid.random()
-        val first = suspendTransaction { fixture.sut.getOrCreate(Uuid.random(), deviceUuid, Uuid.random(), Language.EN) }
-        val second = suspendTransaction { fixture.sut.getOrCreate(Uuid.random(), deviceUuid, Uuid.random(), Language.EN) }
+        val first =
+            suspendTransaction { fixture.sut.getOrCreate(Uuid.random(), deviceUuid, Uuid.random(), Language.EN) }
+        val second =
+            suspendTransaction { fixture.sut.getOrCreate(Uuid.random(), deviceUuid, Uuid.random(), Language.EN) }
 
         whenn()
         suspendTransaction {
@@ -195,14 +199,20 @@ internal class DeviceDataSourceImplTest {
         assertEquals("first-token", updatedFirst.notificationToken)
         assertEquals(Language.UK, updatedFirst.language)
         assertTrue(suspendTransaction { fixture.sut.getByUserId(first.userId) }.isEmpty())
-        assertEquals(listOf(second.copy(notificationToken = "second-token")), suspendTransaction { fixture.sut.getByUserId(second.userId) })
+        assertEquals(
+            listOf(second.copy(notificationToken = "second-token")),
+            suspendTransaction {
+                fixture.sut.getByUserId(second.userId)
+            },
+        )
     }
 
     @Test
     fun `should refuse token updates for another account's device`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        val owner = suspendTransaction { fixture.sut.getOrCreate(Uuid.random(), Uuid.random(), Uuid.random(), Language.EN) }
+        val owner =
+            suspendTransaction { fixture.sut.getOrCreate(Uuid.random(), Uuid.random(), Uuid.random(), Language.EN) }
 
         whenn()
         val result = runSuspendCatching {
@@ -218,7 +228,8 @@ internal class DeviceDataSourceImplTest {
     fun `should refuse a replay that changes the user of an existing account device`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        val owner = suspendTransaction { fixture.sut.getOrCreate(Uuid.random(), Uuid.random(), Uuid.random(), Language.EN) }
+        val owner =
+            suspendTransaction { fixture.sut.getOrCreate(Uuid.random(), Uuid.random(), Uuid.random(), Language.EN) }
 
         whenn()
         val result = runSuspendCatching {

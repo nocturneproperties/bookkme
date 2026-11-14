@@ -15,6 +15,7 @@ import com.bookk.appointments.domain.api.entity.AppointmentRequest
 import com.bookk.appointments.domain.api.entity.BusinessSnapshot
 import com.bookk.appointments.domain.api.entity.ClientSnapshot
 import com.bookk.appointments.domain.api.entity.EmployeeSnapshot
+import com.bookk.appointments.domain.api.entity.RequestClientSnapshot
 import com.bookk.core.data.cache.test.InMemoryCacheClient
 import com.bookk.core.data.test.createTestDatabase
 import com.bookk.core.test.given
@@ -34,9 +35,10 @@ internal class UserDataExportDataSourceImplTest {
             AppointmentTable, AppointmentServicesTable, PriceAdjustmentTable, PriceAdjustmentServicesTable,
             AppointmentRequestTable, AppointmentRequestServicesTable,
         )
-        val sut = UserDataExportDataSourceImpl()
-        val appointmentSut = AppointmentDataSourceImpl()
-        val requestSut = AppointmentRequestDataSourceImpl(InMemoryCacheClient())
+        val snapshotCipher = testSnapshotCipher()
+        val sut = UserDataExportDataSourceImpl(snapshotCipher)
+        val appointmentSut = AppointmentDataSourceImpl(snapshotCipher)
+        val requestSut = AppointmentRequestDataSourceImpl(InMemoryCacheClient(), snapshotCipher)
         val subscriptionSut = AppointmentSubscriptionDataSourceImpl()
         val userId = Uuid.random()
 
@@ -46,20 +48,37 @@ internal class UserDataExportDataSourceImplTest {
             return snapshot.id
         }
 
-        suspend fun appointment(appointment: Appointment): Uuid = suspendTransaction { appointmentSut.create(appointment) }.id
+        suspend fun appointment(appointment: Appointment): Uuid = suspendTransaction {
+            appointmentSut.create(appointment)
+        }.id
 
         suspend fun request(request: AppointmentRequest): Uuid = suspendTransaction { requestSut.create(request) }.id
     }
 
     @Test
-    fun `should list the appointments where the user is the client, the employee or the one who booked`() = runUnitTest {
+    fun `should list the appointments where the user is the client, the employee or the booker`() = runUnitTest {
         given()
         val fixture = SutFixture()
         val businessId = fixture.business()
         val other = Uuid.random()
-        val asClient = fixture.appointment(Appointment.stub(initiatorUserId = other, businessId = businessId).copy(client = ClientSnapshot.stub(userId = fixture.userId)))
-        val asEmployee = fixture.appointment(Appointment.stub(initiatorUserId = other, businessId = businessId).copy(employee = EmployeeSnapshot.stub(userId = fixture.userId)))
-        val asBooker = fixture.appointment(Appointment.stub(initiatorUserId = fixture.userId, businessId = businessId).copy(client = ClientSnapshot.stub(userId = other)))
+        val asClient = fixture.appointment(
+            Appointment.stub(
+                initiatorUserId = other,
+                businessId = businessId,
+            ).copy(client = ClientSnapshot.stub(userId = fixture.userId)),
+        )
+        val asEmployee = fixture.appointment(
+            Appointment.stub(
+                initiatorUserId = other,
+                businessId = businessId,
+            ).copy(employee = EmployeeSnapshot.stub(userId = fixture.userId)),
+        )
+        val asBooker = fixture.appointment(
+            Appointment.stub(
+                initiatorUserId = fixture.userId,
+                businessId = businessId,
+            ).copy(client = ClientSnapshot.stub(userId = other)),
+        )
         fixture.appointment(Appointment.stub(initiatorUserId = other, businessId = businessId))
 
         whenn()
@@ -90,9 +109,25 @@ internal class UserDataExportDataSourceImplTest {
         val fixture = SutFixture()
         val businessId = fixture.business()
         val other = Uuid.random()
-        val asClient = fixture.request(AppointmentRequest.stub(initiatorUserId = other, businessId = businessId).copy(client = ClientSnapshot.stub(userId = fixture.userId)))
-        val asEmployee = fixture.request(AppointmentRequest.stub(initiatorUserId = other, businessId = businessId, employee = EmployeeSnapshot.stub(userId = fixture.userId)))
-        val asBooker = fixture.request(AppointmentRequest.stub(initiatorUserId = fixture.userId, businessId = businessId).copy(client = ClientSnapshot.stub(userId = other)))
+        val asClient = fixture.request(
+            AppointmentRequest.stub(
+                initiatorUserId = other,
+                businessId = businessId,
+            ).copy(client = RequestClientSnapshot.stub(userId = fixture.userId)),
+        )
+        val asEmployee = fixture.request(
+            AppointmentRequest.stub(
+                initiatorUserId = other,
+                businessId = businessId,
+                employee = EmployeeSnapshot.stub(userId = fixture.userId),
+            ),
+        )
+        val asBooker = fixture.request(
+            AppointmentRequest.stub(
+                initiatorUserId = fixture.userId,
+                businessId = businessId,
+            ).copy(client = RequestClientSnapshot.stub(userId = other)),
+        )
         fixture.request(AppointmentRequest.stub(initiatorUserId = other, businessId = businessId))
 
         whenn()

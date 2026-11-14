@@ -71,7 +71,9 @@ internal class EditSettingsTest {
         val useCase: EditSettings = mockk()
         val userId = Uuid.random()
         val update = AppointmentSettingsUpdate.stub(businessId = testBusinessId, automaticCompletion = false)
-        val appointmentSettings = AppointmentSettings.stub(businessId = testBusinessId).copy(automaticCompletion = false)
+        val appointmentSettings = AppointmentSettings.stub(
+            businessId = testBusinessId,
+        ).copy(automaticCompletion = false)
         coEvery { useCase.invoke(userId, update) } returns Result.success(appointmentSettings)
 
         setupApplication(

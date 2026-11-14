@@ -7,6 +7,7 @@ import com.bookk.core.data.eventstreaming.StandardEventProducer
 import com.bookk.core.data.eventstreaming.send
 import com.bookk.core.domain.datasource.transaction.TransactionManager
 import com.bookk.server.business.client.api.event.BusinessEvent
+import library.encryption.SubjectKeys
 import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
@@ -15,6 +16,7 @@ internal class SyncUserProfileImpl(
     private val clientDataSource: ClientDataSource,
     private val employeeDataSource: EmployeeDataSource,
     private val eventProducer: StandardEventProducer,
+    private val subjectKeys: SubjectKeys,
 ) : SyncUserProfile {
     override suspend fun invoke(
         userId: Uuid,
@@ -25,7 +27,8 @@ internal class SyncUserProfileImpl(
         updatedAt: Instant,
     ): Result<Unit> = transactionManager.transaction {
         val merges = clientDataSource.findClientMergesForUser(userId, email, updatedAt)
-        merges.forEach { merge -> clientDataSource.deleteClient(merge.businessId, merge.fromClientId) }
+        val mergedClientIds = merges.map { it.fromClientId }
+        clientDataSource.deleteClients(mergedClientIds)
         merges.groupBy { it.businessId to it.toClientId }.forEach { (kept, mergedInto) ->
             val (businessId, keptClientId) = kept
             eventProducer.send(
@@ -39,6 +42,6 @@ internal class SyncUserProfileImpl(
         }
         clientDataSource.updateIntegratedClients(userId, name, lastName, email, phone, updatedAt)
         employeeDataSource.updateIntegratedEmployees(userId, name, lastName, email, phone, updatedAt)
-        Unit
+        subjectKeys.shredAll(mergedClientIds)
     }
 }

@@ -178,3 +178,22 @@ groups:
         annotations:
           summary: "Database changes have not been backed up for 20 minutes"
           description: "The backup stack's binlog service streams the database's binary log and stores it encrypted every 5 minutes; while it is behind, a restore loses everything since the last binlog it stored. Check 'docker service logs backup_binlog' on the manager. The database keeps its binlogs for 2 days, so a fix within that time loses nothing; after that the service logs that the next binlog is gone, and restores can only start from a dump taken after the gap."
+
+      - alert: KeyBackupMissing
+        expr: (time() - max(bookk_backup_keys_last_success_timestamp_seconds) > 900) or absent(bookk_backup_keys_last_success_timestamp_seconds)
+        for: 15m
+        labels:
+          severity: critical
+        annotations:
+          summary: "The per-person keys have not been backed up for 30 minutes"
+          description: "The backup stack's dump service dumps the four <svc>_short_retention schemas every 5 minutes into keys/ (kept 7 days, the newest always kept). The binlogs and nightly dumps leave those schemas out, so every key created since the last key dump is lost in a restore, and so is the personal data encrypted with it. Check 'docker service logs backup_dump' on the manager ('The key dump failed'): usually the backup user lacks SELECT on a key schema (the database needs a restart with the current monolith-mariadb-users-init secret) or the disk is full."
+
+  - name: personal_data_alerts
+    rules:
+      - alert: PersonalDataKeyMissing
+        expr: sum by (source) (increase(personal_data_key_missing_total[10m])) > 0
+        labels:
+          severity: critical
+        annotations:
+          summary: "Personal data in {{ $labels.source }} has no key"
+          description: "The app read data encrypted for a person whose key row doesn't exist at all (neither a key nor a tombstone), so it showed empty fields or dropped the event. Erasure never causes this: a key lost in a restore (created after the newest key dump) or a bug does. The logs show each case ('its subject's key is missing although never erased'). After a restore it is expected for the people keyed in the last minutes before the key dump; otherwise find the cause before more data is written without a readable key."

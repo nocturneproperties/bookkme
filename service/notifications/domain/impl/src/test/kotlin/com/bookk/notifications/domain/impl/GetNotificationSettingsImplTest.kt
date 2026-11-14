@@ -100,7 +100,10 @@ internal class GetNotificationSettingsImplTest {
             userId = userId,
             channels = listOf(
                 NotificationChannelSettings.stub(channel = CommunicationChannel.EMAIL, availableToClients = true),
-                NotificationChannelSettings.stub(channel = CommunicationChannel.PUSH_NOTIFICATIONS, availableToClients = false),
+                NotificationChannelSettings.stub(
+                    channel = CommunicationChannel.PUSH_NOTIFICATIONS,
+                    availableToClients = false,
+                ),
                 NotificationChannelSettings.stub(channel = CommunicationChannel.TELEGRAM, availableToClients = true),
             ),
         )

@@ -34,7 +34,7 @@ flowchart TD
     Status -- PENDING --> Decline[AppointmentRequestDataSource.decline id reason]
     Decline --> Snapshot[AppointmentSubscriptionDataSource.getBusinessSnapshot businessId]
     Snapshot -- missing --> R404c([404 Error.NotFound - logged as data inconsistency])
-    Snapshot -- found --> Event["eventProducer.send AppointmentEvent.RequestRejected - clientUserId = request.client.userId, empty for a client without an account"]
+    Snapshot -- found --> Event["eventProducer.send AppointmentEvent.RequestRejected - clientUserId = request.client.userId"]
     Event --> R204([204 No Content])
 ```
 

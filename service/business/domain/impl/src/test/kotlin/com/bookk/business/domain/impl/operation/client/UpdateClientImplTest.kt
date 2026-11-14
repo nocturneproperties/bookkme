@@ -35,11 +35,13 @@ internal class UpdateClientImplTest {
         val sut = UpdateClientImpl(transactionManager, clientDataSource, businessPermissionDataSource)
 
         init {
-            coEvery { businessPermissionDataSource.getPermission(any(), any(), BusinessResource.CLIENTS) } returns ResourcePermission.FULL
+            coEvery { businessPermissionDataSource.getPermission(any(), any(), BusinessResource.CLIENTS) } returns
+                ResourcePermission.FULL
         }
 
         fun grantPermission(permission: ResourcePermission) {
-            coEvery { businessPermissionDataSource.getPermission(any(), any(), BusinessResource.CLIENTS) } returns permission
+            coEvery { businessPermissionDataSource.getPermission(any(), any(), BusinessResource.CLIENTS) } returns
+                permission
         }
     }
 
@@ -50,15 +52,35 @@ internal class UpdateClientImplTest {
         phone: String? = null,
         email: String? = null,
         description: String? = null,
-    ) = ClientUpdateModel(id = id, name = name, lastName = lastName, phone = phone, email = email, description = description)
+    ) = ClientUpdateModel(
+        id = id,
+        name = name,
+        lastName = lastName,
+        phone = phone,
+        email = email,
+        description = description,
+    )
 
     @Test
     fun `should update a detached client's personal info and description`() = runUnitTest {
         given()
         val fixture = SutFixture()
         val existing = Client.Detached.stub(id = clientId)
-        val requested = updateModel(name = "Jane", lastName = "Roe", phone = "654321", email = "jane@roe.com", description = "VIP client")
-        val updated = existing.copy(name = "Jane", lastName = "Roe", phone = "654321", email = "jane@roe.com", description = "VIP client")
+        val requested =
+            updateModel(
+                name = "Jane",
+                lastName = "Roe",
+                phone = "654321",
+                email = "jane@roe.com",
+                description = "VIP client",
+            )
+        val updated = existing.copy(
+            name = "Jane",
+            lastName = "Roe",
+            phone = "654321",
+            email = "jane@roe.com",
+            description = "VIP client",
+        )
         with(fixture) {
             transactionManager.mockTransaction()
             coEvery { clientDataSource.getClientById(businessId, clientId) } returns existing
@@ -255,7 +277,8 @@ internal class UpdateClientImplTest {
         with(fixture) {
             transactionManager.mockTransaction()
             coEvery { clientDataSource.getClientById(businessId, clientId) } returns existing
-            coEvery { clientDataSource.updateClient(businessId, requested) } returns existing.copy(description = "notes")
+            coEvery { clientDataSource.updateClient(businessId, requested) } returns
+                existing.copy(description = "notes")
         }
 
         whenn()
@@ -357,6 +380,8 @@ internal class UpdateClientImplTest {
 
         then()
         assertTrue(result.isSuccess)
-        coVerify(exactly = 1) { fixture.businessPermissionDataSource.getPermission(requestUserId, businessId, BusinessResource.CLIENTS) }
+        coVerify(exactly = 1) {
+            fixture.businessPermissionDataSource.getPermission(requestUserId, businessId, BusinessResource.CLIENTS)
+        }
     }
 }

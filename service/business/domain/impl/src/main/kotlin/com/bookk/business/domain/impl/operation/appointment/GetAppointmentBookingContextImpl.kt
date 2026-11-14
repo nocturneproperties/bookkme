@@ -34,8 +34,11 @@ internal class GetAppointmentBookingContextImpl(
         return transactionManager.transaction {
             val employee = employeeDataSource.getEmployee(businessId, employeeId) ?: throw Error.EmployeeNotFound()
             if (employee.isSuspended) throw Error.EmployeeSuspended()
-            val client = clientDataSource.getClientByUserId(businessId, userId) ?: createAndAttachClientToBusiness(businessId, userId)
-            val requestedServices = serviceDataSource.getServicesExpanded(businessId, serviceIds) ?: throw Error.ServiceNotFound()
+            val client =
+                clientDataSource.getClientByUserId(businessId, userId)
+                    ?: createAndAttachClientToBusiness(businessId, userId)
+            val requestedServices =
+                serviceDataSource.getServicesExpanded(businessId, serviceIds) ?: throw Error.ServiceNotFound()
 
             AppointmentBookingContext(employee = employee, client = client.toRemote(), services = requestedServices)
         }
@@ -58,7 +61,12 @@ internal class GetAppointmentBookingContextImpl(
             ?: return clientDataSource.getOrCreateIntegratedClient(businessId, profile)
 
         eventProducer.send(
-            BusinessEvent.ClientLinked(businessId, clientId = takenOver.id, userId = userId, mergedClientIds = emptyList()),
+            BusinessEvent.ClientLinked(
+                businessId,
+                clientId = takenOver.id,
+                userId = userId,
+                mergedClientIds = emptyList(),
+            ),
         )
         return takenOver
     }

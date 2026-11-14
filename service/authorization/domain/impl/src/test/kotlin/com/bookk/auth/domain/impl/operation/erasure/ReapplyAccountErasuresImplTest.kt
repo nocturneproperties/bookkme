@@ -30,7 +30,14 @@ internal class ReapplyAccountErasuresImplTest {
         val accountEraser = mockk<AccountEraser>(relaxUnitFun = true)
         val eventProducer = mockk<StandardEventProducer>(relaxed = true)
         val transactionManager = mockk<TransactionManager>().apply { mockTransaction() }
-        val sut = ReapplyAccountErasuresImpl(erasedAccountDataSource, accountDataSource, accountEraser, eventProducer, transactionManager)
+        val sut =
+            ReapplyAccountErasuresImpl(
+                erasedAccountDataSource,
+                accountDataSource,
+                accountEraser,
+                eventProducer,
+                transactionManager,
+            )
     }
 
     @Test
@@ -64,7 +71,9 @@ internal class ReapplyAccountErasuresImplTest {
 
         then()
         assertTrue(result.isSuccess)
-        coVerify(exactly = 1) { fixture.eventProducer.send(match<AuthEvent.UserDeleted> { it.userId == userId }, any()) }
+        coVerify(exactly = 1) {
+            fixture.eventProducer.send(match<AuthEvent.UserDeleted> { it.userId == userId }, any())
+        }
         coVerify(exactly = 0) { fixture.accountEraser.erase(any(), any()) }
     }
 

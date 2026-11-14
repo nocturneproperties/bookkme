@@ -53,7 +53,12 @@ internal class DataSourceConstraintMappingTest {
         whenn()
         val thrown = runCatching {
             suspendTransaction {
-                fixture.sut.dbQuery { UniqueNameTable.batchInsert(listOf("free", "taken")) { this[UniqueNameTable.name] = it } }
+                fixture.sut.dbQuery {
+                    UniqueNameTable.batchInsert(listOf("free", "taken")) {
+                        this[UniqueNameTable.name] =
+                            it
+                    }
+                }
             }
         }.exceptionOrNull()
 

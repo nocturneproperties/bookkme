@@ -53,10 +53,18 @@ internal class UpdateBusinessImplEventTest {
             client = "update-business-test",
             protoBuf = KafkaTestBroker.protoBuf,
         )
-        val sut = UpdateBusinessImpl(businessDataSource, serviceDataSource, businessPermissionDataSource, transactionManager, eventProducer)
+        val sut =
+            UpdateBusinessImpl(
+                businessDataSource,
+                serviceDataSource,
+                businessPermissionDataSource,
+                transactionManager,
+                eventProducer,
+            )
 
         init {
-            coEvery { businessPermissionDataSource.getPermission(any(), any(), BusinessResource.BUSINESS) } returns ResourcePermission.FULL
+            coEvery { businessPermissionDataSource.getPermission(any(), any(), BusinessResource.BUSINESS) } returns
+                ResourcePermission.FULL
         }
     }
 

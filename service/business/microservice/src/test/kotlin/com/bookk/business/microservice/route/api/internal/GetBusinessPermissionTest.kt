@@ -29,7 +29,9 @@ internal class GetBusinessPermissionTest {
     private val userId = Uuid.random()
     private val businessId = Uuid.random()
 
-    private fun permissionsResource(resource: BusinessResource = BusinessResource.BUSINESS) = BusinessRouting.Api.Internal.Business.Id.Permissions(
+    private fun permissionsResource(
+        resource: BusinessResource = BusinessResource.BUSINESS,
+    ) = BusinessRouting.Api.Internal.Business.Id.Permissions(
         parent = BusinessRouting.Api.Internal.Business.Id(id = businessId),
         userId = userId,
         resource = resource,
@@ -39,7 +41,8 @@ internal class GetBusinessPermissionTest {
     fun `should return the permission the user holds on the requested resource`() = routeTest {
         given()
         val useCase: GetBusinessPermission = mockk()
-        coEvery { useCase.invoke(userId, businessId, BusinessResource.BUSINESS) } returns Result.success(ResourcePermission.FULL)
+        coEvery { useCase.invoke(userId, businessId, BusinessResource.BUSINESS) } returns
+            Result.success(ResourcePermission.FULL)
 
         setupApplication(
             diModule = module { single { useCase } },
@@ -59,7 +62,8 @@ internal class GetBusinessPermissionTest {
     fun `should return no permission when the user holds none`() = routeTest {
         given()
         val useCase: GetBusinessPermission = mockk()
-        coEvery { useCase.invoke(userId, businessId, BusinessResource.EMPLOYEES) } returns Result.success(ResourcePermission.NONE)
+        coEvery { useCase.invoke(userId, businessId, BusinessResource.EMPLOYEES) } returns
+            Result.success(ResourcePermission.NONE)
 
         setupApplication(
             diModule = module { single { useCase } },
@@ -79,7 +83,8 @@ internal class GetBusinessPermissionTest {
     fun `should return not found when the business is unknown`() = routeTest {
         given()
         val useCase: GetBusinessPermission = mockk()
-        coEvery { useCase.invoke(userId, businessId, BusinessResource.BUSINESS) } returns Result.failure(Error.NotFound())
+        coEvery { useCase.invoke(userId, businessId, BusinessResource.BUSINESS) } returns
+            Result.failure(Error.NotFound())
 
         setupApplication(
             diModule = module { single { useCase } },
@@ -112,6 +117,9 @@ internal class GetBusinessPermissionTest {
 
         then()
         assertEquals(HttpStatusCode.Forbidden, response.status)
-        assertEquals(BusinessErrorCodes.BUSINESS_EMPLOYEE_ACCESS_SUSPENDED, response.body<SimpleServerError>().errorCode)
+        assertEquals(
+            BusinessErrorCodes.BUSINESS_EMPLOYEE_ACCESS_SUSPENDED,
+            response.body<SimpleServerError>().errorCode,
+        )
     }
 }

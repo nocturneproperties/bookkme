@@ -40,7 +40,13 @@ internal class CreateBusinessImplTest {
         val fixture = SutFixture()
         val userId = Uuid.random()
         val business = Business.stub(name = "Name", currencyCode = "USD")
-        val user = UserSnapshot.stub(id = userId, name = "Owner", lastName = "Ownerson", email = "owner@example.com", phone = "+10000000000")
+        val user = UserSnapshot.stub(
+            id = userId,
+            name = "Owner",
+            lastName = "Ownerson",
+            email = "owner@example.com",
+            phone = "+10000000000",
+        )
         val ownerEmployee = Employee.stub(businessId = business.id, userId = userId)
         with(fixture) {
             transactionManager.mockTransaction()
@@ -51,11 +57,17 @@ internal class CreateBusinessImplTest {
         }
 
         whenn()
-        val result = fixture.sut(userId, BusinessCreateRequest(name = "Name", currencyCode = "USD", timeZone = TimeZone.UTC))
+        val result = fixture.sut(
+            userId,
+            BusinessCreateRequest(name = "Name", currencyCode = "USD", timeZone = TimeZone.UTC),
+        )
 
         then()
         assertTrue(result.isSuccess)
-        assertEquals(business.copy(permissions = BusinessPermissions.FULL, employeeId = ownerEmployee.id, clientId = null), result.getOrNull())
+        assertEquals(
+            business.copy(permissions = BusinessPermissions.FULL, employeeId = ownerEmployee.id, clientId = null),
+            result.getOrNull(),
+        )
         coVerify(exactly = 1) {
             fixture.employeeDataSource.createEmployee(
                 match {
@@ -78,7 +90,10 @@ internal class CreateBusinessImplTest {
         fixture.transactionManager.mockTransaction()
 
         whenn()
-        val result = fixture.sut(Uuid.random(), BusinessCreateRequest(name = "A", currencyCode = "USD", timeZone = TimeZone.UTC))
+        val result = fixture.sut(
+            Uuid.random(),
+            BusinessCreateRequest(name = "A", currencyCode = "USD", timeZone = TimeZone.UTC),
+        )
 
         then()
         assertTrue(result.isFailure)
@@ -92,7 +107,10 @@ internal class CreateBusinessImplTest {
         fixture.transactionManager.mockTransaction()
 
         whenn()
-        val result = fixture.sut(Uuid.random(), BusinessCreateRequest(name = "A".repeat(513), currencyCode = "USD", timeZone = TimeZone.UTC))
+        val result = fixture.sut(
+            Uuid.random(),
+            BusinessCreateRequest(name = "A".repeat(513), currencyCode = "USD", timeZone = TimeZone.UTC),
+        )
 
         then()
         assertTrue(result.isFailure)
@@ -110,7 +128,10 @@ internal class CreateBusinessImplTest {
         }
 
         whenn()
-        val result = fixture.sut(userId, BusinessCreateRequest(name = "Name", currencyCode = "USD", timeZone = TimeZone.UTC))
+        val result = fixture.sut(
+            userId,
+            BusinessCreateRequest(name = "Name", currencyCode = "USD", timeZone = TimeZone.UTC),
+        )
 
         then()
         assertTrue(result.isFailure)
@@ -125,7 +146,10 @@ internal class CreateBusinessImplTest {
         fixture.transactionManager.mockTransaction()
 
         whenn()
-        val result = fixture.sut(userId, BusinessCreateRequest(name = "Name", currencyCode = "ABC", timeZone = TimeZone.UTC))
+        val result = fixture.sut(
+            userId,
+            BusinessCreateRequest(name = "Name", currencyCode = "ABC", timeZone = TimeZone.UTC),
+        )
 
         then()
         assertTrue(result.exceptionOrNull() is CreateBusiness.Error.InvalidCurrency)

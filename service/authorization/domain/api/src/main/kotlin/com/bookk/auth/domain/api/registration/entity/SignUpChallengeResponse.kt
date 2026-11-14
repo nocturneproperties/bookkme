@@ -14,7 +14,10 @@ data class SignUpChallengeResponse(
     @ProtoNumber(6) val emailVerification: EmailVerificationStarted,
 ) {
     companion object {
-        fun of(passkey: RegistrationChallengeResponse, emailVerification: EmailVerificationStarted) = SignUpChallengeResponse(
+        fun of(
+            passkey: RegistrationChallengeResponse,
+            emailVerification: EmailVerificationStarted,
+        ) = SignUpChallengeResponse(
             requestId = passkey.requestId,
             challenge = passkey.challenge,
             challengeJson = passkey.challengeJson,

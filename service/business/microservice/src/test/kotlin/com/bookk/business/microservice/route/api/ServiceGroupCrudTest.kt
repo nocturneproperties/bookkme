@@ -196,7 +196,9 @@ internal class ServiceGroupCrudTest {
 
         whenn()
         val client = createTestClient()
-        val response = client.delete(BusinessRouting.Api.ServiceGroup.Id(BusinessRouting.Api.ServiceGroup(businessId = businessId), id))
+        val response = client.delete(
+            BusinessRouting.Api.ServiceGroup.Id(BusinessRouting.Api.ServiceGroup(businessId = businessId), id),
+        )
 
         then()
         assertEquals(HttpStatusCode.NoContent, response.status)
@@ -255,7 +257,12 @@ internal class ServiceGroupCrudTest {
 
         whenn()
         val client = createTestClient()
-        val response = client.delete(BusinessRouting.Api.ServiceGroup.Id(BusinessRouting.Api.ServiceGroup(businessId = businessId), Uuid.random()))
+        val response = client.delete(
+            BusinessRouting.Api.ServiceGroup.Id(
+                BusinessRouting.Api.ServiceGroup(businessId = businessId),
+                Uuid.random(),
+            ),
+        )
 
         then()
         assertEquals(HttpStatusCode.Unauthorized, response.status)

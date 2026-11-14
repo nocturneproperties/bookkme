@@ -81,7 +81,8 @@ internal class StartEmailChangeImplTest {
     fun `should return EmailAlreadyExist and send nothing when an account holds the address`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        coEvery { fixture.userClient.getUserByEmail(NEW_EMAIL) } returns Result.success(UserSnapshot.stub(email = NEW_EMAIL))
+        coEvery { fixture.userClient.getUserByEmail(NEW_EMAIL) } returns
+            Result.success(UserSnapshot.stub(email = NEW_EMAIL))
 
         whenn()
         val result = fixture.sut.invoke(Uuid.random(), NEW_EMAIL, Language.EN)

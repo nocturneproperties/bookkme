@@ -9,20 +9,23 @@ import com.bookk.auth.domain.impl.di.AuthScope
 import com.bookk.core.data.eventstreaming.EventHandler
 import com.bookk.core.data.eventstreaming.ExhaustedEventReplayer
 import com.bookk.core.data.eventstreaming.StandardEventProducer
-import com.bookk.core.data.eventstreaming.data.outbox.OutboxEventProducer
-import com.bookk.core.data.eventstreaming.data.outbox.OutboxRelay
-import com.bookk.core.data.eventstreaming.data.test.serviceScopeWithMockedInfrastructure
 import com.bookk.core.test.given
 import com.bookk.core.test.runUnitTest
 import com.bookk.core.test.then
 import com.bookk.core.test.whenn
 import io.mockk.mockk
+import library.outbox.OutboxEventProducer
+import library.outbox.OutboxRelay
+import library.outbox.personal.NoPersonalDataCipher
+import library.outbox.personal.PersonalDataCipher
+import library.outbox.test.serviceScopeWithMockedInfrastructure
 import library.signing.GetVerificationKeys
 import library.signing.RotateSigningKeys
 import library.signing.TokenIssuer
 import library.signing.TokenValidatorFactory
 import org.junit.jupiter.api.Assertions.assertDoesNotThrow
 import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.koin.core.module.Module
@@ -201,6 +204,18 @@ internal class AuthModuleTest {
 
         then()
         assertDoesNotThrow(resolve)
+    }
+
+    @Test
+    fun `should refuse personal event data since the service keeps no subject keys`() = runUnitTest {
+        given()
+        val fixture = SutFixture(authEmbeddedModule())
+
+        whenn()
+        val cipher = fixture.scope.get<PersonalDataCipher>()
+
+        then()
+        assertSame(NoPersonalDataCipher, cipher)
     }
 
     private companion object {

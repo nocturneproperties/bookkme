@@ -20,7 +20,11 @@ internal class StartPersonalDataExportImpl(
 ) : StartPersonalDataExport {
 
     override suspend fun invoke(userId: Uuid, confirmationToken: String): Result<DataExport> = runSuspendCatching {
-        actionConfirmationGate.spend(confirmationToken, ActionConfirmationGrant.personalDataExport(userId), StartPersonalDataExport.Error::ActionConfirmationInvalid) {
+        actionConfirmationGate.spend(
+            confirmationToken,
+            ActionConfirmationGrant.personalDataExport(userId),
+            StartPersonalDataExport.Error::ActionConfirmationInvalid,
+        ) {
             transactionManager.transactionOrThrow {
                 val export = dataExports.start(userId)
                 userDataExportDataSource.getProfile(userId) ?: throw Error.NotFound()

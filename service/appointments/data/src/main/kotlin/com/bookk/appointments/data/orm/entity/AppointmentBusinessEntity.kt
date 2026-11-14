@@ -22,6 +22,7 @@ internal class AppointmentBusinessEntity(id: EntityID<Uuid>) : UuidEntity(id) {
     var timezone by AppointmentBusinessTable.timeZone
     var workingDays by AppointmentBusinessTable.workingDays
     var sourceUpdatedAt by AppointmentBusinessTable.sourceUpdatedAt
+    var ownerUserId by AppointmentBusinessTable.ownerUserId
     var updatedAt by AppointmentBusinessTable.updatedAt
     val workingHours by WorkingHourEntity referrersOn WorkingHoursTable.businessId
     val dayOffs by DayOffEntity referrersOn DayOffsTable.businessId
@@ -32,14 +33,17 @@ internal class AppointmentBusinessEntity(id: EntityID<Uuid>) : UuidEntity(id) {
         dayOffs = dayOffs.map { it.domain() },
     )
 
-    fun domain(): BusinessSnapshot = BusinessSnapshot(
-        id = id.value,
-        name = name,
-        address = address,
-        timeZone = TimeZone.of(timezone),
-        isEnabled = enabled,
-        schedule = schedule(),
-    )
+    fun domain(): BusinessSnapshot {
+        return BusinessSnapshot(
+            id = id.value,
+            name = name,
+            address = address,
+            timeZone = TimeZone.of(timezone),
+            isEnabled = enabled,
+            schedule = schedule(),
+            ownerUserId = ownerUserId,
+        )
+    }
 
     private fun replaceSchedule(snapshot: BusinessSnapshot) {
         WorkingHourEntity.batchReplace(id.value, snapshot.schedule.workingHours())
@@ -53,6 +57,7 @@ internal class AppointmentBusinessEntity(id: EntityID<Uuid>) : UuidEntity(id) {
             address = snapshot.address
             timezone = snapshot.timeZone.id
             enabled = true
+            ownerUserId = snapshot.ownerUserId
             workingDays = snapshot.schedule.activeDays().toWorkingDaysMask()
         }.apply { replaceSchedule(snapshot) }
 
@@ -62,6 +67,7 @@ internal class AppointmentBusinessEntity(id: EntityID<Uuid>) : UuidEntity(id) {
                 it.name = snapshot.name
                 it.address = snapshot.address
                 it.timezone = snapshot.timeZone.id
+                snapshot.ownerUserId?.let { owner -> it.ownerUserId = owner }
                 it.workingDays = snapshot.schedule.activeDays().toWorkingDaysMask()
                 it.sourceUpdatedAt = updatedAt
                 it.updatedAt = Clock.System.now()

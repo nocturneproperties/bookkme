@@ -7,7 +7,11 @@ import io.ktor.http.HttpStatusCode
 import kotlin.uuid.Uuid
 
 interface GetAppointmentRescheduleContext {
-    suspend operator fun invoke(businessId: Uuid, employeeId: Uuid?, serviceIds: List<Uuid>): Result<AppointmentRescheduleContext>
+    suspend operator fun invoke(
+        businessId: Uuid,
+        employeeId: Uuid?,
+        serviceIds: List<Uuid>,
+    ): Result<AppointmentRescheduleContext>
 
     sealed interface Error {
         class EmployeeNotFound :

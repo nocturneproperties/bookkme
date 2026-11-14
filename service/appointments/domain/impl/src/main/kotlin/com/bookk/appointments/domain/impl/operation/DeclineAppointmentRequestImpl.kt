@@ -27,7 +27,10 @@ internal class DeclineAppointmentRequestImpl(
     private val transactionManager: TransactionManager,
 ) : DeclineAppointmentRequest {
 
-    override suspend fun invoke(userId: Uuid, cancellation: AppointmentCancellation): Result<Unit> = transactionManager.transaction {
+    override suspend fun invoke(
+        userId: Uuid,
+        cancellation: AppointmentCancellation,
+    ): Result<Unit> = transactionManager.transaction {
         val appointment = requestDataSource.getForUpdate(cancellation.id) ?: throw Error.NotFound()
         appointmentPermissionDataSource.getPermission(userId, appointment.businessId)
             .assertOrSelf(PermissionAction.UPDATE, actorId = userId, assigneeId = appointment.employee.userId)
@@ -44,9 +47,7 @@ internal class DeclineAppointmentRequestImpl(
         eventProducer.send(
             AppointmentEvent.RequestRejected(
                 clientUserId = appointment.client.userId,
-                clientName = appointment.client.fullName,
                 employeeUserId = appointment.employee.userId,
-                employeeName = appointment.employee.fullName,
                 from = appointment.date,
                 to = appointment.dateEnd,
                 timeZone = business.timeZone,

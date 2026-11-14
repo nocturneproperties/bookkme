@@ -48,11 +48,16 @@ internal class ConfirmActionTest {
         given()
         val useCase: ConfirmAction = mockk()
         val userId = Uuid.random()
-        coEvery { useCase.invoke(userId, any()) } returns Result.success(ActionConfirmationToken("action-confirmation-token"))
+        coEvery { useCase.invoke(userId, any()) } returns
+            Result.success(ActionConfirmationToken("action-confirmation-token"))
         setupApplication(
             extension = {
                 install(Authentication) {
-                    provider { authenticate { context -> context.principal(AppPrincipal(Uuid.random(), userId, Uuid.random())) } }
+                    provider {
+                        authenticate { context ->
+                            context.principal(AppPrincipal(Uuid.random(), userId, Uuid.random()))
+                        }
+                    }
                 }
             },
             diModule = module { single { useCase } },
@@ -74,7 +79,11 @@ internal class ConfirmActionTest {
         setupApplication(
             extension = {
                 install(Authentication) {
-                    provider { authenticate { context -> context.principal(AppPrincipal(Uuid.random(), Uuid.random(), Uuid.random())) } }
+                    provider {
+                        authenticate { context ->
+                            context.principal(AppPrincipal(Uuid.random(), Uuid.random(), Uuid.random()))
+                        }
+                    }
                 }
             },
             diModule = module { single { useCase } },

@@ -19,7 +19,11 @@ internal class DeleteServiceGroupImpl(
     private val transactionManager: TransactionManager,
 ) : DeleteServiceGroup {
 
-    override suspend fun invoke(requestUserId: Uuid, businessId: Uuid, id: Uuid): Result<Unit> = transactionManager.transaction {
+    override suspend fun invoke(
+        requestUserId: Uuid,
+        businessId: Uuid,
+        id: Uuid,
+    ): Result<Unit> = transactionManager.transaction {
         businessDataSource.lockBusiness(businessId, RowLock.EXCLUSIVE) ?: throw Error.NotFound()
         businessPermissionDataSource.getPermission(requestUserId, businessId, BusinessResource.SERVICES)
             .assert(PermissionAction.DELETE)

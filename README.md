@@ -48,6 +48,7 @@ This repository holds the BookkMe backend. You can run it yourself to take booki
 
 - Runs as a single server process backed by MariaDB and Valkey (or Redis)
 - Database migrations run automatically at startup
+- Personal data encrypted with a key per person, so erasing someone also makes their data unreadable in backups
 - Personal-data tools for GDPR: data export, account and client erasure, dormant account clean-up and retention rules (see [Privacy and GDPR](#privacy-and-gdpr))
 - Draft privacy policy and terms of service templates for self-hosting businesses in English, Polish and Ukrainian (`docs/legal/template`)
 - Prometheus metrics and structured logs
@@ -97,7 +98,7 @@ The [self-hosting permission](LICENSE-SELF-HOSTING.md) lets you run BookkMe to t
 ### Steps
 
 1. **Build the image.** `./gradlew publishImageToLocalRegistry` builds `bookkme-server` into your local Docker. Release images are also published as `ghcr.io/nocturneproperties/bookkme-server:<version>`.
-2. **Create the databases.** The server keeps its data in five schemas (`authorization`, `user`, `business`, `appointments`, `notifications`) and needs one user with full rights on all of them. `deployment/dev/db/init.sql` shows the statements. The tables are created on first start.
+2. **Create the databases.** The server keeps its data in five schemas (`authorization`, `user`, `business`, `appointments`, `notifications`) and each person's encryption key in four more (`user_short_retention`, `business_short_retention`, `appointments_short_retention`, `notifications_short_retention`). It needs one user with full rights on all nine. Create the first five yourself; the server creates the key schemas and every table on first start, but its user must already have the rights on them. `deployment/dev/db/init.sql` shows the statements.
 3. **Configure it.** Set the [environment variables](#configuration) and mount the two secret files.
 4. **Start it** behind your reverse proxy, on HTTPS. Passkeys only work on the domain in `APPLICATION_DOMAIN_NAME`.
 5. **Publish your legal texts.** Fill in the templates in `docs/legal/template` for your business, have them reviewed, and publish them as described in [`docs/legal-documents.md`](docs/legal-documents.md).
@@ -123,6 +124,8 @@ The server is configured through environment variables. `deployment/dev/service/
 | `APPLICATION_POSTMARK_SERVER_TOKEN` | Postmark server token; `development_token` logs emails instead of sending them |
 | `APPLICATION_EMAIL_FROM` | Sender address, on your verified Postmark domain |
 | `APPLICATION_EMAIL_CODE_SECRET` | Random secret of at least 32 bytes for verification codes |
+| `APPLICATION_SUBJECT_MASTER_KEY` | Base64 of exactly 32 random bytes; wraps every person's encryption key. Keep it outside the database and never lose it: without it no encrypted field or export can be read |
+| `APPLICATION_BLIND_INDEX_KEY` | Base64 of at least 32 random bytes, for the keyed hashes that look up encrypted emails and phones |
 
 Two secrets are read from files, as Docker secrets:
 
@@ -166,7 +169,7 @@ Each service takes the variables from [Configuration](#configuration), with its 
 | Variable | Purpose |
 |---|---|
 | `APPLICATION_SERVICE_NAME` | `auth`, `user`, `business`, `appointments` or `notifications`; it also sets the route prefix `/api/<name>` |
-| `APPLICATION_DB_USER`, `APPLICATION_DB_PASSWORD` | The service's own database user |
+| `APPLICATION_DB_USER`, `APPLICATION_DB_PASSWORD` | The service's own database user, with rights on its own schema and, for every service but `auth`, on its `<service>_short_retention` key schema |
 | `APPLICATION_KAFKA_HOSTS` | Kafka bootstrap servers, separated by commas |
 | `APPLICATION_KAFKA_CLUSTER_ID` | Kafka cluster id |
 | `APPLICATION_<SERVICE>_SERVICE_HOSTNAME` | Where to reach the other services it calls |
@@ -224,7 +227,7 @@ The single server uses exactly the same producers, outbox and consumers, with an
 - The database refuses unencrypted connections, and the server verifies its certificate.
 - Database tables, logs and temporary files are encrypted at rest.
 - The database and cache are reachable only from a private network, not from the reverse proxy or the internet, and traffic between hosts is encrypted.
-- Backups are encrypted with a public key before they leave the server, and kept for 30 days.
+- Backups are encrypted with a public key before they leave the server, and kept for 30 days. The per-person encryption keys are left out of them and backed up separately every 5 minutes, kept for 7 days.
 - Secrets are passed as Docker secrets from an encrypted Ansible vault, and nothing from the vault stays on the server's disk.
 
 Found a vulnerability? See [Support](#support) for how to report it privately.
@@ -238,7 +241,8 @@ BookkMe is built to help whoever runs it meet the GDPR. It handles personal data
 - **Right of access and portability.** Users can export all their personal data from every service, after confirming with their passkey.
 - **Right to erasure.** Deleting an account erases the user's data in every service, cancels their upcoming appointments and removes their personal details from the appointment history. A business can delete any of its clients in the same way.
 - **Storage limitation.** An account unused for 3 years is deleted after three email warnings. Each business sets how long it keeps inactive clients (12 to 120 months, 36 by default), and older ones are deleted automatically. Booking requests are deleted 60 days after their time slot, and failed events after 30 days.
-- **Erasure survives backups.** Every erasure is recorded, and restoring an older backup runs the erasures made since then again, so a deleted person does not come back.
+- **Encryption per person.** Each person's data is encrypted with a key of their own: profiles, client and staff details, appointment snapshots and notes, stored events and data exports. Erasing a person deletes their key, so every copy of their data left in the database or in a backup can no longer be read once the backups of that key have expired. The keys live in their own schemas, which never enter the binary log, so they can be backed up on a shorter schedule than the data (we keep them 7 days). Back them up: without its key, a person's data cannot be recovered.
+- **Erasure survives backups.** Every erasure is recorded, and restoring an older backup runs the erasures made since then again and deletes the keys erased since then, so a deleted person does not come back.
 - **Recorded acceptance.** The server records which version of the privacy policy and terms each user accepted.
 - **Data minimisation.** Staff see only what their permissions allow, and notification emails go only to verified addresses.
 - **Policy templates.** `docs/legal/template` contains a draft privacy policy and terms of service for a business running its own copy, in English, Polish and Ukrainian.

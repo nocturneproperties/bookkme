@@ -31,7 +31,9 @@ internal class PassKeyDataSourceImplTest {
         val sut = PassKeyDataSourceImpl(cacheClient)
         val accountSut = AccountDataSourceImpl()
 
-        suspend fun insertAuth(): Authentication = suspendTransaction { accountSut.createAuthorization(Authentication.stub()) }
+        suspend fun insertAuth(): Authentication = suspendTransaction {
+            accountSut.createAuthorization(Authentication.stub())
+        }
     }
 
     @Test

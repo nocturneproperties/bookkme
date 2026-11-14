@@ -9,7 +9,8 @@ fun TransactionManager.mockTransaction() {
     val openTransactions = AtomicInteger(0)
     coEvery { isInTransaction() } coAnswers { openTransactions.get() > 0 }
     coEvery { transaction<Any>(any()) } coAnswers { runMocked(openTransactions, firstArg()) }
-    coEvery { transaction<Any>(any<TransactionIsolation>(), any()) } coAnswers { runMocked(openTransactions, secondArg()) }
+    coEvery { transaction<Any>(any<TransactionIsolation>(), any()) } coAnswers
+        { runMocked(openTransactions, secondArg()) }
 }
 
 private suspend fun runMocked(openTransactions: AtomicInteger, transaction: suspend () -> Any): Result<Any> {

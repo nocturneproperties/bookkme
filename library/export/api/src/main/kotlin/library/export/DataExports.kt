@@ -16,6 +16,8 @@ interface DataExports {
 
     suspend fun discard(ownerId: Uuid)
 
+    suspend fun discardAll(ownerIds: Collection<Uuid>)
+
     sealed interface Error {
         class TooFrequent :
             BusinessError(

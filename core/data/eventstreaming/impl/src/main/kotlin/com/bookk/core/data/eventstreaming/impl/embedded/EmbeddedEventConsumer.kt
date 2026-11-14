@@ -5,9 +5,12 @@ import com.bookk.core.data.eventstreaming.DltRetry
 import com.bookk.core.data.eventstreaming.EventIdempotencyStorage
 import com.bookk.core.data.eventstreaming.EventStreaming.Consumer
 import com.bookk.core.data.eventstreaming.EventStreaming.Event
+import com.bookk.core.data.eventstreaming.ExhaustedEvent
 import com.bookk.core.data.eventstreaming.ExhaustedEventDataSource
+import com.bookk.core.data.eventstreaming.Parked
 import com.bookk.core.data.eventstreaming.impl.IdempotentDelivery
 import com.bookk.core.data.eventstreaming.impl.logDelivered
+import com.bookk.core.data.eventstreaming.impl.replayReadable
 import com.bookk.core.domain.datasource.transaction.TransactionManager
 import com.bookk.core.domain.entity.runCatchingUnlessCancelled
 import io.ktor.util.collections.ConcurrentMap
@@ -53,15 +56,31 @@ class EmbeddedEventConsumer(
         return this
     }
 
-    override suspend fun replay(exhausted: DltEvent): Boolean {
-        val dltTopic = DltRetry.dltTopic(exhausted.originalTopic, consumerGroup)
-        val type = types[exhausted.originalTopic]
-        if (type == null || dltTopic !in receivers) return false
-        val event = runCatching { decode(type, exhausted.payload) }
-            .onFailure { logger.error("Cannot replay an undecodable event, topic: {}. Error: {}", exhausted.originalTopic, it.message) }
+    override suspend fun replay(parked: ExhaustedEvent): Boolean {
+        val type = types[parked.originalTopic]
+        if (type == null || dltTopicOf(parked.originalTopic) !in receivers) return false
+        return parked.replayReadable(logger) { payload ->
+            publishToDlt(parked.originalTopic, type, payload)
+        }
+    }
+
+    private suspend fun publishToDlt(originalTopic: String, type: KType, payload: ByteArray): Boolean {
+        val event = runCatching { decode(type, payload) }
+            .onFailure {
+                logger.error("Cannot replay an undecodable event, topic: {}. Error: {}", originalTopic, it.message)
+            }
             .getOrNull() ?: return false
-        topicQueueHolder.publish(EmbeddedDltEvent(originalEvent = event, attempt = FIRST_ATTEMPT, topic = dltTopic))
+        val dltEvent = EmbeddedDltEvent(
+            originalEvent = event,
+            attempt = FIRST_ATTEMPT,
+            topic = dltTopicOf(originalTopic),
+        )
+        topicQueueHolder.publish(dltEvent)
         return true
+    }
+
+    private fun dltTopicOf(originalTopic: String): String {
+        return DltRetry.dltTopic(originalTopic, consumerGroup)
     }
 
     override fun start(scope: CoroutineScope): Job {
@@ -74,7 +93,7 @@ class EmbeddedEventConsumer(
 
     private fun registerDltReceivers() {
         receivers.keys.toList().forEach { topic ->
-            receivers[DltRetry.dltTopic(topic, consumerGroup)] = { event, _ -> retryFromDlt(event as EmbeddedDltEvent) }
+            receivers[dltTopicOf(topic)] = { event, _ -> retryFromDlt(event as EmbeddedDltEvent) }
         }
     }
 
@@ -87,10 +106,22 @@ class EmbeddedEventConsumer(
 
     private suspend fun dispatch(event: Event<String>) {
         runCatchingUnlessCancelled { decoded(event)?.let { receivers[event.topic]?.invoke(it, FIRST_ATTEMPT) } }
-            .onFailure { logger.error("Failed to handle: topic:{}, event:{}, error:{}", event.topic, event, it.stackTraceToString()) }
+            .onFailure {
+                logger.error(
+                    "Failed to handle: topic:{}, event:{}, error:{}",
+                    event.topic,
+                    event,
+                    it.stackTraceToString(),
+                )
+            }
     }
 
-    private suspend fun <T : Event<String>> deliver(topic: String, event: T, attempt: Int, onEvent: suspend (T) -> Unit) {
+    private suspend fun <T : Event<String>> deliver(
+        topic: String,
+        event: T,
+        attempt: Int,
+        onEvent: suspend (T) -> Unit,
+    ) {
         idempotentDelivery.deliver(event, onEvent)
             .onSuccess { outcome -> logger.logDelivered(event, outcome) }
             .onFailure {
@@ -100,7 +131,12 @@ class EmbeddedEventConsumer(
     }
 
     private suspend fun handleFailure(topic: String, event: Event<String>, attempt: Int) {
-        val dltEvent = EmbeddedDltEvent(originalEvent = event, attempt = attempt + 1, topic = DltRetry.dltTopic(topic, consumerGroup))
+        val dltEvent =
+            EmbeddedDltEvent(
+                originalEvent = event,
+                attempt = attempt + 1,
+                topic = dltTopicOf(topic),
+            )
         if (dltEvent.isExhausted()) persistOrRequeue(dltEvent) else topicQueueHolder.publish(dltEvent)
     }
 
@@ -116,6 +152,19 @@ class EmbeddedEventConsumer(
     private suspend fun persistOrRequeue(dltEvent: EmbeddedDltEvent) {
         val originalEvent = dltEvent.originalEvent
         val type = types[originalEvent.topic] ?: return
+        transactionManager.transaction { park(dltEvent, type) }
+            .onFailure {
+                logger.error(
+                    "Failed to persist exhausted event for topic: {}. Retrying. Error: {}",
+                    originalEvent.topic,
+                    it.message,
+                )
+                topicQueueHolder.publish(dltEvent.copy(attempt = dltEvent.attempt + 1))
+            }
+    }
+
+    private suspend fun park(dltEvent: EmbeddedDltEvent, type: KType) {
+        val originalEvent = dltEvent.originalEvent
         val record = DltEvent(
             payload = encode(type, originalEvent),
             originalTopic = originalEvent.topic,
@@ -123,11 +172,9 @@ class EmbeddedEventConsumer(
             topic = originalEvent.topic,
             idempotencyKey = dltEvent.idempotencyKey,
         )
-        transactionManager.transaction { exhaustedEventDataSource.save(record) }
-            .onFailure {
-                logger.error("Failed to persist exhausted event for topic: {}. Retrying. Error: {}", originalEvent.topic, it.message)
-                topicQueueHolder.publish(dltEvent.copy(attempt = dltEvent.attempt + 1))
-            }
+        if (exhaustedEventDataSource.save(originalEvent, record) == Parked.SubjectErased) {
+            logger.info("Dropped a failing event of an erased data subject, topic: {}", originalEvent.topic)
+        }
     }
 
     private fun EmbeddedDltEvent.isExhausted() = DltRetry.isExhausted(attempt, maxAttempts)
@@ -140,14 +187,24 @@ class EmbeddedEventConsumer(
     private fun decode(event: EmbeddedEncodedEvent): Event<String>? {
         val type = types[event.topic] ?: return null
         return runCatching { decode(type, event.payload) }
-            .onFailure { logger.debug("Received unprocessable event, Topic: {}. Error: {}", event.topic, it.stackTraceToString()) }
+            .onFailure {
+                logger.debug("Received unprocessable event, Topic: {}. Error: {}", event.topic, it.stackTraceToString())
+            }
             .getOrNull()
     }
 
     @Suppress("UNCHECKED_CAST")
-    private fun decode(type: KType, payload: ByteArray): Event<String> = protoBuf.decodeFromByteArray(protoBuf.serializersModule.serializer(type), payload) as Event<String>
+    private fun decode(
+        type: KType,
+        payload: ByteArray,
+    ): Event<String> = protoBuf.decodeFromByteArray(
+        protoBuf.serializersModule.serializer(type),
+        payload,
+    ) as Event<String>
 
-    private fun encode(type: KType, event: Event<String>): ByteArray = protoBuf.encodeToByteArray(protoBuf.serializersModule.serializer(type), event)
+    private fun encode(type: KType, event: Event<String>): ByteArray {
+        return protoBuf.encodeToByteArray(protoBuf.serializersModule.serializer(type), event)
+    }
 
     private companion object {
         const val FIRST_ATTEMPT = 0

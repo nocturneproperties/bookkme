@@ -46,7 +46,8 @@ import kotlin.uuid.Uuid
 class PostValidateRegistrationTest {
 
     private fun createSimpleRequest(
-        acceptedDocuments: AcceptedLegalDocuments = AcceptedLegalDocuments(privacyPolicy = "2026-01-01", termsOfService = "2025-06-01"),
+        acceptedDocuments: AcceptedLegalDocuments =
+            AcceptedLegalDocuments(privacyPolicy = "2026-01-01", termsOfService = "2025-06-01"),
     ): VerifyAccountCreationRequest = VerifyAccountCreationRequest(
         requestId = "user_id",
         deviceInfo = VerifyAccountCreationRequest.DeviceInfo(
@@ -69,7 +70,8 @@ class PostValidateRegistrationTest {
         given()
         val useCase: FinishRegistration = mockk()
         val client = createTestClient()
-        val request = createSimpleRequest(AcceptedLegalDocuments(privacyPolicy = "2026-01-01", termsOfService = "2025-06-01"))
+        val request =
+            createSimpleRequest(AcceptedLegalDocuments(privacyPolicy = "2026-01-01", termsOfService = "2025-06-01"))
         coEvery { useCase.invoke(any(), any()) } returns Result.success(AuthTokens("access", "refresh"))
         setupApplication(
             diModule = module {
@@ -100,7 +102,14 @@ class PostValidateRegistrationTest {
         )
         whenn()
         val response = client.post(AuthRouting.Api.Auth.SignUp()) {
-            setBody(SignUpWithoutAcceptedDocuments(request.requestId, request.deviceInfo, request.userInfo, request.publicKeyCredentialJson))
+            setBody(
+                SignUpWithoutAcceptedDocuments(
+                    request.requestId,
+                    request.deviceInfo,
+                    request.userInfo,
+                    request.publicKeyCredentialJson,
+                ),
+            )
         }
         then()
         assertEquals(HttpStatusCode.BadRequest, response.status)
@@ -358,7 +367,15 @@ class PostValidateRegistrationTest {
 
         whenn()
         val response = createTestClient().post(AuthRouting.Api.Auth.SignUp()) {
-            setBody(SignUpWithoutEmailCode(request.requestId, request.deviceInfo, request.userInfo, request.publicKeyCredentialJson, request.acceptedDocuments))
+            setBody(
+                SignUpWithoutEmailCode(
+                    request.requestId,
+                    request.deviceInfo,
+                    request.userInfo,
+                    request.publicKeyCredentialJson,
+                    request.acceptedDocuments,
+                ),
+            )
         }
 
         then()

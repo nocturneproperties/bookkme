@@ -14,6 +14,7 @@ interface AppointmentDataSource {
     suspend fun get(id: Uuid): Appointment
     suspend fun getForUpdate(id: Uuid): Appointment
     suspend fun getAll(businessId: Uuid): List<Appointment>
+    suspend fun getAllByIds(ids: Collection<Uuid>): List<Appointment>
     suspend fun getAllForDate(businessId: Uuid, range: ClosedRange<Instant>, employeeId: Uuid?): List<Appointment>
     suspend fun getAllPaginated(
         businessId: Uuid,
@@ -25,6 +26,7 @@ interface AppointmentDataSource {
     suspend fun delete(id: Uuid)
     suspend fun hasOverlapsWith(appointment: AppointmentRepresentation): Boolean
     suspend fun cancel(id: Uuid, reason: String): Appointment
+    suspend fun cancelAll(ids: Collection<Uuid>, reason: String)
     suspend fun markCompleted(now: Instant)
     suspend fun markUnresolved(before: Instant)
     suspend fun markCompletedByUser(id: Uuid): Appointment
@@ -32,11 +34,13 @@ interface AppointmentDataSource {
     suspend fun adjustPrice(id: Uuid, adjustment: PriceAdjustment): Appointment
     suspend fun markNoShow(id: Uuid): Appointment
     suspend fun anonymizeEmployee(employeeUserId: Uuid)
+    suspend fun getClientIdsOfUserForUpdate(clientUserId: Uuid): Set<Uuid>
     suspend fun anonymizeClientUser(clientUserId: Uuid)
     suspend fun unlinkInitiator(initiatorUserId: Uuid)
-    suspend fun cancelUpcomingForUser(userId: Uuid, startingAfter: Instant, asClientReason: String, asEmployeeReason: String): List<Appointment>
-    suspend fun cancelUpcomingForClient(businessId: Uuid, clientId: Uuid, startingAfter: Instant, reason: String): List<Appointment>
+    suspend fun getUpcomingIdsOfUserForUpdate(userId: Uuid, startingAfter: Instant): List<Uuid>
+    suspend fun getUpcomingIdsOfClientForUpdate(businessId: Uuid, clientId: Uuid, startingAfter: Instant): List<Uuid>
     suspend fun anonymizeClient(businessId: Uuid, clientId: Uuid)
-    suspend fun reassignClient(businessId: Uuid, fromClientId: Uuid, toClientId: Uuid)
+    suspend fun reassignClients(businessId: Uuid, fromClientIds: Collection<Uuid>, toClientId: Uuid)
     suspend fun linkClientUser(businessId: Uuid, clientId: Uuid, userId: Uuid)
+    suspend fun encryptPlaintextAppointments(limit: Int): Int
 }

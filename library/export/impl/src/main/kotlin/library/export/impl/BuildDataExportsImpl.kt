@@ -3,6 +3,7 @@ package library.export.impl
 import com.bookk.core.domain.datasource.transaction.TransactionManager
 import com.bookk.core.domain.datasource.transaction.transactionOrThrow
 import com.bookk.core.domain.entity.runSuspendCatching
+import library.encryption.SubjectKeys
 import library.export.BuildDataExports
 import library.export.DataExportAssembler
 import library.export.DataExports
@@ -19,6 +20,7 @@ internal class BuildDataExportsImpl(
     private val transactionManager: TransactionManager,
     private val dataSource: DataExportDataSource,
     private val assembler: DataExportAssembler,
+    private val subjectKeys: SubjectKeys,
     private val clock: Clock,
 ) : BuildDataExports {
 
@@ -51,7 +53,14 @@ internal class BuildDataExportsImpl(
     private suspend fun claim(ownerId: Uuid): Claim? {
         val claim = Claim(ownerId, id = Uuid.random())
         val claimedAt = clock.now()
-        val claimed = transactionManager.transactionOrThrow { dataSource.claim(ownerId, claim.id, claimedAt, claimedAt + DataExports.BUILD_LEASE) }
+        val claimed = transactionManager.transactionOrThrow {
+            dataSource.claim(
+                ownerId,
+                claim.id,
+                claimedAt,
+                claimedAt + DataExports.BUILD_LEASE,
+            )
+        }
         return claim.takeIf { claimed }
     }
 
@@ -59,8 +68,10 @@ internal class BuildDataExportsImpl(
         val finishedAt = clock.now()
         val expiresAt = documentExpiry(finishedAt)
         transactionManager.transactionOrThrow {
-            val stillHeld = dataSource.complete(ownerId, id, document, finishedAt, expiresAt)
-            if (stillHeld) assembler.announceReady(ownerId, expiresAt)
+            val keyId = Uuid.random()
+            val encryptor = checkNotNull(subjectKeys.encryptor(keyId)) { "The new export key $keyId is shredded" }
+            val stillHeld = dataSource.complete(ownerId, id, encryptor.encrypt(document), keyId, finishedAt, expiresAt)
+            if (stillHeld) assembler.announceReady(ownerId, expiresAt) else subjectKeys.shred(keyId)
         }
     }
 

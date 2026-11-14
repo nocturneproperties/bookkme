@@ -27,7 +27,8 @@ internal class CreateServiceImpl(
                 .assert(PermissionAction.UPDATE)
             val currency = businessCurrency ?: throw Error.BusinessCurrencyInvalid()
             val price = service.price.inCurrencyOrNull(currency) ?: throw Error.PricePrecisionInvalid()
-            val group = dataSource.getServiceGroup(service.group.id, service.businessId) ?: throw Error.ServiceGroupNotFound()
+            val group =
+                dataSource.getServiceGroup(service.group.id, service.businessId) ?: throw Error.ServiceGroupNotFound()
             dataSource.createService(service.copy(group = group, price = price))
         }.onConstraintFailure {
             throw Error.ServiceExist()

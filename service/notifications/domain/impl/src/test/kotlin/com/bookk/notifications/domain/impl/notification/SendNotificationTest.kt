@@ -41,7 +41,12 @@ internal class SendNotificationTest {
         text = { TextNotification(text = "Text") },
     )
 
-    private fun NotificationParameters.copyWithType(type: NotificationType) = NotificationParameters(type = type, push = push, email = email, text = text)
+    private fun NotificationParameters.copyWithType(type: NotificationType) = NotificationParameters(
+        type = type,
+        push = push,
+        email = email,
+        text = text,
+    )
 
     @Test
     fun `should send to all enabled channels`() = runUnitTest {

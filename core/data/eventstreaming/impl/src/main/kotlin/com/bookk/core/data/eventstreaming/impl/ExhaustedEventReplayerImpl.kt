@@ -52,36 +52,70 @@ class ExhaustedEventReplayerImpl(
     private suspend fun requestReplayOfParked(): Boolean = transactionManager.transaction {
         exhaustedEventDataSource.requestReplayOfAll()
     }.onFailure {
-        logger.error("Failed to request a replay of the events parked by {}, retrying in {}. Error: {}", consumerGroup, interval, it.message)
+        logger.error(
+            "Failed to request a replay of the events parked by {}, retrying in {}. Error: {}",
+            consumerGroup,
+            interval,
+            it.message,
+        )
     }.isSuccess
 
     private suspend fun deleteExpired() {
         transactionManager.transaction { exhaustedEventDataSource.deleteParkedBefore(clock.now() - retention) }
-            .onSuccess { deleted -> if (deleted > 0) logger.warn("Deleted {} events parked by {} for longer than {}", deleted, consumerGroup, retention) }
-            .onFailure { logger.error("Failed to delete the expired events parked by {}, retrying in {}. Error: {}", consumerGroup, interval, it.message) }
+            .onSuccess { deleted ->
+                if (deleted > 0) {
+                    logger.warn("Deleted {} events parked by {} for longer than {}", deleted, consumerGroup, retention)
+                }
+            }
+            .onFailure {
+                logger.error(
+                    "Failed to delete the expired events parked by {}, retrying in {}. Error: {}",
+                    consumerGroup,
+                    interval,
+                    it.message,
+                )
+            }
     }
 
     private suspend fun replayRequested() {
         do {
             val locked = transactionManager.transaction(TransactionIsolation.READ_COMMITTED) { replayBatch() }
-                .onFailure { logger.error("Failed to replay the events parked by {}, retrying in {}. Error: {}", consumerGroup, interval, it.message) }
+                .onFailure {
+                    logger.error(
+                        "Failed to replay the events parked by {}, retrying in {}. Error: {}",
+                        consumerGroup,
+                        interval,
+                        it.message,
+                    )
+                }
                 .getOrDefault(0)
         } while (locked == batchSize)
     }
 
     private suspend fun replayBatch(): Int {
         val requested = exhaustedEventDataSource.lockReplayRequested(batchSize)
-        val (replayed, unreplayable) = requested.partition { consumer.replay(it.event) }
+        val (replayed, unreplayable) = requested.partition { consumer.replay(it) }
         exhaustedEventDataSource.delete(replayed.map(ExhaustedEvent::id))
         exhaustedEventDataSource.clearReplayRequest(unreplayable.map(ExhaustedEvent::id))
-        replayed.forEach { logger.info("Replayed a parked event, topic: {}, consumer group: {}", it.event.originalTopic, consumerGroup) }
-        unreplayable.forEach { logger.warn("Cannot replay a parked event, kept in exhausted_event, id: {}, topic: {}, consumer group: {}", it.id, it.event.originalTopic, consumerGroup) }
+        replayed.forEach {
+            logger.info("Replayed a parked event, topic: {}, consumer group: {}", it.originalTopic, consumerGroup)
+        }
+        unreplayable.forEach {
+            logger.warn(
+                "Cannot replay a parked event, kept in exhausted_event, id: {}, topic: {}, consumer group: {}",
+                it.id,
+                it.originalTopic,
+                consumerGroup,
+            )
+        }
         return requested.size
     }
 
     private suspend fun exportParkedEvents() {
         transactionManager.transaction { exhaustedEventDataSource.countByOriginalTopic() }
-            .onSuccess { counts -> parkedEvents.register(counts.map { (topic, count) -> parkedRow(topic, count) }, true) }
+            .onSuccess { counts ->
+                parkedEvents.register(counts.map { (topic, count) -> parkedRow(topic, count) }, true)
+            }
             .onFailure { logger.error("Failed to count the events parked by {}. Error: {}", consumerGroup, it.message) }
     }
 

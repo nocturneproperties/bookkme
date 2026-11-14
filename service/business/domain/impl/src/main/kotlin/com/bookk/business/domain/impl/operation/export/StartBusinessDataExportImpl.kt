@@ -18,9 +18,17 @@ internal class StartBusinessDataExportImpl(
     private val transactionManager: TransactionManager,
 ) : StartBusinessDataExport {
 
-    override suspend fun invoke(userId: Uuid, businessId: Uuid, confirmationToken: String): Result<DataExport> = runSuspendCatching {
+    override suspend fun invoke(
+        userId: Uuid,
+        businessId: Uuid,
+        confirmationToken: String,
+    ): Result<DataExport> = runSuspendCatching {
         transactionManager.transactionOrThrow { businessDataSource.requireOwner(userId, businessId) }
-        actionConfirmationGate.spend(confirmationToken, ActionConfirmationGrant.businessDataExport(userId, businessId), StartBusinessDataExport.Error::ActionConfirmationInvalid) {
+        actionConfirmationGate.spend(
+            confirmationToken,
+            ActionConfirmationGrant.businessDataExport(userId, businessId),
+            StartBusinessDataExport.Error::ActionConfirmationInvalid,
+        ) {
             transactionManager.transactionOrThrow {
                 dataExports.start(businessId).also { businessDataSource.requireOwner(userId, businessId) }
             }

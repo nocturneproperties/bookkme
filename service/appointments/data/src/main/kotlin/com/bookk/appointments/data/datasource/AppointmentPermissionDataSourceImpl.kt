@@ -41,7 +41,10 @@ internal class AppointmentPermissionDataSourceImpl : DataSource(), AppointmentPe
                     AppointmentPermissionGrantsTable.canDelete,
                     AppointmentPermissionGrantsTable.suspended,
                 )
-                .where { (AppointmentPermissionGrantsTable.userId eq userId) and (AppointmentPermissionGrantsTable.businessId eq businessId) }
+                .where {
+                    (AppointmentPermissionGrantsTable.userId eq userId) and
+                        (AppointmentPermissionGrantsTable.businessId eq businessId)
+                }
                 .singleOrNull()
         } ?: return ResourcePermission.NONE
         if (grant[AppointmentPermissionGrantsTable.suspended]) throw EmployeeAccessSuspended()

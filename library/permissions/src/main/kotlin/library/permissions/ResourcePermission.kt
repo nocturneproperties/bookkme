@@ -26,7 +26,8 @@ data class ResourcePermission(
         PermissionAction.DELETE -> delete
     }
 
-    fun covers(other: ResourcePermission): Boolean = (view || !other.view) && (update || !other.update) && (delete || !other.delete)
+    fun covers(other: ResourcePermission): Boolean =
+        (view || !other.view) && (update || !other.update) && (delete || !other.delete)
 
     companion object {
         val NONE = ResourcePermission(view = false, update = false, delete = false)

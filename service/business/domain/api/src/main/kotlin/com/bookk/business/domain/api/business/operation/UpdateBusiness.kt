@@ -47,7 +47,9 @@ interface UpdateBusiness {
             BusinessError(
                 statusCode = HttpStatusCode.UnprocessableEntity.value,
                 code = BusinessErrorCodes.BUSINESS_CLIENT_DATA_RETENTION_OUT_OF_RANGE,
-                message = "Client data retention must be between ${Business.CLIENT_DATA_RETENTION_MONTHS_RANGE.first} and ${Business.CLIENT_DATA_RETENTION_MONTHS_RANGE.last} months",
+                message = "Client data retention must be between " +
+                    "${Business.CLIENT_DATA_RETENTION_MONTHS_RANGE.first} and " +
+                    "${Business.CLIENT_DATA_RETENTION_MONTHS_RANGE.last} months",
             ),
             Error
     }

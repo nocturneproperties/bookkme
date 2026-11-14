@@ -26,7 +26,13 @@ internal class ExportUserNotificationDataImpl(
                     channels = settings.channels.map { ChannelExport(it.channel.name, it.enabled) },
                 )
             },
-            devices = deviceDataSource.getByUserId(userId).map { DeviceExport(it.language.name, pushNotificationsRegistered = it.notificationToken != null) },
+            devices = deviceDataSource.getByUserId(userId).map {
+                DeviceExport(
+                    it.language.name,
+                    pushNotificationsRegistered =
+                    it.notificationToken != null,
+                )
+            },
             email = targetDataSource.getEmail(userId),
             telegram = targetDataSource.getTelegram(userId),
         )
