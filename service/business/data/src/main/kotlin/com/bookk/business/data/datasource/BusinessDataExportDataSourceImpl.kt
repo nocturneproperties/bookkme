@@ -20,10 +20,9 @@ internal class BusinessDataExportDataSourceImpl(
 
     override suspend fun getClients(businessId: Uuid): List<BusinessClientExport> = dbQuery {
         val clients = ClientEntity.find { ClientTable.businessId eq businessId }.toList()
-        val reader = contactCipher.reader(clients.map { it.id.value }, CLIENT_SOURCE)
+        val contacts = contactCipher.decryptAll(clients.map { it.storedContact() }, CLIENT_SOURCE)
         clients
-            .map { entity ->
-                val contact = entity.contact(reader)
+            .zip(contacts) { entity, contact ->
                 BusinessClientExport(
                     id = entity.id.value,
                     name = contact.name,

@@ -1,5 +1,7 @@
 package com.bookk.appointments.data.orm.entity
 
+import library.encryption.Decrypted
+import library.encryption.valueOrNull
 import kotlin.uuid.Uuid
 
 internal data class ClientDetails(
@@ -21,6 +23,7 @@ internal class EncryptedClientDetails(
     val phone: ByteArray?,
     val email: ByteArray?,
     val note: ByteArray,
+    val nameIndex: String?,
 )
 
 internal class EncryptedSnapshot(
@@ -31,8 +34,34 @@ internal class EncryptedSnapshot(
 internal class StoredSnapshot(
     val clientId: Uuid,
     val employeeUserId: Uuid,
-    val plaintextClient: ClientDetails?,
     val encryptedClient: EncryptedClientDetails?,
-    val plaintextEmployeeName: String?,
     val encryptedEmployeeName: ByteArray?,
 )
+
+internal class DecryptedSnapshot(
+    private val decryptedClient: Decrypted<ClientDetails>,
+    private val decryptedEmployeeName: Decrypted<String>,
+) {
+    val client: ClientDetails
+        get() {
+            return when (decryptedClient) {
+                is Decrypted.Plain -> decryptedClient.value
+                Decrypted.Shredded -> ClientDetails.ERASED
+                Decrypted.Missing -> ClientDetails.UNREADABLE
+            }
+        }
+
+    val readableClient: ClientDetails?
+        get() {
+            return decryptedClient.valueOrNull()
+        }
+
+    val employeeName: String
+        get() {
+            return when (decryptedEmployeeName) {
+                is Decrypted.Plain -> decryptedEmployeeName.value
+                Decrypted.Shredded -> ERASED_EMPLOYEE_NAME
+                Decrypted.Missing -> ""
+            }
+        }
+}

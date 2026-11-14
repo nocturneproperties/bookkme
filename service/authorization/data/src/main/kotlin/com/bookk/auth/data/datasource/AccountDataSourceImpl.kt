@@ -82,15 +82,9 @@ internal class AccountDataSourceImpl : DataSource(), AccountDataSource {
     }
 
     override suspend fun recordActivity(authId: Uuid, at: Instant, unlessRecordedSince: Instant) = dbQuery<Unit> {
-        AuthenticationTable.update(
-            where = {
-                (AuthenticationTable.id eq authId) and
-                    (
-                        (AuthenticationTable.lastActiveAt less unlessRecordedSince) or
-                            (AuthenticationTable.dormancyStage neq DormancyStage.ACTIVE)
-                        )
-            },
-        ) {
+        val staleOrDormant = (AuthenticationTable.lastActiveAt less unlessRecordedSince) or
+            (AuthenticationTable.dormancyStage neq DormancyStage.ACTIVE)
+        AuthenticationTable.update(where = { (AuthenticationTable.id eq authId) and staleOrDormant }) {
             it[lastActiveAt] = at
             it[dormancyStage] = DormancyStage.ACTIVE
             it[dormancyWarnedAt] = null

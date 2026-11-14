@@ -12,16 +12,13 @@ import com.bookk.user.data.orm.table.UserTable
 import com.bookk.user.domain.api.entity.User
 import com.bookk.user.domain.api.entity.UserEditModel
 import library.encryption.Decrypted
-import library.encryption.ofCaseInsensitive
 import library.encryption.test.InMemorySubjectKeys
 import library.encryption.test.RecordingMissingKeys
 import library.encryption.test.UnkeyedBlindIndex
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.eq
-import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
-import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
@@ -47,18 +44,6 @@ internal class UserDataSourceImplTest {
             return suspendTransaction { UserTable.selectAll().where { UserTable.id eq id }.single() }
         }
 
-        suspend fun insertLegacy(user: User) {
-            suspendTransaction {
-                UserTable.insert {
-                    it[UserTable.id] = user.id
-                    it[name] = user.name
-                    it[lastName] = user.lastName
-                    it[email] = user.email
-                    it[phone] = user.phone
-                }
-            }
-        }
-
         suspend fun decrypted(id: Uuid, ciphertext: ByteArray?): String? {
             val decryptor = subjectKeys.decryptor(listOf(id))
             return ciphertext?.let { (decryptor.decrypt(id, it) as Decrypted.Plain).value.decodeToString() }
@@ -74,7 +59,7 @@ internal class UserDataSourceImplTest {
     }
 
     @Test
-    fun `should store the profile encrypted under the user's key and no plaintext`() = runUnitTest {
+    fun `should store the profile encrypted under the user's key`() = runUnitTest {
         given()
         val fixture = SutFixture()
         val user = User.stub(name = "Alice", lastName = "Smith", email = "alice@example.com", phone = "+10000000000")
@@ -84,10 +69,6 @@ internal class UserDataSourceImplTest {
 
         then()
         val row = fixture.storedRow(user.id)
-        assertNull(row[UserTable.name])
-        assertNull(row[UserTable.lastName])
-        assertNull(row[UserTable.email])
-        assertNull(row[UserTable.phone])
         assertEquals("Alice", fixture.decrypted(user.id, row[UserTable.nameEncrypted]))
         assertEquals("Smith", fixture.decrypted(user.id, row[UserTable.lastNameEncrypted]))
         assertEquals("alice@example.com", fixture.decrypted(user.id, row[UserTable.emailEncrypted]))
@@ -140,102 +121,6 @@ internal class UserDataSourceImplTest {
     }
 
     @Test
-    fun `should read a profile stored as plaintext before encryption`() = runUnitTest {
-        given()
-        val fixture = SutFixture()
-        val user = User.stub(name = "Legacy", email = "legacy@example.com", phone = "+10000000001")
-        fixture.insertLegacy(user)
-
-        whenn()
-        val found = suspendTransaction { fixture.uncached.getUserById(user.id) }
-
-        then()
-        assertEquals(user, found)
-    }
-
-    @Test
-    fun `should find a plaintext profile by its email`() = runUnitTest {
-        given()
-        val fixture = SutFixture()
-        val user = User.stub(email = "legacy@example.com")
-        fixture.insertLegacy(user)
-
-        whenn()
-        val found = suspendTransaction { fixture.sut.getUserByEmail("legacy@example.com") }
-
-        then()
-        assertEquals(user, found)
-    }
-
-    @Test
-    fun `should reject a new user whose email a plaintext profile holds`() = runUnitTest {
-        given()
-        val fixture = SutFixture()
-        fixture.insertLegacy(User.stub(email = "legacy@example.com"))
-
-        whenn()
-        val result = runCatching {
-            suspendTransaction { fixture.sut.insertNewUser(User.stub(email = "legacy@example.com")) }
-        }
-
-        then()
-        assertTrue(result.exceptionOrNull()?.toDomain() is Error.UniqueConstraintFailed) { result.toString() }
-    }
-
-    @Test
-    fun `should reject a phone a plaintext profile holds`() = runUnitTest {
-        given()
-        val fixture = SutFixture()
-        fixture.insertLegacy(User.stub(email = "legacy@example.com", phone = "+19999999999"))
-        val other = suspendTransaction { fixture.sut.insertNewUser(User.stub(email = "other@example.com")) }
-
-        whenn()
-        val result = runCatching {
-            suspendTransaction { fixture.sut.updateUser(other.id, phoneEdit("+19999999999"), Clock.System.now()) }
-        }
-
-        then()
-        assertTrue(result.exceptionOrNull()?.toDomain() is Error.UniqueConstraintFailed) { result.toString() }
-    }
-
-    @Test
-    fun `should reject a changed email a plaintext profile holds`() = runUnitTest {
-        given()
-        val fixture = SutFixture()
-        fixture.insertLegacy(User.stub(email = "legacy@example.com"))
-        val other = suspendTransaction { fixture.sut.insertNewUser(User.stub(email = "other@example.com")) }
-
-        whenn()
-        val result = runCatching {
-            suspendTransaction { fixture.sut.changeEmail(other.id, "legacy@example.com", Clock.System.now()) }
-        }
-
-        then()
-        assertTrue(result.exceptionOrNull()?.toDomain() is Error.UniqueConstraintFailed) { result.toString() }
-    }
-
-    @Test
-    fun `should encrypt a plaintext profile when it is edited`() = runUnitTest {
-        given()
-        val fixture = SutFixture()
-        val user = User.stub(name = "Legacy", email = "legacy@example.com", phone = "+10000000001")
-        fixture.insertLegacy(user)
-
-        whenn()
-        val updated = suspendTransaction { fixture.sut.updateUser(user.id, nameEdit("Renamed"), Clock.System.now()) }
-
-        then()
-        val row = fixture.storedRow(user.id)
-        assertEquals(user.copy(name = "Renamed"), updated)
-        assertNull(row[UserTable.name])
-        assertNull(row[UserTable.email])
-        assertNull(row[UserTable.phone])
-        assertEquals(fixture.blindIndex.of("legacy@example.com"), row[UserTable.emailIndex])
-        assertEquals(fixture.blindIndex.of("+10000000001"), row[UserTable.phoneIndex])
-        assertEquals("legacy@example.com", fixture.decrypted(user.id, row[UserTable.emailEncrypted]))
-    }
-
-    @Test
     fun `should read empty details and report the missing key when a profile's key was lost`() = runUnitTest {
         given()
         val fixture = SutFixture()
@@ -268,45 +153,6 @@ internal class UserDataSourceImplTest {
             assertEquals(user.id, found!!.id)
             assertEquals("Alicia", found.name)
         }
-
-    @Test
-    fun `should encrypt plaintext profiles in batches`() = runUnitTest {
-        given()
-        val fixture = SutFixture()
-        val legacy = List(3) { User.stub(email = "legacy$it@example.com", phone = "+1000000000$it") }
-        legacy.forEach { fixture.insertLegacy(it) }
-
-        whenn()
-        val first = suspendTransaction { fixture.sut.encryptPlaintextProfiles(limit = 2) }
-        val second = suspendTransaction { fixture.sut.encryptPlaintextProfiles(limit = 2) }
-        val third = suspendTransaction { fixture.sut.encryptPlaintextProfiles(limit = 2) }
-
-        then()
-        assertEquals(listOf(2, 1, 0), listOf(first, second, third))
-        legacy.forEach { user ->
-            val row = fixture.storedRow(user.id)
-            assertNull(row[UserTable.email])
-            assertNull(row[UserTable.phone])
-            assertEquals(fixture.blindIndex.ofCaseInsensitive(user.email), row[UserTable.emailIndex])
-            assertEquals(user, suspendTransaction { fixture.uncached.getUserById(user.id) })
-        }
-    }
-
-    @Test
-    fun `should leave encrypted profiles alone when encrypting plaintext ones`() = runUnitTest {
-        given()
-        val fixture = SutFixture()
-        val user = User.stub(email = "sealed@example.com")
-        suspendTransaction { fixture.sut.insertNewUser(user) }
-        val before = fixture.storedRow(user.id)[UserTable.emailEncrypted]
-
-        whenn()
-        val encrypted = suspendTransaction { fixture.sut.encryptPlaintextProfiles(limit = 10) }
-
-        then()
-        assertEquals(0, encrypted)
-        assertArrayEquals(before, fixture.storedRow(user.id)[UserTable.emailEncrypted])
-    }
 
     @Test
     fun `should insert user and retrieve by id`() = runUnitTest {

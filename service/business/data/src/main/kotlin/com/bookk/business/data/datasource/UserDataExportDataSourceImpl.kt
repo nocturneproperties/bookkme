@@ -38,20 +38,18 @@ internal class UserDataExportDataSourceImpl(
                 EmployeeEntity::grants,
             )
             .toList()
-        val employeeReader = contactCipher.reader(listOf(userId), EMPLOYEE_SOURCE)
+        val employeeContacts = contactCipher.decryptAll(employees.map { it.storedContact() }, EMPLOYEE_SOURCE)
         val clients = ClientEntity.find { ClientTable.userId eq userId }.toList()
-        val clientReader = contactCipher.reader(clients.map { it.id.value }, CLIENT_SOURCE)
+        val clientContacts = contactCipher.decryptAll(clients.map { it.storedContact() }, CLIENT_SOURCE)
         val businessNames =
             businessNames(employees.map { it.businessId.value } + clients.map { it.businessId.value })
         BusinessUserDataExport(
             ownedBusiness = BusinessEntity.find { BusinessTable.userId eq userId }.singleOrNull()?.toExport(),
-            employments = employees.map { entity ->
-                entity.toDomain(
-                    entity.contact(employeeReader),
-                ).toExport(businessNames.getValue(entity.businessId.value))
+            employments = employees.zip(employeeContacts) { entity, contact ->
+                entity.toDomain(contact).toExport(businessNames.getValue(entity.businessId.value))
             },
-            clientRecords = clients.map { entity ->
-                entity.toClientRecord(entity.contact(clientReader), businessNames.getValue(entity.businessId.value))
+            clientRecords = clients.zip(clientContacts) { entity, contact ->
+                entity.toClientRecord(contact, businessNames.getValue(entity.businessId.value))
             },
             dashboardBusinessId = BusinessDashboardTable.select(BusinessDashboardTable.businessId)
                 .where { BusinessDashboardTable.userId eq userId }

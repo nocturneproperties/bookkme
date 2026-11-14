@@ -5,8 +5,7 @@ import org.jetbrains.exposed.v1.datetime.timestamp
 
 object NotificationEmailTargetTable : BaseUUIDTable("notification_email_targets") {
     val userId = uuid("user_id")
-    val email = text("email").nullable()
-    val emailEncrypted = binary("email_encrypted", 1320).nullable()
+    val emailEncrypted = binary("email_encrypted", 1320)
     val sourceUpdatedAt = timestamp("source_updated_at").nullable()
 
     init {

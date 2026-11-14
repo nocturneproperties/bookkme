@@ -23,11 +23,9 @@ import library.encryption.test.RecordingMissingKeys
 import library.encryption.test.UnkeyedBlindIndex
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.eq
-import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import kotlin.time.Instant
@@ -61,21 +59,6 @@ internal class ClientDataSourceImplEncryptionTest {
             return suspendTransaction { ClientTable.selectAll().where { ClientTable.id eq id }.single() }
         }
 
-        suspend fun insertLegacy(client: Client, userId: Uuid? = null) {
-            suspendTransaction {
-                ClientTable.insert {
-                    it[ClientTable.id] = client.id
-                    it[businessId] = this@SutFixture.businessId
-                    it[name] = client.name
-                    it[lastName] = client.lastName
-                    it[phone] = client.phone
-                    it[email] = client.email
-                    it[description] = client.description
-                    it[this.userId] = userId
-                }
-            }
-        }
-
         suspend fun decrypted(id: Uuid, ciphertext: ByteArray?): String? {
             val decryptor = subjectKeys.decryptor(listOf(id))
             return ciphertext?.let { (decryptor.decrypt(id, it) as Decrypted.Plain).value.decodeToString() }
@@ -87,7 +70,7 @@ internal class ClientDataSourceImplEncryptionTest {
     }
 
     @Test
-    fun `should store a client encrypted under the client's key and no plaintext`() = runUnitTest {
+    fun `should store a client encrypted under the client's key`() = runUnitTest {
         given()
         val fixture = SutFixture()
         fixture.setup()
@@ -104,11 +87,6 @@ internal class ClientDataSourceImplEncryptionTest {
 
         then()
         val row = fixture.storedRow(created.id)
-        assertNull(row[ClientTable.name])
-        assertNull(row[ClientTable.lastName])
-        assertNull(row[ClientTable.phone])
-        assertNull(row[ClientTable.email])
-        assertNull(row[ClientTable.description])
         assertEquals("Alice", fixture.decrypted(created.id, row[ClientTable.nameEncrypted]))
         assertEquals("Smith", fixture.decrypted(created.id, row[ClientTable.lastNameEncrypted]))
         assertEquals("+10000000000", fixture.decrypted(created.id, row[ClientTable.phoneEncrypted]))
@@ -149,7 +127,6 @@ internal class ClientDataSourceImplEncryptionTest {
         then()
         created.forEach { client ->
             val row = fixture.storedRow(client.id)
-            assertNull(row[ClientTable.name])
             assertEquals(client.name, fixture.decrypted(client.id, row[ClientTable.nameEncrypted]))
         }
     }
@@ -173,23 +150,6 @@ internal class ClientDataSourceImplEncryptionTest {
     }
 
     @Test
-    fun `should find a plaintext client by email`() = runUnitTest {
-        given()
-        val fixture = SutFixture()
-        fixture.setup()
-        val legacy = Client.Detached.stub(email = "legacy@example.com")
-        fixture.insertLegacy(legacy)
-
-        whenn()
-        val found = suspendTransaction {
-            fixture.sut.getClientsByEmails(fixture.businessId, listOf("legacy@example.com"))
-        }
-
-        then()
-        assertEquals(listOf(legacy), found)
-    }
-
-    @Test
     fun `should reject a client whose email differs from another client's only by case`() = runUnitTest {
         given()
         val fixture = SutFixture()
@@ -202,45 +162,6 @@ internal class ClientDataSourceImplEncryptionTest {
         val result = runCatching {
             suspendTransaction {
                 fixture.sut.createDetachedClient(fixture.businessId, Client.Detached.stub(email = "Taken@Example.com"))
-            }
-        }
-
-        then()
-        assertTrue(result.exceptionOrNull()?.toDomain() is Error.UniqueConstraintFailed) { result.toString() }
-    }
-
-    @Test
-    fun `should reject a client whose email a plaintext client holds`() = runUnitTest {
-        given()
-        val fixture = SutFixture()
-        fixture.setup()
-        fixture.insertLegacy(Client.Detached.stub(email = "held@example.com"))
-
-        whenn()
-        val result = runCatching {
-            suspendTransaction {
-                fixture.sut.createDetachedClient(fixture.businessId, Client.Detached.stub(email = "held@example.com"))
-            }
-        }
-
-        then()
-        assertTrue(result.exceptionOrNull()?.toDomain() is Error.UniqueConstraintFailed) { result.toString() }
-    }
-
-    @Test
-    fun `should reject changing a client's email to one a plaintext client holds`() = runUnitTest {
-        given()
-        val fixture = SutFixture()
-        fixture.setup()
-        fixture.insertLegacy(Client.Detached.stub(email = "held@example.com"))
-        val created = suspendTransaction {
-            fixture.sut.createDetachedClient(fixture.businessId, Client.Detached.stub(email = "own@example.com"))
-        }
-
-        whenn()
-        val result = runCatching {
-            suspendTransaction {
-                fixture.sut.updateClient(fixture.businessId, emailEdit(created.id, "held@example.com"))
             }
         }
 
@@ -267,55 +188,6 @@ internal class ClientDataSourceImplEncryptionTest {
 
         then()
         assertEquals("shared@example.com", created.email)
-    }
-
-    @Test
-    fun `should read a plaintext client`() = runUnitTest {
-        given()
-        val fixture = SutFixture()
-        fixture.setup()
-        val legacy = Client.Detached.stub(name = "Legacy", description = "old note")
-        fixture.insertLegacy(legacy)
-
-        whenn()
-        val read = suspendTransaction { fixture.sut.getClientById(fixture.businessId, legacy.id) }
-
-        then()
-        assertEquals(legacy, read)
-    }
-
-    @Test
-    fun `should encrypt a plaintext client when it is edited`() = runUnitTest {
-        given()
-        val fixture = SutFixture()
-        fixture.setup()
-        val legacy = Client.Detached.stub(name = "Legacy", email = "legacy@example.com", description = "note")
-        fixture.insertLegacy(legacy)
-
-        whenn()
-        val updated = suspendTransaction {
-            fixture.sut.updateClient(
-                fixture.businessId,
-                ClientUpdateModel(
-                    id = legacy.id,
-                    name = "Renamed",
-                    lastName = null,
-                    phone = null,
-                    email = null,
-                    description = null,
-                ),
-            )
-        }
-
-        then()
-        val row = fixture.storedRow(legacy.id)
-        assertEquals(legacy.copy(name = "Renamed"), updated)
-        assertNull(row[ClientTable.name])
-        assertNull(row[ClientTable.email])
-        assertNull(row[ClientTable.description])
-        assertEquals("Renamed", fixture.decrypted(legacy.id, row[ClientTable.nameEncrypted]))
-        assertEquals("note", fixture.decrypted(legacy.id, row[ClientTable.descriptionEncrypted]))
-        assertEquals(fixture.blindIndex.of("legacy@example.com"), row[ClientTable.emailIndex])
     }
 
     @Test
@@ -406,7 +278,6 @@ internal class ClientDataSourceImplEncryptionTest {
 
         then()
         val row = fixture.storedRow(created.id)
-        assertNull(row[ClientTable.name])
         assertEquals("Bob", fixture.decrypted(created.id, row[ClientTable.nameEncrypted]))
         assertEquals(fixture.blindIndex.of("bob@example.com"), row[ClientTable.emailIndex])
         assertEquals(created, suspendTransaction { fixture.sut.getClientByUserId(fixture.businessId, userId) })
@@ -418,18 +289,17 @@ internal class ClientDataSourceImplEncryptionTest {
         val fixture = SutFixture()
         fixture.setup()
         val legacy = Client.Detached.stub(name = "Placeholder", email = "guest@example.com", description = "note")
-        fixture.insertLegacy(legacy)
+        val detached = suspendTransaction { fixture.sut.createDetachedClient(fixture.businessId, legacy) }
         val profile = Client.Integrated.stub(name = "Guest", email = "guest@example.com", userId = Uuid.random())
 
         whenn()
-        val takenOver = suspendTransaction { fixture.sut.takeOverClient(fixture.businessId, legacy.id, profile) }
+        val takenOver = suspendTransaction { fixture.sut.takeOverClient(fixture.businessId, detached.id, profile) }
 
         then()
-        val row = fixture.storedRow(legacy.id)
+        val row = fixture.storedRow(detached.id)
         assertEquals("Guest", takenOver?.name)
         assertEquals("note", takenOver?.description)
-        assertNull(row[ClientTable.name])
-        assertEquals("Guest", fixture.decrypted(legacy.id, row[ClientTable.nameEncrypted]))
+        assertEquals("Guest", fixture.decrypted(detached.id, row[ClientTable.nameEncrypted]))
         assertEquals(fixture.blindIndex.of("guest@example.com"), row[ClientTable.emailIndex])
     }
 
@@ -440,7 +310,7 @@ internal class ClientDataSourceImplEncryptionTest {
         fixture.setup()
         val userId = Uuid.random()
         val legacy = Client.Integrated.stub(name = "Old", phone = "+10000000001", userId = userId)
-        fixture.insertLegacy(legacy, userId = userId)
+        val integrated = suspendTransaction { fixture.sut.getOrCreateIntegratedClient(fixture.businessId, legacy) }
 
         whenn()
         suspendTransaction {
@@ -455,11 +325,9 @@ internal class ClientDataSourceImplEncryptionTest {
         }
 
         then()
-        val row = fixture.storedRow(legacy.id)
-        assertNull(row[ClientTable.name])
-        assertNull(row[ClientTable.phone])
-        assertEquals("New", fixture.decrypted(legacy.id, row[ClientTable.nameEncrypted]))
-        assertEquals("+10000000001", fixture.decrypted(legacy.id, row[ClientTable.phoneEncrypted]))
+        val row = fixture.storedRow(integrated.id)
+        assertEquals("New", fixture.decrypted(integrated.id, row[ClientTable.nameEncrypted]))
+        assertEquals("+10000000001", fixture.decrypted(integrated.id, row[ClientTable.phoneEncrypted]))
         assertEquals(fixture.blindIndex.of("new@example.com"), row[ClientTable.emailIndex])
     }
 
@@ -515,56 +383,5 @@ internal class ClientDataSourceImplEncryptionTest {
 
         then()
         assertEquals(listOf(ClientMerge(fixture.businessId, detached.id, integrated.id)), merges)
-    }
-
-    @Test
-    fun `should find a plaintext detached client to merge by its email`() = runUnitTest {
-        given()
-        val fixture = SutFixture()
-        fixture.setup()
-        val userId = Uuid.random()
-        val integrated = suspendTransaction {
-            fixture.sut.getOrCreateIntegratedClient(
-                fixture.businessId,
-                Client.Integrated.stub(email = "a@example.com", userId = userId),
-            )
-        }
-        val legacy = Client.Detached.stub(email = "merge@example.com")
-        fixture.insertLegacy(legacy)
-
-        whenn()
-        val merges = suspendTransaction {
-            fixture.sut.findClientMergesForUser(userId, "merge@example.com", Instant.fromEpochSeconds(1_000))
-        }
-
-        then()
-        assertEquals(listOf(ClientMerge(fixture.businessId, legacy.id, integrated.id)), merges)
-    }
-
-    @Test
-    fun `should encrypt plaintext clients in batches`() = runUnitTest {
-        given()
-        val fixture = SutFixture()
-        fixture.setup()
-        val first = Client.Detached.stub(name = "First", email = "first@example.com")
-        val second = Client.Detached.stub(name = "Second", email = "second@example.com")
-        fixture.insertLegacy(first)
-        fixture.insertLegacy(second)
-        suspendTransaction { fixture.sut.createDetachedClient(fixture.businessId, Client.Detached.stub(email = null)) }
-
-        whenn()
-        val firstBatch = suspendTransaction { fixture.sut.encryptPlaintextClients(limit = 1) }
-        val secondBatch = suspendTransaction { fixture.sut.encryptPlaintextClients(limit = 1) }
-        val thirdBatch = suspendTransaction { fixture.sut.encryptPlaintextClients(limit = 1) }
-
-        then()
-        assertEquals(listOf(1, 1, 0), listOf(firstBatch, secondBatch, thirdBatch))
-        listOf(first, second).forEach { client ->
-            val row = fixture.storedRow(client.id)
-            assertNull(row[ClientTable.name])
-            assertNull(row[ClientTable.email])
-            assertEquals(client.name, fixture.decrypted(client.id, row[ClientTable.nameEncrypted]))
-            assertEquals(fixture.blindIndex.of(client.email!!), row[ClientTable.emailIndex])
-        }
     }
 }

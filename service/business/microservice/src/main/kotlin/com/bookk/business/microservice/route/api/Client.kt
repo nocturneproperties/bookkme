@@ -18,7 +18,6 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.server.auth.authenticate
 import io.ktor.server.auth.principal
 import io.ktor.server.request.receive
-import io.ktor.server.request.receiveNullable
 import io.ktor.server.resources.delete
 import io.ktor.server.resources.get
 import io.ktor.server.resources.patch
@@ -149,7 +148,7 @@ fun Route.clientCrud() {
          */
         delete<Api.Clients.Id> {
             val principal = requireNotNull(call.principal<AppPrincipal>())
-            val confirmationToken = call.receiveNullable<DeleteClientRequest>()?.confirmationToken.orEmpty()
+            val confirmationToken = call.receive<DeleteClientRequest>().confirmationToken.orEmpty()
             val deleteClient by application.injectScoped<DeleteClient>(BusinessScope)
 
             call.respondWith(

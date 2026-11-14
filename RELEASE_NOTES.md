@@ -1,5 +1,27 @@
 # Release notes
 
+## 0.19.0
+
+Changes since `monolith/0.18.0`. Finishes the 0.18.0 encryption rollout: the unencrypted copies of personal data are dropped, every appointments business must have its owner, and appointment search matches the client's whole name through a blind index.
+
+### Clients
+
+- `GET /api/appointments/history/{businessId}?query=` now matches the client's whole name (ignoring case and surrounding spaces) instead of any part of it; part of a service name still matches.
+
+### Services
+
+- `BusinessDTO.ownerUserId` (6) is now required; a `BusinessEvent.Updated` or `getBusinessById` answer without it fails to decode.
+- The jobs `appointments-fillBusinessOwners`, `user-encryptPlaintextProfiles`, `notifications-encryptPlaintextTargets`, `business-encryptPlaintextContacts` and `appointments-encryptPlaintextSnapshots` are removed; a standalone notifications service no longer runs a scheduler.
+- New job `appointments-indexClientNames` (every 10 minutes) gives appointments stored before 0.19.0 their searchable client-name index; until it has finished, those appointments are found by service name only.
+
+### Upgrade
+
+- Upgrade from 0.18.0 only, never straight from 0.17.0, and only after its encryption jobs finished.
+- User `V7`, notifications `V6`, business `V19` and appointments `V12` drop the plaintext personal-data columns and make the encrypted name and email columns NOT NULL. Before deploying, check that no profile, client, employee, notification target, appointment or request still has a plaintext column set or its encrypted name or email NULL; `V12` would drop such values silently.
+- Appointments `V12` adds `appointment.client_name_index` with an index on (`business_id`, `client_name_index`).
+- Appointments `V12` makes `business_has_appointments.owner_user_id` NOT NULL and fails on a `NULL` there; before deploying, `SELECT COUNT(*) FROM appointments.business_has_appointments WHERE owner_user_id IS NULL` must return 0.
+- Before deploying, `SELECT COUNT(*) FROM appointments.exhausted_event WHERE original_topic = 'business.updated'` must return 0 for rows parked before the 0.18.0 deploy; replay or delete them first, since 0.19.0 can't decode them.
+
 ## 0.18.0
 
 Changes since `monolith/0.17.0`. Sign-up verifies the email with a code before the account exists, the email changes only through a code sent to the new address, business clients are matched to accounts by that verified email only, and notifications can now go out by email, and the in-app contact form is gone in favour of support email; older apps can no longer sign up.

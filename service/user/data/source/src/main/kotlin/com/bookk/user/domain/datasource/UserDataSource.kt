@@ -12,5 +12,4 @@ interface UserDataSource {
     suspend fun getUserById(id: Uuid): User?
     suspend fun getUserByEmail(email: String): User?
     suspend fun deleteUser(id: Uuid)
-    suspend fun encryptPlaintextProfiles(limit: Int): Int
 }

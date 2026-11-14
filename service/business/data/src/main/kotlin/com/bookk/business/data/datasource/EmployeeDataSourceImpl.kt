@@ -102,9 +102,8 @@ internal class EmployeeDataSourceImpl(private val contactCipher: ContactCipher) 
             (EmployeeTable.userId eq userId) and
                 (EmployeeTable.sourceUpdatedAt.isNull() or (EmployeeTable.sourceUpdatedAt less updatedAt))
         }.forUpdate().toList()
-        val reader = contactCipher.reader(listOf(userId), SOURCE)
-        employments.count { entity ->
-            val current = entity.contact(reader)
+        val contacts = contactCipher.decryptAll(employments.map { it.storedContact() }, SOURCE)
+        employments.zip(contacts).count { (entity, current) ->
             val synced = current.copy(
                 name = name.trim(),
                 lastName = lastName.trim(),
@@ -163,23 +162,17 @@ internal class EmployeeDataSourceImpl(private val contactCipher: ContactCipher) 
             .map { it[EmployeeTable.userId] }
     }
 
-    override suspend fun encryptPlaintextEmployees(limit: Int): Int = dbQuery {
-        val plaintext = EmployeeEntity.find { EmployeeTable.nameEncrypted.isNull() }.limit(limit).forUpdate().toList()
-        plaintext.forEach { entity -> entity.store(encryptExisting(entity.userId, entity.plaintextContact())) }
-        plaintext.size
-    }
-
     private suspend fun encryptExisting(userId: Uuid, contact: Contact): EncryptedContact {
         return checkNotNull(contactCipher.encrypt(userId, contact)) { "The employee user $userId has a shredded key" }
     }
 
     private suspend fun EmployeeEntity.domain(): Employee {
-        return toDomain(contact(contactCipher.reader(listOf(userId), SOURCE)))
+        return toDomain(contactCipher.decrypt(storedContact(), SOURCE))
     }
 
     private suspend fun List<EmployeeEntity>.domains(): List<Employee> {
-        val reader = contactCipher.reader(map { it.userId }, SOURCE)
-        return map { it.toDomain(it.contact(reader)) }
+        val contacts = contactCipher.decryptAll(map { it.storedContact() }, SOURCE)
+        return zip(contacts) { entity, contact -> entity.toDomain(contact) }
     }
 
     private companion object {

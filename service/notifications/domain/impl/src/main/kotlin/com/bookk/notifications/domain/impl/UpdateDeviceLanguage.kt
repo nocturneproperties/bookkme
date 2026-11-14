@@ -15,6 +15,5 @@ internal class UpdateDeviceLanguage(
         language: Language,
     ): Result<Unit> = transactionManager.transaction {
         deviceDataSource.updateLanguage(authId, deviceUuid, language)
-        Unit
     }
 }

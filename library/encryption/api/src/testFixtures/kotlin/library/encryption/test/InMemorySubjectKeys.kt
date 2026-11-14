@@ -4,6 +4,7 @@ import library.encryption.Decrypted
 import library.encryption.Decryptor
 import library.encryption.Encryptor
 import library.encryption.SubjectKeys
+import library.encryption.decryptText
 import java.util.concurrent.ConcurrentHashMap
 import javax.crypto.AEADBadTagException
 import kotlin.uuid.Uuid
@@ -62,11 +63,7 @@ class InMemorySubjectKeys : SubjectKeys {
         private val tampered: Set<Uuid>,
     ) : Decryptor {
         override fun decrypt(subjectId: Uuid, ciphertext: String): Decrypted<String> {
-            return when (val decrypted = decrypt(subjectId, ciphertext.encodeToByteArray())) {
-                is Decrypted.Plain -> Decrypted.Plain(decrypted.value.decodeToString())
-                Decrypted.Shredded -> Decrypted.Shredded
-                Decrypted.Missing -> Decrypted.Missing
-            }
+            return decryptText(subjectId, ciphertext.encodeToByteArray())
         }
 
         override fun decrypt(subjectId: Uuid, ciphertext: ByteArray): Decrypted<ByteArray> {

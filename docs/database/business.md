@@ -85,13 +85,8 @@ erDiagram
     CLIENT {
         uuid id PK
         uuid business_id FK
-        string name "nullable; plaintext until 0.19.0, NULL once encrypted"
-        string lastname "nullable; plaintext until 0.19.0, NULL once encrypted"
-        string phone "nullable; plaintext until 0.19.0, NULL once encrypted"
-        string email "nullable; plaintext until 0.19.0, NULL once encrypted; UK with business_id"
-        string description "nullable; plaintext until 0.19.0, NULL once encrypted"
-        bytes name_encrypted "nullable until 0.19.0; NULL marks a plaintext row"
-        bytes lastname_encrypted "nullable until 0.19.0"
+        bytes name_encrypted
+        bytes lastname_encrypted
         bytes phone_encrypted "nullable; not unique, several clients of a business may share it"
         bytes email_encrypted "nullable; at least one of phone/email required on create"
         bytes description_encrypted "nullable; business owner's notes about the client"
@@ -107,12 +102,8 @@ erDiagram
     EMPLOYEE {
         uuid id PK
         uuid business_id FK
-        string name "nullable; plaintext until 0.19.0, NULL once encrypted"
-        string lastname "nullable; plaintext until 0.19.0, NULL once encrypted"
-        string phone "nullable; plaintext until 0.19.0, NULL once encrypted"
-        string email "nullable; plaintext until 0.19.0, NULL once encrypted"
-        bytes name_encrypted "nullable until 0.19.0; NULL marks a plaintext row"
-        bytes lastname_encrypted "nullable until 0.19.0"
+        bytes name_encrypted
+        bytes lastname_encrypted
         bytes phone_encrypted "nullable"
         bytes email_encrypted "nullable"
         uuid user_id "logical FK -> user.profile.id; UK with business_id"
@@ -241,7 +232,7 @@ erDiagram
 
 `OUTBOX_EVENT` is not part of the business domain model either — it's the shared transactional outbox (`library/outbox`, one instance per service schema). `eventProducer.send` inserts the encoded event in the same transaction as the business write, so an event exists exactly when its write committed; `OutboxRelay` then locks the oldest rows (`SELECT … FOR UPDATE`), publishes them to Kafka (or the embedded transport in the monolith) and deletes them. Delivery is at-least-once, deduplicated by consumers through the event's idempotency key. See [Transactional outbox](../transactional-outbox.md).
 
-`CLIENT` holds each client's name, last name, phone, email and notes encrypted under the client's own key (`*_encrypted`, `library/encryption`, keyed by `id`), and `EMPLOYEE` an employee's name, last name, phone and email under their user's key (keyed by `user_id`), so deleting the row and shredding that key leaves nothing readable in backups. A client's email stays unique within the business and searchable (booking takeover, imports, profile merges) through `email_index`, a keyed HMAC of the trimmed, lowercased email; employees are never looked up by contact, so they get no index. Rows written before 0.18.0 keep their plaintext columns until the `business-encryptPlaintextContacts` job encrypts them and sets those columns to NULL; until then a write to such a row encrypts it too, a new client email is also checked against the plaintext `email` column, which the blind-index constraint can't see, and lookups match either. 0.19.0 drops the plaintext columns.
+`CLIENT` holds each client's name, last name, phone, email and notes encrypted under the client's own key (`*_encrypted`, `library/encryption`, keyed by `id`), and `EMPLOYEE` an employee's name, last name, phone and email under their user's key (keyed by `user_id`), so deleting the row and shredding that key leaves nothing readable in backups. A client's email stays unique within the business and searchable (booking takeover, imports, profile merges) through `email_index`, a keyed HMAC of the trimmed, lowercased email; employees are never looked up by contact, so they get no index. 0.19.0 dropped the plaintext columns that rows written before 0.18.0 had.
 
 `ERASED_CLIENT` records every client a business deleted (`DeleteClient` and the `business-deleteInactiveClients` retention job), in the same transaction as the deletion. Clients deleted with their user's account aren't recorded here: `authorization.erased_account` covers them. Like `ERASED_ACCOUNT`, the restore tool re-inserts the records from the latest backup with `reapply_requested`, and `business-reapplyErasures` deletes those clients again and sends `BusinessEvent.ClientDeleted`. Keyed by the client id alone, inserted once (`INSERT IGNORE`), kept 60 days, hidden from NocoDB.
 

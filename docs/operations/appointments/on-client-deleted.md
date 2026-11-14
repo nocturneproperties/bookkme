@@ -18,7 +18,7 @@ keeps their account.
   `AppointmentEvent.Cancelled` with that reason. An employee who is the
   client themselves gets only the client notification.
 - Every appointment of theirs at the business then has its client name,
-  phone, email and note cleared (plaintext and encrypted columns) and
+  phone, email and note cleared (the encrypted columns set to NULL) and
   `client_user_id` cleared; it reads as "Deleted Client". The rows, their
   `client_id` and the history stay for the business.
 - Their requests at the business are deleted.

@@ -14,7 +14,7 @@ data class BusinessSnapshot(
     @ProtoNumber(4) val timeZone: TimeZone,
     @ProtoNumber(5) val isEnabled: Boolean,
     @ProtoNumber(6) val schedule: Schedule,
-    @ProtoNumber(7) val ownerUserId: Uuid?,
+    @ProtoNumber(7) val ownerUserId: Uuid,
 ) {
     companion object {
         fun stub(
@@ -24,7 +24,7 @@ data class BusinessSnapshot(
             timeZone: TimeZone = TimeZone.UTC,
             isEnabled: Boolean = true,
             schedule: Schedule = Schedule(),
-            ownerUserId: Uuid? = Uuid.random(),
+            ownerUserId: Uuid = Uuid.random(),
         ): BusinessSnapshot {
             return BusinessSnapshot(
                 id = id,
