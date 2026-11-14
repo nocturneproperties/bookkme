@@ -31,7 +31,6 @@ import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.greater
 import org.jetbrains.exposed.v1.core.greaterEq
 import org.jetbrains.exposed.v1.core.inList
-import org.jetbrains.exposed.v1.core.isNotNull
 import org.jetbrains.exposed.v1.core.less
 import org.jetbrains.exposed.v1.core.lessEq
 import org.jetbrains.exposed.v1.core.like
@@ -304,7 +303,6 @@ internal class AppointmentDataSourceImpl(
 
     override suspend fun anonymizeEmployee(employeeUserId: Uuid) = dbQuery<Unit> {
         AppointmentTable.update(where = { AppointmentTable.employeeUserId eq employeeUserId }) {
-            it[employeeName] = null
             it[employeeNameEncrypted] = null
             it[AppointmentTable.employeeUserId] = Uuid.NIL
         }
@@ -354,8 +352,7 @@ internal class AppointmentDataSourceImpl(
             val reader = snapshotCipher.reader(snapshots.values, AppointmentTable.tableName)
             snapshots.forEach { (entity, snapshot) ->
                 val client = snapshotCipher.reencryptClient(snapshot, reader, toClientId)
-                entity.clientId = toClientId
-                entity.storeClient(client)
+                AppointmentEntity.findByIdAndUpdateClient(entity.id.value, toClientId, client)
             }
         }
     }
@@ -395,25 +392,11 @@ internal class AppointmentDataSourceImpl(
     }
 
     private fun UpdateStatement.eraseClientDetails() {
-        this[AppointmentTable.clientName] = null
-        this[AppointmentTable.clientPhone] = null
-        this[AppointmentTable.clientEmail] = null
-        this[AppointmentTable.note] = null
         this[AppointmentTable.clientNameEncrypted] = null
         this[AppointmentTable.clientPhoneEncrypted] = null
         this[AppointmentTable.clientEmailEncrypted] = null
         this[AppointmentTable.noteEncrypted] = null
         this[AppointmentTable.clientUserId] = null
-    }
-
-    override suspend fun encryptPlaintextAppointments(limit: Int): Int = dbQuery {
-        val plaintext = AppointmentEntity
-            .find { AppointmentTable.clientName.isNotNull() or AppointmentTable.employeeName.isNotNull() }
-            .limit(limit)
-            .forUpdate()
-            .toList()
-        plaintext.forEach { it.store(snapshotCipher.encryptPlaintext(it.storedSnapshot())) }
-        plaintext.size
     }
 
     private suspend fun AppointmentEntity.decrypted(): Appointment {

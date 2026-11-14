@@ -1,8 +1,6 @@
 package com.bookk.notifications.data.datasource
 
 import com.bookk.core.data.DataSource
-import com.bookk.notifications.data.orm.entity.NotificationEmailTargetEntity
-import com.bookk.notifications.data.orm.entity.NotificationTelegramTargetEntity
 import com.bookk.notifications.data.orm.table.NotificationEmailTargetTable
 import com.bookk.notifications.data.orm.table.NotificationTelegramTargetTable
 import com.bookk.notifications.domain.datasource.NotificationTargetDataSource
@@ -23,24 +21,22 @@ internal class NotificationTargetDataSourceImpl(
 ) : DataSource(), NotificationTargetDataSource {
 
     override suspend fun getEmail(userId: Uuid): String? = dbQuery {
-        val row = NotificationEmailTargetTable
-            .select(NotificationEmailTargetTable.email, NotificationEmailTargetTable.emailEncrypted)
+        val ciphertext = NotificationEmailTargetTable
+            .select(NotificationEmailTargetTable.emailEncrypted)
             .where { NotificationEmailTargetTable.userId eq userId }
             .singleOrNull()
+            ?.get(NotificationEmailTargetTable.emailEncrypted)
             ?: return@dbQuery null
-        val ciphertext = row[NotificationEmailTargetTable.emailEncrypted]
-            ?: return@dbQuery row[NotificationEmailTargetTable.email]
         targetCipher.decrypt(userId, ciphertext, NotificationEmailTargetTable.tableName)
     }
 
     override suspend fun getTelegram(userId: Uuid): String? = dbQuery {
-        val row = NotificationTelegramTargetTable
-            .select(NotificationTelegramTargetTable.telegramTag, NotificationTelegramTargetTable.telegramTagEncrypted)
+        val ciphertext = NotificationTelegramTargetTable
+            .select(NotificationTelegramTargetTable.telegramTagEncrypted)
             .where { NotificationTelegramTargetTable.userId eq userId }
             .singleOrNull()
+            ?.get(NotificationTelegramTargetTable.telegramTagEncrypted)
             ?: return@dbQuery null
-        val ciphertext = row[NotificationTelegramTargetTable.telegramTagEncrypted]
-            ?: return@dbQuery row[NotificationTelegramTargetTable.telegramTag]
         targetCipher.decrypt(userId, ciphertext, NotificationTelegramTargetTable.tableName)
     }
 
@@ -67,16 +63,11 @@ internal class NotificationTargetDataSourceImpl(
 
     override suspend fun updateEmail(userId: Uuid, email: String, updatedAt: Instant): Boolean = dbQuery {
         val ciphertext = targetCipher.encrypt(userId, email) ?: return@dbQuery false
+        val sourceUpdatedAt = NotificationEmailTargetTable.sourceUpdatedAt
+        val isOutdated = sourceUpdatedAt.isNull() or (sourceUpdatedAt less updatedAt)
         NotificationEmailTargetTable.update(
-            where = {
-                (NotificationEmailTargetTable.userId eq userId) and
-                    (
-                        NotificationEmailTargetTable.sourceUpdatedAt.isNull() or
-                            (NotificationEmailTargetTable.sourceUpdatedAt less updatedAt)
-                        )
-            },
+            where = { (NotificationEmailTargetTable.userId eq userId) and isOutdated },
         ) {
-            it[NotificationEmailTargetTable.email] = null
             it[NotificationEmailTargetTable.emailEncrypted] = ciphertext
             it[NotificationEmailTargetTable.sourceUpdatedAt] = updatedAt
         } > 0
@@ -95,7 +86,6 @@ internal class NotificationTargetDataSourceImpl(
         NotificationTelegramTargetTable.update(
             where = { NotificationTelegramTargetTable.userId eq userId },
         ) {
-            it[NotificationTelegramTargetTable.telegramTag] = null
             it[NotificationTelegramTargetTable.telegramTagEncrypted] = ciphertext
         } > 0
     }
@@ -103,37 +93,5 @@ internal class NotificationTargetDataSourceImpl(
     override suspend fun deleteByUserId(userId: Uuid) = dbQuery<Unit> {
         NotificationEmailTargetTable.deleteWhere { NotificationEmailTargetTable.userId eq userId }
         NotificationTelegramTargetTable.deleteWhere { NotificationTelegramTargetTable.userId eq userId }
-    }
-
-    override suspend fun encryptPlaintextEmails(limit: Int): Int = dbQuery {
-        val plaintext = NotificationEmailTargetEntity
-            .find { NotificationEmailTargetTable.emailEncrypted.isNull() }
-            .limit(limit)
-            .forUpdate()
-            .toList()
-        plaintext.forEach { target ->
-            target.emailEncrypted = encryptStored(target.userId, checkNotNull(target.email))
-            target.email = null
-        }
-        plaintext.size
-    }
-
-    override suspend fun encryptPlaintextTelegramTags(limit: Int): Int = dbQuery {
-        val plaintext = NotificationTelegramTargetEntity
-            .find { NotificationTelegramTargetTable.telegramTagEncrypted.isNull() }
-            .limit(limit)
-            .forUpdate()
-            .toList()
-        plaintext.forEach { target ->
-            target.telegramTagEncrypted = encryptStored(target.userId, checkNotNull(target.telegramTag))
-            target.telegramTag = null
-        }
-        plaintext.size
-    }
-
-    private suspend fun encryptStored(userId: Uuid, target: String): ByteArray {
-        return checkNotNull(targetCipher.encrypt(userId, target)) {
-            "The stored target of user $userId has a shredded key"
-        }
     }
 }

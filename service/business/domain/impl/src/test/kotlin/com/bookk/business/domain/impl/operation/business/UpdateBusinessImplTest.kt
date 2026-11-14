@@ -256,6 +256,10 @@ internal class UpdateBusinessImplTest {
         val schedule = scheduleOf(DayOfWeek.SATURDAY)
         val dayOffs = listOf(DayOffRange(LocalDate(2099, 12, 30), LocalDate(2099, 12, 31)))
         val updatedBusiness = Business.stub(id = businessId, schedule = schedule.copy(dayOffs = dayOffs))
+        val workingSaturday = DayOfWeekSchedule(
+            workingTime = listOf(WorkHour(LocalTime(9, 0), LocalTime(17, 0))),
+            isActive = true,
+        )
         coEvery { fixture.businessDataSource.updateBusiness(any(), any()) } returns updatedBusiness
 
         whenn()
@@ -267,13 +271,9 @@ internal class UpdateBusinessImplTest {
             fixture.eventProducer.send(
                 match<BusinessEvent.Updated> {
                     it.business.id == businessId &&
-                        it.business.schedule[DayOfWeek.SATURDAY] == DayOfWeekSchedule(
-                            workingTime = listOf(WorkHour(LocalTime(9, 0), LocalTime(17, 0))),
-                            isActive = true,
-                        ) &&
+                        it.business.schedule[DayOfWeek.SATURDAY] == workingSaturday &&
                         !it.business.schedule[DayOfWeek.MONDAY].isActive &&
-                        it.business.schedule.dayOffs ==
-                        listOf(DayOffRange(LocalDate(2099, 12, 30), LocalDate(2099, 12, 31)))
+                        it.business.schedule.dayOffs == dayOffs
                 },
                 any(),
             )

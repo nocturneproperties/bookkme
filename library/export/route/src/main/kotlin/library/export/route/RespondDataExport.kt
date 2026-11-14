@@ -31,11 +31,7 @@ suspend fun ApplicationCall.respondDataExport(document: DataExportDocument, file
 }
 
 private fun ApplicationCall.acceptsGzip(): Boolean = request.acceptEncodingItems().any {
-    (
-        it.value == GZIP ||
-            it.value == "*"
-        ) &&
-        it.quality > 0.0
+    (it.value == GZIP || it.value == "*") && it.quality > 0.0
 }
 
 private const val GZIP = "gzip"

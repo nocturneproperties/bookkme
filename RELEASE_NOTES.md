@@ -2,16 +2,17 @@
 
 ## 0.19.0
 
-Changes since `monolith/0.18.0`. Finishes the 0.18.0 transition: every business in appointments must now have its owner.
+Changes since `monolith/0.18.0`. Finishes the 0.18.0 encryption rollout: the unencrypted copies of personal data are dropped, and every appointments business must have its owner.
 
 ### Services
 
 - `BusinessDTO.ownerUserId` (6) is now required; a `BusinessEvent.Updated` or `getBusinessById` answer without it fails to decode.
-- The `appointments-fillBusinessOwners` job is removed.
+- The jobs `appointments-fillBusinessOwners`, `user-encryptPlaintextProfiles`, `notifications-encryptPlaintextTargets`, `business-encryptPlaintextContacts` and `appointments-encryptPlaintextSnapshots` are removed; a standalone notifications service no longer runs a scheduler.
 
 ### Upgrade
 
-- Upgrade from 0.18.0 only, never straight from 0.17.0.
+- Upgrade from 0.18.0 only, never straight from 0.17.0, and only after its encryption jobs finished.
+- User `V7`, notifications `V6`, business `V19` and appointments `V12` drop the plaintext personal-data columns and make the encrypted name and email columns NOT NULL. Before deploying, check that no profile, client, employee, notification target, appointment or request still has a plaintext column set or its encrypted name or email NULL; `V12` would drop such values silently.
 - Appointments `V12` makes `business_has_appointments.owner_user_id` NOT NULL and fails on a `NULL` there; before deploying, `SELECT COUNT(*) FROM appointments.business_has_appointments WHERE owner_user_id IS NULL` must return 0.
 - Before deploying, `SELECT COUNT(*) FROM appointments.exhausted_event WHERE original_topic = 'business.updated'` must return 0 for rows parked before the 0.18.0 deploy; replay or delete them first, since 0.19.0 can't decode them.
 

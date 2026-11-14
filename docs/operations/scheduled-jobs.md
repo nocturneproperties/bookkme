@@ -42,7 +42,6 @@ Registered in `registerAppointmentsJobs` (`AppointmentsMicroservice.kt`).
 | `appointments-markAppointmentsAsCompleted` | 5 minutes | `MarkAppointmentsCompleted` | Marks expired scheduled appointments `UNRESOLVED`, then automatically completes eligible appointments after their business-local end day, in one `READ_COMMITTED` transaction. See [Appointment finalization](#appointment-finalization). |
 | `appointments-deleteOutdatedRequests` | 1 hour | `DeleteOutdatedRequests` | `AppointmentRequestDataSource.cancelOutdated(now)` — cancels pending appointment requests whose slot has passed (`dateEnd < now`). |
 | `appointments-deleteExpiredRequests` | 1 day | `DeleteExpiredRequests` | `AppointmentRequestDataSource.deleteEndedBefore(now - 60 days)` in a `READ_COMMITTED` transaction: deletes every request whose slot ended more than 60 days ago, whatever its status (pending ones were already cancelled by `deleteOutdatedRequests`, approved ones live on as appointments). Uses the `appointment_request.date_end` index. |
-| `appointments-encryptPlaintextSnapshots` | 10 minutes | `EncryptPlaintextSnapshots` | Encrypts the `appointments.appointment` and then the `appointments.appointment_request` rows still stored as plaintext from before 0.18.0, 100 per `READ_COMMITTED` transaction (locked with `FOR UPDATE`, so the scan doesn't keep locks on rows it already encrypted): the client snapshot and note under the client's key, the employee name under the employee's user key, then sets the plaintext columns to NULL. An erased person's plaintext (shredded key, or an employee set to the nil UUID) is only dropped. Once none are left each run is one query per table; removed in 0.19.0 with the plaintext columns. |
 | `appointments-deleteExpiredTombstones` | 1 day | `DeleteExpiredTombstones` | `DeletedUserDataSource.deleteMarkedBefore` and `DeletedClientDataSource.deleteMarkedBefore` with `now - 60 days`, in one `READ_COMMITTED` transaction. 60 days is twice the 30-day backup window, so a restore still finds the tombstones it needs, and longer than parked events live (30 days), so a late `ClientLinked` replayed from `exhausted_event` still finds its tombstone. |
 
 ### Appointment finalization
@@ -119,7 +118,6 @@ Registered in `registerBusinessJobs` (`BusinessMicroservice.kt`).
 | `business-deleteExpiredErasureRecords` | 1 day | `DeleteExpiredErasureRecords` | Deletes `business.erased_client` rows older than 60 days. |
 | `business-buildDataExports` | 1 minute | `BuildDataExports` (`library/export`, with `BusinessDataExportAssembler`) | Builds the queued business data exports the same way as `user-buildDataExports`, from the business's own data and appointments' part, and sends `BusinessEvent.ExportReady` in the transaction that stores the document. See [Start business data export](business/start-business-data-export.md). |
 | `business-deleteExpiredDataExports` | 1 hour | `DeleteExpiredDataExports` (`library/export`) | Deletes `business.data_export` rows whose `expires_at` passed and shreds their documents' keys in the same transaction. |
-| `business-encryptPlaintextContacts` | 10 minutes | `EncryptPlaintextContacts` | Encrypts the `business.client` and then the `business.employee` rows still stored as plaintext from before 0.18.0, 100 per transaction (locked with `FOR UPDATE`), clients under their own key and employees under their user's key, fills `client.email_index` and sets the plaintext columns to NULL. Once none are left each run is one query per table; removed in 0.19.0 with the plaintext columns. |
 
 ## User service
 
@@ -132,11 +130,7 @@ Registered in `registerBusinessJobs` (`BusinessMicroservice.kt`).
 
 ## Notifications service
 
-`Application.registerNotificationsJobs` in `service/notifications/microservice/src/main/kotlin/com/bookk/notifications/microservice/NotificationsMicroservice.kt`.
-
-| Job | Interval | Operation | What it does |
-|---|---|---|---|
-| `notifications-encryptPlaintextTargets` | 10 minutes | `EncryptPlaintextTargets` | Encrypts the `notification_email_targets` and then the `notification_telegram_targets` rows still stored as plaintext from before 0.18.0, 100 per transaction (locked with `FOR UPDATE`), under each user's key, and sets the plaintext column to NULL. Once none are left each run is one query per table; removed in 0.19.0 with the plaintext columns. |
+No recurring jobs, so it installs no `Scheduler`.
 
 ## Adding a new job
 

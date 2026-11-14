@@ -44,19 +44,6 @@ internal class SnapshotCipher(
         return subjectKeys.encryptor(employeeUserId)?.bytesOf(name)
     }
 
-    suspend fun encryptPlaintext(stored: StoredSnapshot): EncryptedSnapshot {
-        val client = stored.plaintextClient
-        val employeeName = stored.plaintextEmployeeName
-        return EncryptedSnapshot(
-            client = if (client != null) encryptClient(stored.clientId, client) else stored.encryptedClient,
-            employeeName = if (employeeName != null) {
-                encryptEmployee(stored.employeeUserId, employeeName)
-            } else {
-                stored.encryptedEmployeeName
-            },
-        )
-    }
-
     suspend fun reencryptClient(
         stored: StoredSnapshot,
         reader: SnapshotReader,
@@ -98,7 +85,7 @@ internal class SnapshotReader(
     }
 
     private fun decryptClient(snapshot: StoredSnapshot): Decrypted<ClientDetails> {
-        val encrypted = snapshot.encryptedClient ?: return plaintextClient(snapshot)
+        val encrypted = snapshot.encryptedClient ?: return Decrypted.Shredded
         val clientId = snapshot.clientId
         return when (val name = decryptor.decrypt(clientId, encrypted.fullName)) {
             is Decrypted.Plain -> Decrypted.Plain(
@@ -116,13 +103,8 @@ internal class SnapshotReader(
         }
     }
 
-    private fun plaintextClient(snapshot: StoredSnapshot): Decrypted<ClientDetails> {
-        val plaintext = snapshot.plaintextClient ?: return Decrypted.Shredded
-        return Decrypted.Plain(plaintext)
-    }
-
     fun employeeName(snapshot: StoredSnapshot): String {
-        val encrypted = snapshot.encryptedEmployeeName ?: return snapshot.plaintextEmployeeName ?: ERASED_EMPLOYEE_NAME
+        val encrypted = snapshot.encryptedEmployeeName ?: return ERASED_EMPLOYEE_NAME
         return when (val name = decryptor.decrypt(snapshot.employeeUserId, encrypted)) {
             is Decrypted.Plain -> name.value.decodeToString()
             Decrypted.Shredded -> ERASED_EMPLOYEE_NAME

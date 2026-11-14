@@ -42,5 +42,4 @@ interface AppointmentDataSource {
     suspend fun anonymizeClient(businessId: Uuid, clientId: Uuid)
     suspend fun reassignClients(businessId: Uuid, fromClientIds: Collection<Uuid>, toClientId: Uuid)
     suspend fun linkClientUser(businessId: Uuid, clientId: Uuid, userId: Uuid)
-    suspend fun encryptPlaintextAppointments(limit: Int): Int
 }

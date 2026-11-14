@@ -26,11 +26,9 @@ import library.encryption.test.UnkeyedBlindIndex
 import library.schedule.Schedule
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.eq
-import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import kotlin.time.Instant
@@ -68,20 +66,6 @@ internal class EmployeeDataSourceImplEncryptionTest {
             return suspendTransaction { EmployeeTable.selectAll().where { EmployeeTable.id eq id }.single() }
         }
 
-        suspend fun insertLegacy(employee: Employee) {
-            suspendTransaction {
-                EmployeeTable.insert {
-                    it[EmployeeTable.id] = employee.id
-                    it[businessId] = this@SutFixture.businessId
-                    it[name] = employee.name
-                    it[lastName] = employee.lastName
-                    it[phone] = employee.phone
-                    it[email] = employee.email
-                    it[userId] = employee.userId
-                }
-            }
-        }
-
         suspend fun decrypted(userId: Uuid, ciphertext: ByteArray?): String? {
             val decryptor = subjectKeys.decryptor(listOf(userId))
             return ciphertext?.let { (decryptor.decrypt(userId, it) as Decrypted.Plain).value.decodeToString() }
@@ -102,7 +86,7 @@ internal class EmployeeDataSourceImplEncryptionTest {
     }
 
     @Test
-    fun `should store an employee encrypted under the employee's user key and no plaintext`() = runUnitTest {
+    fun `should store an employee encrypted under the employee's user key`() = runUnitTest {
         given()
         val fixture = SutFixture()
         fixture.setup()
@@ -119,10 +103,6 @@ internal class EmployeeDataSourceImplEncryptionTest {
 
         then()
         val row = fixture.storedRow(created.id)
-        assertNull(row[EmployeeTable.name])
-        assertNull(row[EmployeeTable.lastName])
-        assertNull(row[EmployeeTable.phone])
-        assertNull(row[EmployeeTable.email])
         assertEquals("Alice", fixture.decrypted(employee.userId, row[EmployeeTable.nameEncrypted]))
         assertEquals("Smith", fixture.decrypted(employee.userId, row[EmployeeTable.lastNameEncrypted]))
         assertEquals("+10000000000", fixture.decrypted(employee.userId, row[EmployeeTable.phoneEncrypted]))
@@ -144,42 +124,6 @@ internal class EmployeeDataSourceImplEncryptionTest {
         then()
         assertEquals(listOf(created.id), employees.map { it.id })
         assertEquals("Alice", employees.single().name)
-    }
-
-    @Test
-    fun `should read a plaintext employee`() = runUnitTest {
-        given()
-        val fixture = SutFixture()
-        fixture.setup()
-        val legacy = Employee.stub(businessId = fixture.businessId, name = "Legacy", email = "legacy@example.com")
-        fixture.insertLegacy(legacy)
-
-        whenn()
-        val read = suspendTransaction { fixture.sut.getEmployee(fixture.businessId, legacy.id) }
-
-        then()
-        assertEquals("Legacy", read?.name)
-        assertEquals("legacy@example.com", read?.email)
-    }
-
-    @Test
-    fun `should encrypt a plaintext employee when it is edited`() = runUnitTest {
-        given()
-        val fixture = SutFixture()
-        fixture.setup()
-        val legacy = Employee.stub(businessId = fixture.businessId, name = "Legacy")
-        fixture.insertLegacy(legacy)
-
-        whenn()
-        val updated = suspendTransaction { fixture.sut.updateEmployee(legacy.edit(name = "Renamed")) }
-
-        then()
-        val row = fixture.storedRow(legacy.id)
-        assertEquals("Renamed", updated.name)
-        assertNull(row[EmployeeTable.name])
-        assertNull(row[EmployeeTable.email])
-        assertEquals("Renamed", fixture.decrypted(legacy.userId, row[EmployeeTable.nameEncrypted]))
-        assertEquals(legacy.email, fixture.decrypted(legacy.userId, row[EmployeeTable.emailEncrypted]))
     }
 
     @Test
@@ -206,7 +150,7 @@ internal class EmployeeDataSourceImplEncryptionTest {
         val fixture = SutFixture()
         fixture.setup()
         val legacy = Employee.stub(businessId = fixture.businessId, name = "Old", phone = "+10000000001")
-        fixture.insertLegacy(legacy)
+        val stored = suspendTransaction { fixture.sut.createEmployee(legacy) }
 
         whenn()
         val updated = suspendTransaction {
@@ -221,10 +165,8 @@ internal class EmployeeDataSourceImplEncryptionTest {
         }
 
         then()
-        val row = fixture.storedRow(legacy.id)
+        val row = fixture.storedRow(stored.id)
         assertEquals(1, updated)
-        assertNull(row[EmployeeTable.name])
-        assertNull(row[EmployeeTable.phone])
         assertEquals("New", fixture.decrypted(legacy.userId, row[EmployeeTable.nameEncrypted]))
         assertEquals("new@example.com", fixture.decrypted(legacy.userId, row[EmployeeTable.emailEncrypted]))
         assertEquals("+10000000001", fixture.decrypted(legacy.userId, row[EmployeeTable.phoneEncrypted]))
@@ -255,30 +197,5 @@ internal class EmployeeDataSourceImplEncryptionTest {
         then()
         assertEquals(0, updated)
         assertTrue(before.contentEquals(fixture.storedRow(created.id)[EmployeeTable.nameEncrypted]))
-    }
-
-    @Test
-    fun `should encrypt plaintext employees in batches`() = runUnitTest {
-        given()
-        val fixture = SutFixture()
-        fixture.setup()
-        val first = Employee.stub(businessId = fixture.businessId, name = "First")
-        val second = Employee.stub(businessId = fixture.businessId, name = "Second")
-        fixture.insertLegacy(first)
-        fixture.insertLegacy(second)
-        suspendTransaction { fixture.sut.createEmployee(Employee.stub(businessId = fixture.businessId)) }
-
-        whenn()
-        val firstBatch = suspendTransaction { fixture.sut.encryptPlaintextEmployees(limit = 1) }
-        val secondBatch = suspendTransaction { fixture.sut.encryptPlaintextEmployees(limit = 1) }
-        val thirdBatch = suspendTransaction { fixture.sut.encryptPlaintextEmployees(limit = 1) }
-
-        then()
-        assertEquals(listOf(1, 1, 0), listOf(firstBatch, secondBatch, thirdBatch))
-        listOf(first, second).forEach { employee ->
-            val row = fixture.storedRow(employee.id)
-            assertNull(row[EmployeeTable.name])
-            assertEquals(employee.name, fixture.decrypted(employee.userId, row[EmployeeTable.nameEncrypted]))
-        }
     }
 }

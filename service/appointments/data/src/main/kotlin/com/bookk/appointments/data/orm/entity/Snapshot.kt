@@ -31,8 +31,6 @@ internal class EncryptedSnapshot(
 internal class StoredSnapshot(
     val clientId: Uuid,
     val employeeUserId: Uuid,
-    val plaintextClient: ClientDetails?,
     val encryptedClient: EncryptedClientDetails?,
-    val plaintextEmployeeName: String?,
     val encryptedEmployeeName: ByteArray?,
 )

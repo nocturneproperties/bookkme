@@ -163,12 +163,6 @@ internal class EmployeeDataSourceImpl(private val contactCipher: ContactCipher) 
             .map { it[EmployeeTable.userId] }
     }
 
-    override suspend fun encryptPlaintextEmployees(limit: Int): Int = dbQuery {
-        val plaintext = EmployeeEntity.find { EmployeeTable.nameEncrypted.isNull() }.limit(limit).forUpdate().toList()
-        plaintext.forEach { entity -> entity.store(encryptExisting(entity.userId, entity.plaintextContact())) }
-        plaintext.size
-    }
-
     private suspend fun encryptExisting(userId: Uuid, contact: Contact): EncryptedContact {
         return checkNotNull(contactCipher.encrypt(userId, contact)) { "The employee user $userId has a shredded key" }
     }

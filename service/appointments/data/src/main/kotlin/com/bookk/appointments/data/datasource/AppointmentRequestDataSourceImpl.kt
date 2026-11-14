@@ -17,7 +17,6 @@ import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.greater
 import org.jetbrains.exposed.v1.core.inList
-import org.jetbrains.exposed.v1.core.isNotNull
 import org.jetbrains.exposed.v1.core.less
 import org.jetbrains.exposed.v1.core.or
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
@@ -173,8 +172,7 @@ internal class AppointmentRequestDataSourceImpl(
             val reader = snapshotCipher.reader(snapshots.values, AppointmentRequestTable.tableName)
             snapshots.forEach { (entity, snapshot) ->
                 val client = snapshotCipher.reencryptClient(snapshot, reader, toClientId)
-                entity.clientId = toClientId
-                entity.storeClient(client)
+                AppointmentRequestEntity.findByIdAndUpdateClient(entity.id.value, toClientId, client)
             }
         }
     }
@@ -196,16 +194,6 @@ internal class AppointmentRequestDataSourceImpl(
 
     override suspend fun deleteEndedBefore(before: Instant) = dbQuery<Unit> {
         AppointmentRequestTable.deleteWhere { AppointmentRequestTable.dateEnd less before }
-    }
-
-    override suspend fun encryptPlaintextRequests(limit: Int): Int = dbQuery {
-        val plaintext = AppointmentRequestEntity
-            .find { AppointmentRequestTable.clientName.isNotNull() or AppointmentRequestTable.employeeName.isNotNull() }
-            .limit(limit)
-            .forUpdate()
-            .toList()
-        plaintext.forEach { it.store(snapshotCipher.encryptPlaintext(it.storedSnapshot())) }
-        plaintext.size
     }
 
     private suspend fun encrypt(request: AppointmentRequest): EncryptedSnapshot {

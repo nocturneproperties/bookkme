@@ -11,12 +11,7 @@ import kotlin.uuid.Uuid
 
 internal class ClientEntity(id: EntityID<Uuid>) : UuidEntity(id) {
     val businessId by ClientTable.businessId
-    var name by ClientTable.name
-    var lastName by ClientTable.lastName
-    var phone by ClientTable.phone
-    var email by ClientTable.email
     var userId by ClientTable.userId
-    var description by ClientTable.description
     var nameEncrypted by ClientTable.nameEncrypted
     var lastNameEncrypted by ClientTable.lastNameEncrypted
     var phoneEncrypted by ClientTable.phoneEncrypted
@@ -26,21 +21,10 @@ internal class ClientEntity(id: EntityID<Uuid>) : UuidEntity(id) {
     var sourceUpdatedAt by ClientTable.sourceUpdatedAt
     var lastActivityAt by ClientTable.lastActivityAt
 
-    fun plaintextContact(): Contact {
-        return Contact(
-            name = name.orEmpty(),
-            lastName = lastName.orEmpty(),
-            phone = phone,
-            email = email,
-            description = description,
-        )
-    }
-
     fun contact(reader: ContactReader): Contact {
-        val encryptedName = nameEncrypted ?: return plaintextContact()
         val encrypted = EncryptedContact(
-            name = encryptedName,
-            lastName = checkNotNull(lastNameEncrypted) { "Client ${id.value} has no encrypted last name" },
+            name = nameEncrypted,
+            lastName = lastNameEncrypted,
             phone = phoneEncrypted,
             email = emailEncrypted,
             description = descriptionEncrypted,
@@ -49,18 +33,12 @@ internal class ClientEntity(id: EntityID<Uuid>) : UuidEntity(id) {
     }
 
     fun store(contact: EncryptedContact, emailIndex: String?, reindexEmail: Boolean) {
-        val unindexed = nameEncrypted == null
         nameEncrypted = contact.name
         lastNameEncrypted = contact.lastName
         phoneEncrypted = contact.phone
         emailEncrypted = contact.email
         descriptionEncrypted = contact.description
-        name = null
-        lastName = null
-        phone = null
-        email = null
-        description = null
-        if (unindexed || reindexEmail) this.emailIndex = emailIndex
+        if (reindexEmail) this.emailIndex = emailIndex
     }
 
     fun toDomain(contact: Contact): Client {

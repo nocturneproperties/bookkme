@@ -1,13 +1,11 @@
 package com.bookk.appointments.data.datasource
 
-import com.bookk.appointments.data.orm.entity.AppointmentRequestServiceEntity
 import com.bookk.appointments.data.orm.table.AppointmentBusinessTable
 import com.bookk.appointments.data.orm.table.AppointmentRequestServicesTable
 import com.bookk.appointments.data.orm.table.AppointmentRequestTable
 import com.bookk.appointments.data.orm.table.DayOffsTable
 import com.bookk.appointments.data.orm.table.WorkingHoursTable
 import com.bookk.appointments.domain.api.entity.AppointmentRequest
-import com.bookk.appointments.domain.api.entity.AppointmentRequestStatus
 import com.bookk.appointments.domain.api.entity.BusinessSnapshot
 import com.bookk.appointments.domain.api.entity.EmployeeSnapshot
 import com.bookk.appointments.domain.api.entity.RequestClientSnapshot
@@ -21,13 +19,10 @@ import library.encryption.Decrypted
 import library.encryption.test.InMemorySubjectKeys
 import library.encryption.test.RecordingMissingKeys
 import org.jetbrains.exposed.v1.core.ResultRow
-import org.jetbrains.exposed.v1.core.dao.id.EntityID
 import org.jetbrains.exposed.v1.core.eq
-import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 import kotlin.uuid.Uuid
 
@@ -66,32 +61,6 @@ internal class AppointmentRequestDataSourceImplEncryptionTest {
             }
         }
 
-        suspend fun insertLegacy(request: AppointmentRequest) {
-            suspendTransaction {
-                AppointmentRequestTable.insert {
-                    it[AppointmentRequestTable.id] = request.id
-                    it[initiatorUserId] = request.initiatorUserId
-                    it[businessId] = request.businessId
-                    it[employeeId] = request.employee.id
-                    it[employeeUserId] = request.employee.userId
-                    it[employeeName] = request.employee.fullName
-                    it[clientId] = request.client.id
-                    it[clientUserId] = request.client.userId
-                    it[clientName] = request.client.fullName
-                    it[clientPhone] = request.client.phone
-                    it[clientEmail] = request.client.email
-                    it[dateStart] = request.date
-                    it[dateEnd] = request.dateEnd
-                    it[note] = request.note
-                    it[status] = AppointmentRequestStatus.PENDING
-                    it[declineReason] = ""
-                }
-                request.services.forEach {
-                    AppointmentRequestServiceEntity.new(EntityID(request.id, AppointmentRequestTable), it)
-                }
-            }
-        }
-
         suspend fun decrypted(subjectId: Uuid, ciphertext: ByteArray?): String? {
             val decryptor = subjectKeys.decryptor(listOf(subjectId))
             return ciphertext?.let { (decryptor.decrypt(subjectId, it) as Decrypted.Plain).value.decodeToString() }
@@ -99,7 +68,7 @@ internal class AppointmentRequestDataSourceImplEncryptionTest {
     }
 
     @Test
-    fun `should store the request's client snapshot and note under the client's key and no plaintext`() =
+    fun `should store the request's client snapshot and note under the client's key`() =
         runUnitTest {
             given()
             val fixture = SutFixture()
@@ -112,11 +81,6 @@ internal class AppointmentRequestDataSourceImplEncryptionTest {
             then()
             val row = fixture.storedRow(created.id)
             val clientId = request.client.id
-            assertNull(row[AppointmentRequestTable.clientName])
-            assertNull(row[AppointmentRequestTable.clientPhone])
-            assertNull(row[AppointmentRequestTable.clientEmail])
-            assertNull(row[AppointmentRequestTable.note])
-            assertNull(row[AppointmentRequestTable.employeeName])
             assertEquals(
                 request.client.fullName,
                 fixture.decrypted(clientId, row[AppointmentRequestTable.clientNameEncrypted]),
@@ -163,7 +127,6 @@ internal class AppointmentRequestDataSourceImplEncryptionTest {
 
         then()
         val row = fixture.storedRow(created.id)
-        assertNull(row[AppointmentRequestTable.note])
         assertEquals("Long hair", fixture.decrypted(created.client.id, row[AppointmentRequestTable.noteEncrypted]))
         assertEquals(
             "Other Employee",
@@ -184,21 +147,6 @@ internal class AppointmentRequestDataSourceImplEncryptionTest {
         then()
         assertEquals(created.client, declined.client)
         assertEquals(created.note, declined.note)
-    }
-
-    @Test
-    fun `should read a plaintext request`() = runUnitTest {
-        given()
-        val fixture = SutFixture()
-        fixture.setup()
-        val legacy = fixture.request()
-        fixture.insertLegacy(legacy)
-
-        whenn()
-        val read = suspendTransaction { fixture.sut.get(legacy.id) }
-
-        then()
-        assertEquals(legacy, read)
     }
 
     @Test
@@ -249,28 +197,5 @@ internal class AppointmentRequestDataSourceImplEncryptionTest {
         val row = fixture.storedRow(moved.id)
         assertEquals(moved.client.fullName, fixture.decrypted(keptId, row[AppointmentRequestTable.clientNameEncrypted]))
         assertEquals(moved.client.copy(id = keptId), suspendTransaction { fixture.sut.get(moved.id) }?.client)
-    }
-
-    @Test
-    fun `should encrypt plaintext requests and clear their plaintext`() = runUnitTest {
-        given()
-        val fixture = SutFixture()
-        fixture.setup()
-        val legacy = fixture.request()
-        fixture.insertLegacy(legacy)
-        repeat(2) { fixture.insertLegacy(fixture.request()) }
-
-        whenn()
-        val first = suspendTransaction { fixture.sut.encryptPlaintextRequests(limit = 2) }
-        val second = suspendTransaction { fixture.sut.encryptPlaintextRequests(limit = 2) }
-
-        then()
-        assertEquals(listOf(2, 1), listOf(first, second))
-        val row = fixture.storedRow(legacy.id)
-        assertNull(row[AppointmentRequestTable.clientName])
-        assertNull(row[AppointmentRequestTable.note])
-        assertNull(row[AppointmentRequestTable.employeeName])
-        assertEquals(legacy.note, fixture.decrypted(legacy.client.id, row[AppointmentRequestTable.noteEncrypted]))
-        assertEquals(legacy, suspendTransaction { fixture.sut.get(legacy.id) })
     }
 }

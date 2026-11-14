@@ -32,21 +32,16 @@ internal class AppointmentEntity(id: EntityID<Uuid>) : UuidEntity(id) {
     var businessId by AppointmentTable.businessId
     var employeeId by AppointmentTable.employeeId
     var employeeUserId by AppointmentTable.employeeUserId
-    var employeeName by AppointmentTable.employeeName
     var employeeNameEncrypted by AppointmentTable.employeeNameEncrypted
     var clientId by AppointmentTable.clientId
     var clientUserId by AppointmentTable.clientUserId
-    var clientName by AppointmentTable.clientName
     var clientNameEncrypted by AppointmentTable.clientNameEncrypted
-    var clientPhone by AppointmentTable.clientPhone
     var clientPhoneEncrypted by AppointmentTable.clientPhoneEncrypted
-    var clientEmail by AppointmentTable.clientEmail
     var clientEmailEncrypted by AppointmentTable.clientEmailEncrypted
     val services by AppointmentServiceEntity referrersOn AppointmentServicesTable.appointmentId
     val priceAdjustments by PriceAdjustmentEntity referrersOn PriceAdjustmentTable.appointmentId
     var dateStart by AppointmentTable.dateStart
     var dateEnd by AppointmentTable.dateEnd
-    var note by AppointmentTable.note
     var noteEncrypted by AppointmentTable.noteEncrypted
     var status by AppointmentTable.status
     var cancellationReason by AppointmentTable.cancellationReason
@@ -107,7 +102,6 @@ internal class AppointmentEntity(id: EntityID<Uuid>) : UuidEntity(id) {
         return StoredSnapshot(
             clientId = clientId,
             employeeUserId = employeeUserId,
-            plaintextClient = clientName?.let { ClientDetails(it, clientPhone, clientEmail, note.orEmpty()) },
             encryptedClient = clientNameEncrypted?.let {
                 EncryptedClientDetails(
                     fullName = it,
@@ -116,26 +110,8 @@ internal class AppointmentEntity(id: EntityID<Uuid>) : UuidEntity(id) {
                     note = checkNotNull(noteEncrypted) { "Snapshot of client $clientId has no encrypted note" },
                 )
             },
-            plaintextEmployeeName = employeeName,
             encryptedEmployeeName = employeeNameEncrypted,
         )
-    }
-
-    fun store(encrypted: EncryptedSnapshot) {
-        storeClient(encrypted.client)
-        employeeNameEncrypted = encrypted.employeeName
-        employeeName = null
-    }
-
-    fun storeClient(encrypted: EncryptedClientDetails?) {
-        clientNameEncrypted = encrypted?.fullName
-        clientPhoneEncrypted = encrypted?.phone
-        clientEmailEncrypted = encrypted?.email
-        noteEncrypted = encrypted?.note
-        clientName = null
-        clientPhone = null
-        clientEmail = null
-        note = null
     }
 
     companion object : DecoratorUuidEntityClass<AppointmentEntity>(AppointmentTable) {
@@ -149,7 +125,7 @@ internal class AppointmentEntity(id: EntityID<Uuid>) : UuidEntity(id) {
             clientUserId = request.client.userId
             dateStart = request.date
             dateEnd = request.dateEnd
-            store(encrypted)
+            writeSnapshot(encrypted)
             status = AppointmentStatus.SCHEDULED
             cancellationReason = ""
         }
@@ -163,14 +139,15 @@ internal class AppointmentEntity(id: EntityID<Uuid>) : UuidEntity(id) {
             clientUserId = appointment.client.userId
             dateStart = appointment.date
             dateEnd = appointment.dateEnd
-            store(encrypted)
+            writeSnapshot(encrypted)
             status = AppointmentStatus.SCHEDULED
             cancellationReason = ""
         }
 
-        fun findByIdAndUpdate(appointment: Appointment, encrypted: EncryptedSnapshot) = findByIdAndUpdate(
-            appointment.id,
-        ) {
+        fun findByIdAndUpdate(
+            appointment: Appointment,
+            encrypted: EncryptedSnapshot,
+        ) = findByIdAndUpdate(appointment.id) {
             it.initiatorUserId = appointment.initiatorUserId
             it.businessId = EntityID(appointment.businessId, table = AppointmentBusinessTable)
             it.employeeId = appointment.employee.id
@@ -179,8 +156,29 @@ internal class AppointmentEntity(id: EntityID<Uuid>) : UuidEntity(id) {
             it.clientUserId = appointment.client.userId
             it.dateStart = appointment.date
             it.dateEnd = appointment.dateEnd
-            it.store(encrypted)
+            it.writeSnapshot(encrypted)
             it.updatedAt = Clock.System.now()
+        }
+
+        fun findByIdAndUpdateClient(
+            id: Uuid,
+            clientId: Uuid,
+            encrypted: EncryptedClientDetails?,
+        ) = findByIdAndUpdate(id) {
+            it.clientId = clientId
+            it.writeClient(encrypted)
+        }
+
+        private fun AppointmentEntity.writeSnapshot(encrypted: EncryptedSnapshot) {
+            writeClient(encrypted.client)
+            employeeNameEncrypted = encrypted.employeeName
+        }
+
+        private fun AppointmentEntity.writeClient(encrypted: EncryptedClientDetails?) {
+            clientNameEncrypted = encrypted?.fullName
+            clientPhoneEncrypted = encrypted?.phone
+            clientEmailEncrypted = encrypted?.email
+            noteEncrypted = encrypted?.note
         }
     }
 }

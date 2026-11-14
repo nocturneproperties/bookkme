@@ -38,10 +38,9 @@ internal class ProfileCipher(
     }
 
     suspend fun decrypt(entity: UserEntity): User {
-        val encryptedEmail = entity.emailEncrypted ?: return entity.plaintextDomain()
         val id = entity.id.value
         val decryptor = subjectKeys.decryptor(listOf(id))
-        val email = decryptor.decrypt(id, encryptedEmail)
+        val email = decryptor.decrypt(id, entity.emailEncrypted)
         if (email !is Decrypted.Plain) return unreadable(id, email)
         return User(
             id = id,

@@ -13,6 +13,4 @@ interface NotificationTargetDataSource {
     suspend fun insertTelegram(userId: Uuid, telegramTag: String)
     suspend fun updateTelegram(userId: Uuid, telegramTag: String): Boolean
     suspend fun deleteByUserId(userId: Uuid)
-    suspend fun encryptPlaintextEmails(limit: Int): Int
-    suspend fun encryptPlaintextTelegramTags(limit: Int): Int
 }
