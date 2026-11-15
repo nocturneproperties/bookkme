@@ -75,7 +75,7 @@ internal class AppointmentRequestDataSourceImpl(
         val read = snapshotCipher.read(stored.storedSnapshot(), AppointmentRequestTable.tableName)
         val requestEntity = AppointmentRequestEntity.findByIdAndUpdate(
             request,
-            snapshotCipher.encryptChanges(request, read)
+            snapshotCipher.encryptChanges(request, read),
         ) ?: throw Error.NotFound()
         AppointmentRequestServicesTable.deleteWhere {
             AppointmentRequestServicesTable.requestId eq request.id
