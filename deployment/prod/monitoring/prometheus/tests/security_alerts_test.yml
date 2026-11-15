@@ -1,0 +1,285 @@
+rule_files:
+  - ../security_alerts.yml
+
+evaluation_interval: 1m
+
+tests:
+  - name: sign-in failures above the floor and last week fire
+    interval: 1m
+    input_series:
+      - series: 'ktor_http_server_requests_seconds_count{job="monolith", route="/api/auth/refresh", method="POST", status="401"}'
+        values: '0+10x20'
+      - series: 'ktor_http_server_requests_seconds_count{job="monolith", route="/api/auth/email", method="POST", status="429"}'
+        values: '0+100x20'
+    promql_expr_test:
+      - expr: ALERTS{alertname="SignInFailuresSpike", alertstate="firing"}
+        eval_time: 15m
+        exp_samples:
+          - labels: 'ALERTS{alertname="SignInFailuresSpike", alertstate="firing", severity="warning"}'
+            value: 1
+
+  - name: sign-in failures below the floor stay quiet, rate limits never count
+    interval: 1m
+    input_series:
+      - series: 'ktor_http_server_requests_seconds_count{job="monolith", route="/api/auth/refresh", method="POST", status="401"}'
+        values: '0+4x20'
+      - series: 'ktor_http_server_requests_seconds_count{job="monolith", route="/api/auth/email", method="POST", status="429"}'
+        values: '0+100x20'
+    promql_expr_test:
+      - expr: ALERTS{alertname="SignInFailuresSpike", alertstate="firing"}
+        eval_time: 15m
+        exp_samples: []
+
+  - name: sign-in failures as high as last week stay quiet
+    interval: 5m
+    input_series:
+      - series: 'ktor_http_server_requests_seconds_count{job="monolith", route="/api/auth/refresh", method="POST", status="401"}'
+        values: '0+300x2100'
+    promql_expr_test:
+      - expr: ALERTS{alertname="SignInFailuresSpike", alertstate="firing"}
+        eval_time: 170h
+        exp_samples: []
+
+  - name: a reused refresh token fires
+    interval: 1m
+    input_series:
+      - series: 'auth_refresh_token_reused_total{job="monolith"}'
+        values: '0 0 0 1 1 1'
+    promql_expr_test:
+      - expr: ALERTS{alertname="RefreshTokenReused", alertstate="firing"}
+        eval_time: 5m
+        exp_samples:
+          - labels: 'ALERTS{alertname="RefreshTokenReused", alertstate="firing", severity="critical"}'
+            value: 1
+
+  - name: five limited addresses in an hour fire, four stay quiet
+    interval: 5m
+    input_series:
+      - series: 'email_code_send_limited_total{job="monolith"}'
+        values: '0 1 2 3 4 4 4 5'
+    promql_expr_test:
+      - expr: ALERTS{alertname="EmailCodeSendLimitAcrossAddresses", alertstate="firing"}
+        eval_time: 20m
+        exp_samples: []
+      - expr: ALERTS{alertname="EmailCodeSendLimitAcrossAddresses", alertstate="firing"}
+        eval_time: 35m
+        exp_samples:
+          - labels: 'ALERTS{alertname="EmailCodeSendLimitAcrossAddresses", alertstate="firing", severity="warning"}'
+            value: 1
+
+  - name: many wrong codes fire
+    interval: 1m
+    input_series:
+      - series: 'email_code_rejected_total{job="monolith", reason="wrong_code"}'
+        values: '0+1x60'
+    promql_expr_test:
+      - expr: ALERTS{alertname="EmailCodeGuessing", alertstate="firing"}
+        eval_time: 59m
+        exp_samples:
+          - labels: 'ALERTS{alertname="EmailCodeGuessing", alertstate="firing", severity="warning"}'
+            value: 1
+
+  - name: three exhausted verifications fire
+    interval: 10m
+    input_series:
+      - series: 'email_code_rejected_total{job="monolith", reason="attempts_exhausted"}'
+        values: '0 1 2 3'
+    promql_expr_test:
+      - expr: ALERTS{alertname="EmailCodeAttemptsExhausted", alertstate="firing"}
+        eval_time: 30m
+        exp_samples:
+          - labels: 'ALERTS{alertname="EmailCodeAttemptsExhausted", alertstate="firing", severity="warning"}'
+            value: 1
+
+  - name: a burst of business 404s fires, internal 404s never count
+    interval: 1m
+    input_series:
+      - series: 'ktor_http_server_requests_seconds_count{job="monolith", route="/api/business/{businessId}/clients", method="GET", status="404"}'
+        values: '0+5x20'
+      - series: 'ktor_http_server_requests_seconds_count{job="monolith", route="/api/internal/business/{id}", method="GET", status="404"}'
+        values: '0+100x20'
+    promql_expr_test:
+      - expr: ALERTS{alertname="BusinessNotFoundSpike", alertstate="firing"}
+        eval_time: 15m
+        exp_samples:
+          - labels: 'ALERTS{alertname="BusinessNotFoundSpike", alertstate="firing", severity="warning"}'
+            value: 1
+
+  - name: internal 404s alone stay quiet
+    interval: 1m
+    input_series:
+      - series: 'ktor_http_server_requests_seconds_count{job="monolith", route="/api/internal/business/{id}", method="GET", status="404"}'
+        values: '0+100x20'
+    promql_expr_test:
+      - expr: ALERTS{alertname="BusinessNotFoundSpike", alertstate="firing"}
+        eval_time: 15m
+        exp_samples: []
+
+  - name: a failed database login fires as a login, not as a privilege refusal
+    interval: 1m
+    input_series:
+      - series: 'mysql_global_status_aborted_connects{job="mariadb"}'
+        values: '0 0 1 1 1'
+      - series: 'mysql_global_status_access_denied_errors{job="mariadb"}'
+        values: '0 0 1 1 1'
+    promql_expr_test:
+      - expr: ALERTS{alertname="MariaDBLoginFailed", alertstate="firing"}
+        eval_time: 4m
+        exp_samples:
+          - labels: 'ALERTS{alertname="MariaDBLoginFailed", alertstate="firing", severity="critical"}'
+            value: 1
+      - expr: ALERTS{alertname="MariaDBAccessDenied", alertstate="firing"}
+        eval_time: 4m
+        exp_samples: []
+
+  - name: a privilege refusal fires on its own
+    interval: 1m
+    input_series:
+      - series: 'mysql_global_status_aborted_connects{job="mariadb"}'
+        values: '0 0 0 0 0'
+      - series: 'mysql_global_status_access_denied_errors{job="mariadb"}'
+        values: '0 0 1 1 1'
+    promql_expr_test:
+      - expr: ALERTS{alertname="MariaDBAccessDenied", alertstate="firing"}
+        eval_time: 4m
+        exp_samples:
+          - labels: 'ALERTS{alertname="MariaDBAccessDenied", alertstate="firing", severity="warning"}'
+            value: 1
+      - expr: ALERTS{alertname="MariaDBLoginFailed", alertstate="firing"}
+        eval_time: 4m
+        exp_samples: []
+
+  - name: a wrong Valkey password fires
+    interval: 1m
+    input_series:
+      - series: 'redis_errors_total{job="valkey", err="WRONGPASS"}'
+        values: '0 0 2 2 2'
+      - series: 'redis_errors_total{job="valkey", err="OOM"}'
+        values: '0 0 5 5 5'
+    promql_expr_test:
+      - expr: ALERTS{alertname="ValkeyLoginFailed", alertstate="firing"}
+        eval_time: 4m
+        exp_samples:
+          - labels: 'ALERTS{alertname="ValkeyLoginFailed", alertstate="firing", severity="critical"}'
+            value: 1
+
+  - name: six exports started in an hour fire, downloads never count
+    interval: 10m
+    input_series:
+      - series: 'ktor_http_server_requests_seconds_count{job="monolith", route="/api/user/export", method="POST", status="200"}'
+        values: '0 1 2 3 4'
+      - series: 'ktor_http_server_requests_seconds_count{job="monolith", route="/api/business/{id}/export", method="POST", status="200"}'
+        values: '0 0 1 2 2'
+      - series: 'ktor_http_server_requests_seconds_count{job="monolith", route="/api/business/{id}/export/download", method="GET", status="200"}'
+        values: '0 10 20 30 40'
+    promql_expr_test:
+      - expr: ALERTS{alertname="DataExportsUnusual", alertstate="firing"}
+        eval_time: 40m
+        exp_samples:
+          - labels: 'ALERTS{alertname="DataExportsUnusual", alertstate="firing", severity="warning"}'
+            value: 1
+
+  - name: a route sending far more bytes than last week fires
+    interval: 30m
+    input_series:
+      - series: 'http_server_response_size_bytes_sum{job="monolith", method="GET", route="/api/business/{businessId}/clients"}'
+        values: '0+0.5e6x336 168e6+100e6x4'
+    promql_expr_test:
+      - expr: ALERTS{alertname="ResponseVolumeUnusual", alertstate="firing"}
+        eval_time: 170h
+        exp_samples:
+          - labels: 'ALERTS{alertname="ResponseVolumeUnusual", alertstate="firing", method="GET", route="/api/business/{businessId}/clients", severity="warning"}'
+            value: 1
+
+  - name: a route steadily above the floor stays quiet
+    interval: 30m
+    input_series:
+      - series: 'http_server_response_size_bytes_sum{job="monolith", method="GET", route="/api/business/{businessId}/clients"}'
+        values: '0+50e6x400'
+    promql_expr_test:
+      - expr: ALERTS{alertname="ResponseVolumeUnusual", alertstate="firing"}
+        eval_time: 170h
+        exp_samples: []
+
+  - name: the metrics scrape never counts, even with no week-old data
+    interval: 30m
+    input_series:
+      - series: 'http_server_response_size_bytes_sum{job="monolith", method="GET", route="/metrics"}'
+        values: '0+40e6x10'
+    promql_expr_test:
+      - expr: ALERTS{alertname="ResponseVolumeUnusual", alertstate="firing"}
+        eval_time: 4h
+        exp_samples: []
+
+  - name: responses sent before routing count under one label
+    interval: 30m
+    input_series:
+      - series: 'http_server_response_size_bytes_sum{job="monolith", method="POST", route="unrouted"}'
+        values: '0+40e6x10'
+    promql_expr_test:
+      - expr: ALERTS{alertname="ResponseVolumeUnusual", alertstate="firing"}
+        eval_time: 4h
+        exp_samples:
+          - labels: 'ALERTS{alertname="ResponseVolumeUnusual", alertstate="firing", method="POST", route="unrouted", severity="warning"}'
+            value: 1
+
+  - name: nightly pruning never fires
+    interval: 1h
+    input_series:
+      - series: 'bookk_backup_dumps{job="node-exporter"}'
+        values: '30x23 31 30x47'
+      - series: 'bookk_backup_oldest_dump_timestamp_seconds{job="node-exporter"}'
+        values: '0x23 86400x24 172800x24'
+      - series: 'bookk_backup_stored_bytes{job="node-exporter", kind="dump"}'
+        values: '30e9x23 29e9x48'
+    promql_expr_test:
+      - expr: ALERTS{alertname="BackupDumpsDeleted", alertstate="firing"}
+        eval_time: 70h
+        exp_samples: []
+      - expr: ALERTS{alertname="OldestBackupDumpYounger", alertstate="firing"}
+        eval_time: 70h
+        exp_samples: []
+      - expr: ALERTS{alertname="BackupStorageShrank", alertstate="firing"}
+        eval_time: 70h
+        exp_samples: []
+
+  - name: deleted dumps fire
+    interval: 1h
+    input_series:
+      - series: 'bookk_backup_dumps{job="node-exporter"}'
+        values: '30x10 20x10'
+      - series: 'bookk_backup_oldest_dump_timestamp_seconds{job="node-exporter"}'
+        values: '0x10 864000x10'
+      - series: 'bookk_backup_stored_bytes{job="node-exporter", kind="dump"}'
+        values: '30e9x10 10e9x10'
+    promql_expr_test:
+      - expr: ALERTS{alertname="BackupDumpsDeleted", alertstate="firing"}
+        eval_time: 12h
+        exp_samples:
+          - labels: 'ALERTS{alertname="BackupDumpsDeleted", alertstate="firing", job="node-exporter", severity="critical"}'
+            value: 1
+      - expr: ALERTS{alertname="OldestBackupDumpYounger", alertstate="firing"}
+        eval_time: 12h
+        exp_samples:
+          - labels: 'ALERTS{alertname="OldestBackupDumpYounger", alertstate="firing", job="node-exporter", severity="critical"}'
+            value: 1
+      - expr: ALERTS{alertname="BackupStorageShrank", alertstate="firing"}
+        eval_time: 12h
+        exp_samples:
+          - labels: 'ALERTS{alertname="BackupStorageShrank", alertstate="firing", job="node-exporter", kind="dump", severity="critical"}'
+            value: 1
+
+  - name: key backups pruned every 5 minutes stay quiet, deleted ones fire
+    interval: 5m
+    input_series:
+      - series: 'bookk_backup_oldest_keys_timestamp_seconds{job="node-exporter"}'
+        values: '0+300x12 100000x6'
+    promql_expr_test:
+      - expr: ALERTS{alertname="OldestKeyBackupYounger", alertstate="firing"}
+        eval_time: 55m
+        exp_samples: []
+      - expr: ALERTS{alertname="OldestKeyBackupYounger", alertstate="firing"}
+        eval_time: 70m
+        exp_samples:
+          - labels: 'ALERTS{alertname="OldestKeyBackupYounger", alertstate="firing", job="node-exporter", severity="critical"}'
+            value: 1

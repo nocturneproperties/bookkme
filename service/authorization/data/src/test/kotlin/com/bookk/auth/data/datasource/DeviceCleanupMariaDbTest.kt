@@ -78,7 +78,15 @@ internal class DeviceCleanupMariaDbTest {
 
         then()
         assertEquals(listOf(DeviceIdentity(first.id, deviceUuid)), deleted)
-        assertNull(suspendTransaction(db = database) { fixture.sut.getDeviceByAuthIdAndUUID(first.id, deviceUuid) })
-        assertNotNull(suspendTransaction(db = database) { fixture.sut.getDeviceByAuthIdAndUUID(second.id, deviceUuid) })
+        assertNull(
+            suspendTransaction(db = database) {
+                fixture.sut.getDeviceByAuthIdAndUUIDForUpdate(first.id, deviceUuid)
+            },
+        )
+        assertNotNull(
+            suspendTransaction(db = database) {
+                fixture.sut.getDeviceByAuthIdAndUUIDForUpdate(second.id, deviceUuid)
+            },
+        )
     }
 }

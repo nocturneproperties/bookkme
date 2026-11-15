@@ -4,6 +4,7 @@ plugins {
 
 dependencies {
     implementation(libs.passkey)
+    implementation(libs.micrometer.core)
     implementation(projects.core)
     implementation(projects.core.domain)
     implementation(projects.core.domain.datasource)

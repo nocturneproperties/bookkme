@@ -5,6 +5,7 @@ import com.bookk.core.test.given
 import com.bookk.core.test.runUnitTest
 import com.bookk.core.test.then
 import com.bookk.core.test.whenn
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -45,13 +46,18 @@ internal class EmailCodeIssuerImplTest {
         val sentMessages = mutableListOf<EmailMessage>()
         val renderedCodes = mutableListOf<String>()
         val ownerId = Uuid.random()
-        val sut = EmailCodeIssuerImpl(store, hasher, sender, SecureRandom(), clock)
+        val meterRegistry = SimpleMeterRegistry()
+        val sut = EmailCodeIssuerImpl(store, hasher, sender, SecureRandom(), clock, EmailCodeMetrics(meterRegistry))
 
         init {
             coEvery { sender.send(any()) } answers {
                 sentMessages += firstArg<EmailMessage>()
                 Result.success(Unit)
             }
+        }
+
+        fun limitedAddresses(): Double {
+            return meterRegistry.find(EmailCodeMetrics.SEND_LIMITED).counter()?.count() ?: 0.0
         }
 
         suspend fun issue(email: String = EMAIL) = sut.issue(email, PURPOSE, ownerId) { code ->
@@ -155,6 +161,40 @@ internal class EmailCodeIssuerImplTest {
         then()
         assertTrue(result.exceptionOrNull() is EmailCodeError.ResendTooSoon) { result.toString() }
         assertEquals(EmailCodeIssuerImpl.MAX_SENDS_PER_WINDOW, fixture.sentMessages.size)
+    }
+
+    @Test
+    fun `should count an address once when it reaches the hourly send limit`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        repeat(EmailCodeIssuerImpl.MAX_SENDS_PER_WINDOW) {
+            fixture.issue().getOrThrow()
+            fixture.timeSource += EmailCodeIssuerImpl.RESEND_COOLDOWN + 1.seconds
+        }
+
+        whenn()
+        repeat(3) {
+            fixture.issue()
+            fixture.timeSource += EmailCodeIssuerImpl.RESEND_COOLDOWN + 1.seconds
+        }
+
+        then()
+        assertEquals(1.0, fixture.limitedAddresses())
+    }
+
+    @Test
+    fun `should not count sends within the hourly limit`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+
+        whenn()
+        repeat(EmailCodeIssuerImpl.MAX_SENDS_PER_WINDOW) {
+            fixture.issue().getOrThrow()
+            fixture.timeSource += EmailCodeIssuerImpl.RESEND_COOLDOWN + 1.seconds
+        }
+
+        then()
+        assertEquals(0.0, fixture.limitedAddresses())
     }
 
     @Test

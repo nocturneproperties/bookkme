@@ -51,7 +51,7 @@ This repository holds the BookkMe backend. You can run it yourself to take booki
 - Personal data encrypted with a key per person, so erasing someone also makes their data unreadable in backups
 - Personal-data tools for GDPR: data export, account and client erasure, dormant account clean-up and retention rules (see [Privacy and GDPR](#privacy-and-gdpr))
 - Draft privacy policy and terms of service templates for self-hosting businesses in English, Polish and Ukrainian (`docs/legal/template`)
-- Prometheus metrics and structured logs
+- Prometheus metrics and structured logs, with alerts for signs of misuse: sign-in and email code abuse, reused refresh tokens, probing of other businesses' data, unusual export and response volumes, failed database and cache logins, admin panel and SSH logins, and deleted backups
 - An OpenAPI description of the whole API, served with Swagger UI
 
 ---
@@ -205,7 +205,7 @@ The single server uses exactly the same producers, outbox and consumers, with an
 
 - **No passwords.** Accounts sign in with passkeys (WebAuthn), so there is no password to steal, reuse or phish.
 - **Verified email.** An account is created only after its owner enters a 6-digit code sent to the address, and the address changes only through a code sent to the new one. Codes expire after 10 minutes, allow a limited number of attempts and resends, and are stored only as keyed hashes.
-- **Short-lived tokens.** Access tokens live 5 minutes. Refresh tokens belong to one device and are replaced on every use.
+- **Short-lived tokens.** Access tokens live 5 minutes. Refresh tokens belong to one device and are replaced on every use; an old refresh token that comes back signs its device out and raises a metric for alerts.
 - **Rotating signing keys.** Token signing keys rotate daily and are published as a JWKS, so old keys stop being trusted on their own. The private keys are stored encrypted. Every token type has its own audience, so one kind of token cannot be used as another.
 - **Confirmation for sensitive actions.** Deleting an account, deleting a client and exporting personal data each need a fresh passkey confirmation, not only a signed-in session.
 

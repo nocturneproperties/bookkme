@@ -1,0 +1,33 @@
+groups:
+  - name: admin_login_alerts
+    interval: 1m
+    rules:
+      - alert: AdminPanelLogin
+        expr: |
+          sum by (host, remote_addr) (count_over_time({stack="nginx", service="nginx"} |= `"admin_auth":"login"` | json [5m])) > 0
+        labels:
+          severity: warning
+        annotations:
+          summary: "Login to {{ $labels.host }} from {{ $labels.remote_addr }}"
+          description: "Someone signed in to an admin panel (Grafana, NocoDB, Dozzle, the VPN panel, or opened Prometheus) from this VPN address. If it wasn't you, treat it as a breach: revoke that VPN client in the panel, change the panel's password and follow the breach procedure."
+
+      - alert: AdminPanelLoginFailures
+        expr: |
+          sum by (host) (count_over_time({stack="nginx", service="nginx"} |= `"admin_auth":"failed"` | json [10m])) >= 5
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $value }} refused logins to {{ $labels.host }} in 10 minutes"
+          description: "Wrong passwords or rejected credentials on an admin panel, reachable only from the VPN, so they come from a VPN client: a forgotten password, or a lost device trying. Grafana, Logs, stack nginx, filtered on admin_auth, shows the addresses."
+
+  - name: ssh_login_alerts
+    interval: 1m
+    rules:
+      - alert: SSHLogin
+        expr: |
+          sum by (node, user, address) (count_over_time({source="journal", unit="ssh.service"} |~ `^Accepted ` | regexp `^Accepted \S+ for (?P<user>\S+) from (?P<address>\S+)` [5m])) > 0
+        labels:
+          severity: warning
+        annotations:
+          summary: "SSH login as {{ $labels.user }} on {{ $labels.node }} from {{ $labels.address }}"
+          description: "Every SSH login sends this, Ansible runs and the swarm-manager Docker context included. If no one ran one from that address, treat it as a breach: remove unknown keys from authorized_keys, rotate the deploy key and follow the breach procedure."

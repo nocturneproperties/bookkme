@@ -7,6 +7,7 @@ import library.email.EmailCodeRedeemer
 import library.email.EmailSender
 import library.email.impl.EmailCodeHasher
 import library.email.impl.EmailCodeIssuerImpl
+import library.email.impl.EmailCodeMetrics
 import library.email.impl.EmailCodeRedeemerImpl
 import library.email.impl.EmailCodeStore
 import library.email.impl.LoggingEmailSender
@@ -37,8 +38,9 @@ fun emailModule(qualifier: Qualifier, environment: (String) -> String? = System:
         }
         scoped<EmailCodeHasher> { environment.codeHasher() }
         scoped<EmailCodeStore> { EmailCodeStore(get(), get()) }
-        scoped<EmailCodeIssuer> { EmailCodeIssuerImpl(get(), get(), get(), SecureRandom(), Clock.System) }
-        scoped<EmailCodeRedeemer> { EmailCodeRedeemerImpl(get(), get()) }
+        scoped<EmailCodeMetrics> { EmailCodeMetrics(get()) }
+        scoped<EmailCodeIssuer> { EmailCodeIssuerImpl(get(), get(), get(), SecureRandom(), Clock.System, get()) }
+        scoped<EmailCodeRedeemer> { EmailCodeRedeemerImpl(get(), get(), get()) }
     }
 }
 

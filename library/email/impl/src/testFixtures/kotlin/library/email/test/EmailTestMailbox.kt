@@ -1,6 +1,7 @@
 package library.email.test
 
 import com.bookk.core.data.cache.test.InMemoryCacheClient
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import library.email.EmailCodeIssuer
 import library.email.EmailCodeRedeemer
 import library.email.EmailMessage
@@ -8,6 +9,7 @@ import library.email.EmailSendError
 import library.email.EmailSender
 import library.email.impl.EmailCodeHasher
 import library.email.impl.EmailCodeIssuerImpl
+import library.email.impl.EmailCodeMetrics
 import library.email.impl.EmailCodeRedeemerImpl
 import library.email.impl.EmailCodeStore
 import java.security.SecureRandom
@@ -28,8 +30,9 @@ class EmailTestMailbox(val timeSource: TestTimeSource = TestTimeSource()) {
         }
     }
 
-    val issuer: EmailCodeIssuer = EmailCodeIssuerImpl(store, hasher, sender, SecureRandom(), Clock.System)
-    val redeemer: EmailCodeRedeemer = EmailCodeRedeemerImpl(store, hasher)
+    private val metrics = EmailCodeMetrics(SimpleMeterRegistry())
+    val issuer: EmailCodeIssuer = EmailCodeIssuerImpl(store, hasher, sender, SecureRandom(), Clock.System, metrics)
+    val redeemer: EmailCodeRedeemer = EmailCodeRedeemerImpl(store, hasher, metrics)
 
     val sent: List<EmailMessage> get() = delivered.toList()
 

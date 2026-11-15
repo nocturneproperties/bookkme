@@ -2,17 +2,25 @@
 
 ## 0.19.0
 
-Changes since `monolith/0.18.0`. Finishes the 0.18.0 encryption rollout: the unencrypted copies of personal data are dropped, every appointments business must have its owner, and appointment search matches the client's whole name through a blind index.
+Changes since `monolith/0.18.0`. Finishes the 0.18.0 encryption rollout (plaintext personal data dropped, owners required, whole-name appointment search) and adds security alerts for breach detection.
 
 ### Clients
 
 - `GET /api/appointments/history/{businessId}?query=` now matches the client's whole name (ignoring case and surrounding spaces) instead of any part of it; part of a service name still matches.
+- `POST /api/auth/refresh` with a refresh token that was already exchanged now really signs its device out (the sign-out used to be rolled back); the app must sign in again on that device.
 
 ### Services
 
 - `BusinessDTO.ownerUserId` (6) is now required; a `BusinessEvent.Updated` or `getBusinessById` answer without it fails to decode.
 - The jobs `appointments-fillBusinessOwners`, `user-encryptPlaintextProfiles`, `notifications-encryptPlaintextTargets`, `business-encryptPlaintextContacts` and `appointments-encryptPlaintextSnapshots` are removed; a standalone notifications service no longer runs a scheduler.
 - New job `appointments-indexClientNames` (every 10 minutes) gives appointments stored before 0.19.0 their searchable client-name index; until it has finished, those appointments are found by service name only.
+
+### Monitoring
+
+- New metrics: `auth_refresh_token_reused_total`, `email_code_send_limited_total`, `email_code_rejected_total{reason}` and `http_server_response_size_bytes{method,route}` (responses sent before routing, such as idempotent replays, under `route="unrouted"`).
+- New security alerts in `prometheus/security_alerts.yml` and `loki/security_rules.yml` (Loki's ruler now sends to Alertmanager); thresholds under Monitoring, Security alerts, in `deployment/ansible/README.md`.
+- nginx logs logins and refused logins on the VPN-only admin hosts as `admin_auth` JSON lines; the public host's logging is unchanged.
+- Alloy reads `ssh.service` from each node's journal and sends an email for every SSH and admin panel login, Ansible runs included.
 
 ### Upgrade
 
@@ -21,6 +29,8 @@ Changes since `monolith/0.18.0`. Finishes the 0.18.0 encryption rollout: the une
 - Appointments `V12` adds `appointment.client_name_index` with an index on (`business_id`, `client_name_index`).
 - Appointments `V12` makes `business_has_appointments.owner_user_id` NOT NULL and fails on a `NULL` there; before deploying, `SELECT COUNT(*) FROM appointments.business_has_appointments WHERE owner_user_id IS NULL` must return 0.
 - Before deploying, `SELECT COUNT(*) FROM appointments.exhausted_event WHERE original_topic = 'business.updated'` must return 0 for rows parked before the 0.18.0 deploy; replay or delete them first, since 0.19.0 can't decode them.
+- Run `make infra tags=hosts` (keeps every node's journal on disk, which Alloy mounts) before `make infra tags=nginx,monitoring`; a node without `/var/log/journal` can't start Alloy.
+- Turn on Cloudflare's DDoS and WAF notifications and Postmark's account security notifications (list under Monitoring, Security alerts).
 
 ## 0.18.0
 
