@@ -17,6 +17,11 @@ services:
       NC_ADMIN_EMAIL: "${NOCODB_ADMIN_EMAIL}"
       NC_ADMIN_PASSWORD: "${NOCODB_ADMIN_PASSWORD}"
       NC_DISABLE_TELE: "true"
+      NC_DISABLE_ERR_REPORTS: "true"
+      NC_DISABLE_ONBOARDING_FLOW: "true"
+      NC_DISABLE_TOURS: "true"
+      NC_DISABLE_SUPPORT_CHAT: "true"
+      NC_DISABLE_PRODUCT_FEED: "true"
       NC_ALLOW_LOCAL_EXTERNAL_DBS: "true"
     networks:
       operational:
@@ -32,9 +37,11 @@ services:
     deploy:
       mode: replicated
       replicas: 1
+      placement:
+        constraints: [ node.labels.admin == true ]
       update_config:
         parallelism: 1
-        order: start-first
+        order: stop-first
         failure_action: rollback
         delay: 10s
       rollback_config:

@@ -1,5 +1,6 @@
 package com.bookk.user.data.datasource
 
+import com.bookk.core.data.cache.CacheClient
 import com.bookk.core.data.cache.test.InMemoryCacheClient
 import com.bookk.core.data.map.toDomain
 import com.bookk.core.data.test.createTestDatabase
@@ -8,9 +9,12 @@ import com.bookk.core.test.given
 import com.bookk.core.test.runUnitTest
 import com.bookk.core.test.then
 import com.bookk.core.test.whenn
+import com.bookk.user.data.cache.UserCacheStrategy.getUser
 import com.bookk.user.data.orm.table.UserTable
 import com.bookk.user.domain.api.entity.User
 import com.bookk.user.domain.api.entity.UserEditModel
+import io.mockk.coEvery
+import io.mockk.mockk
 import library.encryption.Decrypted
 import library.encryption.test.InMemorySubjectKeys
 import library.encryption.test.RecordingMissingKeys
@@ -19,6 +23,7 @@ import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
+import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
@@ -153,6 +158,76 @@ internal class UserDataSourceImplTest {
             assertEquals(user.id, found!!.id)
             assertEquals("Alicia", found.name)
         }
+
+    @Test
+    fun `should keep the stored fields a re-entry over a lost key does not change`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val user = User.stub(name = "Alice", lastName = "Smith", email = "alice@example.com", phone = "+10000000000")
+        suspendTransaction { fixture.sut.insertNewUser(user) }
+        val before = fixture.storedRow(user.id)
+        fixture.subjectKeys.loseKey(user.id)
+
+        whenn()
+        suspendTransaction { fixture.uncached.updateUser(user.id, nameEdit("Alicia"), Clock.System.now()) }
+
+        then()
+        val after = fixture.storedRow(user.id)
+        assertArrayEquals(before[UserTable.lastNameEncrypted], after[UserTable.lastNameEncrypted])
+        assertArrayEquals(before[UserTable.emailEncrypted], after[UserTable.emailEncrypted])
+        assertArrayEquals(before[UserTable.phoneEncrypted], after[UserTable.phoneEncrypted])
+        assertEquals("Alicia", fixture.decrypted(user.id, after[UserTable.nameEncrypted]))
+    }
+
+    @Test
+    fun `should keep reporting the missing key of a profile whose re-entry left fields unreadable`() =
+        runUnitTest {
+            given()
+            val fixture = SutFixture()
+            val user = User.stub(name = "Alice", lastName = "Smith", email = "alice@example.com")
+            suspendTransaction { fixture.sut.insertNewUser(user) }
+            fixture.subjectKeys.loseKey(user.id)
+            suspendTransaction { fixture.uncached.updateUser(user.id, nameEdit("Alicia"), Clock.System.now()) }
+            val reportedBefore = fixture.missingKeys.reported.size
+
+            whenn()
+            val found = suspendTransaction { fixture.uncached.getUserById(user.id) }
+
+            then()
+            assertEquals(User(id = user.id, name = "Alicia", lastName = "", email = "", phone = null), found)
+            assertEquals(listOf("profile"), fixture.missingKeys.reported.drop(reportedBefore))
+        }
+
+    @Test
+    fun `should not cache a profile read while its key is missing`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val user = User.stub(name = "Alice", email = "alice@example.com")
+        suspendTransaction { fixture.uncached.insertNewUser(user) }
+        fixture.subjectKeys.loseKey(user.id)
+
+        whenn()
+        suspendTransaction { fixture.sut.getUserById(user.id) }
+
+        then()
+        assertNull(fixture.cacheClient.getUser(user.id))
+    }
+
+    @Test
+    fun `should fail the deletion when the cached profile cannot be evicted`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val cacheClient = mockk<CacheClient<String>>()
+        coEvery { cacheClient.delete(any()) } throws IllegalStateException("cache unavailable")
+        val sut = UserDataSourceImpl(cacheClient, fixture.profileCipher)
+        val user = suspendTransaction { fixture.uncached.insertNewUser(User.stub()) }
+
+        whenn()
+        val result = runCatching { suspendTransaction { sut.deleteUser(user.id) } }
+
+        then()
+        assertTrue(result.isFailure)
+    }
 
     @Test
     fun `should insert user and retrieve by id`() = runUnitTest {

@@ -16,6 +16,7 @@ import com.bookk.core.test.runUnitTest
 import com.bookk.core.test.then
 import com.bookk.core.test.whenn
 import library.encryption.Decrypted
+import library.encryption.test.CountingSubjectKeys
 import library.encryption.test.InMemorySubjectKeys
 import library.encryption.test.RecordingMissingKeys
 import library.encryption.test.UnkeyedBlindIndex
@@ -23,6 +24,7 @@ import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
+import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import kotlin.uuid.Uuid
@@ -38,11 +40,12 @@ internal class AppointmentRequestDataSourceImplEncryptionTest {
             AppointmentRequestServicesTable,
         )
         val subjectKeys = InMemorySubjectKeys()
+        val countingKeys = CountingSubjectKeys(subjectKeys)
         val missingKeys = RecordingMissingKeys()
         val sut =
             AppointmentRequestDataSourceImpl(
                 InMemoryCacheClient(),
-                SnapshotCipher(subjectKeys, UnkeyedBlindIndex(), missingKeys),
+                SnapshotCipher(countingKeys, UnkeyedBlindIndex(), missingKeys),
             )
         lateinit var businessId: Uuid
 
@@ -184,6 +187,47 @@ internal class AppointmentRequestDataSourceImplEncryptionTest {
         then()
         assertEquals("", read?.client?.fullName)
         assertEquals(listOf("appointment_request"), fixture.missingKeys.reported)
+    }
+
+    @Test
+    fun `should keep the stored client details an update over a lost key does not change`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val created = fixture.create(fixture.request())
+        val before = fixture.storedRow(created.id)
+        fixture.subjectKeys.loseKey(created.client.id)
+        val unreadable = requireNotNull(suspendTransaction { fixture.sut.get(created.id) })
+
+        whenn()
+        suspendTransaction { fixture.sut.update(unreadable.copy(note = "Long hair")) }
+
+        then()
+        val after = fixture.storedRow(created.id)
+        listOf(
+            AppointmentRequestTable.clientNameEncrypted,
+            AppointmentRequestTable.clientPhoneEncrypted,
+            AppointmentRequestTable.clientEmailEncrypted,
+        ).forEach { assertArrayEquals(before[it], after[it], it.name) }
+        assertEquals("Long hair", fixture.decrypted(created.client.id, after[AppointmentRequestTable.noteEncrypted]))
+    }
+
+    @Test
+    fun `should fetch the kept client's key once for every moved request`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val keptId = Uuid.random()
+        val merged = RequestClientSnapshot.stub()
+        fixture.create(fixture.request(client = merged))
+        fixture.create(fixture.request(client = merged))
+        fixture.countingKeys.resetCounts()
+
+        whenn()
+        suspendTransaction { fixture.sut.reassignClients(fixture.businessId, listOf(merged.id), keptId) }
+
+        then()
+        assertEquals(listOf(keptId), fixture.countingKeys.encryptorsRequested)
     }
 
     @Test

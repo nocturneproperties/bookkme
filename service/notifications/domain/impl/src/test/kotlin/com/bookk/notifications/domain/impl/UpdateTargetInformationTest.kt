@@ -13,8 +13,10 @@ import com.bookk.notifications.domain.impl.UpdateTargetInformation.Target
 import io.mockk.Runs
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.coVerifyOrder
 import io.mockk.just
 import io.mockk.mockk
+import io.mockk.spyk
 import library.encryption.test.InMemorySubjectKeys
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -26,7 +28,7 @@ internal class UpdateTargetInformationTest {
     private class SutFixture {
         val getNotificationSettings = mockk<GetNotificationSettings>()
         val targetDataSource = mockk<NotificationTargetDataSource>()
-        val subjectKeys = InMemorySubjectKeys()
+        val subjectKeys = spyk(InMemorySubjectKeys())
         val transactionManager = mockk<TransactionManager>()
         val sut = UpdateTargetInformation(getNotificationSettings, targetDataSource, subjectKeys, transactionManager)
     }
@@ -167,6 +169,25 @@ internal class UpdateTargetInformationTest {
         coVerify(exactly = 0) { fixture.getNotificationSettings.invoke(any()) }
         coVerify(exactly = 0) { fixture.targetDataSource.updateEmail(any(), any(), any()) }
         coVerify(exactly = 0) { fixture.targetDataSource.insertEmail(any(), any(), any()) }
+    }
+
+    @Test
+    fun `should lock the user's key before reading or creating the settings`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        with(fixture) {
+            settingsFound()
+            coEvery { targetDataSource.updateEmail(userId, "user@example.com", updatedAt) } returns true
+        }
+
+        whenn()
+        fixture.sut.invoke(userId, Target.Email("user@example.com"), updatedAt)
+
+        then()
+        coVerifyOrder {
+            fixture.subjectKeys.isShredded(userId)
+            fixture.getNotificationSettings.invoke(userId)
+        }
     }
 
     @Test

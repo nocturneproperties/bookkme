@@ -28,7 +28,9 @@ The worker's memory limits are sized together with it: MariaDB 3G (a full 2G poo
 
 Valkey's size is set by how many writes it must remember, measured on `valkey:8.1`: a stored HTTP idempotency response costs its size plus ~200 B for 10 minutes, an event's processed marker ~147 B per consumer group for 1 hour (`CacheEventIdempotencyStorage.PROCESSED_TTL`): ~130 MB of responses at a 100 writes/s peak — what the 2 vCPU worker can serve — plus ~50 MB of markers at that rate (it was ~250 MB/day while markers lived 24 hours). A full Valkey under `noeviction` fails every idempotent request and every event delivery, so raise `--maxmemory` (and the limit with it) before it fills. The limits add up to slightly more than 8G only during a deploy, when the app runs `start-first` and two copies briefly overlap; actual use stays well under them.
 
-MariaDB and Valkey keep their data on node-local volumes, so both are pinned to the node labelled `database=true` (set from the inventory's `swarm_labels`, like Kafka's `kafka=true`); only the app container may float between workers.
+MariaDB and Valkey keep their data on node-local volumes, so both are pinned to the node labelled `database=true` (set from the inventory's `swarm_labels`, like Kafka's `kafka=true`); only the app container may float between workers. NocoDB keeps its setup in a SQLite file on the node-local `admin_panel` volume, so it is pinned to `admin=true` (`manager-1`, where it ran when pinned) and updates `stop-first`, so two copies never write that file at once.
+
+NocoDB's switches are obfuscated in its bundle, so a new one is found by loading a `process.env` proxy that logs every name read (`NODE_OPTIONS=--require=<file>`, copied in with `docker cp` before `docker start`; the proxy needs a `set` trap that assigns on the target, or Node rejects the write) and confirmed in `/api/v2/meta/nocodb/info` (`teleEnabled`, `errorReportingEnabled`, `disableOnboardingFlow`, …). Recheck the names when bumping its image.
 
 ## Monitoring
 

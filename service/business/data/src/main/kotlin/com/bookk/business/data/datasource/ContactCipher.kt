@@ -6,6 +6,7 @@ import com.bookk.business.data.orm.entity.StoredContact
 import library.encryption.BlindIndex
 import library.encryption.Decrypted
 import library.encryption.Decryptor
+import library.encryption.Encryptor
 import library.encryption.MissingKeys
 import library.encryption.SubjectKeys
 import library.encryption.decryptText
@@ -31,38 +32,74 @@ internal class ContactCipher(
         )
     }
 
+    suspend fun encryptChanges(read: ReadContact, edited: Contact): EncryptedContact? {
+        return encryptChanges(read.stored.subjectId, listOf(ContactEdit(read, edited)))?.single()
+    }
+
+    suspend fun encryptChanges(subjectId: Uuid, edits: List<ContactEdit>): List<EncryptedContact>? {
+        require(edits.all { it.read.stored.subjectId == subjectId }) { "Every edit must be of subject $subjectId" }
+        val encryptor = subjectKeys.encryptor(subjectId) ?: return null
+        return edits.map { encryptor.changes(it.read, it.edited) }
+    }
+
     suspend fun decrypt(contact: StoredContact, source: String): Contact {
-        return decryptAll(listOf(contact), source).single()
+        return read(contact, source).contact
     }
 
     suspend fun decryptAll(contacts: List<StoredContact>, source: String): List<Contact> {
+        return readAll(contacts, source).map { it.contact }
+    }
+
+    suspend fun read(contact: StoredContact, source: String): ReadContact {
+        return readAll(listOf(contact), source).single()
+    }
+
+    suspend fun readAll(contacts: List<StoredContact>, source: String): List<ReadContact> {
         val decryptor = subjectKeys.decryptor(contacts.map { it.subjectId }.distinct())
-        return contacts.map { decryptor.decryptContact(it, source) }
+        return contacts.map { ReadContact(stored = it, contact = decryptor.decryptContact(it, source)) }
     }
 
     fun emailIndex(email: String?): String? {
         return email?.let { blindIndex.ofCaseInsensitive(it) }
     }
 
+    private fun Encryptor.changes(read: ReadContact, edited: Contact): EncryptedContact {
+        val current = read.contact
+        val stored = read.stored.encrypted
+        return EncryptedContact(
+            name = if (edited.name == current.name) stored.name else encryptText(edited.name),
+            lastName = if (edited.lastName == current.lastName) stored.lastName else encryptText(edited.lastName),
+            phone = changed(stored.phone, current.phone, edited.phone),
+            email = changed(stored.email, current.email, edited.email),
+            description = changed(stored.description, current.description, edited.description),
+        )
+    }
+
+    private fun Encryptor.changed(stored: ByteArray?, current: String?, edited: String?): ByteArray? {
+        return if (edited == current) stored else edited?.let(::encryptText)
+    }
+
     private fun Decryptor.decryptContact(stored: StoredContact, source: String): Contact {
         val subjectId = stored.subjectId
         val encrypted = stored.encrypted
-        return when (val name = decryptText(subjectId, encrypted.name)) {
-            is Decrypted.Plain -> Contact(
-                name = name.value,
-                lastName = textOf(subjectId, encrypted.lastName).orEmpty(),
-                phone = textOf(subjectId, encrypted.phone),
-                email = textOf(subjectId, encrypted.email),
-                description = textOf(subjectId, encrypted.description),
-            )
-
-            Decrypted.Shredded -> Contact.UNREADABLE
-
-            Decrypted.Missing -> Contact.UNREADABLE.also { missingKeys.report(source) }
+        val name = decryptText(subjectId, encrypted.name)
+        val lastName = decryptText(subjectId, encrypted.lastName)
+        val optional = listOf(encrypted.phone, encrypted.email, encrypted.description).map { ciphertext ->
+            ciphertext?.let { decryptText(subjectId, it) }
         }
-    }
-
-    private fun Decryptor.textOf(subjectId: Uuid, ciphertext: ByteArray?): String? {
-        return ciphertext?.let { decryptText(subjectId, it).valueOrNull() }
+        val (phone, email, description) = optional
+        val fields = listOfNotNull(name, lastName, phone, email, description)
+        if (fields.any { it is Decrypted.Missing }) missingKeys.report(source)
+        return Contact(
+            name = name.valueOrNull().orEmpty(),
+            lastName = lastName.valueOrNull().orEmpty(),
+            phone = phone?.valueOrNull(),
+            email = email?.valueOrNull(),
+            description = description?.valueOrNull(),
+        )
     }
 }
+
+internal class ReadContact(val stored: StoredContact, val contact: Contact)
+
+internal class ContactEdit(val read: ReadContact, val edited: Contact)

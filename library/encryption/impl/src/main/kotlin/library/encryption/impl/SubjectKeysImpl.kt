@@ -5,6 +5,7 @@ import library.encryption.Decryptor
 import library.encryption.Encryptor
 import library.encryption.SubjectKeys
 import java.security.SecureRandom
+import javax.crypto.AEADBadTagException
 import javax.crypto.SecretKey
 import javax.crypto.spec.SecretKeySpec
 import kotlin.time.Clock
@@ -19,7 +20,15 @@ internal class SubjectKeysImpl(
 
     override suspend fun encryptor(subjectId: Uuid): Encryptor? {
         requireNotNil(listOf(subjectId))
-        val stored = dataSource.get(subjectId) ?: dataSource.insertIfAbsent(newKey(subjectId))
+        val stored = when (dataSource.get(subjectId)) {
+            null -> dataSource.insertIfAbsent(newKey(subjectId))
+
+            is StoredSubjectKey.Live -> checkNotNull(dataSource.getForShare(subjectId)) {
+                "Subject $subjectId lost its key row, which is never deleted"
+            }
+
+            is StoredSubjectKey.Shredded -> return null
+        }
         return when (stored) {
             is StoredSubjectKey.Live -> SubjectEncryptor(subjectId, masterKey.unwrap(stored))
             is StoredSubjectKey.Shredded -> null
@@ -37,7 +46,7 @@ internal class SubjectKeysImpl(
     }
 
     override suspend fun isShredded(subjectId: Uuid): Boolean {
-        return dataSource.get(subjectId) is StoredSubjectKey.Shredded
+        return dataSource.getForShare(subjectId) is StoredSubjectKey.Shredded
     }
 
     override suspend fun shred(subjectId: Uuid) {
@@ -91,9 +100,17 @@ private class SubjectDecryptor(
         require(subjectId in requested) { "Subject $subjectId was not requested from this decryptor" }
         val key = liveKeys[subjectId]
         return when {
-            key != null -> Decrypted.Plain(decrypt(key))
+            key != null -> authenticated(key, decrypt)
             subjectId in shredded -> Decrypted.Shredded
             else -> Decrypted.Missing
+        }
+    }
+
+    private fun <T> authenticated(key: SecretKey, decrypt: (SecretKey) -> T): Decrypted<T> {
+        return try {
+            Decrypted.Plain(decrypt(key))
+        } catch (_: AEADBadTagException) {
+            Decrypted.Missing
         }
     }
 }

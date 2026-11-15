@@ -37,6 +37,10 @@ internal class SubjectKeysImplTest {
         val sut = SubjectKeysImpl(dataSource, masterKey, SecureRandom(), clock)
         val subjectId = Uuid.random()
 
+        init {
+            coEvery { dataSource.getForShare(any()) } coAnswers { dataSource.get(firstArg()) }
+        }
+
         fun storedKey(subjectId: Uuid = this.subjectId): StoredSubjectKey.Live {
             return StoredSubjectKey.Live(
                 subjectId = subjectId,
@@ -123,6 +127,37 @@ internal class SubjectKeysImplTest {
     }
 
     @Test
+    fun `should lock the subject's existing key before encrypting with it`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val existing = fixture.storedKey()
+        coEvery { fixture.dataSource.get(fixture.subjectId) } returns existing
+
+        whenn()
+        fixture.liveEncryptor()
+
+        then()
+        coVerify(exactly = 1) { fixture.dataSource.getForShare(fixture.subjectId) }
+    }
+
+    @Test
+    fun `should give no encryptor when the key was shredded while the transaction waited for its lock`() =
+        runUnitTest {
+            given()
+            val fixture = SutFixture()
+            with(fixture) {
+                coEvery { dataSource.get(subjectId) } returns storedKey()
+                coEvery { dataSource.getForShare(subjectId) } returns tombstone()
+            }
+
+            whenn()
+            val encryptor = fixture.sut.encryptor(fixture.subjectId)
+
+            then()
+            assertNull(encryptor)
+        }
+
+    @Test
     fun `should give no encryptor when the subject was shredded before its first key was stored`() = runUnitTest {
         given()
         val fixture = SutFixture()
@@ -143,6 +178,22 @@ internal class SubjectKeysImplTest {
         given()
         val fixture = SutFixture()
         coEvery { fixture.dataSource.get(fixture.subjectId) } returns fixture.tombstone()
+
+        whenn()
+        val shredded = fixture.sut.isShredded(fixture.subjectId)
+
+        then()
+        assertTrue(shredded)
+    }
+
+    @Test
+    fun `should report a subject as shredded when its key was shredded while waiting for the lock`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        with(fixture) {
+            coEvery { dataSource.get(subjectId) } returns storedKey()
+            coEvery { dataSource.getForShare(subjectId) } returns tombstone()
+        }
 
         whenn()
         val shredded = fixture.sut.isShredded(fixture.subjectId)
@@ -245,6 +296,36 @@ internal class SubjectKeysImplTest {
         then()
         assertEquals(Decrypted.Missing, decryptor.decrypt(fixture.subjectId, ciphertext))
         assertEquals(Decrypted.Missing, decryptor.decrypt(fixture.subjectId, ciphertext.encodeToByteArray()))
+    }
+
+    @Test
+    fun `should read a field sealed under a key that was lost and replaced as missing`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        coEvery { fixture.dataSource.get(fixture.subjectId) } returns fixture.storedKey()
+        val ciphertext = fixture.liveEncryptor().encrypt(PLAINTEXT)
+        coEvery { fixture.dataSource.getAll(setOf(fixture.subjectId)) } returns listOf(fixture.storedKey())
+
+        whenn()
+        val decryptor = fixture.sut.decryptor(listOf(fixture.subjectId))
+
+        then()
+        assertEquals(Decrypted.Missing, decryptor.decrypt(fixture.subjectId, ciphertext))
+    }
+
+    @Test
+    fun `should read a document sealed under a key that was lost and replaced as missing`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        coEvery { fixture.dataSource.get(fixture.subjectId) } returns fixture.storedKey()
+        val ciphertext = fixture.liveEncryptor().encrypt(PLAINTEXT.encodeToByteArray())
+        coEvery { fixture.dataSource.getAll(setOf(fixture.subjectId)) } returns listOf(fixture.storedKey())
+
+        whenn()
+        val decryptor = fixture.sut.decryptor(listOf(fixture.subjectId))
+
+        then()
+        assertEquals(Decrypted.Missing, decryptor.decrypt(fixture.subjectId, ciphertext))
     }
 
     @Test

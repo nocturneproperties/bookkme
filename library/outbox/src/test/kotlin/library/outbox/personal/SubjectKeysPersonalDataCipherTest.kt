@@ -200,19 +200,21 @@ internal class SubjectKeysPersonalDataCipherTest {
     }
 
     @Test
-    fun `should reject a sealed payload whose ciphertext was tampered with`() = runUnitTest {
-        given()
-        val fixture = SutFixture()
-        val event = ProfileEvent(userId = Uuid.random())
-        val sealed = fixture.sealed(event)
-        fixture.subjectKeys.tamperWithCiphertextsOf(event.userId)
+    fun `should drop a sealed payload and count a missing key when its ciphertext fails authentication`() =
+        runUnitTest {
+            given()
+            val fixture = SutFixture()
+            val event = ProfileEvent(userId = Uuid.random())
+            val sealed = fixture.sealed(event)
+            fixture.subjectKeys.tamperWithCiphertextsOf(event.userId)
 
-        whenn()
-        val result = runCatchingUnlessCancelled { fixture.sut.open(TOPIC, sealed) }
+            whenn()
+            val opened = fixture.sut.open(TOPIC, sealed)
 
-        then()
-        assertTrue(result.exceptionOrNull() is UnreadableSealedPayload)
-    }
+            then()
+            assertNull(opened)
+            assertEquals(listOf(TOPIC), fixture.missingKeys.reported)
+        }
 
     private companion object {
         const val TOPIC = "personal.topic"

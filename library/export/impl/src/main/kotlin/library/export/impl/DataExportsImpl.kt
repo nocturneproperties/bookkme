@@ -72,40 +72,43 @@ internal class DataExportsImpl(
     }
 
     private val DataExportRecord.isQueued: Boolean
-        get() = state == DataExportState.PENDING || state == DataExportState.RUNNING
+        get() {
+            return state == DataExportState.PENDING || state == DataExportState.RUNNING
+        }
 
     private val DataExportRecord.availableAgainAt: Instant
-        get() = requestedAt + DataExports.MIN_INTERVAL
+        get() {
+            return requestedAt + DataExports.MIN_INTERVAL
+        }
 
     private fun DataExportRecord.isReadyBefore(now: Instant): Boolean {
         return state == DataExportState.READY && now < availableAgainAt
     }
 
-    private fun DataExportRecord.view(now: Instant): DataExport = when {
-        isQueued -> DataExport(
-            DataExportStatus.RUNNING,
-            requestedAt,
-            expiresAt = null,
-            availableAgainAt = availableAgainAt,
-        )
+    private fun DataExportRecord.view(now: Instant): DataExport {
+        return when {
+            isQueued -> DataExport(
+                DataExportStatus.RUNNING,
+                requestedAt,
+                expiresAt = null,
+                availableAgainAt = availableAgainAt,
+            )
 
-        state == DataExportState.FAILED -> DataExport(
-            DataExportStatus.FAILED,
-            requestedAt,
-            expiresAt = null,
-            availableAgainAt = null,
-        )
+            state == DataExportState.FAILED -> DataExport(
+                DataExportStatus.FAILED,
+                requestedAt,
+                expiresAt = null,
+                availableAgainAt = null,
+            )
 
-        expiresAt == null || expiresAt <= now -> DataExport.NONE
+            expiresAt == null || expiresAt <= now -> DataExport.NONE
 
-        else -> DataExport(
-            DataExportStatus.READY,
-            requestedAt,
-            expiresAt,
-            availableAgainAt = availableAgainAt.takeIf {
-                it >
-                    now
-            },
-        )
+            else -> DataExport(
+                DataExportStatus.READY,
+                requestedAt,
+                expiresAt,
+                availableAgainAt = availableAgainAt.takeIf { it > now },
+            )
+        }
     }
 }
