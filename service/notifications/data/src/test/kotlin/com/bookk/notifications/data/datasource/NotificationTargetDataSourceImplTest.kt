@@ -1,7 +1,6 @@
 package com.bookk.notifications.data.datasource
 
 import com.bookk.core.data.test.createTestDatabase
-import com.bookk.core.domain.entity.Error
 import com.bookk.core.test.given
 import com.bookk.core.test.runUnitTest
 import com.bookk.core.test.then
@@ -13,9 +12,9 @@ import library.encryption.test.InMemorySubjectKeys
 import library.encryption.test.RecordingMissingKeys
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.eq
-import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
+import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
@@ -38,24 +37,6 @@ internal class NotificationTargetDataSourceImplTest {
 
         suspend fun insertTelegram(userId: Uuid, tag: String) {
             suspendTransaction { sut.insertTelegram(userId, tag) }
-        }
-
-        suspend fun insertPlaintextEmail(userId: Uuid, email: String) {
-            suspendTransaction {
-                NotificationEmailTargetTable.insert {
-                    it[NotificationEmailTargetTable.userId] = userId
-                    it[NotificationEmailTargetTable.email] = email
-                }
-            }
-        }
-
-        suspend fun insertPlaintextTelegram(userId: Uuid, tag: String) {
-            suspendTransaction {
-                NotificationTelegramTargetTable.insert {
-                    it[NotificationTelegramTargetTable.userId] = userId
-                    it[NotificationTelegramTargetTable.telegramTag] = tag
-                }
-            }
         }
 
         suspend fun emailRow(userId: Uuid): ResultRow? {
@@ -107,7 +88,7 @@ internal class NotificationTargetDataSourceImplTest {
     }
 
     @Test
-    fun `should store the email encrypted under the user's key and no plaintext`() = runUnitTest {
+    fun `should store the email encrypted under the user's key`() = runUnitTest {
         given()
         val fixture = SutFixture()
         val userId = Uuid.random()
@@ -117,22 +98,7 @@ internal class NotificationTargetDataSourceImplTest {
 
         then()
         val row = checkNotNull(fixture.emailRow(userId))
-        assertNull(row[NotificationEmailTargetTable.email])
         assertEquals("user@example.com", fixture.decrypted(userId, row[NotificationEmailTargetTable.emailEncrypted]))
-    }
-
-    @Test
-    fun `should read an email stored as plaintext before encryption`() = runUnitTest {
-        given()
-        val fixture = SutFixture()
-        val userId = Uuid.random()
-        fixture.insertPlaintextEmail(userId, "legacy@example.com")
-
-        whenn()
-        val email = suspendTransaction { fixture.sut.getEmail(userId) }
-
-        then()
-        assertEquals("legacy@example.com", email)
     }
 
     @Test
@@ -244,27 +210,12 @@ internal class NotificationTargetDataSourceImplTest {
     }
 
     @Test
-    fun `should encrypt a plaintext email row when updating it`() = runUnitTest {
-        given()
-        val fixture = SutFixture()
-        val userId = Uuid.random()
-        fixture.insertPlaintextEmail(userId, "legacy@example.com")
-
-        whenn()
-        suspendTransaction { fixture.sut.updateEmail(userId, "new@example.com", Instant.fromEpochMilliseconds(1000)) }
-
-        then()
-        val row = checkNotNull(fixture.emailRow(userId))
-        assertNull(row[NotificationEmailTargetTable.email])
-        assertEquals("new@example.com", fixture.decrypted(userId, row[NotificationEmailTargetTable.emailEncrypted]))
-    }
-
-    @Test
     fun `should not update the email of a user whose key is shredded`() = runUnitTest {
         given()
         val fixture = SutFixture()
         val userId = Uuid.random()
-        fixture.insertPlaintextEmail(userId, "legacy@example.com")
+        fixture.insertEmail(userId, "old@example.com")
+        val stored = fixture.emailRow(userId)?.get(NotificationEmailTargetTable.emailEncrypted)
         fixture.subjectKeys.shred(userId)
 
         whenn()
@@ -274,7 +225,7 @@ internal class NotificationTargetDataSourceImplTest {
 
         then()
         assertFalse(applied)
-        assertEquals("legacy@example.com", fixture.emailRow(userId)?.get(NotificationEmailTargetTable.email))
+        assertArrayEquals(stored, fixture.emailRow(userId)?.get(NotificationEmailTargetTable.emailEncrypted))
     }
 
     @Test
@@ -354,7 +305,7 @@ internal class NotificationTargetDataSourceImplTest {
     }
 
     @Test
-    fun `should store the telegram tag encrypted under the user's key and no plaintext`() = runUnitTest {
+    fun `should store the telegram tag encrypted under the user's key`() = runUnitTest {
         given()
         val fixture = SutFixture()
         val userId = Uuid.random()
@@ -364,22 +315,7 @@ internal class NotificationTargetDataSourceImplTest {
 
         then()
         val row = checkNotNull(fixture.telegramRow(userId))
-        assertNull(row[NotificationTelegramTargetTable.telegramTag])
         assertEquals("@myuser", fixture.decrypted(userId, row[NotificationTelegramTargetTable.telegramTagEncrypted]))
-    }
-
-    @Test
-    fun `should read a telegram tag stored as plaintext before encryption`() = runUnitTest {
-        given()
-        val fixture = SutFixture()
-        val userId = Uuid.random()
-        fixture.insertPlaintextTelegram(userId, "@legacy")
-
-        whenn()
-        val telegram = suspendTransaction { fixture.sut.getTelegram(userId) }
-
-        then()
-        assertEquals("@legacy", telegram)
     }
 
     @Test
@@ -476,27 +412,12 @@ internal class NotificationTargetDataSourceImplTest {
     }
 
     @Test
-    fun `should encrypt a plaintext telegram row when updating it`() = runUnitTest {
-        given()
-        val fixture = SutFixture()
-        val userId = Uuid.random()
-        fixture.insertPlaintextTelegram(userId, "@legacy")
-
-        whenn()
-        suspendTransaction { fixture.sut.updateTelegram(userId, "@new") }
-
-        then()
-        val row = checkNotNull(fixture.telegramRow(userId))
-        assertNull(row[NotificationTelegramTargetTable.telegramTag])
-        assertEquals("@new", fixture.decrypted(userId, row[NotificationTelegramTargetTable.telegramTagEncrypted]))
-    }
-
-    @Test
     fun `should not update the telegram tag of a user whose key is shredded`() = runUnitTest {
         given()
         val fixture = SutFixture()
         val userId = Uuid.random()
-        fixture.insertPlaintextTelegram(userId, "@legacy")
+        fixture.insertTelegram(userId, "@old")
+        val stored = fixture.telegramRow(userId)?.get(NotificationTelegramTargetTable.telegramTagEncrypted)
         fixture.subjectKeys.shred(userId)
 
         whenn()
@@ -504,97 +425,8 @@ internal class NotificationTargetDataSourceImplTest {
 
         then()
         assertFalse(applied)
-        assertEquals("@legacy", fixture.telegramRow(userId)?.get(NotificationTelegramTargetTable.telegramTag))
-    }
-
-    @Test
-    fun `should encrypt plaintext email rows up to the limit`() = runUnitTest {
-        given()
-        val fixture = SutFixture()
-        val userIds = List(3) { Uuid.random() }
-        userIds.forEach { fixture.insertPlaintextEmail(it, "$it@example.com") }
-
-        whenn()
-        val encrypted = suspendTransaction { fixture.sut.encryptPlaintextEmails(limit = 2) }
-
-        then()
-        assertEquals(2, encrypted)
-        val rows = userIds.map { checkNotNull(fixture.emailRow(it)) }
-        assertEquals(2, rows.count { it[NotificationEmailTargetTable.email] == null })
-        rows.filter { it[NotificationEmailTargetTable.email] == null }.forEach { row ->
-            val userId = row[NotificationEmailTargetTable.userId]
-            assertEquals(
-                "$userId@example.com",
-                fixture.decrypted(userId, row[NotificationEmailTargetTable.emailEncrypted]),
-            )
-        }
-    }
-
-    @Test
-    fun `should leave encrypted email rows alone when encrypting plaintext ones`() = runUnitTest {
-        given()
-        val fixture = SutFixture()
-        val userId = Uuid.random()
-        fixture.insertEmail(userId, "user@example.com")
-
-        whenn()
-        val encrypted = suspendTransaction { fixture.sut.encryptPlaintextEmails(limit = 100) }
-
-        then()
-        assertEquals(0, encrypted)
-        assertEquals("user@example.com", suspendTransaction { fixture.sut.getEmail(userId) })
-    }
-
-    @Test
-    fun `should fail to encrypt a plaintext email row whose user's key is shredded`() = runUnitTest {
-        given()
-        val fixture = SutFixture()
-        val userId = Uuid.random()
-        fixture.insertPlaintextEmail(userId, "legacy@example.com")
-        fixture.subjectKeys.shred(userId)
-
-        whenn()
-        val result = runCatching { suspendTransaction { fixture.sut.encryptPlaintextEmails(limit = 100) } }
-
-        then()
-        assertTrue(result.exceptionOrNull() is Error.UnknownError) { result.toString() }
-    }
-
-    @Test
-    fun `should encrypt plaintext telegram rows up to the limit`() = runUnitTest {
-        given()
-        val fixture = SutFixture()
-        val userIds = List(3) { Uuid.random() }
-        userIds.forEach { fixture.insertPlaintextTelegram(it, "@$it") }
-
-        whenn()
-        val encrypted = suspendTransaction { fixture.sut.encryptPlaintextTelegramTags(limit = 2) }
-
-        then()
-        assertEquals(2, encrypted)
-        val rows = userIds.map { checkNotNull(fixture.telegramRow(it)) }
-        val encryptedRows = rows.filter { it[NotificationTelegramTargetTable.telegramTag] == null }
-        assertEquals(2, encryptedRows.size)
-        encryptedRows.forEach { row ->
-            val userId = row[NotificationTelegramTargetTable.userId]
-            val ciphertext = row[NotificationTelegramTargetTable.telegramTagEncrypted]
-            assertEquals("@$userId", fixture.decrypted(userId, ciphertext))
-        }
-    }
-
-    @Test
-    fun `should leave encrypted telegram rows alone when encrypting plaintext ones`() = runUnitTest {
-        given()
-        val fixture = SutFixture()
-        val userId = Uuid.random()
-        fixture.insertTelegram(userId, "@myuser")
-
-        whenn()
-        val encrypted = suspendTransaction { fixture.sut.encryptPlaintextTelegramTags(limit = 100) }
-
-        then()
-        assertEquals(0, encrypted)
-        assertEquals("@myuser", suspendTransaction { fixture.sut.getTelegram(userId) })
+        val current = fixture.telegramRow(userId)?.get(NotificationTelegramTargetTable.telegramTagEncrypted)
+        assertArrayEquals(stored, current)
     }
 
     @Test

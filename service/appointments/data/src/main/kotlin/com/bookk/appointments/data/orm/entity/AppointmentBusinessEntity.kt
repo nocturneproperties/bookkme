@@ -67,7 +67,7 @@ internal class AppointmentBusinessEntity(id: EntityID<Uuid>) : UuidEntity(id) {
                 it.name = snapshot.name
                 it.address = snapshot.address
                 it.timezone = snapshot.timeZone.id
-                snapshot.ownerUserId?.let { owner -> it.ownerUserId = owner }
+                it.ownerUserId = snapshot.ownerUserId
                 it.workingDays = snapshot.schedule.activeDays().toWorkingDaysMask()
                 it.sourceUpdatedAt = updatedAt
                 it.updatedAt = Clock.System.now()

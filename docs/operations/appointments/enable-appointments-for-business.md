@@ -19,7 +19,6 @@ flowchart TD
     GetPerm -- caller suspended in the business --> R403s([403 BUSINESS_EMPLOYEE_ACCESS_SUSPENDED 200034 - propagated from the business service])
     GetPerm -- ok --> GetBiz[BusinessClient.getBusinessById businessId]
     GetBiz -- request failed --> RErr
-    GetBiz -- no ownerUserId, an older business service --> R500([500, nothing attached])
     GetBiz -- ok --> Tx[[Begin transaction]]
     Tx --> OwnerGone{"DeletedUserDataSource.isDeletedForShare ownerUserId - LOCK IN SHARE MODE, first statement"}
     OwnerGone -- deleted --> R404

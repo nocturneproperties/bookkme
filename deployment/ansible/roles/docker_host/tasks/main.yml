@@ -85,3 +85,18 @@
         name: systemd-resolved
         state: restarted
       when: resolved_stub_config is changed
+
+- name: Keep the systemd journal on disk, where Alloy reads the SSH logins
+  block:
+    - name: Create the persistent journal directory
+      ansible.builtin.file:
+        path: /var/log/journal
+        state: directory
+        owner: root
+        group: systemd-journal
+        mode: "2755"
+      register: journal_directory
+
+    - name: Move the journal to disk
+      ansible.builtin.command: journalctl --flush
+      when: journal_directory is changed

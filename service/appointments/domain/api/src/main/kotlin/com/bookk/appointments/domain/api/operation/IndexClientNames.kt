@@ -1,5 +1,5 @@
 package com.bookk.appointments.domain.api.operation
 
-interface FillBusinessOwners {
+interface IndexClientNames {
     suspend operator fun invoke(): Result<Unit>
 }

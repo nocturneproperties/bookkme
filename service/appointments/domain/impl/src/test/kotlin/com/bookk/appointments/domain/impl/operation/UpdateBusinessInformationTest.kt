@@ -43,6 +43,8 @@ internal class UpdateBusinessInformationTest {
         given()
         val fixture = SutFixture()
         val dto = BusinessDTO.stub(schedule = saturdaySchedule)
+        val saturdayHours = listOf(WorkHour(LocalTime(10, 0), LocalTime(14, 0)))
+        val dayOffs = listOf(DayOffRange(LocalDate(2099, 12, 30), LocalDate(2099, 12, 31)))
         with(fixture) {
             transactionManager.mockTransaction()
             coEvery { subscriptionDataSource.updateBusiness(any(), any()) } returns Unit
@@ -61,10 +63,8 @@ internal class UpdateBusinessInformationTest {
                         it.address == dto.address &&
                         it.timeZone == dto.timeZone &&
                         it.schedule.activeDays() == listOf(DayOfWeek.SATURDAY) &&
-                        it.schedule[DayOfWeek.SATURDAY].workingTime == listOf(
-                            WorkHour(LocalTime(10, 0), LocalTime(14, 0)),
-                        ) &&
-                        it.schedule.dayOffs == listOf(DayOffRange(LocalDate(2099, 12, 30), LocalDate(2099, 12, 31)))
+                        it.schedule[DayOfWeek.SATURDAY].workingTime == saturdayHours &&
+                        it.schedule.dayOffs == dayOffs
                 },
                 updatedAt,
             )
@@ -105,26 +105,6 @@ internal class UpdateBusinessInformationTest {
         then()
         coVerify(exactly = 1) {
             fixture.subscriptionDataSource.updateBusiness(match { it.ownerUserId == ownerUserId }, updatedAt)
-        }
-    }
-
-    @Test
-    fun `should pass no owner on when an update from before the owner field has none`() = runUnitTest {
-        given()
-        val fixture = SutFixture()
-        val dto = BusinessDTO.stub(ownerUserId = null)
-        with(fixture) {
-            transactionManager.mockTransaction()
-            coEvery { subscriptionDataSource.updateBusiness(any(), any()) } returns Unit
-        }
-
-        whenn()
-        val result = fixture.sut.invoke(dto, updatedAt)
-
-        then()
-        assertTrue(result.isSuccess)
-        coVerify(exactly = 1) {
-            fixture.subscriptionDataSource.updateBusiness(match { it.ownerUserId == null }, updatedAt)
         }
     }
 }

@@ -11,6 +11,7 @@ all:
           swarm_labels:
             monitoring: "true"
             backup: "true"
+            admin: "true"
     workers:
       hosts:
         worker-1:

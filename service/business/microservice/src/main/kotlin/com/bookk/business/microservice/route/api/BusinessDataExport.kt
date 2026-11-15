@@ -10,7 +10,7 @@ import com.bookk.core.service.enity.respondWith
 import com.bookk.server.auth.client.AppPrincipal
 import io.ktor.server.auth.authenticate
 import io.ktor.server.auth.principal
-import io.ktor.server.request.receiveNullable
+import io.ktor.server.request.receive
 import io.ktor.server.resources.get
 import io.ktor.server.resources.post
 import io.ktor.server.routing.Route
@@ -42,7 +42,7 @@ internal fun Route.businessDataExport() {
          */
         post<Api.Business.Id.Export> { path ->
             val principal = requireNotNull(call.principal<AppPrincipal>())
-            val confirmationToken = call.receiveNullable<DataExportRequest>()?.confirmationToken.orEmpty()
+            val confirmationToken = call.receive<DataExportRequest>().confirmationToken.orEmpty()
             val startBusinessDataExport by application.injectScoped<StartBusinessDataExport>(BusinessScope)
 
             call.respondWith(startBusinessDataExport(principal.userId, path.parent.id, confirmationToken))

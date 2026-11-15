@@ -67,7 +67,7 @@ internal class DeviceDataSourceImpl : DataSource(), DeviceDataSource {
             .singleOrNull()
     }
 
-    override suspend fun getDeviceByRefreshTokenId(tokenId: Uuid): Device? = dbQuery {
+    override suspend fun getDeviceByRefreshTokenIdForUpdate(tokenId: Uuid): Device? = dbQuery {
         AuthDeviceTable
             .innerJoin(AuthenticationTable, onColumn = { userAuthId }, otherColumn = { id })
             .selectAll()
@@ -76,11 +76,12 @@ internal class DeviceDataSourceImpl : DataSource(), DeviceDataSource {
                     .and(AuthDeviceTable.refreshTokenExpiresAt.greater(Clock.System.now()))
                     .or(AuthDeviceTable.previousRefreshTokenId.eq(tokenId))
             }
+            .forUpdate()
             .map { AuthDeviceEntity.wrapRow(it).toDomain() }
             .singleOrNull()
     }
 
-    override suspend fun getDeviceByAuthIdAndUUID(authId: Uuid, deviceUUID: Uuid): Device? = dbQuery {
+    override suspend fun getDeviceByAuthIdAndUUIDForUpdate(authId: Uuid, deviceUUID: Uuid): Device? = dbQuery {
         AuthDeviceTable
             .innerJoin(
                 otherTable = AuthenticationTable,
@@ -90,6 +91,7 @@ internal class DeviceDataSourceImpl : DataSource(), DeviceDataSource {
             )
             .selectAll()
             .where { AuthDeviceTable.deviceUUID eq deviceUUID }
+            .forUpdate()
             .map { AuthDeviceEntity.wrapRow(it).toDomain() }
             .singleOrNull()
     }

@@ -2,15 +2,16 @@ package com.bookk.user.data.datasource
 
 import com.bookk.user.data.orm.entity.ContactIndexes
 import com.bookk.user.data.orm.entity.EncryptedProfile
-import com.bookk.user.data.orm.entity.UserEntity
 import com.bookk.user.domain.api.entity.User
 import library.encryption.BlindIndex
 import library.encryption.Decrypted
-import library.encryption.Decryptor
 import library.encryption.Encryptor
 import library.encryption.MissingKeys
 import library.encryption.SubjectKeys
+import library.encryption.decryptText
+import library.encryption.encryptText
 import library.encryption.ofCaseInsensitive
+import library.encryption.valueOrNull
 import kotlin.uuid.Uuid
 
 internal class ProfileCipher(
@@ -22,51 +23,58 @@ internal class ProfileCipher(
     suspend fun encrypt(user: User): EncryptedProfile? {
         val encryptor = subjectKeys.encryptor(user.id) ?: return null
         return EncryptedProfile(
-            name = encryptor.bytesOf(user.name),
-            lastName = encryptor.bytesOf(user.lastName),
-            email = encryptor.bytesOf(user.email),
-            phone = user.phone?.let { encryptor.bytesOf(it) },
+            name = encryptor.encryptText(user.name),
+            lastName = encryptor.encryptText(user.lastName),
+            email = encryptor.encryptText(user.email),
+            phone = user.phone?.let(encryptor::encryptText),
         )
+    }
+
+    suspend fun encryptChanges(read: ReadProfile, edited: User): EncryptedProfile? {
+        val encryptor = subjectKeys.encryptor(edited.id) ?: return null
+        val current = read.user
+        val stored = read.stored
+        return EncryptedProfile(
+            name = encryptor.changed(stored.name, current.name, edited.name),
+            lastName = encryptor.changed(stored.lastName, current.lastName, edited.lastName),
+            email = encryptor.changed(stored.email, current.email, edited.email),
+            phone = if (edited.phone == current.phone) stored.phone else edited.phone?.let(encryptor::encryptText),
+        )
+    }
+
+    suspend fun decrypt(userId: Uuid, profile: EncryptedProfile): ReadProfile {
+        val decryptor = subjectKeys.decryptor(listOf(userId))
+        val name = decryptor.decryptText(userId, profile.name)
+        val lastName = decryptor.decryptText(userId, profile.lastName)
+        val email = decryptor.decryptText(userId, profile.email)
+        val phone = profile.phone?.let { decryptor.decryptText(userId, it) }
+        val fields = listOfNotNull(name, lastName, email, phone)
+        if (fields.any { it is Decrypted.Missing }) missingKeys.report(SOURCE)
+        val user = User(
+            id = userId,
+            name = name.valueOrNull().orEmpty(),
+            lastName = lastName.valueOrNull().orEmpty(),
+            email = email.valueOrNull().orEmpty(),
+            phone = phone?.valueOrNull(),
+        )
+        return ReadProfile(user = user, stored = profile, isReadable = fields.all { it is Decrypted.Plain })
     }
 
     fun indexes(user: User): ContactIndexes {
-        return ContactIndexes(email = index(user.email), phone = user.phone?.let(::index))
+        return ContactIndexes(email = indexOf(user.email), phone = user.phone?.let(::indexOf))
     }
 
-    fun index(contact: String): String {
+    fun indexOf(contact: String): String {
         return blindIndex.ofCaseInsensitive(contact)
     }
 
-    suspend fun decrypt(entity: UserEntity): User {
-        val encryptedEmail = entity.emailEncrypted ?: return entity.plaintextDomain()
-        val id = entity.id.value
-        val decryptor = subjectKeys.decryptor(listOf(id))
-        val email = decryptor.decrypt(id, encryptedEmail)
-        if (email !is Decrypted.Plain) return unreadable(id, email)
-        return User(
-            id = id,
-            name = decryptor.textOf(id, entity.nameEncrypted).orEmpty(),
-            lastName = decryptor.textOf(id, entity.lastNameEncrypted).orEmpty(),
-            email = email.value.decodeToString(),
-            phone = decryptor.textOf(id, entity.phoneEncrypted),
-        )
-    }
-
-    private fun unreadable(id: Uuid, outcome: Decrypted<ByteArray>): User {
-        if (outcome is Decrypted.Missing) missingKeys.report(SOURCE)
-        return User(id = id, name = "", lastName = "", email = "", phone = null)
-    }
-
-    private fun Encryptor.bytesOf(text: String): ByteArray {
-        return encrypt(text.encodeToByteArray())
-    }
-
-    private fun Decryptor.textOf(id: Uuid, ciphertext: ByteArray?): String? {
-        val decrypted = ciphertext?.let { decrypt(id, it) }
-        return (decrypted as? Decrypted.Plain)?.value?.decodeToString()
+    private fun Encryptor.changed(stored: ByteArray, current: String, edited: String): ByteArray {
+        return if (edited == current) stored else encryptText(edited)
     }
 
     private companion object {
         const val SOURCE = "profile"
     }
 }
+
+internal class ReadProfile(val user: User, val stored: EncryptedProfile, val isReadable: Boolean)

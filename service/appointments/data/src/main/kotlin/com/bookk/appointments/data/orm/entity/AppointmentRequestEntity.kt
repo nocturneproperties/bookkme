@@ -1,6 +1,5 @@
 package com.bookk.appointments.data.orm.entity
 
-import com.bookk.appointments.data.datasource.SnapshotReader
 import com.bookk.appointments.data.orm.table.AppointmentBusinessTable
 import com.bookk.appointments.data.orm.table.AppointmentRequestServicesTable
 import com.bookk.appointments.data.orm.table.AppointmentRequestTable
@@ -26,28 +25,22 @@ internal class AppointmentRequestEntity(id: EntityID<Uuid>) : UuidEntity(id) {
     var businessId by AppointmentRequestTable.businessId
     var employeeId by AppointmentRequestTable.employeeId
     var employeeUserId by AppointmentRequestTable.employeeUserId
-    var employeeName by AppointmentRequestTable.employeeName
     var employeeNameEncrypted by AppointmentRequestTable.employeeNameEncrypted
     var clientId by AppointmentRequestTable.clientId
     var clientUserId by AppointmentRequestTable.clientUserId
-    var clientName by AppointmentRequestTable.clientName
     var clientNameEncrypted by AppointmentRequestTable.clientNameEncrypted
-    var clientPhone by AppointmentRequestTable.clientPhone
     var clientPhoneEncrypted by AppointmentRequestTable.clientPhoneEncrypted
-    var clientEmail by AppointmentRequestTable.clientEmail
     var clientEmailEncrypted by AppointmentRequestTable.clientEmailEncrypted
     val services by AppointmentRequestServiceEntity referrersOn AppointmentRequestServicesTable.requestId
     var dateStart by AppointmentRequestTable.dateStart
     var dateEnd by AppointmentRequestTable.dateEnd
-    var note by AppointmentRequestTable.note
     var noteEncrypted by AppointmentRequestTable.noteEncrypted
     var status by AppointmentRequestTable.status
     var declineReason by AppointmentRequestTable.declineReason
     var updatedAt by AppointmentRequestTable.updatedAt
 
-    fun domain(reader: SnapshotReader): AppointmentRequest {
-        val snapshot = storedSnapshot()
-        val client = reader.client(snapshot)
+    fun domain(snapshot: DecryptedSnapshot): AppointmentRequest {
+        val client = snapshot.client
         return AppointmentRequest(
             id = id.value,
             initiatorUserId = initiatorUserId,
@@ -55,7 +48,7 @@ internal class AppointmentRequestEntity(id: EntityID<Uuid>) : UuidEntity(id) {
             employee = EmployeeSnapshot(
                 id = employeeId,
                 userId = employeeUserId,
-                fullName = reader.employeeName(snapshot),
+                fullName = snapshot.employeeName,
             ),
             client = RequestClientSnapshot(
                 id = clientId,
@@ -87,35 +80,17 @@ internal class AppointmentRequestEntity(id: EntityID<Uuid>) : UuidEntity(id) {
         return StoredSnapshot(
             clientId = clientId,
             employeeUserId = employeeUserId,
-            plaintextClient = clientName?.let { ClientDetails(it, clientPhone, clientEmail, note.orEmpty()) },
             encryptedClient = clientNameEncrypted?.let {
                 EncryptedClientDetails(
                     fullName = it,
                     phone = clientPhoneEncrypted,
                     email = clientEmailEncrypted,
                     note = checkNotNull(noteEncrypted) { "Snapshot of client $clientId has no encrypted note" },
+                    nameIndex = null,
                 )
             },
-            plaintextEmployeeName = employeeName,
             encryptedEmployeeName = employeeNameEncrypted,
         )
-    }
-
-    fun store(encrypted: EncryptedSnapshot) {
-        storeClient(encrypted.client)
-        employeeNameEncrypted = encrypted.employeeName
-        employeeName = null
-    }
-
-    fun storeClient(encrypted: EncryptedClientDetails?) {
-        clientNameEncrypted = encrypted?.fullName
-        clientPhoneEncrypted = encrypted?.phone
-        clientEmailEncrypted = encrypted?.email
-        noteEncrypted = encrypted?.note
-        clientName = null
-        clientPhone = null
-        clientEmail = null
-        note = null
     }
 
     companion object : DecoratorUuidEntityClass<AppointmentRequestEntity>(AppointmentRequestTable) {
@@ -129,14 +104,15 @@ internal class AppointmentRequestEntity(id: EntityID<Uuid>) : UuidEntity(id) {
             clientUserId = request.client.userId
             dateStart = request.date
             dateEnd = request.dateEnd
-            store(encrypted)
+            writeSnapshot(encrypted)
             status = AppointmentRequestStatus.PENDING
             declineReason = request.declineReason
         }
 
-        fun findByIdAndUpdate(request: AppointmentRequest, encrypted: EncryptedSnapshot) = findByIdAndUpdate(
-            request.id,
-        ) {
+        fun findByIdAndUpdate(
+            request: AppointmentRequest,
+            encrypted: EncryptedSnapshot,
+        ) = findByIdAndUpdate(request.id) {
             it.initiatorUserId = request.initiatorUserId
             it.businessId = EntityID(request.businessId, table = AppointmentBusinessTable)
             it.employeeId = request.employee.id
@@ -145,10 +121,31 @@ internal class AppointmentRequestEntity(id: EntityID<Uuid>) : UuidEntity(id) {
             it.clientUserId = request.client.userId
             it.dateStart = request.date
             it.dateEnd = request.dateEnd
-            it.store(encrypted)
+            it.writeSnapshot(encrypted)
             it.status = request.status
             it.declineReason = request.declineReason
             it.updatedAt = Clock.System.now()
+        }
+
+        fun findByIdAndUpdateClient(
+            id: Uuid,
+            clientId: Uuid,
+            encrypted: EncryptedClientDetails?,
+        ) = findByIdAndUpdate(id) {
+            it.clientId = clientId
+            it.writeClient(encrypted)
+        }
+
+        private fun AppointmentRequestEntity.writeSnapshot(encrypted: EncryptedSnapshot) {
+            writeClient(encrypted.client)
+            employeeNameEncrypted = encrypted.employeeName
+        }
+
+        private fun AppointmentRequestEntity.writeClient(encrypted: EncryptedClientDetails?) {
+            clientNameEncrypted = encrypted?.fullName
+            clientPhoneEncrypted = encrypted?.phone
+            clientEmailEncrypted = encrypted?.email
+            noteEncrypted = encrypted?.note
         }
     }
 }

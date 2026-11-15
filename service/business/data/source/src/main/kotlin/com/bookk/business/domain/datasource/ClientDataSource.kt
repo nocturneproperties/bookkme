@@ -34,5 +34,4 @@ interface ClientDataSource {
     suspend fun getBusinessIdsByUserId(userId: Uuid): List<Uuid>
     suspend fun recordVisit(businessId: Uuid, clientId: Uuid, visitEnd: Instant)
     suspend fun getInactiveClientIdsForUpdate(businessId: Uuid, inactiveSince: Instant): List<Uuid>
-    suspend fun encryptPlaintextClients(limit: Int): Int
 }

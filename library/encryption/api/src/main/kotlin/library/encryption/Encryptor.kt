@@ -5,3 +5,7 @@ interface Encryptor {
 
     fun encrypt(plaintext: ByteArray): ByteArray
 }
+
+fun Encryptor.encryptText(plaintext: String): ByteArray {
+    return encrypt(plaintext.encodeToByteArray())
+}

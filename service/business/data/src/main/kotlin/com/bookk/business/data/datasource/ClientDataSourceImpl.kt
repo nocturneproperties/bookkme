@@ -14,14 +14,12 @@ import com.bookk.core.data.DataSource
 import com.bookk.core.data.map.toDomain
 import com.bookk.core.domain.entity.Error
 import org.jetbrains.exposed.v1.core.JoinType
-import org.jetbrains.exposed.v1.core.Op
 import org.jetbrains.exposed.v1.core.alias
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.core.isNull
 import org.jetbrains.exposed.v1.core.less
-import org.jetbrains.exposed.v1.core.neq
 import org.jetbrains.exposed.v1.core.or
 import org.jetbrains.exposed.v1.jdbc.batchInsert
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
@@ -44,7 +42,6 @@ internal class ClientDataSourceImpl(private val contactCipher: ContactCipher) : 
         clients: List<Client.Detached>,
     ): List<Client> = dbQuery {
         val contacts = clients.map { it.trimmedContact() }
-        requireNoPlaintextHolder(businessId, contacts.mapNotNull { it.email })
         val rows = contacts.map { contact ->
             val id = Uuid.random()
             NewClientRow(id, contact, encryptNew(id, contact))
@@ -65,8 +62,11 @@ internal class ClientDataSourceImpl(private val contactCipher: ContactCipher) : 
     override suspend fun getClientsByEmails(businessId: Uuid, emails: Collection<String>): List<Client> = dbQuery {
         if (emails.isEmpty()) return@dbQuery emptyList()
         val indexes = emails.mapNotNull { contactCipher.emailIndex(it) }
-        val matchesEmail = (ClientTable.emailIndex inList indexes) or (ClientTable.email inList emails)
-        ClientEntity.find { (ClientTable.businessId eq businessId) and matchesEmail }.toList().domains()
+        ClientEntity.find {
+            (ClientTable.businessId eq businessId) and (ClientTable.emailIndex inList indexes)
+        }
+            .toList()
+            .domains()
     }
 
     override suspend fun getClientById(businessId: Uuid, id: Uuid): Client? = dbQuery {
@@ -103,7 +103,8 @@ internal class ClientDataSourceImpl(private val contactCipher: ContactCipher) : 
         val entity = ClientEntity.findById(detachedClientId)
             ?.takeIf { it.businessId.value == businessId && it.userId == null }
             ?: return@dbQuery null
-        val current = entity.readContact()
+        val read = entity.readForWrite()
+        val current = read.contact
         val profileEmail = profile.email?.trim()
         val takenOver = current.copy(
             name = profile.name.trim(),
@@ -111,8 +112,7 @@ internal class ClientDataSourceImpl(private val contactCipher: ContactCipher) : 
             phone = profile.phone?.trim() ?: current.phone,
             email = profileEmail ?: current.email,
         )
-        if (profileEmail != null) requireNoPlaintextHolder(businessId, listOf(profileEmail), except = entity.id.value)
-        if (!entity.write(takenOver, reindexEmail = profileEmail != null)) return@dbQuery null
+        if (!entity.write(read, takenOver, reindexEmail = profileEmail != null)) return@dbQuery null
         entity.userId = profile.userId
         entity.lastActivityAt = Clock.System.now()
         entity.toDomain(takenOver)
@@ -124,16 +124,14 @@ internal class ClientDataSourceImpl(private val contactCipher: ContactCipher) : 
         updatedAt: Instant,
     ): List<ClientMerge> = dbQuery {
         val integrated = ClientTable.alias("integrated")
-        val holdsEmail = (ClientTable.emailIndex eq contactCipher.emailIndex(email)) or
-            (ClientTable.email eq email.trim())
+        val holdsEmail = ClientTable.emailIndex eq contactCipher.emailIndex(email)
+        val integratedSourceUpdatedAt = integrated[ClientTable.sourceUpdatedAt]
+        val integratedIsOutdated = integratedSourceUpdatedAt.isNull() or (integratedSourceUpdatedAt less updatedAt)
         ClientTable.join(integrated, JoinType.INNER, ClientTable.businessId, integrated[ClientTable.businessId])
             .select(ClientTable.businessId, ClientTable.id, integrated[ClientTable.id])
             .where {
                 (integrated[ClientTable.userId] eq userId) and
-                    (
-                        integrated[ClientTable.sourceUpdatedAt].isNull() or
-                            (integrated[ClientTable.sourceUpdatedAt] less updatedAt)
-                        ) and
+                    integratedIsOutdated and
                     ClientTable.userId.isNull() and
                     holdsEmail
             }
@@ -157,7 +155,8 @@ internal class ClientDataSourceImpl(private val contactCipher: ContactCipher) : 
             .forUpdate()
             .singleOrNull()
             ?: return@dbQuery null
-        val current = entity.readContact()
+        val read = entity.readForWrite()
+        val current = read.contact
         val edited = Contact(
             name = model.name ?: current.name,
             lastName = model.lastName ?: current.lastName,
@@ -165,8 +164,7 @@ internal class ClientDataSourceImpl(private val contactCipher: ContactCipher) : 
             email = model.email ?: current.email,
             description = model.description ?: current.description,
         )
-        model.email?.let { requireNoPlaintextHolder(businessId, listOf(it), except = model.id) }
-        if (!entity.write(edited, reindexEmail = model.email != null)) return@dbQuery null
+        if (!entity.write(read, edited, reindexEmail = model.email != null)) return@dbQuery null
         entity.lastActivityAt = Clock.System.now()
         entity.toDomain(edited)
     }
@@ -183,16 +181,15 @@ internal class ClientDataSourceImpl(private val contactCipher: ContactCipher) : 
             (ClientTable.userId eq userId) and
                 (ClientTable.sourceUpdatedAt.isNull() or (ClientTable.sourceUpdatedAt less updatedAt))
         }.forUpdate().toList()
-        val reader = contactCipher.reader(clients.map { it.id.value }, SOURCE)
-        clients.count { entity ->
-            val current = entity.contact(reader)
-            val synced = current.copy(
+        val reads = contactCipher.readAll(clients.map { it.storedContact() }, SOURCE)
+        clients.zip(reads).count { (entity, read) ->
+            val synced = read.contact.copy(
                 name = name.trim(),
                 lastName = lastName.trim(),
                 email = email.trim(),
-                phone = phone?.trim() ?: current.phone,
+                phone = phone?.trim() ?: read.contact.phone,
             )
-            entity.write(synced, reindexEmail = true).also { written ->
+            entity.write(read, synced, reindexEmail = true).also { written ->
                 if (written) entity.sourceUpdatedAt = updatedAt
             }
         }
@@ -249,15 +246,6 @@ internal class ClientDataSourceImpl(private val contactCipher: ContactCipher) : 
                 .map { it[ClientTable.id].value }
         }
 
-    override suspend fun encryptPlaintextClients(limit: Int): Int = dbQuery {
-        val plaintext = ClientEntity.find { ClientTable.nameEncrypted.isNull() }.limit(limit).forUpdate().toList()
-        plaintext.forEach { entity ->
-            val written = entity.write(entity.plaintextContact(), reindexEmail = true)
-            check(written) { "The stored client ${entity.id.value} has a shredded key" }
-        }
-        plaintext.size
-    }
-
     private suspend fun findIntegratedClient(businessId: Uuid, userId: Uuid): Client? {
         return ClientEntity.find { (ClientTable.businessId eq businessId) and (ClientTable.userId eq userId) }
             .firstOrNull()
@@ -271,7 +259,6 @@ internal class ClientDataSourceImpl(private val contactCipher: ContactCipher) : 
     }
 
     private suspend fun insertClient(businessId: Uuid, id: Uuid, contact: Contact, userId: Uuid?) {
-        requireNoPlaintextHolder(businessId, listOfNotNull(contact.email))
         val encrypted = encryptNew(id, contact)
         ClientTable.insert {
             it[ClientTable.id] = id
@@ -285,33 +272,23 @@ internal class ClientDataSourceImpl(private val contactCipher: ContactCipher) : 
         return checkNotNull(contactCipher.encrypt(id, contact)) { "The new client $id has a shredded key" }
     }
 
-    private suspend fun ClientEntity.write(contact: Contact, reindexEmail: Boolean): Boolean {
-        val encrypted = contactCipher.encrypt(id.value, contact) ?: return false
+    private suspend fun ClientEntity.write(read: ReadContact, contact: Contact, reindexEmail: Boolean): Boolean {
+        val encrypted = contactCipher.encryptChanges(read, contact) ?: return false
         store(encrypted, contactCipher.emailIndex(contact.email), reindexEmail)
         return true
     }
 
-    private suspend fun ClientEntity.readContact(): Contact {
-        return contact(contactCipher.reader(listOf(id.value), SOURCE))
+    private suspend fun ClientEntity.readForWrite(): ReadContact {
+        return contactCipher.read(storedContact(), SOURCE)
     }
 
     private suspend fun ClientEntity.domain(): Client {
-        return toDomain(readContact())
+        return toDomain(contactCipher.decrypt(storedContact(), SOURCE))
     }
 
     private suspend fun List<ClientEntity>.domains(): List<Client> {
-        val reader = contactCipher.reader(map { it.id.value }, SOURCE)
-        return map { it.toDomain(it.contact(reader)) }
-    }
-
-    private fun requireNoPlaintextHolder(businessId: Uuid, emails: Collection<String>, except: Uuid? = null) {
-        if (emails.isEmpty()) return
-        val someoneElse = except?.let { ClientTable.id neq it } ?: Op.TRUE
-        val held = ClientTable.select(ClientTable.id)
-            .where { (ClientTable.businessId eq businessId) and (ClientTable.email inList emails) and someoneElse }
-            .limit(1)
-            .any()
-        if (held) throw Error.UniqueConstraintFailed("A plaintext client holds this email", IllegalStateException())
+        val contacts = contactCipher.decryptAll(map { it.storedContact() }, SOURCE)
+        return zip(contacts) { entity, contact -> entity.toDomain(contact) }
     }
 
     private fun Client.trimmedContact(): Contact {

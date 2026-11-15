@@ -29,6 +29,9 @@ configs:
   prometheus_alerts_cfg:
     name: prometheus_alerts_cfg-v9
     file: prometheus/node_alerts.yml
+  prometheus_security_alerts_cfg:
+    name: prometheus_security_alerts_cfg-v1
+    file: prometheus/security_alerts.yml
   alertmanager_cfg:
     name: alertmanager_cfg-v2
     file: alertmanager/config.yml
@@ -48,10 +51,13 @@ configs:
     name: grafana_dashboard_logs-v1
     file: grafana/dashboards/logs.json
   loki_cfg:
-    name: loki_cfg-v1
+    name: loki_cfg-v2
     file: loki/loki.yml
+  loki_security_rules_cfg:
+    name: loki_security_rules_cfg-v1
+    file: loki/security_rules.yml
   alloy_cfg:
-    name: alloy_cfg-v1
+    name: alloy_cfg-v2
     file: alloy/config.alloy
 
 x-templates:
@@ -86,6 +92,8 @@ services:
         target: /etc/prometheus/prometheus.yml
       - source: prometheus_alerts_cfg
         target: /etc/prometheus/rules/node_alerts.yml
+      - source: prometheus_security_alerts_cfg
+        target: /etc/prometheus/rules/security_alerts.yml
     secrets:
       - prometheus_password
       - prometheus_web_config
@@ -187,6 +195,8 @@ services:
     configs:
       - source: loki_cfg
         target: /etc/loki/loki.yml
+      - source: loki_security_rules_cfg
+        target: /etc/loki/rules/fake/security_rules.yml
     volumes:
       - loki_data:/loki
     networks:
@@ -219,6 +229,8 @@ services:
     volumes:
       - alloy_data:/var/lib/alloy/data
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/log/journal:/var/log/journal:ro
+      - /etc/machine-id:/etc/machine-id:ro
     networks:
       - monitoring
     logging:

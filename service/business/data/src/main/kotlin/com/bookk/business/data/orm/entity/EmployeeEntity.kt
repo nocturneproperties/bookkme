@@ -1,6 +1,5 @@
 package com.bookk.business.data.orm.entity
 
-import com.bookk.business.data.datasource.ContactReader
 import com.bookk.business.data.orm.table.BusinessPermissionGrantsTable
 import com.bookk.business.data.orm.table.BusinessTable
 import com.bookk.business.data.orm.table.EmployeeCanProvideServiceTable
@@ -28,10 +27,6 @@ import kotlin.uuid.Uuid
 internal class EmployeeEntity(id: EntityID<Uuid>) : UuidEntity(id) {
 
     var businessId by EmployeeTable.businessId
-    var name by EmployeeTable.name
-    var lastName by EmployeeTable.lastName
-    var phone by EmployeeTable.phone
-    var email by EmployeeTable.email
     var userId by EmployeeTable.userId
     var nameEncrypted by EmployeeTable.nameEncrypted
     var lastNameEncrypted by EmployeeTable.lastNameEncrypted
@@ -48,19 +43,14 @@ internal class EmployeeEntity(id: EntityID<Uuid>) : UuidEntity(id) {
     val dayOffs by EmployeeDayOffEntity referrersOn EmployeeDayOffTable.employeeId
     val grants by BusinessPermissionGrantEntity referrersOn BusinessPermissionGrantsTable.employeeId
 
-    fun plaintextContact(): Contact {
-        return Contact(name = name.orEmpty(), lastName = lastName.orEmpty(), phone = phone, email = email)
-    }
-
-    fun contact(reader: ContactReader): Contact {
-        val encryptedName = nameEncrypted ?: return plaintextContact()
+    fun storedContact(): StoredContact {
         val encrypted = EncryptedContact(
-            name = encryptedName,
-            lastName = checkNotNull(lastNameEncrypted) { "Employee ${id.value} has no encrypted last name" },
+            name = nameEncrypted,
+            lastName = lastNameEncrypted,
             phone = phoneEncrypted,
             email = emailEncrypted,
         )
-        return reader.read(userId, encrypted)
+        return StoredContact(subjectId = userId, encrypted = encrypted)
     }
 
     fun store(contact: EncryptedContact) {
@@ -68,10 +58,6 @@ internal class EmployeeEntity(id: EntityID<Uuid>) : UuidEntity(id) {
         lastNameEncrypted = contact.lastName
         phoneEncrypted = contact.phone
         emailEncrypted = contact.email
-        name = null
-        lastName = null
-        phone = null
-        email = null
     }
 
     fun update(model: EmployeeUpdateModel, contact: EncryptedContact) {

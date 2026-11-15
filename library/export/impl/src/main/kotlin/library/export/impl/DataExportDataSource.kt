@@ -151,16 +151,18 @@ internal class DataExportDataSource : DataSource() {
         expired.mapNotNull { it[DataExportTable.keyId] }
     }
 
-    private fun claimableAt(
-        now: Instant,
-    ): Op<Boolean> = (DataExportTable.attempts less DataExports.MAX_BUILD_ATTEMPTS) and (
-        (DataExportTable.state eq DataExportState.PENDING) or
-            ((DataExportTable.state eq DataExportState.RUNNING) and (DataExportTable.claimedUntil less now))
-        )
+    private fun claimableAt(now: Instant): Op<Boolean> {
+        val hasAttemptsLeft = DataExportTable.attempts less DataExports.MAX_BUILD_ATTEMPTS
+        val isPending = DataExportTable.state eq DataExportState.PENDING
+        val isAbandoned = (DataExportTable.state eq DataExportState.RUNNING) and (DataExportTable.claimedUntil less now)
+        return hasAttemptsLeft and (isPending or isAbandoned)
+    }
 
-    private fun heldBy(ownerId: Uuid, claimId: Uuid): Op<Boolean> = (DataExportTable.ownerId eq ownerId) and
-        (DataExportTable.state eq DataExportState.RUNNING) and
-        (DataExportTable.claimId eq claimId)
+    private fun heldBy(ownerId: Uuid, claimId: Uuid): Op<Boolean> {
+        return (DataExportTable.ownerId eq ownerId) and
+            (DataExportTable.state eq DataExportState.RUNNING) and
+            (DataExportTable.claimId eq claimId)
+    }
 
     private fun UpdateStatement.clearClaim() {
         this[DataExportTable.claimId] = null

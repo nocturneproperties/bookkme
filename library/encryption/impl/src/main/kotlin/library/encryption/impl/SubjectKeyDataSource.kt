@@ -1,6 +1,7 @@
 package library.encryption.impl
 
 import com.bookk.core.data.DataSource
+import com.bookk.core.data.forShare
 import library.encryption.impl.orm.ShreddedSubjectTable
 import library.encryption.impl.orm.SubjectKeyTable
 import org.jetbrains.exposed.v1.core.Coalesce
@@ -19,6 +20,12 @@ internal class SubjectKeyDataSource(private val table: SubjectKeyTable) : DataSo
     suspend fun get(subjectId: Uuid): StoredSubjectKey? {
         return dbQuery {
             table.selectAll().where { table.subjectId eq subjectId }.singleOrNull()?.toStored()
+        }
+    }
+
+    suspend fun getForShare(subjectId: Uuid): StoredSubjectKey? {
+        return dbQuery {
+            table.selectAll().where { table.subjectId eq subjectId }.forShare().singleOrNull()?.toStored()
         }
     }
 

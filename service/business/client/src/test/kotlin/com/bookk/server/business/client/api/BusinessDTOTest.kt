@@ -7,11 +7,12 @@ import com.bookk.core.test.then
 import com.bookk.core.test.whenn
 import kotlinx.datetime.TimeZone
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerializationException
 import kotlinx.serialization.protobuf.ProtoBuf
 import kotlinx.serialization.protobuf.ProtoNumber
 import library.schedule.Schedule
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import kotlin.uuid.Uuid
 
@@ -57,18 +58,15 @@ internal class BusinessDTOTest {
     }
 
     @Test
-    fun `should decode a business sent before the owner field without an owner`() = runUnitTest {
+    fun `should refuse a business sent without its owner`() = runUnitTest {
         given()
         val pinned = PinnedBusinessBeforeOwner(Uuid.random(), "Name", "Address", TimeZone.UTC, Schedule())
+        val bytes = protoBuf.encodeToByteArray(PinnedBusinessBeforeOwner.serializer(), pinned)
 
         whenn()
-        val decoded = protoBuf.decodeFromByteArray(
-            BusinessDTO.serializer(),
-            protoBuf.encodeToByteArray(PinnedBusinessBeforeOwner.serializer(), pinned),
-        )
+        val result = runCatching { protoBuf.decodeFromByteArray(BusinessDTO.serializer(), bytes) }
 
         then()
-        assertNull(decoded.ownerUserId)
-        assertEquals(pinned.id, decoded.id)
+        assertTrue(result.exceptionOrNull() is SerializationException)
     }
 }

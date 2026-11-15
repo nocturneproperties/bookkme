@@ -12,7 +12,7 @@ internal class UserDataExportDataSourceImpl(
 
     override suspend fun getProfile(userId: Uuid): ProfileExport? = dbQuery {
         val entity = UserEntity.findById(userId) ?: return@dbQuery null
-        val user = profileCipher.decrypt(entity)
+        val user = profileCipher.decrypt(userId, entity.profile).user
         ProfileExport(
             id = user.id,
             name = user.name,

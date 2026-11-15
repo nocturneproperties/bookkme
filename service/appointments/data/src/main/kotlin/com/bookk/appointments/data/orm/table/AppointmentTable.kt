@@ -6,20 +6,17 @@ import com.bookk.core.data.database.BaseUUIDTable
 import org.jetbrains.exposed.v1.core.ReferenceOption
 import org.jetbrains.exposed.v1.datetime.timestamp
 
+private const val BLIND_INDEX_LENGTH = 44
+
 object AppointmentTable : BaseUUIDTable("appointment") {
     val initiatorUserId = uuid("initiator_user_id")
     val businessId = reference("business_id", AppointmentBusinessTable.id, onDelete = ReferenceOption.CASCADE)
     val employeeId = uuid("employee_id")
     val employeeUserId = uuid("employee_user_id").index()
-    val employeeName = varchar("employee_name", 1024).nullable()
     val clientId = uuid("client_id").index()
     val clientUserId = uuid("client_user_id").nullable().index()
-    val clientName = varchar("client_name", 1024).nullable()
-    val clientPhone = varchar("client_phone", 24).nullable()
-    val clientEmail = varchar("client_email", 512).nullable()
     val dateStart = timestamp("date_start")
     val dateEnd = timestamp("date_end").index()
-    val note = varchar("note", 2048).nullable()
     val status = enumeration("status", AppointmentStatus::class).index()
     val cancellationReason = varchar("cancellation_reason", 2048)
     val completedBy = enumeration("completed_by", AppointmentCompletedBy::class).nullable()
@@ -28,8 +25,10 @@ object AppointmentTable : BaseUUIDTable("appointment") {
     val clientPhoneEncrypted = binary("client_phone_encrypted", 128).nullable()
     val clientEmailEncrypted = binary("client_email_encrypted", 2080).nullable()
     val noteEncrypted = binary("note_encrypted", 8224).nullable()
+    val clientNameIndex = char("client_name_index", BLIND_INDEX_LENGTH).nullable()
 
     init {
         index(false, initiatorUserId, businessId, dateStart)
+        index("appointment_business_client_name_index", false, businessId, clientNameIndex)
     }
 }

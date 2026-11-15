@@ -9,15 +9,10 @@ private const val BLIND_INDEX_LENGTH = 44
 
 internal object ClientTable : UuidTable("client") {
     val businessId = reference("business_id", BusinessTable, onDelete = ReferenceOption.CASCADE).index()
-    val name = varchar("name", 512).nullable()
-    val lastName = varchar("lastname", 512).nullable()
-    val phone = varchar("phone", 512).nullable()
-    val email = varchar("email", 512).nullable().index()
     val userId = uuid("user_id").nullable().index()
     val sourceUpdatedAt = timestamp("source_updated_at").nullable()
-    val description = varchar("description", 1024).nullable()
-    val nameEncrypted = binary("name_encrypted", 2080).nullable()
-    val lastNameEncrypted = binary("lastname_encrypted", 2080).nullable()
+    val nameEncrypted = binary("name_encrypted", 2080)
+    val lastNameEncrypted = binary("lastname_encrypted", 2080)
     val phoneEncrypted = binary("phone_encrypted", 2080).nullable()
     val emailEncrypted = binary("email_encrypted", 2080).nullable()
     val descriptionEncrypted = binary("description_encrypted", 4128).nullable()
@@ -27,7 +22,6 @@ internal object ClientTable : UuidTable("client") {
 
     init {
         uniqueIndex(businessId, userId)
-        uniqueIndex(businessId, email)
         uniqueIndex(businessId, emailIndex)
         index(false, businessId, lastActivityAt)
     }

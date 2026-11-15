@@ -17,7 +17,6 @@ import com.bookk.core.service.startServer
 import com.bookk.notifications.domain.impl.di.NotificationsScope
 import com.bookk.notifications.microservice.initFirebase
 import com.bookk.notifications.microservice.notificationsEmbeddedModule
-import com.bookk.notifications.microservice.registerNotificationsJobs
 import com.bookk.user.domain.impl.di.UserScope
 import com.bookk.user.microservice.registerUserJobs
 import com.bookk.user.microservice.userEmbeddedModule
@@ -60,5 +59,4 @@ fun Application.registerMonolithJobs(scheduler: SchedulerConfiguration) {
     registerUserJobs(scheduler)
     registerBusinessJobs(scheduler)
     registerAppointmentsJobs(scheduler)
-    registerNotificationsJobs(scheduler)
 }

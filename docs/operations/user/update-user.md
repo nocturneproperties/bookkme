@@ -8,6 +8,10 @@ snapshots) can react. Email and phone are unique across users
 (`profile_email_unique`, `profile_phone_unique`); a blank phone clears it
 and is stored as `NULL`, so profiles without a phone never collide.
 
+Only the fields that change are encrypted again; the others keep their
+stored ciphertext, so an edit of a profile whose key was lost in a restore
+doesn't turn the fields it couldn't read into empty values.
+
 The email is never written here: an address changes only after auth
 verified it with a code ([Confirm an email change](../authorization/confirm-email-change.md)).
 The app may send the stored email back unchanged; any other email rolls

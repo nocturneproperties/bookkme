@@ -444,7 +444,7 @@ internal class AppointmentDataSourceImplTest {
 
         whenn()
         // ClientSnapshot.stub() uses fullName "Client Name"
-        val pagination = suspendTransaction { fixture.sut.getAllPaginated(fixture.businessId, 10, 0, "client") }
+        val pagination = suspendTransaction { fixture.sut.getAllPaginated(fixture.businessId, 10, 0, "client name") }
 
         then()
         assertEquals(2, pagination.data.size)
@@ -480,7 +480,7 @@ internal class AppointmentDataSourceImplTest {
 
         whenn()
         val byService = suspendTransaction { fixture.sut.getAllPaginated(fixture.businessId, 10, 0, "service") }
-        val byClient = suspendTransaction { fixture.sut.getAllPaginated(fixture.businessId, 10, 0, "client") }
+        val byClient = suspendTransaction { fixture.sut.getAllPaginated(fixture.businessId, 10, 0, "client name") }
 
         then()
         assertEquals(listOf(own.id), byService.data.map { it.id })

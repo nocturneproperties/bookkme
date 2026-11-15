@@ -3,6 +3,9 @@ package com.bookk.notifications.data.datasource
 import library.encryption.Decrypted
 import library.encryption.MissingKeys
 import library.encryption.SubjectKeys
+import library.encryption.decryptText
+import library.encryption.encryptText
+import library.encryption.valueOrNull
 import kotlin.uuid.Uuid
 
 internal class TargetCipher(
@@ -11,13 +14,12 @@ internal class TargetCipher(
 ) {
 
     suspend fun encrypt(userId: Uuid, target: String): ByteArray? {
-        val encryptor = subjectKeys.encryptor(userId) ?: return null
-        return encryptor.encrypt(target.encodeToByteArray())
+        return subjectKeys.encryptor(userId)?.encryptText(target)
     }
 
     suspend fun decrypt(userId: Uuid, ciphertext: ByteArray, table: String): String? {
-        val decrypted = subjectKeys.decryptor(listOf(userId)).decrypt(userId, ciphertext)
+        val decrypted = subjectKeys.decryptor(listOf(userId)).decryptText(userId, ciphertext)
         if (decrypted is Decrypted.Missing) missingKeys.report(table)
-        return (decrypted as? Decrypted.Plain)?.value?.decodeToString()
+        return decrypted.valueOrNull()
     }
 }

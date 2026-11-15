@@ -13,6 +13,7 @@ dependencies {
     implementation(libs.ktor.client.negotiation)
     implementation(libs.ktor.json)
     implementation(libs.kotlin.serialization.json)
+    implementation(libs.micrometer.core)
 
     testFixturesApi(testFixtures(projects.core.data.cache.impl))
 
