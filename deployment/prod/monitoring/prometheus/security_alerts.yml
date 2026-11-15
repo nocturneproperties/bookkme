@@ -1,0 +1,139 @@
+groups:
+  - name: security_recording_rules
+    interval: 1m
+    rules:
+      - record: security:auth_client_errors:increase10m
+        expr: sum(increase(ktor_http_server_requests_seconds_count{job="monolith", route=~"/api/auth/.*", status=~"4..", status!="429"}[10m]))
+
+      - record: security:business_not_found:increase10m
+        expr: sum(increase(ktor_http_server_requests_seconds_count{job="monolith", route=~"/api/(business|appointments)/.*", status="404"}[10m]))
+
+      - record: security:email_wrong_codes:increase1h
+        expr: sum(increase(email_code_rejected_total{job="monolith", reason="wrong_code"}[1h]))
+
+      - record: security:response_bytes:increase1h
+        expr: sum by (method, route) (increase(http_server_response_size_bytes_sum{job="monolith", route=~"/api/.*|unrouted", route!~"/api/internal/.*"}[1h]))
+
+  - name: security_alerts
+    rules:
+      - alert: SignInFailuresSpike
+        expr: security:auth_client_errors:increase10m > 50 and security:auth_client_errors:increase10m > 5 * (security:auth_client_errors:increase10m offset 1w or vector(0))
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $value | humanize }} refused requests on /api/auth in 10 minutes"
+          description: "More than 50 answers with a 4xx status (429 left out) on the sign-in, sign-up, refresh and email routes in 10 minutes, and more than 5 times as many as at this time a week ago: someone may be guessing codes or replaying tokens. See which route and status on the Application dashboard (Requests by route), and the client addresses in nginx's logs for the same minutes (Grafana, Logs, stack nginx). Thresholds in deployment/ansible/README.md (Monitoring)."
+
+      - alert: RefreshTokenReused
+        expr: sum(increase(auth_refresh_token_reused_total{job="monolith"}[10m])) > 0
+        labels:
+          severity: critical
+        annotations:
+          summary: "A rotated-out refresh token came back ({{ $value | humanize }} in 10 minutes)"
+          description: "Someone presented a refresh token that had already been exchanged for a new one. That is what a stolen token looks like: its device was signed out, and its owner has to sign in again. A client bug that refreshes twice at the same time looks the same, so check the app's logs for POST /api/auth/refresh around then; more than one in a short time, or across devices, is the breach procedure's case."
+
+      - alert: EmailCodeSendLimitAcrossAddresses
+        expr: sum(increase(email_code_send_limited_total{job="monolith"}[1h])) >= 5
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $value | humanize }} addresses hit the hourly email code limit in an hour"
+          description: "Each address may get 5 codes an hour; this counts every address that asked for a sixth, once per hour. A person who lost an email does that rarely; five in an hour points to someone sending codes to many addresses (spam through Postmark, or probing which addresses have accounts). Check nginx's 429s on /api/auth/email and /api/auth/passkey/sign_up/challenge and Postmark's activity."
+
+      - alert: EmailCodeGuessing
+        expr: security:email_wrong_codes:increase1h > 30 and security:email_wrong_codes:increase1h > 5 * (security:email_wrong_codes:increase1h offset 1w or vector(0))
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $value | humanize }} wrong email codes in an hour"
+          description: "More than 30 wrong email codes in an hour, and more than 5 times as many as a week ago. Each code allows 5 tries, so this is many codes being guessed at, not one person mistyping. Check nginx's 429s on /api/auth/sign_up and /api/auth/email/confirm for the addresses behind it."
+
+      - alert: EmailCodeAttemptsExhausted
+        expr: sum(increase(email_code_rejected_total{job="monolith", reason="attempts_exhausted"}[1h])) >= 3
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $value | humanize }} email codes ran out of attempts in an hour"
+          description: "Three or more verifications ended after 5 wrong codes within an hour. One is a person who gave up; several point to someone guessing codes for addresses they don't own."
+
+      - alert: BusinessNotFoundSpike
+        expr: security:business_not_found:increase10m > 30 and security:business_not_found:increase10m > 5 * (security:business_not_found:increase10m offset 1w or vector(0))
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $value | humanize }} not-found answers on business and appointment routes in 10 minutes"
+          description: "A permission failure is answered with 404, so a burst of 404s on /api/business and /api/appointments can be someone trying ids of other businesses. More than 30 in 10 minutes and 5 times last week's count. See the routes on the Application dashboard and the request lines ('[404 Not Found]') in the monolith's logs."
+
+      - alert: MariaDBLoginFailed
+        expr: sum(increase(mysql_global_status_aborted_connects{job="mariadb"}[10m])) > 0
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $value | humanize }} failed connection attempts to MariaDB"
+          description: "Only the app, the exporters, NocoDB and the backup stack can reach the database, and all of them log in with stored passwords, so a failed login means a wrong password after a rotation, or someone on the storage network trying. MariaDB logs the user and address only with log_warnings >= 4, so start with 'docker service logs' of the clients above for 'Access denied'."
+
+      - alert: MariaDBAccessDenied
+        expr: sum(increase(mysql_global_status_access_denied_errors{job="mariadb"}[10m])) - sum(increase(mysql_global_status_aborted_connects{job="mariadb"}[10m])) > 0
+        labels:
+          severity: warning
+        annotations:
+          summary: "MariaDB refused {{ $value | humanize }} statements for missing privileges"
+          description: "A logged-in user ran a statement it has no privilege for. NocoDB's reader opening a table outside its allowlist does this; anything else (the app, the backup user) means a missing grant after a migration, or someone using a stolen account to look around."
+
+      - alert: ValkeyLoginFailed
+        expr: sum(increase(redis_errors_total{job="valkey", err=~"WRONGPASS|NOAUTH"}[10m])) > 0
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $value | humanize }} refused Valkey logins or unauthenticated commands"
+          description: "WRONGPASS is a login with a wrong password, NOAUTH a command sent without logging in. Only the app and redis-exporter use Valkey, both with the stored password, so this is a rotation gone wrong or someone on the storage network."
+
+      - alert: DataExportsUnusual
+        expr: sum(increase(ktor_http_server_requests_seconds_count{job="monolith", method="POST", route=~"/api/user/export|/api/business/\\{id\\}/export", status=~"2.."}[1h])) > 5
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $value | humanize }} data exports started in an hour"
+          description: "People ask for a copy of their data, or a business for its export, a few times a month. More than 5 in an hour can be someone with stolen sessions collecting data. The monolith's logs show the requests ('POST /api/user/export', 'POST /api/business/…/export')."
+
+      - alert: ResponseVolumeUnusual
+        expr: security:response_bytes:increase1h > 50e6 and security:response_bytes:increase1h > 10 * (security:response_bytes:increase1h offset 1w or (security:response_bytes:increase1h * 0))
+        labels:
+          severity: warning
+        annotations:
+          summary: "{{ $labels.method }} {{ $labels.route }} sent {{ $value | humanize1024 }}B in an hour"
+          description: "One route answered more than 50 MB in an hour, and more than 10 times as much as a week ago. List and export routes are where data leaves in bulk: someone may be paging through clients or appointments. See the route's request rate on the Application dashboard and the request lines in the monolith's logs."
+
+  - name: backup_deletion_alerts
+    rules:
+      - alert: BackupDumpsDeleted
+        expr: max_over_time(bookk_backup_dumps[1d]) - bookk_backup_dumps >= 2
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $value }} database dumps disappeared within a day"
+          description: "The nightly dump adds one dump and removes those older than 30 days, so the count never drops by more than one in a day unless dumps were deleted (or several nights failed, which BackupDumpMissing reports first). Check the backup directory on the manager and 'docker service logs backup_dump' ('Removed …')."
+
+      - alert: OldestBackupDumpYounger
+        expr: bookk_backup_oldest_dump_timestamp_seconds - min_over_time(bookk_backup_oldest_dump_timestamp_seconds[1d]) > 60 * 3600
+        labels:
+          severity: critical
+        annotations:
+          summary: "The oldest database dump got {{ $value | humanizeDuration }} younger within a day"
+          description: "Pruning removes the oldest dump once a night, moving the oldest one forward by about a day (two after a missed night). A larger jump means older dumps were deleted, and restores to those days are gone."
+
+      - alert: OldestKeyBackupYounger
+        expr: bookk_backup_oldest_keys_timestamp_seconds - min_over_time(bookk_backup_oldest_keys_timestamp_seconds[30m]) > 2 * 3600
+        labels:
+          severity: critical
+        annotations:
+          summary: "The oldest key backup got {{ $value | humanizeDuration }} younger within 30 minutes"
+          description: "Key dumps are taken every 5 minutes and pruned after 7 days, so the oldest one moves forward by minutes at a time. A jump of hours means key dumps were deleted."
+
+      - alert: BackupStorageShrank
+        expr: bookk_backup_stored_bytes < 0.5 * max_over_time(bookk_backup_stored_bytes[6h])
+        labels:
+          severity: critical
+        annotations:
+          summary: "Stored {{ $labels.kind }} backups shrank to less than half within 6 hours"
+          description: "Pruning removes about a day's worth of dumps and binlogs a night (1/30 of them) and keys continuously (1/2016 every 5 minutes), never half. Check the backup directory on the manager for deleted files."

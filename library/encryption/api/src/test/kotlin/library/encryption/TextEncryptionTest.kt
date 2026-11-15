@@ -8,6 +8,7 @@ import library.encryption.test.InMemorySubjectKeys
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertSame
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import kotlin.uuid.Uuid
 
@@ -77,6 +78,51 @@ internal class TextEncryptionTest {
 
         then()
         assertSame(Decrypted.Missing, decrypted)
+    }
+
+    @Test
+    fun `should report text sealed under a key that was lost and replaced as missing`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val ciphertext = fixture.encrypt("Alice")
+        fixture.subjectKeys.loseKey(fixture.subjectId)
+        val reentered = fixture.encrypt("Alicia")
+
+        whenn()
+        val decrypted = fixture.decrypt(ciphertext)
+
+        then()
+        assertSame(Decrypted.Missing, decrypted)
+        assertEquals("Alicia", fixture.decrypt(reentered).valueOrNull())
+    }
+
+    @Test
+    fun `should report text that fails authentication as missing`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val ciphertext = fixture.encrypt("Alice")
+        fixture.subjectKeys.tamperWithCiphertextsOf(fixture.subjectId)
+
+        whenn()
+        val decrypted = fixture.decrypt(ciphertext)
+
+        then()
+        assertSame(Decrypted.Missing, decrypted)
+    }
+
+    @Test
+    fun `should refuse to decrypt a subject that was not requested`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val ciphertext = fixture.encrypt("Alice")
+
+        whenn()
+        val result = runCatching {
+            fixture.subjectKeys.decryptor(listOf(Uuid.random())).decryptText(fixture.subjectId, ciphertext)
+        }
+
+        then()
+        assertTrue(result.exceptionOrNull() is IllegalArgumentException) { result.toString() }
     }
 
     @Test

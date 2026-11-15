@@ -186,7 +186,9 @@ internal class AppointmentDataSourceImpl(
     }
 
     override suspend fun update(appointment: Appointment): Appointment = dbQuery {
-        val encrypted = snapshotCipher.encrypt(appointment)
+        val stored = AppointmentEntity.findById(appointment.id) ?: throw Error.NotFound()
+        val read = snapshotCipher.read(stored.storedSnapshot(), AppointmentTable.tableName)
+        val encrypted = snapshotCipher.encryptChanges(appointment, read)
         val appointmentEntity = AppointmentEntity.findByIdAndUpdate(appointment, encrypted) ?: throw Error.NotFound()
         AppointmentServicesTable.deleteWhere {
             AppointmentServicesTable.appointmentId eq appointment.id
@@ -340,8 +342,8 @@ internal class AppointmentDataSourceImpl(
                 .forUpdate()
                 .toList()
             val snapshots = snapshotCipher.decryptAll(moved.map { it.storedSnapshot() }, AppointmentTable.tableName)
-            moved.zip(snapshots).forEach { (entity, snapshot) ->
-                val client = snapshotCipher.reencryptClient(snapshot, toClientId)
+            val clients = snapshotCipher.reencryptClients(snapshots, toClientId)
+            moved.zip(clients).forEach { (entity, client) ->
                 AppointmentEntity.findByIdAndUpdateClient(entity.id.value, toClientId, client)
             }
         }

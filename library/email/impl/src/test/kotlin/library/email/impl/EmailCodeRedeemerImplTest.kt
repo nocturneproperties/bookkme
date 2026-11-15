@@ -5,6 +5,7 @@ import com.bookk.core.test.given
 import com.bookk.core.test.runUnitTest
 import com.bookk.core.test.then
 import com.bookk.core.test.whenn
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import io.mockk.coEvery
 import io.mockk.mockk
 import kotlinx.coroutines.CompletableDeferred
@@ -35,13 +36,20 @@ internal class EmailCodeRedeemerImplTest {
         val hasher = EmailCodeHasher.fromSecret("0123456789abcdef0123456789abcdef-test-secret")
         val store = EmailCodeStore(InMemoryCacheClient(timeSource = timeSource), hasher)
         val sender = mockk<EmailSender>()
-        val issuer = EmailCodeIssuerImpl(store, hasher, sender, SecureRandom(), Clock.System)
+        val meterRegistry = SimpleMeterRegistry()
+        val metrics = EmailCodeMetrics(meterRegistry)
+        val issuer = EmailCodeIssuerImpl(store, hasher, sender, SecureRandom(), Clock.System, metrics)
         val ownerId = Uuid.random()
-        val sut = EmailCodeRedeemerImpl(store, hasher)
+        val sut = EmailCodeRedeemerImpl(store, hasher, metrics)
         var actionRuns = 0
 
         init {
             coEvery { sender.send(any()) } returns Result.success(Unit)
+        }
+
+        fun rejected(reason: String): Double {
+            val counter = meterRegistry.find(EmailCodeMetrics.REJECTED).tag(EmailCodeMetrics.REASON_TAG, reason)
+            return counter.counter()?.count() ?: 0.0
         }
 
         suspend fun issue(email: String = EMAIL): IssuedCode {
@@ -192,6 +200,48 @@ internal class EmailCodeRedeemerImplTest {
 
         then()
         assertTrue(result.exceptionOrNull() is EmailCodeError.Expired) { result.toString() }
+    }
+
+    @Test
+    fun `should count every wrong code`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val issued = fixture.issue()
+
+        whenn()
+        repeat(2) { fixture.redeem(issued, code = wrongCode(issued.code)) }
+
+        then()
+        assertEquals(2.0, fixture.rejected(EmailCodeMetrics.WRONG_CODE))
+        assertEquals(0.0, fixture.rejected(EmailCodeMetrics.ATTEMPTS_EXHAUSTED))
+    }
+
+    @Test
+    fun `should count a verification once when its attempts are used up`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val issued = fixture.issue()
+        repeat(EmailCodeRedeemerImpl.MAX_ATTEMPTS) { fixture.redeem(issued, code = wrongCode(issued.code)) }
+
+        whenn()
+        repeat(3) { fixture.redeem(issued, code = wrongCode(issued.code)) }
+
+        then()
+        assertEquals(1.0, fixture.rejected(EmailCodeMetrics.ATTEMPTS_EXHAUSTED))
+        assertEquals(EmailCodeRedeemerImpl.MAX_ATTEMPTS.toDouble(), fixture.rejected(EmailCodeMetrics.WRONG_CODE))
+    }
+
+    @Test
+    fun `should not count a right code`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val issued = fixture.issue()
+
+        whenn()
+        fixture.redeem(issued)
+
+        then()
+        assertEquals(0.0, fixture.rejected(EmailCodeMetrics.WRONG_CODE))
     }
 
     @Test

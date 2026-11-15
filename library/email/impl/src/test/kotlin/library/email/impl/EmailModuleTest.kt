@@ -6,6 +6,8 @@ import com.bookk.core.test.given
 import com.bookk.core.test.runUnitTest
 import com.bookk.core.test.then
 import com.bookk.core.test.whenn
+import io.micrometer.core.instrument.MeterRegistry
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import library.email.EmailCodeIssuer
 import library.email.EmailCodeRedeemer
 import library.email.EmailSender
@@ -21,7 +23,10 @@ internal class EmailModuleTest {
     private class SutFixture(environment: Map<String, String>) {
         private val koin = koinApplication {
             modules(
-                module { single<CacheClient<String>> { InMemoryCacheClient() } },
+                module {
+                    single<CacheClient<String>> { InMemoryCacheClient() }
+                    single<MeterRegistry> { SimpleMeterRegistry() }
+                },
                 emailModule(SCOPE, environment::get),
             )
         }.koin

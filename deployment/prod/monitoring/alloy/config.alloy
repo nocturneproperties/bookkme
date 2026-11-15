@@ -66,6 +66,22 @@ loki.process "containers" {
   forward_to = [loki.write.default.receiver]
 }
 
+loki.relabel "journal" {
+  forward_to = []
+
+  rule {
+    source_labels = ["__journal__systemd_unit"]
+    target_label  = "unit"
+  }
+}
+
+loki.source.journal "ssh" {
+  matches       = "_SYSTEMD_UNIT=ssh.service"
+  relabel_rules = loki.relabel.journal.rules
+  labels        = { source = "journal", node = constants.hostname }
+  forward_to    = [loki.write.default.receiver]
+}
+
 loki.write "default" {
   endpoint {
     url = "http://loki:3100/loki/api/v1/push"

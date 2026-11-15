@@ -20,6 +20,7 @@ import com.bookk.core.test.then
 import com.bookk.core.test.whenn
 import kotlinx.datetime.TimeZone
 import library.encryption.Decrypted
+import library.encryption.test.CountingSubjectKeys
 import library.encryption.test.InMemorySubjectKeys
 import library.encryption.test.RecordingMissingKeys
 import library.encryption.test.UnkeyedBlindIndex
@@ -28,6 +29,7 @@ import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
+import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -50,7 +52,8 @@ internal class EmployeeDataSourceImplEncryptionTest {
             EmployeeWorkingHoursTable,
             EmployeeDayOffTable,
         )
-        val subjectKeys = InMemorySubjectKeys()
+        val keys = InMemorySubjectKeys()
+        val subjectKeys = CountingSubjectKeys(keys)
         val missingKeys = RecordingMissingKeys()
         val sut = EmployeeDataSourceImpl(ContactCipher(subjectKeys, UnkeyedBlindIndex(), missingKeys))
         val businessSut = BusinessDataSourceImpl()
@@ -133,7 +136,7 @@ internal class EmployeeDataSourceImplEncryptionTest {
         fixture.setup()
         val employee = Employee.stub(businessId = fixture.businessId)
         val created = suspendTransaction { fixture.sut.createEmployee(employee) }
-        fixture.subjectKeys.loseKey(employee.userId)
+        fixture.keys.loseKey(employee.userId)
 
         whenn()
         val read = suspendTransaction { fixture.sut.getEmployeeByUserId(fixture.businessId, employee.userId) }
@@ -170,6 +173,89 @@ internal class EmployeeDataSourceImplEncryptionTest {
         assertEquals("New", fixture.decrypted(legacy.userId, row[EmployeeTable.nameEncrypted]))
         assertEquals("new@example.com", fixture.decrypted(legacy.userId, row[EmployeeTable.emailEncrypted]))
         assertEquals("+10000000001", fixture.decrypted(legacy.userId, row[EmployeeTable.phoneEncrypted]))
+    }
+
+    @Test
+    fun `should keep the stored phone of an employment synced after its key was lost`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val employee = Employee.stub(businessId = fixture.businessId, phone = "+10000000001")
+        val created = suspendTransaction { fixture.sut.createEmployee(employee) }
+        val before = fixture.storedRow(created.id)[EmployeeTable.phoneEncrypted]
+        fixture.keys.loseKey(employee.userId)
+
+        whenn()
+        suspendTransaction {
+            fixture.sut.updateIntegratedEmployees(
+                employee.userId,
+                name = "New",
+                lastName = "Name",
+                email = "new@example.com",
+                phone = null,
+                updatedAt = Instant.fromEpochSeconds(1_000),
+            )
+        }
+
+        then()
+        val after = fixture.storedRow(created.id)
+        assertEquals("New", fixture.decrypted(employee.userId, after[EmployeeTable.nameEncrypted]))
+        assertArrayEquals(before, after[EmployeeTable.phoneEncrypted])
+    }
+
+    @Test
+    fun `should fetch the user's key once for every synced employment`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val userId = Uuid.random()
+        val otherBusinessId = suspendTransaction {
+            fixture.businessSut.createBusiness(Uuid.random(), "Other Business", "USD", TimeZone.UTC)
+        }.id
+        suspendTransaction {
+            fixture.sut.createEmployee(Employee.stub(businessId = fixture.businessId, userId = userId))
+            fixture.sut.createEmployee(Employee.stub(businessId = otherBusinessId, userId = userId))
+        }
+        fixture.subjectKeys.resetCounts()
+
+        whenn()
+        val updated = suspendTransaction {
+            fixture.sut.updateIntegratedEmployees(
+                userId,
+                name = "New",
+                lastName = "Name",
+                email = "new@example.com",
+                phone = null,
+                updatedAt = Instant.fromEpochSeconds(1_000),
+            )
+        }
+
+        then()
+        assertEquals(2, updated)
+        assertEquals(listOf(userId), fixture.subjectKeys.encryptorsRequested)
+    }
+
+    @Test
+    fun `should create no key when the user has no employment to sync`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+
+        whenn()
+        val updated = suspendTransaction {
+            fixture.sut.updateIntegratedEmployees(
+                Uuid.random(),
+                name = "New",
+                lastName = "Name",
+                email = "new@example.com",
+                phone = null,
+                updatedAt = Instant.fromEpochSeconds(1_000),
+            )
+        }
+
+        then()
+        assertEquals(0, updated)
+        assertEquals(emptyList<Uuid>(), fixture.subjectKeys.encryptorsRequested)
     }
 
     @Test

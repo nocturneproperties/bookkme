@@ -1,6 +1,7 @@
 package com.bookk.user.data.orm.entity
 
 import com.bookk.core.data.DecoratorUuidEntityClass
+import com.bookk.core.data.forShare
 import com.bookk.user.data.orm.table.UserTable
 import org.jetbrains.exposed.v1.core.dao.id.EntityID
 import org.jetbrains.exposed.v1.core.eq
@@ -40,6 +41,10 @@ class UserEntity(id: EntityID<Uuid>) : UuidEntity(id) {
 
         fun findByIdForUpdate(id: Uuid): UserEntity? {
             return find { UserTable.id eq id }.forUpdate().singleOrNull()
+        }
+
+        fun findByIdForShare(id: Uuid): UserEntity? {
+            return find { UserTable.id eq id }.forShare().singleOrNull()
         }
 
         fun findByIdAndUpdateProfile(

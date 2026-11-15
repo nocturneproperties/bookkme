@@ -2,11 +2,16 @@ package com.bookk.core.data
 
 import com.bookk.core.data.test.createTestDatabase
 import com.bookk.core.domain.datasource.transaction.TransactionIsolation
+import com.bookk.core.domain.datasource.transaction.transactionOrThrow
+import com.bookk.core.domain.entity.BusinessError
 import com.bookk.core.domain.entity.Error
 import com.bookk.core.test.given
 import com.bookk.core.test.runUnitTest
 import com.bookk.core.test.then
 import com.bookk.core.test.whenn
+import org.jetbrains.exposed.v1.core.Table
+import org.jetbrains.exposed.v1.jdbc.insert
+import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -18,8 +23,16 @@ import org.jetbrains.exposed.v1.jdbc.transactions.TransactionManager as JdbcTran
 
 internal class ExposedTransactionManagerTest {
 
+    private object WrittenRowTable : Table("written_row") {
+        val value = varchar("value", 16)
+    }
+
+    private class RejectedWrite : BusinessError(statusCode = 422, code = 1, message = "rejected")
+
     private class SutFixture {
-        val sut = ExposedTransactionManager(createTestDatabase())
+        val sut = ExposedTransactionManager(createTestDatabase(WrittenRowTable))
+
+        suspend fun writtenRows(): Long = sut.transactionOrThrow { WrittenRowTable.selectAll().count() }
     }
 
     @Test
@@ -202,5 +215,21 @@ internal class ExposedTransactionManagerTest {
 
         then()
         assertEquals(false, result.getOrNull())
+    }
+
+    @Test
+    fun `should roll back the block's writes when it fails with a business error`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+
+        whenn()
+        val result = fixture.sut.transaction {
+            WrittenRowTable.insert { it[value] = "written" }
+            throw RejectedWrite()
+        }
+
+        then()
+        assertTrue(result.exceptionOrNull() is RejectedWrite)
+        assertEquals(0L, fixture.writtenRows())
     }
 }

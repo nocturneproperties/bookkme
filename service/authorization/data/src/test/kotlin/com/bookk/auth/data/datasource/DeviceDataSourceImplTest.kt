@@ -67,7 +67,7 @@ internal class DeviceDataSourceImplTest {
         suspendTransaction { fixture.sut.insertDevice(auth.id, deviceUuid, "Android", Language.EN) }
 
         whenn()
-        val found = suspendTransaction { fixture.sut.getDeviceByAuthIdAndUUID(auth.id, deviceUuid) }
+        val found = suspendTransaction { fixture.sut.getDeviceByAuthIdAndUUIDForUpdate(auth.id, deviceUuid) }
 
         then()
         assertNotNull(found)
@@ -81,7 +81,7 @@ internal class DeviceDataSourceImplTest {
         val auth = fixture.insertAuth()
 
         whenn()
-        val found = suspendTransaction { fixture.sut.getDeviceByAuthIdAndUUID(auth.id, Uuid.random()) }
+        val found = suspendTransaction { fixture.sut.getDeviceByAuthIdAndUUIDForUpdate(auth.id, Uuid.random()) }
 
         then()
         assertNull(found)
@@ -113,7 +113,7 @@ internal class DeviceDataSourceImplTest {
 
         whenn()
         suspendTransaction { fixture.sut.attachRefreshTokenToDevice(deviceId, tokenId, "hash123") }
-        val found = suspendTransaction { fixture.sut.getDeviceByRefreshTokenId(tokenId) }
+        val found = suspendTransaction { fixture.sut.getDeviceByRefreshTokenIdForUpdate(tokenId) }
 
         then()
         assertNotNull(found)
@@ -184,7 +184,7 @@ internal class DeviceDataSourceImplTest {
 
         whenn()
         suspendTransaction { fixture.sut.insertDevice(auth.id, deviceUuid, "iPhone", Language.UK) }
-        val found = suspendTransaction { fixture.sut.getDeviceByAuthIdAndUUID(auth.id, deviceUuid) }
+        val found = suspendTransaction { fixture.sut.getDeviceByAuthIdAndUUIDForUpdate(auth.id, deviceUuid) }
 
         then()
         assertNotNull(found)
@@ -202,7 +202,7 @@ internal class DeviceDataSourceImplTest {
         suspendTransaction { fixture.sut.updateLanguage(auth.id, deviceUuid, Language.UK) }
 
         then()
-        val found = suspendTransaction { fixture.sut.getDeviceByAuthIdAndUUID(auth.id, deviceUuid) }
+        val found = suspendTransaction { fixture.sut.getDeviceByAuthIdAndUUIDForUpdate(auth.id, deviceUuid) }
         assertNotNull(found)
     }
 

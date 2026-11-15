@@ -19,6 +19,7 @@ import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeAll
@@ -130,6 +131,33 @@ internal class SubjectKeysMariaDbTest {
             }.getOrThrow()
         }
 
+        suspend fun <T> secondAgainstHeldFirst(
+            first: suspend () -> Unit,
+            second: suspend () -> T,
+        ): HeldOutcome<T> {
+            val firstHeld = CompletableDeferred<Unit>()
+            val releaseFirst = CompletableDeferred<Unit>()
+            return withContext(Dispatchers.IO) {
+                val holder = async {
+                    transactionManager.transaction {
+                        first()
+                        firstHeld.complete(Unit)
+                        releaseFirst.await()
+                    }.getOrThrow()
+                }
+                firstHeld.await()
+                val waiter = async { transactionManager.transaction { second() } }
+                while (!waiter.isCompleted && transactionsWaitingForLock() == 0L) {
+                    delay(SLOWER_THAN_INNODB_TRX_CACHE_REFRESH)
+                }
+                delay(SLOWER_THAN_INNODB_TRX_CACHE_REFRESH)
+                val finishedWhileFirstHeld = waiter.isCompleted
+                releaseFirst.complete(Unit)
+                holder.await()
+                HeldOutcome(finishedWhileFirstHeld, waiter.await().getOrThrow())
+            }
+        }
+
         private val subjectRow: String
             get() {
                 return "subject_id = UNHEX('${subjectId.toHexString()}')"
@@ -220,6 +248,74 @@ internal class SubjectKeysMariaDbTest {
     }
 
     @Test
+    fun `should make a writer wait for a shredding of its subject's key that is still being written`() =
+        runIntegrationTest {
+            given()
+            val fixture = SutFixture()
+            fixture.encrypt("jane@example.com").getOrThrow()
+
+            whenn()
+            val outcome = fixture.secondAgainstHeldFirst(
+                first = { fixture.sut.shred(fixture.subjectId) },
+                second = { fixture.sut.encryptor(fixture.subjectId) },
+            )
+
+            then()
+            assertFalse(outcome.finishedWhileFirstHeld)
+            assertNull(outcome.value)
+        }
+
+    @Test
+    fun `should make a shredding wait for a writer that holds the subject's key`() = runIntegrationTest {
+        given()
+        val fixture = SutFixture()
+        fixture.encrypt("jane@example.com").getOrThrow()
+
+        whenn()
+        val outcome = fixture.secondAgainstHeldFirst(
+            first = { fixture.liveEncryptor() },
+            second = { fixture.sut.shred(fixture.subjectId) },
+        )
+
+        then()
+        assertFalse(outcome.finishedWhileFirstHeld)
+    }
+
+    @Test
+    fun `should make a shredded check wait for a shredding that is still being written`() = runIntegrationTest {
+        given()
+        val fixture = SutFixture()
+        fixture.encrypt("jane@example.com").getOrThrow()
+
+        whenn()
+        val outcome = fixture.secondAgainstHeldFirst(
+            first = { fixture.sut.shred(fixture.subjectId) },
+            second = { fixture.sut.isShredded(fixture.subjectId) },
+        )
+
+        then()
+        assertFalse(outcome.finishedWhileFirstHeld)
+        assertTrue(outcome.value)
+    }
+
+    @Test
+    fun `should make a shredded check wait for the shredding of a subject that never had a key`() =
+        runIntegrationTest {
+            given()
+            val fixture = SutFixture()
+
+            whenn()
+            val outcome = fixture.secondAgainstHeldFirst(
+                first = { fixture.sut.shred(fixture.subjectId) },
+                second = { fixture.sut.isShredded(fixture.subjectId) },
+            )
+
+            then()
+            assertFalse(outcome.finishedWhileFirstHeld)
+            assertTrue(outcome.value)
+        }
+
+    @Test
     fun `should not create a new key for a shredded subject`() = runIntegrationTest {
         given()
         val fixture = SutFixture()
@@ -233,3 +329,5 @@ internal class SubjectKeysMariaDbTest {
         assertEquals(0L, fixture.liveKeyRows())
     }
 }
+
+private class HeldOutcome<T>(val finishedWhileFirstHeld: Boolean, val value: T)

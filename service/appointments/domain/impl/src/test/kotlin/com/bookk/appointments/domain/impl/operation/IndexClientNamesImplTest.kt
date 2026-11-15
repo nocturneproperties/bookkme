@@ -60,6 +60,37 @@ internal class IndexClientNamesImplTest {
     }
 
     @Test
+    fun `should not walk the appointments again once a pass has reached their end`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.indexBatchesEndingAt(Uuid.random(), null)
+        fixture.sut.invoke()
+
+        whenn()
+        val result = fixture.sut.invoke()
+
+        then()
+        assertTrue(result.isSuccess) { result.toString() }
+        coVerify(exactly = 2) { fixture.appointmentDataSource.indexClientNames(any(), any()) }
+    }
+
+    @Test
+    fun `should walk the appointments again from the start after a pass failed`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        coEvery { fixture.appointmentDataSource.indexClientNames(any(), any()) } throws IllegalStateException("down")
+        fixture.sut.invoke()
+        fixture.indexBatchesEndingAt(null)
+
+        whenn()
+        val result = fixture.sut.invoke()
+
+        then()
+        assertTrue(result.isSuccess) { result.toString() }
+        coVerify(exactly = 2) { fixture.appointmentDataSource.indexClientNames(Uuid.NIL, BATCH) }
+    }
+
+    @Test
     fun `should index every batch in a read committed transaction of its own`() = runUnitTest {
         given()
         val fixture = SutFixture()

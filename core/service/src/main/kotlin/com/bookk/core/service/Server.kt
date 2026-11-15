@@ -70,6 +70,7 @@ fun startServer(
                 idempotentResponseRepository = get()
                 cleanUpWorkerEnabled = false // We use Redis expiration time for cache management
             }
+            installResponseSizeMetrics(prometheusRegistry)
             installAuthPlugin()
             routing {
                 get("/metrics") {

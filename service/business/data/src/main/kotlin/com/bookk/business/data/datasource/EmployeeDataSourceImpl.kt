@@ -102,20 +102,24 @@ internal class EmployeeDataSourceImpl(private val contactCipher: ContactCipher) 
             (EmployeeTable.userId eq userId) and
                 (EmployeeTable.sourceUpdatedAt.isNull() or (EmployeeTable.sourceUpdatedAt less updatedAt))
         }.forUpdate().toList()
-        val contacts = contactCipher.decryptAll(employments.map { it.storedContact() }, SOURCE)
-        employments.zip(contacts).count { (entity, current) ->
-            val synced = current.copy(
+        if (employments.isEmpty()) return@dbQuery 0
+        val reads = contactCipher.readAll(employments.map { it.storedContact() }, SOURCE)
+        val edits = reads.map { read ->
+            val synced = read.contact.copy(
                 name = name.trim(),
                 lastName = lastName.trim(),
                 email = email.trim(),
-                phone = phone?.trim() ?: current.phone,
+                phone = phone?.trim() ?: read.contact.phone,
             )
-            val encrypted = contactCipher.encrypt(userId, synced) ?: return@count false
-            entity.store(encrypted)
+            ContactEdit(read, synced)
+        }
+        val encrypted = contactCipher.encryptChanges(userId, edits) ?: return@dbQuery 0
+        employments.zip(encrypted).forEach { (entity, contact) ->
+            entity.store(contact)
             entity.sourceUpdatedAt = updatedAt
             entity.updatedAt = Clock.System.now()
-            true
         }
+        employments.size
     }
 
     override suspend fun getServiceIds(employeeId: Uuid): List<Uuid> = dbQuery {

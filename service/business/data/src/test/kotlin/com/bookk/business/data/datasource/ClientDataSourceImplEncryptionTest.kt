@@ -21,10 +21,12 @@ import library.encryption.Decrypted
 import library.encryption.test.InMemorySubjectKeys
 import library.encryption.test.RecordingMissingKeys
 import library.encryption.test.UnkeyedBlindIndex
+import org.jetbrains.exposed.v1.core.Column
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
+import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -63,6 +65,24 @@ internal class ClientDataSourceImplEncryptionTest {
             val decryptor = subjectKeys.decryptor(listOf(id))
             return ciphertext?.let { (decryptor.decrypt(id, it) as Decrypted.Plain).value.decodeToString() }
         }
+    }
+
+    private fun nameEdit(id: Uuid, name: String): ClientUpdateModel {
+        return ClientUpdateModel(id = id, name = name, lastName = null, phone = null, email = null, description = null)
+    }
+
+    private fun fullClient(): Client.Detached {
+        return Client.Detached.stub(
+            name = "Alice",
+            lastName = "Smith",
+            phone = "+10000000001",
+            email = "alice@example.com",
+            description = "note",
+        )
+    }
+
+    private fun assertKept(before: ResultRow, after: ResultRow, vararg columns: Column<out ByteArray?>) {
+        columns.forEach { assertArrayEquals(before[it], after[it], it.name) }
     }
 
     private fun emailEdit(id: Uuid, email: String): ClientUpdateModel {
@@ -217,6 +237,101 @@ internal class ClientDataSourceImplEncryptionTest {
 
         then()
         assertEquals(fixture.blindIndex.of("kept@example.com"), fixture.storedRow(created.id)[ClientTable.emailIndex])
+    }
+
+    @Test
+    fun `should keep the stored fields an edit over a lost key does not change`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val created = suspendTransaction {
+            fixture.sut.createDetachedClient(fixture.businessId, fullClient())
+        }
+        val before = fixture.storedRow(created.id)
+        fixture.subjectKeys.loseKey(created.id)
+
+        whenn()
+        suspendTransaction { fixture.sut.updateClient(fixture.businessId, nameEdit(created.id, "Again")) }
+
+        then()
+        val after = fixture.storedRow(created.id)
+        assertEquals("Again", fixture.decrypted(created.id, after[ClientTable.nameEncrypted]))
+        assertKept(before, after, ClientTable.lastNameEncrypted, ClientTable.phoneEncrypted)
+        assertKept(before, after, ClientTable.emailEncrypted, ClientTable.descriptionEncrypted)
+    }
+
+    @Test
+    fun `should read the re-entered field of a client whose other fields stay unreadable`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val created = suspendTransaction { fixture.sut.createDetachedClient(fixture.businessId, fullClient()) }
+        fixture.subjectKeys.loseKey(created.id)
+        suspendTransaction { fixture.sut.updateClient(fixture.businessId, nameEdit(created.id, "Again")) }
+        val reportedBefore = fixture.missingKeys.reported.size
+
+        whenn()
+        val read = suspendTransaction { fixture.sut.getClientById(fixture.businessId, created.id) }
+
+        then()
+        assertEquals(
+            Client.Detached(id = created.id, name = "Again", lastName = "", phone = null, email = null),
+            read,
+        )
+        assertEquals(listOf("client"), fixture.missingKeys.reported.drop(reportedBefore))
+    }
+
+    @Test
+    fun `should keep the stored description of a client taken over after its key was lost`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val detached = suspendTransaction { fixture.sut.createDetachedClient(fixture.businessId, fullClient()) }
+        val before = fixture.storedRow(detached.id)
+        fixture.subjectKeys.loseKey(detached.id)
+        val profile = Client.Integrated.stub(name = "Guest", email = null, phone = null, userId = Uuid.random())
+
+        whenn()
+        suspendTransaction { fixture.sut.takeOverClient(fixture.businessId, detached.id, profile) }
+
+        then()
+        val after = fixture.storedRow(detached.id)
+        assertEquals("Guest", fixture.decrypted(detached.id, after[ClientTable.nameEncrypted]))
+        assertKept(before, after, ClientTable.phoneEncrypted, ClientTable.emailEncrypted)
+        assertKept(before, after, ClientTable.descriptionEncrypted)
+    }
+
+    @Test
+    fun `should keep the stored phone and description of a client synced after its key was lost`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val userId = Uuid.random()
+        val created = suspendTransaction {
+            fixture.sut.getOrCreateIntegratedClient(
+                fixture.businessId,
+                Client.Integrated.stub(phone = "+10000000001", userId = userId),
+            )
+        }
+        val before = fixture.storedRow(created.id)
+        fixture.subjectKeys.loseKey(created.id)
+
+        whenn()
+        suspendTransaction {
+            fixture.sut.updateIntegratedClients(
+                userId,
+                name = "New",
+                lastName = "Name",
+                email = "new@example.com",
+                phone = null,
+                updatedAt = Instant.fromEpochSeconds(1_000),
+            )
+        }
+
+        then()
+        val after = fixture.storedRow(created.id)
+        assertEquals("new@example.com", fixture.decrypted(created.id, after[ClientTable.emailEncrypted]))
+        assertKept(before, after, ClientTable.phoneEncrypted, ClientTable.descriptionEncrypted)
     }
 
     @Test
