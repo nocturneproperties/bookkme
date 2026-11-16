@@ -63,14 +63,6 @@ internal class SnapshotCipher(
         }
     }
 
-    suspend fun clientNameIndexes(snapshots: List<StoredSnapshot>): List<String?> {
-        val decryptor = subjectKeys.decryptor(snapshots.map { it.clientId }.distinct())
-        return snapshots.map { snapshot ->
-            val client = decryptor.decryptClient(snapshot)
-            client.details.fullName.takeIf { client.isNameReadable }?.let(::clientNameIndex)
-        }
-    }
-
     fun clientNameIndex(fullName: String): String? {
         return fullName.takeIf { it.isNotBlank() }?.let(blindIndex::ofCaseInsensitive)
     }
