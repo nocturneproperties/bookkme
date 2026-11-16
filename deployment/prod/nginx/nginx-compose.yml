@@ -10,21 +10,27 @@ volumes:
   nginx-cert:
     name: nginx-cert-${DOMAIN_NAME}
     driver: local
+  nginx-site-cert:
+    name: nginx-cert-${SITE_DOMAIN_NAME}
+    driver: local
   acmesh-data:
     driver: local
 configs:
   nginx_cert_wait_script:
-    name: nginx-cert-wait-v2
+    name: nginx-cert-wait-v3
     file: certificates/wait_for_cert.sh
+  acme_certificates_script:
+    name: acme-certificates-v1
+    file: certificates/acme_certificates.sh
 
 services:
   acme-sh:
     image: neilpang/acme.sh:3.1.2
-    command: >
-      sh -c "acme.sh --server letsencrypt --register-account -m "antufeevmichaeloperational@gmail.com" &&
-             { acme.sh --server letsencrypt --issue --dns dns_cf -d \"${DOMAIN_NAME}\" -d \"*.${DOMAIN_NAME}\" --dnssleep 60 || [ $$? -eq 2 ]; } &&
-             acme.sh --deploy -d ${DOMAIN_NAME} --deploy-hook docker &&
-             crond -n -s -m off"
+    command: [ "sh", "/acme_certificates.sh" ]
+    configs:
+      - source: acme_certificates_script
+        target: /acme_certificates.sh
+        mode: 0555
     volumes:
       - acmesh-data:/acme.sh
       - /var/run/docker.sock:/var/run/docker.sock
@@ -33,13 +39,11 @@ services:
     depends_on:
       - nginx
     environment:
+      ACME_ACCOUNT_EMAIL: antufeevmichaeloperational@gmail.com
       DOMAIN_NAME: ${DOMAIN_NAME}
+      SITE_DOMAIN_NAME: ${SITE_DOMAIN_NAME}
       CF_Token: ${CLOUDFLARE_DNS_API_TOKEN}
-      DEPLOY_DOCKER_CONTAINER_LABEL: sh.acme.autoload.domain=${DOMAIN_NAME}
-      DEPLOY_DOCKER_CONTAINER_KEY_FILE: /etc/nginx/ssl/${DOMAIN_NAME}/key.pem
-      DEPLOY_DOCKER_CONTAINER_CERT_FILE: "/etc/nginx/ssl/${DOMAIN_NAME}/cert.pem"
-      DEPLOY_DOCKER_CONTAINER_CA_FILE: "/etc/nginx/ssl/${DOMAIN_NAME}/ca.pem"
-      DEPLOY_DOCKER_CONTAINER_FULLCHAIN_FILE: "/etc/nginx/ssl/${DOMAIN_NAME}/fullchain.pem"
+      DEPLOY_DOCKER_CONTAINER_LABEL: sh.acme.autoload.target=nginx
       DEPLOY_DOCKER_CONTAINER_RELOAD_CMD: "service nginx force-reload"
     deploy:
       resources:
@@ -65,7 +69,7 @@ services:
   nginx:
     image: nginx:1.29.4
     labels:
-      sh.acme.autoload.domain: "${DOMAIN_NAME}"
+      sh.acme.autoload.target: nginx
     networks:
       - operational
       - agent_network
@@ -76,6 +80,7 @@ services:
         mode: host
     volumes:
       - nginx-cert:/etc/nginx/ssl/${DOMAIN_NAME}
+      - nginx-site-cert:/etc/nginx/ssl/${SITE_DOMAIN_NAME}
       - ./templates:/etc/nginx/templates:ro
       - ./snippets:/etc/nginx/snippets:ro
       - ./static:/srv/static:ro
@@ -85,6 +90,7 @@ services:
         mode: 0744
     environment:
       DOMAIN_NAME: ${DOMAIN_NAME}
+      SITE_DOMAIN_NAME: ${SITE_DOMAIN_NAME}
       VPN_SUBNET: ${VPN_SUBNET}
     logging:
       options:

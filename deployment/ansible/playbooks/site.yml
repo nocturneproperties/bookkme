@@ -45,6 +45,15 @@
         - { path: "{{ node_exporter_textfile_dir }}", mode: "0755" }
       when: (swarm_labels | default({})).get('backup') == 'true'
 
+    - name: Create node-exporter's textfile directory on the other nodes
+      ansible.builtin.file:
+        path: "{{ node_exporter_textfile_dir }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+      when: (swarm_labels | default({})).get('backup') != 'true'
+
 - name: Deploy the VPN
   hosts: "{{ groups['managers'] | first }}"
   gather_facts: false
@@ -104,6 +113,7 @@
           tags: [nginx]
       vars:
         stack: "{{ infra_stacks.nginx }}"
+        stack_extra_env: "{{ nginx_stack_env }}"
       tags: [nginx]
 
     - name: Reload nginx with its new files

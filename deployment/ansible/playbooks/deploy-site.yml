@@ -1,0 +1,5 @@
+- name: Deploy the site
+  hosts: "{{ groups['managers'] | first }}"
+  gather_facts: false
+  roles:
+    - site
