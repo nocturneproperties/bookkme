@@ -6,7 +6,7 @@ the `business-buildDataExports` job → `BuildDataExports` with
 
 Queues a JSON copy of everything the business holds, for its owner only:
 what the business needs to move to another system or to answer its own
-clients' access requests, and what Bookk returns when it leaves (Art.
+clients' access requests, and what BookkMe returns when it leaves (Art.
 28(3)(g)). Built in the background and kept 72 hours. Lifecycle, storage
 and the document's sections: [Data export](../../data-export.md).
 
@@ -28,7 +28,7 @@ once; any failure after that gives the token back.
 The read routes don't mutate and have no diagram: `GET
 /api/business/{businessId}/export` (the business's `DataExport`) and `GET
 /api/business/{businessId}/export/download` (the JSON file
-`bookk-business-data.json`, 404 while none is ready), both owner only.
+`bookkme-business-data.json`, 404 while none is ready), both owner only.
 
 ```mermaid
 flowchart TD

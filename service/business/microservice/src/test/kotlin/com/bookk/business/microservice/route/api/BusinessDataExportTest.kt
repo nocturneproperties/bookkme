@@ -164,7 +164,10 @@ internal class BusinessDataExportTest {
         then()
         assertEquals(HttpStatusCode.OK, response.status)
         assertEquals("""{"businessId":"$businessId"}""", response.bodyAsText())
-        assertEquals("attachment; filename=bookk-business-data.json", response.headers[HttpHeaders.ContentDisposition])
+        assertEquals(
+            "attachment; filename=bookkme-business-data.json",
+            response.headers[HttpHeaders.ContentDisposition],
+        )
     }
 
     @Test

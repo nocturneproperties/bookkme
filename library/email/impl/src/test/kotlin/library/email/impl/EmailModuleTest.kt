@@ -8,6 +8,7 @@ import com.bookk.core.test.then
 import com.bookk.core.test.whenn
 import io.micrometer.core.instrument.MeterRegistry
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
+import library.email.DeleteExpiredSentEmails
 import library.email.EmailCodeIssuer
 import library.email.EmailCodeRedeemer
 import library.email.EmailSender
@@ -44,6 +45,7 @@ internal class EmailModuleTest {
                 fixture.scope.get<EmailSender>(),
                 fixture.scope.get<EmailCodeIssuer>(),
                 fixture.scope.get<EmailCodeRedeemer>(),
+                fixture.scope.get<DeleteExpiredSentEmails>(),
             )
         }
 
@@ -77,6 +79,34 @@ internal class EmailModuleTest {
         then()
         assertTrue(sender is HostingerEmailSender) { sender.toString() }
     }
+
+    @Test
+    fun `should delete nothing from the mailbox when the API token is the development token`() = runUnitTest {
+        given()
+        val fixture = SutFixture(
+            CONFIGURED + ("APPLICATION_HOSTINGER_MAIL_TOKEN" to "development_token") -
+                "APPLICATION_HOSTINGER_MAILBOX_ID",
+        )
+
+        whenn()
+        val cleanup = fixture.scope.get<DeleteExpiredSentEmails>()
+
+        then()
+        assertTrue(cleanup is NoSentEmailsToDelete) { cleanup.toString() }
+    }
+
+    @Test
+    fun `should delete expired sent copies through the Hostinger Mail API when the API token is a real token`() =
+        runUnitTest {
+            given()
+            val fixture = SutFixture(CONFIGURED)
+
+            whenn()
+            val cleanup = fixture.scope.get<DeleteExpiredSentEmails>()
+
+            then()
+            assertTrue(cleanup is HostingerDeleteExpiredSentEmails) { cleanup.toString() }
+        }
 
     @Test
     fun `should name the missing API token variable`() = runUnitTest {

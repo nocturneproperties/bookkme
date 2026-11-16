@@ -2,6 +2,7 @@ package library.email.impl.di
 
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
+import library.email.DeleteExpiredSentEmails
 import library.email.EmailCodeIssuer
 import library.email.EmailCodeRedeemer
 import library.email.EmailSender
@@ -10,8 +11,10 @@ import library.email.impl.EmailCodeIssuerImpl
 import library.email.impl.EmailCodeMetrics
 import library.email.impl.EmailCodeRedeemerImpl
 import library.email.impl.EmailCodeStore
+import library.email.impl.HostingerDeleteExpiredSentEmails
 import library.email.impl.HostingerEmailSender
 import library.email.impl.LoggingEmailSender
+import library.email.impl.NoSentEmailsToDelete
 import library.email.impl.hostingerMailHttpClient
 import org.koin.core.qualifier.Qualifier
 import org.koin.core.qualifier.named
@@ -39,6 +42,19 @@ fun emailModule(qualifier: Qualifier, environment: (String) -> String? = System:
                     apiToken = apiToken,
                     mailboxId = environment.require(HOSTINGER_MAILBOX_ID),
                     senderName = senderName,
+                )
+            }
+        }
+        scoped<DeleteExpiredSentEmails> {
+            val apiToken = environment.require(HOSTINGER_MAIL_TOKEN)
+            if (apiToken == LoggingEmailSender.DEVELOPMENT_API_TOKEN) {
+                NoSentEmailsToDelete
+            } else {
+                HostingerDeleteExpiredSentEmails(
+                    httpClient = get(hostingerMailClient),
+                    apiToken = apiToken,
+                    mailboxId = environment.require(HOSTINGER_MAILBOX_ID),
+                    clock = Clock.System,
                 )
             }
         }

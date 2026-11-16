@@ -92,7 +92,7 @@ The [self-hosting permission](LICENSE-SELF-HOSTING.md) lets you run BookkMe to t
 - **MariaDB 11.8** or newer
 - **Valkey 8** or a compatible Redis
 - A domain with TLS, and a reverse proxy in front of the server (an nginx example is in `deployment/dev/nginx-monolith.conf`)
-- A [Hostinger](https://www.hostinger.com/mail-api) mailbox with Mail API access, for verification codes and email notifications. Emails go out from that mailbox's address, and Hostinger keeps a copy of each one in the mailbox's Sent folder, so delete them there as often as your privacy policy says
+- A [Hostinger](https://www.hostinger.com/mail-api) mailbox with Mail API access, for verification codes and email notifications. Emails go out from that mailbox's address. Hostinger keeps a copy of each one in the mailbox's Sent folder, and the server deletes copies older than 5 years once a week
 - A Firebase project, for push notifications
 
 ### Steps

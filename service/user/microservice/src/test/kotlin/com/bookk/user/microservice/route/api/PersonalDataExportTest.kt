@@ -134,7 +134,10 @@ internal class PersonalDataExportTest {
         then()
         assertEquals(HttpStatusCode.OK, response.status)
         assertEquals("""{"userId":"$userId"}""", response.bodyAsText())
-        assertEquals("attachment; filename=bookk-personal-data.json", response.headers[HttpHeaders.ContentDisposition])
+        assertEquals(
+            "attachment; filename=bookkme-personal-data.json",
+            response.headers[HttpHeaders.ContentDisposition],
+        )
     }
 
     @Test

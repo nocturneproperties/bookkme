@@ -68,4 +68,21 @@ internal class AuthEmailsTest {
         then()
         assertNotEquals(signUp.subject, change.subject)
     }
+
+    @Test
+    fun `should call the service BookkMe in every code email`() = runUnitTest {
+        given()
+        val shortName = Regex("Bookk(?!Me)")
+
+        whenn()
+        val emails = Language.entries.flatMap {
+            listOf(AuthEmails.signUpCode(it, "123456"), AuthEmails.emailChangeCode(it, "123456"))
+        }
+
+        then()
+        assertTrue(emails.all { "BookkMe" in it.subject && "BookkMe" in it.textBody }) { emails.toString() }
+        assertTrue(emails.none { shortName.containsMatchIn(it.subject + it.textBody + it.htmlBody) }) {
+            emails.toString()
+        }
+    }
 }

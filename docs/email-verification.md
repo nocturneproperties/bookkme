@@ -1,6 +1,6 @@
 # Email verification
 
-Every email address Bookk stores was proven by a 6-digit code sent to it.
+Every email address BookkMe stores was proven by a 6-digit code sent to it.
 Sign-up redeems a code before the account exists, and the address changes
 afterwards only through a code sent to the new one, so nothing downstream
 checks whether an address is verified. A business client is linked to an
@@ -113,7 +113,8 @@ redeemer. The rules are in `docs/agents/security.md`.
   retried twice, and any other refusal is a 500. The API accepts a message
   before delivering it, so a bounce after that isn't reported to the app
   and lands in the mailbox instead. Hostinger saves a copy of every sent
-  email, codes and notifications included, in the mailbox's `INBOX.Sent`.
+  email, codes and notifications included, in the mailbox's `INBOX.Sent`;
+  the weekly job `auth-deleteExpiredSentEmails` deletes them after 5 years.
 - **Dev.** The token `development_token` binds `LoggingEmailSender`: nothing
   is sent and each email, code included, is logged at INFO. The prod deploy
   refuses this token and `CHANGE_ME`.

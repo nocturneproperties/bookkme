@@ -22,6 +22,7 @@ import io.ktor.server.application.Application
 import io.ktor.server.application.install
 import io.ktor.server.routing.application
 import library.actionconfirmation.impl.di.actionConfirmationModule
+import library.email.DeleteExpiredSentEmails
 import library.email.impl.di.emailModule
 import library.outbox.di.outboxModule
 import library.scheduler.Scheduler
@@ -92,5 +93,8 @@ fun Application.registerAuthJobs(scheduler: SchedulerConfiguration) {
     }
     scheduler.job("$AUTH_SERVICE_NAME-deleteExpiredErasureRecords", interval = 1.days) {
         scope.get<DeleteExpiredErasureRecords>().invoke().getOrThrow()
+    }
+    scheduler.job("$AUTH_SERVICE_NAME-deleteExpiredSentEmails", interval = 7.days) {
+        scope.get<DeleteExpiredSentEmails>().invoke().getOrThrow()
     }
 }
