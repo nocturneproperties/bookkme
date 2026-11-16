@@ -1,6 +1,6 @@
 # Data export
 
-A user can download everything Bookk holds about them (GDPR Art. 15 and 20),
+A user can download everything BookkMe holds about them (GDPR Art. 15 and 20),
 and the owner of a business can download everything the business holds
 (Art. 28(3)(g)). Both are one JSON document, built in the background,
 confirmed with a passkey action confirmation token, and kept 72 hours. Scope and
@@ -87,7 +87,7 @@ issued by `POST /api/auth/passkey/confirm_action` for `EXPORT_PERSONAL_DATA`, th
 nil business id and the caller's own user id as target
 (`ActionConfirmationGrant.personalDataExport`). `GET /api/user/export` reports the
 state, `GET /api/user/export/download` hands out the file
-(`bookk-personal-data.json`). Diagram: [Start personal data
+(`bookkme-personal-data.json`). Diagram: [Start personal data
 export](operations/user/start-personal-data-export.md).
 
 `PersonalDataExportAssembler` (user service) reads the user's own data in
@@ -124,7 +124,7 @@ owner only (anyone else gets 404): the token is issued for
 `EXPORT_BUSINESS_DATA` with the business id as business and target
 (`ActionConfirmationGrant.businessDataExport`). `GET /api/business/{businessId}/export`
 reports the state, `GET /api/business/{businessId}/export/download` hands out
-`bookk-business-data.json`. The export row is keyed by the business id in
+`bookkme-business-data.json`. The export row is keyed by the business id in
 `business.data_export`. Diagram: [Start business data
 export](operations/business/start-business-data-export.md).
 

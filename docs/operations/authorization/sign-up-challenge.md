@@ -22,6 +22,6 @@ flowchart TD
     LookupUser -- 404 not found --> StartPasskey[StartPasskeyRegistration userHandle=random displayName<br/>challenge cached 10 min under requestId]
     StartPasskey --> Issue[EmailCodeIssuer.issue email purpose=sign-up ownerId=requestId<br/>AuthEmails.signUpCode language]
     Issue -- code sent to this address in the last 60 s,<br/>or 5 sends this hour --> R429([429 EMAIL_CODE_RESEND_TOO_SOON 910004])
-    Issue -- Postmark refuses the address --> R422c([422 EMAIL_UNDELIVERABLE 910005])
+    Issue -- the mail API refuses the address --> R422c([422 EMAIL_UNDELIVERABLE 910005])
     Issue -- sent --> R200([200 SignUpChallengeResponse<br/>passkey challenge + emailVerification])
 ```

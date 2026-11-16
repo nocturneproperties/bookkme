@@ -19,6 +19,6 @@ flowchart TD
     LookupUser -- error other than 404 --> RErr([Propagate user-service error])
     LookupUser -- 404 not found --> Issue[EmailCodeIssuer.issue email purpose=email-change ownerId=userId<br/>AuthEmails.emailChangeCode language]
     Issue -- code sent to this address in the last 60 s,<br/>or 5 sends this hour --> R429([429 EMAIL_CODE_RESEND_TOO_SOON 910004])
-    Issue -- Postmark refuses the address --> R422c([422 EMAIL_UNDELIVERABLE 910005])
+    Issue -- the mail API refuses the address --> R422c([422 EMAIL_UNDELIVERABLE 910005])
     Issue -- sent --> R200([200 EmailVerificationStarted])
 ```

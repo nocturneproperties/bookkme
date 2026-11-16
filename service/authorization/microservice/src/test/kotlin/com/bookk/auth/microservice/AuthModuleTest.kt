@@ -220,8 +220,9 @@ internal class AuthModuleTest {
 
     private companion object {
         val EMAIL_ENVIRONMENT = mapOf(
-            "APPLICATION_POSTMARK_SERVER_TOKEN" to "postmark-token",
-            "APPLICATION_EMAIL_FROM" to "noreply@example.com",
+            "APPLICATION_HOSTINGER_MAIL_TOKEN" to "hostinger-mail-token",
+            "APPLICATION_HOSTINGER_MAILBOX_ID" to "AC1a2b3c4d5e6f7g",
+            "APPLICATION_EMAIL_SENDER_NAME" to "BookkMe",
             "APPLICATION_EMAIL_CODE_SECRET" to "a-secret-that-is-at-least-32-bytes-long",
         )
     }

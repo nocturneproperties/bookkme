@@ -17,7 +17,7 @@ import io.ktor.http.content.TextContent
 import io.ktor.http.headersOf
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.boolean
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import library.email.EmailContent
@@ -28,24 +28,25 @@ import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
-internal class PostmarkEmailSenderTest {
+internal class HostingerEmailSenderTest {
 
     private class SutFixture(
-        responses: List<Pair<HttpStatusCode, String>> = listOf(HttpStatusCode.OK to SENT),
+        responses: List<Pair<HttpStatusCode, String>> = listOf(ACCEPTED),
     ) {
         val requests = mutableListOf<HttpRequestData>()
         val retryDelays = mutableListOf<Long>()
         private val remaining = ArrayDeque(responses)
         private val engine = MockEngine { request -> answer(request) }
-        val sut = PostmarkEmailSender(
-            httpClient = postmarkHttpClient(engine, retryDelay = { retryDelays += it }),
-            serverToken = SERVER_TOKEN,
-            from = FROM,
+        val sut = HostingerEmailSender(
+            httpClient = hostingerMailHttpClient(engine, retryDelay = { retryDelays += it }),
+            apiToken = API_TOKEN,
+            mailboxId = MAILBOX_ID,
+            senderName = SENDER_NAME,
         )
 
         private fun MockRequestHandleScope.answer(request: HttpRequestData): HttpResponseData {
             requests += request
-            val (status, body) = remaining.removeFirstOrNull() ?: (HttpStatusCode.OK to SENT)
+            val (status, body) = remaining.removeFirstOrNull() ?: ACCEPTED
             return respond(body, status, headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()))
         }
 
@@ -55,7 +56,7 @@ internal class PostmarkEmailSenderTest {
     }
 
     @Test
-    fun `should post the message to Postmark's transactional stream with the server token`() = runUnitTest {
+    fun `should post the message to the mailbox's send endpoint with the bearer token`() = runUnitTest {
         given()
         val fixture = SutFixture()
         val message = EmailMessage.stub(
@@ -64,7 +65,6 @@ internal class PostmarkEmailSenderTest {
                 subject = "Your code",
                 textBody = "Code 123456",
                 htmlBody = "<p>Code 123456</p>",
-                tag = "email-verification",
             ),
         )
 
@@ -75,38 +75,21 @@ internal class PostmarkEmailSenderTest {
         assertTrue(result.isSuccess) { result.toString() }
         val request = fixture.requests.single()
         assertEquals(HttpMethod.Post, request.method)
-        assertEquals("https://api.postmarkapp.com/email", request.url.toString())
-        assertEquals(SERVER_TOKEN, request.headers["X-Postmark-Server-Token"])
+        assertEquals("https://api.mail.hostinger.com/api/v1/mailboxes/$MAILBOX_ID/send", request.url.toString())
+        assertEquals("Bearer $API_TOKEN", request.headers[HttpHeaders.Authorization])
         assertEquals(ContentType.Application.Json.toString(), request.headers[HttpHeaders.Accept])
         val body = fixture.sentJson()
-        assertEquals(FROM, body.getValue("From").jsonPrimitive.content)
-        assertEquals("client@example.com", body.getValue("To").jsonPrimitive.content)
-        assertEquals("Your code", body.getValue("Subject").jsonPrimitive.content)
-        assertEquals("Code 123456", body.getValue("TextBody").jsonPrimitive.content)
-        assertEquals("<p>Code 123456</p>", body.getValue("HtmlBody").jsonPrimitive.content)
-        assertEquals("outbound", body.getValue("MessageStream").jsonPrimitive.content)
-        assertEquals("email-verification", body.getValue("Tag").jsonPrimitive.content)
+        assertEquals(listOf("client@example.com"), body.getValue("to").jsonArray.map { it.jsonPrimitive.content })
+        assertEquals(SENDER_NAME, body.getValue("displayName").jsonPrimitive.content)
+        assertEquals("Your code", body.getValue("subject").jsonPrimitive.content)
+        assertEquals("Code 123456", body.getValue("text").jsonPrimitive.content)
+        assertEquals("<p>Code 123456</p>", body.getValue("html").jsonPrimitive.content)
     }
 
     @Test
-    fun `should ask Postmark not to track opens or links`() = runUnitTest {
+    fun `should report a recipient address the API refuses as undeliverable`() = runUnitTest {
         given()
-        val fixture = SutFixture()
-
-        whenn()
-        val result = fixture.sut.send(EmailMessage.stub())
-
-        then()
-        assertTrue(result.isSuccess) { result.toString() }
-        val body = fixture.sentJson()
-        assertEquals(false, body.getValue("TrackOpens").jsonPrimitive.boolean)
-        assertEquals("None", body.getValue("TrackLinks").jsonPrimitive.content)
-    }
-
-    @Test
-    fun `should report an inactive recipient as undeliverable`() = runUnitTest {
-        given()
-        val fixture = SutFixture(listOf(HttpStatusCode.UnprocessableEntity to postmarkError(406)))
+        val fixture = SutFixture(listOf(HttpStatusCode.UnprocessableEntity to validationFailed("to.0")))
 
         whenn()
         val result = fixture.sut.send(EmailMessage.stub())
@@ -117,9 +100,9 @@ internal class PostmarkEmailSenderTest {
     }
 
     @Test
-    fun `should report an invalid email request as undeliverable`() = runUnitTest {
+    fun `should report a refused recipient list as undeliverable`() = runUnitTest {
         given()
-        val fixture = SutFixture(listOf(HttpStatusCode.UnprocessableEntity to postmarkError(300)))
+        val fixture = SutFixture(listOf(HttpStatusCode.UnprocessableEntity to validationFailed("to")))
 
         whenn()
         val result = fixture.sut.send(EmailMessage.stub())
@@ -129,9 +112,9 @@ internal class PostmarkEmailSenderTest {
     }
 
     @Test
-    fun `should fail without blaming the address when Postmark rejects the request for another reason`() = runUnitTest {
+    fun `should fail without blaming the address when the API refuses another field`() = runUnitTest {
         given()
-        val fixture = SutFixture(listOf(HttpStatusCode.UnprocessableEntity to postmarkError(400)))
+        val fixture = SutFixture(listOf(HttpStatusCode.UnprocessableEntity to validationFailed("subject")))
 
         whenn()
         val result = fixture.sut.send(EmailMessage.stub())
@@ -142,10 +125,23 @@ internal class PostmarkEmailSenderTest {
     }
 
     @Test
-    fun `should retry after Postmark's rate limit and succeed`() = runUnitTest {
+    fun `should fail without blaming the address when a refusal names no fields`() = runUnitTest {
         given()
-        val fixture =
-            SutFixture(listOf(HttpStatusCode.TooManyRequests to postmarkError(429), HttpStatusCode.OK to SENT))
+        val refusal = """{"error":"The given data was invalid.","code":"ERR_VALIDATION_FAILED","params":[]}"""
+        val fixture = SutFixture(listOf(HttpStatusCode.UnprocessableEntity to refusal))
+
+        whenn()
+        val result = fixture.sut.send(EmailMessage.stub())
+
+        then()
+        assertTrue(result.isFailure)
+        assertFalse(result.exceptionOrNull() is EmailSendError.Undeliverable)
+    }
+
+    @Test
+    fun `should retry after the rate limit and succeed`() = runUnitTest {
+        given()
+        val fixture = SutFixture(listOf(HttpStatusCode.TooManyRequests to error("ERR_RATE_LIMIT"), ACCEPTED))
 
         whenn()
         val result = fixture.sut.send(EmailMessage.stub())
@@ -157,9 +153,9 @@ internal class PostmarkEmailSenderTest {
     }
 
     @Test
-    fun `should retry a server error twice and then fail`() = runUnitTest {
+    fun `should retry an upstream failure twice and then fail`() = runUnitTest {
         given()
-        val fixture = SutFixture(List(3) { HttpStatusCode.InternalServerError to "" })
+        val fixture = SutFixture(List(3) { HttpStatusCode.BadGateway to error("ERR_UPSTREAM_UNAVAILABLE") })
 
         whenn()
         val result = fixture.sut.send(EmailMessage.stub())
@@ -171,9 +167,9 @@ internal class PostmarkEmailSenderTest {
     }
 
     @Test
-    fun `should fail at once without retrying when the server token is refused`() = runUnitTest {
+    fun `should fail at once without retrying when the token is refused`() = runUnitTest {
         given()
-        val fixture = SutFixture(listOf(HttpStatusCode.Unauthorized to postmarkError(10)))
+        val fixture = SutFixture(listOf(HttpStatusCode.Unauthorized to error("ERR_UNAUTHORIZED")))
 
         whenn()
         val result = fixture.sut.send(EmailMessage.stub())
@@ -184,13 +180,32 @@ internal class PostmarkEmailSenderTest {
         assertEquals(1, fixture.requests.size)
     }
 
-    private companion object {
-        const val SERVER_TOKEN = "POSTMARK_API_TEST"
-        const val FROM = "no-reply@example.com"
-        const val SENT =
-            """{"To":"client@example.com","SubmittedAt":"2026-11-07T10:00:00Z",""" +
-                """"MessageID":"id","ErrorCode":0,"Message":"OK"}"""
+    @Test
+    fun `should fail at once without retrying when the token may not send from the mailbox`() = runUnitTest {
+        given()
+        val fixture = SutFixture(listOf(HttpStatusCode.Forbidden to error("ERR_FORBIDDEN")))
 
-        fun postmarkError(errorCode: Int) = """{"ErrorCode":$errorCode,"Message":"Postmark error $errorCode"}"""
+        whenn()
+        val result = fixture.sut.send(EmailMessage.stub())
+
+        then()
+        assertTrue(result.isFailure)
+        assertEquals(1, fixture.requests.size)
+    }
+
+    private companion object {
+        const val API_TOKEN = "hostinger-mail-token"
+        const val MAILBOX_ID = "AC1a2b3c4d5e6f7g"
+        const val SENDER_NAME = "BookkMe"
+        val ACCEPTED = HttpStatusCode.NoContent to ""
+
+        fun error(code: String): String {
+            return """{"error":"Hostinger error $code","code":"$code","params":{}}"""
+        }
+
+        fun validationFailed(field: String): String {
+            return """{"error":"The given data was invalid.","code":"ERR_VALIDATION_FAILED",""" +
+                """"params":{"$field":["$field is invalid"]}}"""
+        }
     }
 }

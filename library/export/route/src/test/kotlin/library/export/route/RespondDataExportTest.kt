@@ -32,7 +32,7 @@ internal class RespondDataExportTest {
     private fun io.ktor.server.testing.ApplicationTestBuilder.serveDocument() = setupApplication(
         diModule = module { },
         routeUnderTest = {
-            get("/export/download") { call.respondDataExport(document, fileName = "bookk-personal-data.json") }
+            get("/export/download") { call.respondDataExport(document, fileName = "bookkme-personal-data.json") }
         },
     )
 
@@ -91,7 +91,10 @@ internal class RespondDataExportTest {
         val response = createTestClient().get("/export/download")
 
         then()
-        assertEquals("attachment; filename=bookk-personal-data.json", response.headers[HttpHeaders.ContentDisposition])
+        assertEquals(
+            "attachment; filename=bookkme-personal-data.json",
+            response.headers[HttpHeaders.ContentDisposition],
+        )
         assertEquals("no-store", response.headers[HttpHeaders.CacheControl])
         assertEquals(HttpHeaders.AcceptEncoding, response.headers[HttpHeaders.Vary])
     }

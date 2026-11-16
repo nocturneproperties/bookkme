@@ -88,16 +88,4 @@ internal class NotificationEmailTest {
         assertTrue(content.textBody.endsWith(footer))
         assertTrue(content.htmlBody.contains(footer))
     }
-
-    @Test
-    fun `should tag the email with its notification type`() = runUnitTest {
-        given()
-        val params = notification(type = NotificationType.EMPLOYEE)
-
-        whenn()
-        val content = params.emailContent(Language.EN)
-
-        then()
-        assertEquals("notification-employee", content.tag)
-    }
 }

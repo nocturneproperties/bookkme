@@ -117,7 +117,7 @@ Cancellation, decline and price adjustment reasons must not contain personal det
 |---|---|---|
 | {{HOSTING_PROVIDER}} | Servers, database and backups | {{HOSTING_LOCATION}} |
 | Google (Firebase Cloud Messaging[, Firebase Crashlytics]) | Delivers push notifications[; collects crash reports] | Global processing, including the United States |
-| Postmark | Sends emails (sign-up codes, notifications, account notices) | United States |
+| {{EMAIL_PROVIDER}} | Sends emails (sign-up codes, notifications, account notices) and keeps a copy of each in our sending mailbox | {{EMAIL_LOCATION}} |
 | [If you put Cloudflare in front of the service] Cloudflare, Inc. | DNS, reverse proxy, DDoS protection and other network security | Global network; United States company |
 
 - **Authorities**, when the law requires it.
@@ -128,7 +128,7 @@ Cloudflare describes its separate processing of network and service data in its 
 
 ## <a id="section-6"></a>6. Transfers to other countries
 
-Your data is stored in {{HOSTING_LOCATION}}. Google, Postmark [and Cloudflare] may process data in the United States and through their service networks. Access by us or our contractors from another country can also constitute an international transfer.
+Your data is stored in {{HOSTING_LOCATION}}. Google [and Cloudflare] may process data in the United States and through their service networks. Access by us or our contractors from another country can also constitute an international transfer.
 
 The countries, recipients and safeguards for each transfer, including remote access, are described here: {{TRANSFER_SAFEGUARDS}}. This information identifies the applicable transfer arrangements, including any adequacy decision or standard contractual clauses and supplementary measures. To request a copy of relevant safeguards, contact [{{PRIVACY_EMAIL}}](mailto:{{PRIVACY_EMAIL}}); confidential information may be redacted.
 
@@ -150,8 +150,7 @@ The countries, recipients and safeguards for each transfer, including remote acc
 | Records that an account or client was erased (identifiers only) | 60 days, so that an erasure can be repeated after a backup is restored. |
 | Server logs | {{LOG_RETENTION}}. |
 | Internal messages between parts of our service that could not be delivered (may contain booking or profile details) | 30 days. |
-| Email content, activity and message metadata kept by Postmark | {{EMAIL_RETENTION}}. |
-| Postmark suppression records, such as bounced or complaining email addresses | Kept beyond the message-retention period to prevent further unwanted or undeliverable emails; contact us about erasure requests. |
+| Copies of the emails we sent, kept in our sending mailbox | {{EMAIL_RETENTION}}. |
 | [With Crashlytics] Crash reports | Google starts removing crash traces and associated identifiers from live and backup systems after 90 days; this is not a guaranteed completion deadline. |
 | Backups | {{BACKUP_RETENTION}}. Names, contact details, notes and client descriptions in them become unreadable {{KEY_BACKUP_RETENTION}} after the person is erased ([section 8](#section-8)). |
 

@@ -1,16 +1,27 @@
 # Release notes
 
-## 0.19.1
+## 0.20.0
 
-Changes since `monolith/0.19.0`. Removes the one-time client-name indexing job that 0.19.0 ran.
+Changes since `monolith/0.19.0`. Sends email through the Hostinger Mail API instead of Postmark, deletes sent copies after 5 years, and removes the one-time client-name indexing job that 0.19.0 ran.
+
+### Clients
+
+- Code emails, account notices and their push notifications now call the service BookkMe instead of Bookk, in every language.
+- Data exports now download as `bookkme-personal-data.json` and `bookkme-business-data.json` (`Content-Disposition` of `GET /api/user/export/download` and `GET /api/business/{businessId}/export/download`).
+- `EMAIL_UNDELIVERABLE` (910005) now comes only for an address the mail API refuses outright; a bounce after sending is no longer reported, so the code is simply never received.
 
 ### Services
 
+- Emails (codes and notifications) go out through the Hostinger Mail API from one mailbox's own address; Postmark and its settings are removed.
+- `APPLICATION_POSTMARK_SERVER_TOKEN` and `APPLICATION_EMAIL_FROM` are replaced by `APPLICATION_HOSTINGER_MAIL_TOKEN` (`development_token` still logs instead of sending), `APPLICATION_HOSTINGER_MAILBOX_ID` and `APPLICATION_EMAIL_SENDER_NAME`; auth and a standalone notifications service fail to start emailing without them.
+- New job `auth-deleteExpiredSentEmails` deletes, once a week, the copies Hostinger keeps in the sending mailbox's Sent folder once they are 5 years old.
 - The job `appointments-indexClientNames` is removed; appointments stored before 0.19.0 that it hasn't indexed are found by service name only.
 
 ### Upgrade
 
 - Deploy only after 0.19.0 has run in prod and its indexing pass finished: `SELECT COUNT(*) FROM appointments.appointment WHERE client_name_encrypted IS NOT NULL AND client_name_index IS NULL` should leave only appointments whose client key was lost.
+- Prod: run `make vault-update` (drops `vault_postmark_server_token`), then set `vault_hostinger_mail_token` and `vault_hostinger_mailbox_id` with `make vault-edit`; the deploy refuses either one unset. Add the sending mailbox domain's Hostinger SPF and DKIM records in Cloudflare first.
+- Keep nothing you want to keep in the sending mailbox's Sent folder: the app deletes everything there older than 5 years.
 
 ## 0.19.0
 

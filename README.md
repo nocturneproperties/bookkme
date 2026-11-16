@@ -92,7 +92,7 @@ The [self-hosting permission](LICENSE-SELF-HOSTING.md) lets you run BookkMe to t
 - **MariaDB 11.8** or newer
 - **Valkey 8** or a compatible Redis
 - A domain with TLS, and a reverse proxy in front of the server (an nginx example is in `deployment/dev/nginx-monolith.conf`)
-- A [Postmark](https://postmarkapp.com) account with a verified sending domain, for verification codes and email notifications
+- A [Hostinger](https://www.hostinger.com/mail-api) mailbox with Mail API access, for verification codes and email notifications. Emails go out from that mailbox's address. Hostinger keeps a copy of each one in the mailbox's Sent folder, and the server deletes copies older than 5 years once a week
 - A Firebase project, for push notifications
 
 ### Steps
@@ -121,8 +121,9 @@ The server is configured through environment variables. `deployment/dev/service/
 | `APPLICATION_DB_URL`, `APPLICATION_DB_PORT`, `APPLICATION_DB_USER`, `APPLICATION_DB_PASSWORD` | Database connection |
 | `APPLICATION_REDIS_HOSTS`, `APPLICATION_REDIS_PORT`, `APPLICATION_REDIS_PASSWORD` | Cache connection |
 | `APPLICATION_AUTH_SERVICE_HOSTNAME`, `…_USER_…`, `…_BUSINESS_…`, `…_APPOINTMENTS_…`, `…_NOTIFICATIONS_…` | Internal addresses; in a single-server setup all point at the server itself |
-| `APPLICATION_POSTMARK_SERVER_TOKEN` | Postmark server token; `development_token` logs emails instead of sending them |
-| `APPLICATION_EMAIL_FROM` | Sender address, on your verified Postmark domain |
+| `APPLICATION_HOSTINGER_MAIL_TOKEN` | Hostinger Mail API token allowed to send from your mailbox; `development_token` logs emails instead of sending them |
+| `APPLICATION_HOSTINGER_MAILBOX_ID` | Resource ID (`AC…`) of the mailbox emails are sent from; not needed with `development_token` |
+| `APPLICATION_EMAIL_SENDER_NAME` | Sender name shown next to the mailbox address, such as your business name |
 | `APPLICATION_EMAIL_CODE_SECRET` | Random secret of at least 32 bytes for verification codes |
 | `APPLICATION_SUBJECT_MASTER_KEY` | Base64 of exactly 32 random bytes; wraps every person's encryption key. Keep it outside the database and never lose it: without it no encrypted field or export can be read |
 | `APPLICATION_BLIND_INDEX_KEY` | Base64 of at least 32 random bytes, for the keyed hashes that look up encrypted emails and phones |
@@ -247,7 +248,7 @@ BookkMe is built to help whoever runs it meet the GDPR. It handles personal data
 - **Data minimisation.** Staff see only what their permissions allow, and notification emails go only to verified addresses.
 - **Policy templates.** `docs/legal/template` contains a draft privacy policy and terms of service for a business running its own copy, in English, Polish and Ukrainian.
 
-The software alone does not make a deployment compliant. When you self-host BookkMe, your business is the data controller: you decide the legal basis, publish your own privacy policy and terms (the templates are drafts that need review for your country), sign data processing agreements with your providers (such as your hosting provider, Postmark and Firebase), and answer requests from the people whose data you hold. [`docs/legal/README.md`](docs/legal/README.md) lists what to complete before publishing.
+The software alone does not make a deployment compliant. When you self-host BookkMe, your business is the data controller: you decide the legal basis, publish your own privacy policy and terms (the templates are drafts that need review for your country), sign data processing agreements with your providers (such as your hosting, email and push notification providers), and answer requests from the people whose data you hold. [`docs/legal/README.md`](docs/legal/README.md) lists what to complete before publishing.
 
 ---
 

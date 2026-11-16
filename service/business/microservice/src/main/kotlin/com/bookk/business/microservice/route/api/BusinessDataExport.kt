@@ -80,7 +80,7 @@ internal fun Route.businessDataExport() {
             val downloadBusinessDataExport by application.injectScoped<DownloadBusinessDataExport>(BusinessScope)
 
             downloadBusinessDataExport(principal.userId, path.parent.parent.id)
-                .onSuccess { call.respondDataExport(it, fileName = "bookk-business-data.json") }
+                .onSuccess { call.respondDataExport(it, fileName = "bookkme-business-data.json") }
                 .onFailure { call.respondWith(Result.failure<Unit>(it)) }
         }
     }

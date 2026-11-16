@@ -18,7 +18,7 @@ internal class LoggingEmailSenderTest {
     private class SutFixture {
         val appender = ListAppender<ILoggingEvent>().apply { start() }
         val logger = (LoggerFactory.getLogger(LoggingEmailSender::class.java) as Logger).apply { addAppender(appender) }
-        val sut = LoggingEmailSender(from = "no-reply@example.com")
+        val sut = LoggingEmailSender(senderName = "BookkMe")
 
         fun loggedText() = appender.list.joinToString("\n") { it.formattedMessage }
 

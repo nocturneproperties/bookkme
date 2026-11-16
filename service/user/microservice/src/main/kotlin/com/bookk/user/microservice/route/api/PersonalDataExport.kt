@@ -30,7 +30,7 @@ internal fun Route.personalDataExport() {
          * Start personal data export
          *
          * Summary: Start personal data export
-         * Description: Starts building a JSON copy of everything Bookk holds about the caller, from every service. The caller confirms it with a passkey action confirmation token issued for EXPORT_PERSONAL_DATA, the nil business id and the caller's own user id as target. The document is built in the background, a push notification and the status route tell when it is ready. While an export is being built, the same export is returned. One export can be started per day, a failed one can be started again at once
+         * Description: Starts building a JSON copy of everything BookkMe holds about the caller, from every service. The caller confirms it with a passkey action confirmation token issued for EXPORT_PERSONAL_DATA, the nil business id and the caller's own user id as target. The document is built in the background, a push notification and the status route tell when it is ready. While an export is being built, the same export is returned. One export can be started per day, a failed one can be started again at once
          * Tag: user
          * Security: jwt
          * Body: application/x-protobuf [com.bookk.user.microservice.route.api.DataExportRequest]
@@ -79,7 +79,7 @@ internal fun Route.personalDataExport() {
             val downloadPersonalDataExport by application.injectScoped<DownloadPersonalDataExport>(UserScope)
 
             downloadPersonalDataExport(principal.userId)
-                .onSuccess { call.respondDataExport(it, fileName = "bookk-personal-data.json") }
+                .onSuccess { call.respondDataExport(it, fileName = "bookkme-personal-data.json") }
                 .onFailure { call.respondWith(Result.failure<Unit>(it)) }
         }
     }
