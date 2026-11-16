@@ -1,5 +1,17 @@
 # Release notes
 
+## 0.19.1
+
+Changes since `monolith/0.19.0`. Removes the one-time client-name indexing job that 0.19.0 ran.
+
+### Services
+
+- The job `appointments-indexClientNames` is removed; appointments stored before 0.19.0 that it hasn't indexed are found by service name only.
+
+### Upgrade
+
+- Deploy only after 0.19.0 has run in prod and its indexing pass finished: `SELECT COUNT(*) FROM appointments.appointment WHERE client_name_encrypted IS NOT NULL AND client_name_index IS NULL` should leave only appointments whose client key was lost.
+
 ## 0.19.0
 
 Changes since `monolith/0.18.0`. Finishes the 0.18.0 encryption rollout (plaintext personal data dropped, owners required, whole-name appointment search, safe reads and writes of data whose key was lost) and adds security alerts for breach detection.
