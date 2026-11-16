@@ -45,7 +45,7 @@ configs:
     name: grafana_dashboard_application-v1
     file: grafana/dashboards/application.json
   grafana_dashboard_infrastructure:
-    name: grafana_dashboard_infrastructure-v2
+    name: grafana_dashboard_infrastructure-v3
     file: grafana/dashboards/infrastructure.json
   grafana_dashboard_logs:
     name: grafana_dashboard_logs-v1

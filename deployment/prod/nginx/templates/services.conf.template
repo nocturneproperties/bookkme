@@ -59,6 +59,12 @@ upstream notifications.service {
     keepalive 16;
     keepalive_timeout 30s;
 }
+upstream site.service {
+    zone site.service 64k;
+    server site.service:8080 resolve;
+    keepalive 16;
+    keepalive_timeout 30s;
+}
 
 server {
     listen 80;
@@ -310,5 +316,30 @@ server {
   }
   location /api/notifications {
       proxy_pass http://notifications.service;
+  }
+}
+
+server {
+  listen 443 ssl;
+  http2 on;
+  server_name         ${SITE_DOMAIN_NAME} www.${SITE_DOMAIN_NAME};
+  include             /etc/nginx/snippets/cloudflare-real-ip.conf;
+
+  ssl_certificate     /etc/nginx/ssl/${SITE_DOMAIN_NAME}/fullchain.pem;
+  ssl_certificate_key /etc/nginx/ssl/${SITE_DOMAIN_NAME}/key.pem;
+
+  ssl_protocols       TLSv1.2 TLSv1.3;
+  ssl_ciphers         ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384;
+  ssl_prefer_server_ciphers off;
+
+  ssl_session_cache   shared:SSL:10m;
+  ssl_session_timeout 1d;
+  ssl_session_tickets off;
+
+  proxy_http_version 1.1;
+  proxy_set_header Connection "";
+
+  location / {
+      proxy_pass http://site.service;
   }
 }

@@ -12,8 +12,6 @@ jobs:
   publish:
     name: Publish monolith image
     runs-on: ubuntu-24.04
-    outputs:
-      version: ${{ steps.version.outputs.version }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -53,11 +51,3 @@ jobs:
       - name: Summary
         shell: bash
         run: echo "Published \`ghcr.io/nocturneproperties/bookkme-server:${{ steps.version.outputs.version }}\`" >> "$GITHUB_STEP_SUMMARY"
-
-  deploy:
-    name: Deploy
-    needs: publish
-    uses: ./.github/workflows/deploy.yml
-    with:
-      version: ${{ needs.publish.outputs.version }}
-    secrets: inherit
