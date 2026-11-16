@@ -26,7 +26,6 @@ internal class AuthEmailsTest {
                 code in it.textBody && code in it.htmlBody && it.subject.isNotBlank()
             },
         ) { emails.toString() }
-        assertTrue(emails.all { it.tag == "sign-up-code" }) { emails.toString() }
     }
 
     @Test
@@ -43,7 +42,6 @@ internal class AuthEmailsTest {
                 code in it.textBody && code in it.htmlBody && it.subject.isNotBlank()
             },
         ) { emails.toString() }
-        assertTrue(emails.all { it.tag == "email-change-code" }) { emails.toString() }
     }
 
     @Test

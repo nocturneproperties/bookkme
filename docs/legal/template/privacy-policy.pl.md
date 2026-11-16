@@ -117,7 +117,7 @@ Powody anulowania, odrzucenia i zmiany ceny nie mogą zawierać danych osobowych
 |---|---|---|
 | {{HOSTING_PROVIDER}} | Serwery, baza danych i kopie zapasowe | {{HOSTING_LOCATION}} |
 | Google (Firebase Cloud Messaging[, Firebase Crashlytics]) | Dostarczanie powiadomień push[; zbieranie raportów o awariach] | Przetwarzanie globalne, w tym w Stanach Zjednoczonych |
-| Postmark | Wysyłanie e-maili (kody rejestracyjne, powiadomienia, informacje o koncie) | Stany Zjednoczone |
+| {{EMAIL_PROVIDER}} | Wysyłanie e-maili (kody rejestracyjne, powiadomienia, informacje o koncie) i przechowywanie kopii każdego z nich w naszej skrzynce nadawczej | {{EMAIL_LOCATION}} |
 | [Jeśli korzystasz z Cloudflare przed serwerem] Cloudflare, Inc. | DNS, odwrotne proxy, ochrona przed DDoS i inne zabezpieczenia sieci | Sieć globalna; spółka amerykańska |
 
 - **Organy publiczne**, gdy wymaga tego prawo.
@@ -128,7 +128,7 @@ Cloudflare opisuje odrębne przetwarzanie danych sieciowych i usługowych w swoj
 
 ## <a id="section-6"></a>6. Przekazywanie danych do innych krajów
 
-Twoje dane są przechowywane w {{HOSTING_LOCATION}}. Google, Postmark [i Cloudflare] mogą przetwarzać dane w Stanach Zjednoczonych i w swoich sieciach usługowych. Dostęp z innego kraju przez nas lub naszych wykonawców również może stanowić międzynarodowe przekazanie danych.
+Twoje dane są przechowywane w {{HOSTING_LOCATION}}. Google [i Cloudflare] mogą przetwarzać dane w Stanach Zjednoczonych i w swoich sieciach usługowych. Dostęp z innego kraju przez nas lub naszych wykonawców również może stanowić międzynarodowe przekazanie danych.
 
 Kraje, odbiorcy i zabezpieczenia każdego przekazania, w tym dostępu zdalnego, są opisane tutaj: {{TRANSFER_SAFEGUARDS}}. Informacja ta wskazuje właściwe rozwiązania dotyczące przekazania, w tym decyzję stwierdzającą odpowiedni stopień ochrony lub standardowe klauzule umowne i środki uzupełniające, jeśli są stosowane. Aby uzyskać kopię odpowiednich zabezpieczeń, napisz na [{{PRIVACY_EMAIL}}](mailto:{{PRIVACY_EMAIL}}); informacje poufne mogą zostać ukryte.
 
@@ -150,8 +150,7 @@ Kraje, odbiorcy i zabezpieczenia każdego przekazania, w tym dostępu zdalnego, 
 | Zapisy o usunięciu konta lub klienta (tylko identyfikatory) | 60 dni, aby powtórzyć usunięcie po odtworzeniu kopii zapasowej. |
 | Dzienniki serwera | {{LOG_RETENTION}}. |
 | Niedostarczone wiadomości wewnętrzne między częściami usługi (mogą zawierać dane rezerwacji lub profilu) | 30 dni. |
-| Treść e-maili, aktywność i metadane wiadomości przechowywane przez Postmark | {{EMAIL_RETENTION}}. |
-| Rejestry blokady wysyłki Postmark, np. adresy powodujące odbicia lub skargi | Przechowywane dłużej niż historia wiadomości, aby zapobiegać dalszym niechcianym lub niedostarczalnym e-mailom; skontaktuj się z nami w sprawie usunięcia danych. |
+| Kopie wysłanych przez nas e-maili w naszej skrzynce nadawczej | {{EMAIL_RETENTION}}. |
 | [Z Crashlytics] Raporty o awariach | Po 90 dniach Google rozpoczyna usuwanie śladów awarii i powiązanych identyfikatorów z systemów aktywnych i kopii zapasowych; nie jest to gwarantowany termin zakończenia usuwania. |
 | Kopie zapasowe | {{BACKUP_RETENTION}}. Imiona i nazwiska, dane kontaktowe, notatki i opisy klientów stają się w nich nieczytelne, gdy upłynie {{KEY_BACKUP_RETENTION}} od usunięcia danej osoby ([sekcja 8](#section-8)). |
 

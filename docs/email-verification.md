@@ -20,7 +20,7 @@ never in a database.
 | Resend cooldown, per address | 60 seconds | 429 `EMAIL_CODE_RESEND_TOO_SOON` (910004) |
 | Sends per address | 5 an hour | 429 `EMAIL_CODE_RESEND_TOO_SOON` (910004) |
 | Wrong codes per verification | 5; the sixth try ends it | `EMAIL_CODE_ATTEMPTS_EXCEEDED` (910003) |
-| Postmark refuses the address | | `EMAIL_UNDELIVERABLE` (910005) |
+| The mail API refuses the address | | `EMAIL_UNDELIVERABLE` (910005) |
 | Wrong code | | `EMAIL_CODE_INVALID` (910001) |
 
 All errors are 422 unless marked 429.
@@ -101,16 +101,19 @@ redeemer. The rules are in `docs/agents/security.md`.
 ## Operating it
 
 - **Settings.** Auth (the monolith in prod) needs
-  `APPLICATION_POSTMARK_SERVER_TOKEN`, `APPLICATION_EMAIL_FROM` and
-  `APPLICATION_EMAIL_CODE_SECRET` (at least 32 bytes), or every sign-up and
-  email change fails with 500. Prod reads them from `vault_postmark_server_token`,
-  `notifications@<EMAIL_DOMAIN_NAME>` (`vault_stack_env`, separate from the app's `DOMAIN_NAME`) and `vault_email_code_secret`.
-- **Postmark.** Sent through its HTTP API on the `outbound` stream. A 422
-  with Postmark error 300 (invalid address) or 406 (inactive recipient)
-  becomes `EMAIL_UNDELIVERABLE`; 429, 5xx, timeouts and connection errors
-  are retried twice, and any other refusal is a 500. The
-  sending domain needs its DKIM and Return-Path records before the first
-  deploy.
+  `APPLICATION_HOSTINGER_MAIL_TOKEN`, `APPLICATION_HOSTINGER_MAILBOX_ID`,
+  `APPLICATION_EMAIL_SENDER_NAME` and `APPLICATION_EMAIL_CODE_SECRET` (at
+  least 32 bytes), or every sign-up and email change fails with 500. Prod
+  reads them from `vault_hostinger_mail_token`, `vault_hostinger_mailbox_id`,
+  the fixed name `BookkMe` and `vault_email_code_secret`.
+- **Hostinger Mail API.** Sent with `POST /api/v1/mailboxes/{mailboxId}/send`
+  from the mailbox's own address, under the sender name. A 422
+  `ERR_VALIDATION_FAILED` naming the `to` field becomes
+  `EMAIL_UNDELIVERABLE`; 429, 5xx, timeouts and connection errors are
+  retried twice, and any other refusal is a 500. The API accepts a message
+  before delivering it, so a bounce after that isn't reported to the app
+  and lands in the mailbox instead. Hostinger saves a copy of every sent
+  email, codes and notifications included, in the mailbox's `INBOX.Sent`.
 - **Dev.** The token `development_token` binds `LoggingEmailSender`: nothing
   is sent and each email, code included, is logged at INFO. The prod deploy
   refuses this token and `CHANGE_ME`.

@@ -6,16 +6,16 @@
     fail_msg: "Pass -e version=<image tag of {{ monolith.image }}>"
     quiet: true
 
-- name: Refuse a Postmark server token that would not send email
+- name: Refuse a Hostinger Mail API token that would not send email
   ansible.builtin.assert:
-    that: vault_postmark_server_token | default('CHANGE_ME') not in ['', 'CHANGE_ME', 'development_token']
-    fail_msg: "Set vault_postmark_server_token to the Postmark server token with 'make vault-edit'; development_token logs every email code instead of sending it"
+    that: vault_hostinger_mail_token | default('CHANGE_ME', true) not in ['', 'CHANGE_ME', 'development_token']
+    fail_msg: "Set vault_hostinger_mail_token to the Hostinger Mail API token with 'make vault-edit'; development_token logs every email code instead of sending it"
     quiet: true
 
-- name: Refuse a missing email sender domain
+- name: Refuse a missing sending mailbox
   ansible.builtin.assert:
-    that: vault_stack_env.EMAIL_DOMAIN_NAME | default('', true) not in ['', 'CHANGE_ME']
-    fail_msg: "Set vault_stack_env.EMAIL_DOMAIN_NAME to the domain verified in Postmark with 'make vault-edit'; the app sends from notifications@<it>"
+    that: vault_hostinger_mailbox_id | default('CHANGE_ME', true) not in ['', 'CHANGE_ME']
+    fail_msg: "Set vault_hostinger_mailbox_id to the resource ID (AC…) of the mailbox the app sends from with 'make vault-edit'"
     quiet: true
 
 - name: Refuse missing personal data encryption keys

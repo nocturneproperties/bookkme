@@ -10,30 +10,36 @@ import library.email.impl.EmailCodeIssuerImpl
 import library.email.impl.EmailCodeMetrics
 import library.email.impl.EmailCodeRedeemerImpl
 import library.email.impl.EmailCodeStore
+import library.email.impl.HostingerEmailSender
 import library.email.impl.LoggingEmailSender
-import library.email.impl.PostmarkEmailSender
-import library.email.impl.postmarkHttpClient
+import library.email.impl.hostingerMailHttpClient
 import org.koin.core.qualifier.Qualifier
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
 import java.security.SecureRandom
 import kotlin.time.Clock
 
-private const val POSTMARK_SERVER_TOKEN = "APPLICATION_POSTMARK_SERVER_TOKEN"
-private const val EMAIL_FROM = "APPLICATION_EMAIL_FROM"
+private const val HOSTINGER_MAIL_TOKEN = "APPLICATION_HOSTINGER_MAIL_TOKEN"
+private const val HOSTINGER_MAILBOX_ID = "APPLICATION_HOSTINGER_MAILBOX_ID"
+private const val EMAIL_SENDER_NAME = "APPLICATION_EMAIL_SENDER_NAME"
 private const val EMAIL_CODE_SECRET = "APPLICATION_EMAIL_CODE_SECRET"
-private val postmarkClient = named("postmarkHttpClient")
+private val hostingerMailClient = named("hostingerMailHttpClient")
 
 fun emailModule(qualifier: Qualifier, environment: (String) -> String? = System::getenv) = module {
     scope(qualifier) {
-        scoped<HttpClient>(postmarkClient) { postmarkHttpClient(CIO.create()) }
+        scoped<HttpClient>(hostingerMailClient) { hostingerMailHttpClient(CIO.create()) }
         scoped<EmailSender> {
-            val serverToken = environment.require(POSTMARK_SERVER_TOKEN)
-            val from = environment.require(EMAIL_FROM)
-            if (serverToken == LoggingEmailSender.DEVELOPMENT_SERVER_TOKEN) {
-                LoggingEmailSender(from)
+            val apiToken = environment.require(HOSTINGER_MAIL_TOKEN)
+            val senderName = environment.require(EMAIL_SENDER_NAME)
+            if (apiToken == LoggingEmailSender.DEVELOPMENT_API_TOKEN) {
+                LoggingEmailSender(senderName)
             } else {
-                PostmarkEmailSender(httpClient = get(postmarkClient), serverToken = serverToken, from = from)
+                HostingerEmailSender(
+                    httpClient = get(hostingerMailClient),
+                    apiToken = apiToken,
+                    mailboxId = environment.require(HOSTINGER_MAILBOX_ID),
+                    senderName = senderName,
+                )
             }
         }
         scoped<EmailCodeHasher> { environment.codeHasher() }
