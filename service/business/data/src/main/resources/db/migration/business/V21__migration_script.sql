@@ -1,0 +1,2 @@
+ALTER TABLE business ADD COLUMN IF NOT EXISTS max_employees INT NULL, ADD COLUMN IF NOT EXISTS max_clients INT NULL, ADD COLUMN IF NOT EXISTS max_services INT NULL, ADD COLUMN IF NOT EXISTS max_service_groups INT NULL, ADD INDEX IF NOT EXISTS business_user_id (user_id), DROP INDEX IF EXISTS business_user_id_unique;
+CREATE TABLE IF NOT EXISTS user_limits (user_id BINARY(16) NOT NULL PRIMARY KEY, max_businesses INT NULL, created_at TIMESTAMP(6) NOT NULL);

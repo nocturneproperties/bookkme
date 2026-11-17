@@ -12,6 +12,7 @@ This repository holds the BookkMe backend. You can run it yourself to take booki
 - [Try it locally](#try-it-locally)
 - [Self-hosting for your business](#self-hosting-for-your-business)
 - [Configuration](#configuration)
+  - [Creation limits](#creation-limits)
 - [Running as microservices](#running-as-microservices)
 - [How the services communicate](#how-the-services-communicate)
 - [Security](#security)
@@ -34,7 +35,7 @@ This repository holds the BookkMe backend. You can run it yourself to take booki
 - Staff accounts with invite codes and separate view, edit and delete permissions for business details, staff, clients, services and appointments, plus suspending access
 - Working hours, days off and schedules for every employee: a booking must fit both the business's hours and the employee's, a range ending before its start (such as 20:00 to 00:00) runs past midnight, a range can't start and end at the same time, and new employees (the owner included) start on the business's working days and hours
 - A client list with import, notes and automatic matching to client accounts
-- Booking requests you approve or decline, or instant booking when you prefer
+- Booking requests you approve or decline, or instant booking when you prefer; clients can withdraw a request you haven't answered
 - Appointment history, completion and no-show tracking
 
 **For clients**
@@ -48,6 +49,7 @@ This repository holds the BookkMe backend. You can run it yourself to take booki
 
 - Runs as a single server process backed by MariaDB and Valkey (or Redis)
 - Database migrations run automatically at startup
+- Limits on how many staff, clients, services, businesses, pending booking requests and passkeys can be created, which you can raise for a single business or person (see [Creation limits](#creation-limits))
 - Personal data encrypted with a key per person, so erasing someone also makes their data unreadable in backups
 - Personal-data tools for GDPR: data export, account and client erasure, dormant account clean-up and retention rules (see [Privacy and GDPR](#privacy-and-gdpr))
 - Draft privacy policy and terms of service templates for self-hosting businesses in English, Polish and Ukrainian (`docs/legal/template`)
@@ -134,6 +136,22 @@ Two secrets are read from files, as Docker secrets:
 |---|---|
 | `signing_key_encryption_key` | Encrypts the keys the server signs access tokens with |
 | `firebase_key` | Firebase service account key, for push notifications |
+
+### Creation limits
+
+The server caps how much one business or one person can create. A request over a limit is refused with a 422 error naming the limit; a client import creates clients up to the limit and reports the rest as rejected.
+
+| Limit | Default | Applies to | Raise it with |
+|---|---|---|---|
+| Active staff, the owner included (suspended staff don't count) | 100 | each business | `business.business.max_employees` |
+| Clients | 20,000 | each business | `business.business.max_clients` |
+| Services | 300 | each business | `business.business.max_services` |
+| Service groups | 50 | each business | `business.business.max_service_groups` |
+| Businesses a person owns (working at others doesn't count) | 20 | each person | `business.user_limits.max_businesses` |
+| Pending booking requests one person has at a business | 10 | each business | `appointments.appointment_settings.max_pending_requests_per_client` |
+| Passkeys | 10 | each account | fixed |
+
+Every column is empty by default, which means the default value. Set it to raise or lower the limit for one business or person, for example `UPDATE business.business SET max_clients = 50000 WHERE id = UNHEX(REPLACE('<business id>', '-', ''));`, and set it back to `NULL` to return to the default. A person gets their `business.user_limits` row the first time they create a business; for someone who has none yet, insert it (`INSERT INTO business.user_limits (user_id, max_businesses, created_at) VALUES (UNHEX(REPLACE('<user id>', '-', '')), 40, UTC_TIMESTAMP(6));`). Clients who book through the app are never refused, so a business can go past its client limit that way. Reinstating a suspended employee is refused while the business is full, and a client frees a place by withdrawing a pending request.
 
 ---
 
@@ -222,6 +240,7 @@ The single server uses exactly the same producers, outbox and consumers, with an
 - **Idempotency keys** on requests, so a retried request never takes effect twice.
 - **Single-use tokens** that are claimed atomically, so two concurrent requests cannot both use one.
 - **Rate limits** in the nginx configuration for sending and checking email codes and for passkey sign-in.
+- **Creation limits** on staff, clients, services, businesses, pending booking requests and passkeys, so one account can't fill the database (see [Creation limits](#creation-limits)).
 
 **Infrastructure** (the production setup in `deployment/`)
 
