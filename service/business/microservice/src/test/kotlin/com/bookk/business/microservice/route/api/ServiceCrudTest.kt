@@ -222,6 +222,36 @@ internal class ServiceCrudTest {
     }
 
     @Test
+    fun `should return unprocessable entity when the business has its maximum of services`() = routeTest {
+        given()
+        val useCase: CreateService = mockk()
+        val service = createTestService()
+        coEvery { useCase.invoke(userId, service) } returns Result.failure(CreateService.Error.ServicesLimitReached())
+
+        setupApplication(
+            extension = {
+                install(Authentication) {
+                    provider {
+                        authenticate { it.principal(AppPrincipal(Uuid.random(), userId, Uuid.random())) }
+                    }
+                }
+            },
+            diModule = module { single { useCase } },
+            routeUnderTest = { serviceCrud() },
+        )
+
+        whenn()
+        val client = createTestClient()
+        val response = client.post(BusinessRouting.Api.Service(businessId = businessId)) {
+            setBody(service)
+        }
+
+        then()
+        assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
+        assertEquals(BusinessErrorCodes.BUSINESS_SERVICES_LIMIT_REACHED, response.body<SimpleServerError>().errorCode)
+    }
+
+    @Test
     fun `should return unprocessable entity when service validation error on create`() = routeTest {
         given()
         val useCase: CreateService = mockk()

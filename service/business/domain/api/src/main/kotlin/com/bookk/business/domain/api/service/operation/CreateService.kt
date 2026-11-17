@@ -45,5 +45,13 @@ interface CreateService {
                 message = "Service group does not exist in this business",
             ),
             Error
+
+        class ServicesLimitReached :
+            BusinessError(
+                statusCode = HttpStatusCode.UnprocessableEntity.value,
+                code = BusinessErrorCodes.BUSINESS_SERVICES_LIMIT_REACHED,
+                message = "Business already has the maximum number of services",
+            ),
+            Error
     }
 }

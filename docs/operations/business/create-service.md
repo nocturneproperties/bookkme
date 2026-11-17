@@ -7,10 +7,12 @@ body is kept and its currency is replaced by `business.currency`, so every
 service of a business shares one currency and quote/appointment totals can be
 summed. An amount the business currency cannot represent (`100.50` for a `JPY`
 business) is rejected rather than rounded; trailing zeros (`100.00` → `JPY
-100`) are fine. The business row is locked with `RowLock.SHARED` (`LOCK IN
-SHARE MODE`): service writes do not block each other, but a currency change in
-[`UpdateBusiness`](update-business.md) (`RowLock.EXCLUSIVE`) waits for them,
-and they wait for it. A stored currency that is not a supported currency
+100`) are fine. The business row is locked with `RowLock.EXCLUSIVE` (`SELECT
+… FOR UPDATE`), so creations at one business run one at a time: the count
+against the business's service limit (`max_services`, 300 unless an operator
+stored another value) can't let two of them take the last slot, and a
+currency change in [`UpdateBusiness`](update-business.md) waits for them, and
+they wait for it. A stored currency that is not a supported currency
 (legacy data such as `usd`) is rejected until the business currency is fixed.
 
 The group is resolved server-side with `getServiceGroup(group.id,
@@ -35,14 +37,16 @@ flowchart TD
     Auth -- Yes --> NameCheck{service.name blank?}
     NameCheck -- Yes --> R422a([422 BUSINESS_SERVICE_NAME_VALIDATION_ERROR 200008])
     NameCheck -- No --> Tx[[Begin transaction]]
-    Tx --> Lock[BusinessDataSource.lockBusiness businessId SHARED - LOCK IN SHARE MODE, first statement of the transaction]
+    Tx --> Lock[BusinessDataSource.lockBusiness businessId EXCLUSIVE - SELECT FOR UPDATE, first statement of the transaction, gives LockedBusiness.limits]
     Lock --> Found{business found?}
     Found -- No --> R404nf([404 Error.NotFound])
     Found -- Yes --> Suspended{BusinessPermissionDataSource.getPermission - caller is a suspended employee of the business?}
     Suspended -- Yes --> R403s([403 BUSINESS_EMPLOYEE_ACCESS_SUSPENDED 200034])
     Suspended -- No --> Perm{caller SERVICES.update?}
     Perm -- No --> R404([404 Error.OperationNotAllowed])
-    Perm -- Yes --> Supported{CurrencyValidator.isValid business currency?}
+    Perm -- Yes --> Count{ServiceDataSource.countServices businessId >= limits.maxServices?}
+    Count -- Yes --> R422l([422 BUSINESS_SERVICES_LIMIT_REACHED 200047])
+    Count -- No --> Supported{CurrencyValidator.isValid business currency?}
     Supported -- No --> R422d([422 BUSINESS_SERVICE_BUSINESS_CURRENCY_INVALID 200038])
     Supported -- Yes --> Price{price amount fits the business currency's decimal places?}
     Price -- No --> R422c([422 BUSINESS_SERVICE_PRICE_PRECISION_INVALID 200037])

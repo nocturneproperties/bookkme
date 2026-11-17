@@ -31,7 +31,7 @@ fun Route.serviceGroupCrud() {
          * Security: jwt
          * Body: application/x-protobuf [com.bookk.business.domain.api.service.entity.ServiceGroup]
          * Response: 200 application/x-protobuf [com.bookk.business.domain.api.service.entity.ServiceGroup] Created service entity
-         * Response: 422 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Create service group errors<br>BUSINESS_SERVICE_GROUP_EXISTS (200010) Service group with this name already exists<br>BUSINESS_SERVICE_GROUP_VALIDATION_ERROR (200011) Invalid service group name
+         * Response: 422 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Create service group errors<br>BUSINESS_SERVICE_GROUP_EXISTS (200010) Service group with this name already exists<br>BUSINESS_SERVICE_GROUP_VALIDATION_ERROR (200011) Invalid service group name<br>BUSINESS_SERVICE_GROUPS_LIMIT_REACHED (200048) Business already has the maximum number of service groups
          * Response: 403 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Caller is a suspended employee of this business<br>BUSINESS_EMPLOYEE_ACCESS_SUSPENDED (200034) Your access to this business is suspended
          * See: docs/operations/business/create-service-group.md
          */

@@ -1,5 +1,6 @@
 package com.bookk.business.microservice.route.api
 
+import com.bookk.business.domain.api.error.BusinessErrorCodes
 import com.bookk.business.domain.api.service.entity.ServiceGroup
 import com.bookk.business.domain.api.service.operation.CreateServiceGroup
 import com.bookk.business.domain.api.service.operation.DeleteServiceGroup
@@ -106,6 +107,41 @@ internal class ServiceGroupCrudTest {
         val body = response.body<SimpleServerError>()
         assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
         assertEquals(200010, body.errorCode)
+    }
+
+    @Test
+    fun `should return unprocessable entity when the business has its maximum of service groups`() = routeTest {
+        given()
+        val useCase: CreateServiceGroup = mockk()
+        val group = createTestServiceGroup()
+
+        coEvery { useCase.invoke(userId, group) } returns
+            Result.failure(CreateServiceGroup.Error.ServiceGroupsLimitReached())
+
+        setupApplication(
+            extension = {
+                install(Authentication) {
+                    provider {
+                        authenticate { it.principal(AppPrincipal(Uuid.random(), userId, Uuid.random())) }
+                    }
+                }
+            },
+            diModule = module {
+                single { useCase }
+            },
+            routeUnderTest = { serviceGroupCrud() },
+        )
+
+        whenn()
+        val client = createTestClient()
+        val response = client.post(BusinessRouting.Api.ServiceGroup(businessId = businessId)) {
+            setBody(group)
+        }
+
+        then()
+        val body = response.body<SimpleServerError>()
+        assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
+        assertEquals(BusinessErrorCodes.BUSINESS_SERVICE_GROUPS_LIMIT_REACHED, body.errorCode)
     }
 
     @Test
