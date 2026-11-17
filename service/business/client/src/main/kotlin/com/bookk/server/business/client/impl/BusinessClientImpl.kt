@@ -60,7 +60,10 @@ internal class BusinessClientImpl(
         businessId: Uuid,
         employeeId: Uuid?,
         serviceIds: List<Uuid>,
-    ): Result<AppointmentRescheduleContext> = getAppointmentRescheduleContext.invoke(businessId, employeeId, serviceIds)
+        currentAssignee: Boolean,
+    ): Result<AppointmentRescheduleContext> {
+        return getAppointmentRescheduleContext.invoke(businessId, employeeId, serviceIds, currentAssignee)
+    }
 
     override suspend fun getClientBusinessIds(userId: Uuid): Result<List<Uuid>> = getClientBusinessIds.invoke(userId)
 

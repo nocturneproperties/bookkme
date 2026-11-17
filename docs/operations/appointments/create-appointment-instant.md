@@ -83,11 +83,15 @@ flowchart TD
     Settings -- not found --> R404a([404 Error.NotFound])
     Settings -- found --> PastCheck{appointment.date < now?}
     PastCheck -- Yes --> R422b([422 DATE_IN_PAST 300012])
-    PastCheck -- No --> WorkdayCheck{date within business workday?}
-    WorkdayCheck -- No --> R422c([422 DATE_NOT_ALLOWED 300003])
-    WorkdayCheck -- Yes --> WorktimeCheck{slot within worktime?}
-    WorktimeCheck -- No --> R422d([422 TIME_NOT_ALLOWED 300002])
-    WorktimeCheck -- Yes --> Overlap{overlaps another appointment?}
+    PastCheck -- No --> BizDay{settings.requireBookable - business works on date, or inside its range running past midnight?}
+    BizDay -- No --> R422bd([422 BUSINESS_DATE_NOT_ALLOWED 300003])
+    BizDay -- Yes --> BizTime{business ranges cover date to dateEnd, past midnight joined?}
+    BizTime -- No --> R422bt([422 BUSINESS_TIME_NOT_ALLOWED 300002])
+    BizTime -- Yes --> EmpDay{context.employee.schedule works on date, or inside its range running past midnight?}
+    EmpDay -- No --> R422ed([422 EMPLOYEE_DATE_NOT_ALLOWED 300027])
+    EmpDay -- Yes --> EmpTime{context.employee.schedule ranges cover date to dateEnd?}
+    EmpTime -- No --> R422et([422 EMPLOYEE_TIME_NOT_ALLOWED 300028])
+    EmpTime -- Yes --> Overlap{overlaps another appointment?}
     Overlap -- Yes --> R422e([422 APPOINTMENT_EXISTS 300004])
     Overlap -- No --> Store[AppointmentDataSource.create appointment]
     Store --> Visit[eventProducer.send AppointmentEvent.ClientVisitBooked businessId client.id dateEnd]

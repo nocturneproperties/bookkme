@@ -39,7 +39,9 @@ internal class UpdateAppointmentImpl(
             appointmentDataSource.get(update.id).also { requireReschedulable(userId, it, update) }
         }
 
-        val rescheduled = reschedule(existing, update)
+        val context = resolveChanges(existing, update)
+        val rescheduled = reschedule(existing, update, context)
+        val employeeSchedule = context.employee?.schedule
 
         val stored = transactionManager.transactionOrThrow {
             val settings = settingsDataSource.getForUpdate(existing.businessId) ?: throw Error.NotFound()
@@ -49,12 +51,7 @@ internal class UpdateAppointmentImpl(
             val reschedules = update.reschedules(locked)
             val reservesSlot = reschedules || locked.status == AppointmentStatus.SCHEDULED
             if (reservesSlot) {
-                if (!settings.isInWorkday(rescheduled.date)) {
-                    throw UpdateAppointment.Error.RequestForThisDateNotAllowed()
-                }
-                if (!settings.isInWorktime(rescheduled.date, rescheduled.dateEnd)) {
-                    throw UpdateAppointment.Error.RequestForThisTimeNotAllowed()
-                }
+                settings.requireBookable(rescheduled.date, rescheduled.dateEnd, employeeSchedule)
                 if (appointmentDataSource.hasOverlapsWith(rescheduled)) {
                     throw UpdateAppointment.Error.AppointmentForThisTimeExists()
                 }
@@ -85,16 +82,22 @@ internal class UpdateAppointmentImpl(
         return services.isNotEmpty() && services.all { it.count > 0 } && serviceIds.distinct().size == serviceIds.size
     }
 
-    private suspend fun reschedule(existing: Appointment, update: AppointmentUpdate): Appointment {
+    private fun reschedule(
+        existing: Appointment,
+        update: AppointmentUpdate,
+        context: AppointmentRescheduleContext,
+    ): Appointment {
         val storedServices = existing.services.associateBy { it.id }
-        val changedEmployeeId = update.employeeId.takeIf { it != existing.employee.id }
-        val addedServiceIds = update.services.map { it.serviceId }.filterNot { it in storedServices }
-        val context = resolveChanges(existing.businessId, changedEmployeeId, addedServiceIds)
         val availableServices = storedServices + context.services.associate { it.id to it.toSnapshot() }
         val rescheduling = update.reschedules(existing)
+        val employee = if (update.employeeId != existing.employee.id) {
+            requireNotNull(context.employee).toSnapshot()
+        } else {
+            existing.employee
+        }
 
         return existing.copy(
-            employee = context.employee?.toSnapshot() ?: existing.employee,
+            employee = employee,
             services = update.services.flatMap { requested ->
                 List(requested.count) { availableServices.getValue(requested.serviceId) }
             },
@@ -106,15 +109,28 @@ internal class UpdateAppointmentImpl(
         )
     }
 
-    private suspend fun resolveChanges(
-        businessId: Uuid,
-        employeeId: Uuid?,
-        serviceIds: List<Uuid>,
-    ): AppointmentRescheduleContext {
-        if (employeeId == null && serviceIds.isEmpty()) {
+    private suspend fun resolveChanges(existing: Appointment, update: AppointmentUpdate): AppointmentRescheduleContext {
+        val employeeId = update.employeeId.takeIf { update.movesSlotOf(existing) }
+        val storedServiceIds = existing.services.map { it.id }.toSet()
+        val addedServiceIds = update.services.map { it.serviceId }.filterNot { it in storedServiceIds }
+        if (employeeId == null && addedServiceIds.isEmpty()) {
             return AppointmentRescheduleContext(employee = null, services = emptyList())
         }
-        return businessClient.getAppointmentRescheduleContext(businessId, employeeId, serviceIds).getOrThrow()
+        val keepsEmployee = update.employeeId == existing.employee.id
+        val context = businessClient.getAppointmentRescheduleContext(
+            businessId = existing.businessId,
+            employeeId = employeeId,
+            serviceIds = addedServiceIds,
+            currentAssignee = keepsEmployee,
+        )
+        return context.getOrThrow()
+    }
+
+    private fun AppointmentUpdate.movesSlotOf(appointment: Appointment): Boolean {
+        if (reschedules(appointment)) return true
+        val requestedCounts = services.associate { it.serviceId to it.count }
+        val storedCounts = appointment.services.groupingBy { it.id }.eachCount()
+        return appointment.status == AppointmentStatus.SCHEDULED && requestedCounts != storedCounts
     }
 
     private fun Employee.toSnapshot() = EmployeeSnapshot(id = id, userId = userId, fullName = "$name $lastName".trim())

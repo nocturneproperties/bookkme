@@ -29,6 +29,14 @@ validation existed, e.g. `usd`) does not lock: its prices cannot be in that
 currency, and without this the business could neither price services nor
 repair its currency.
 
+A saved schedule never changes an employee's schedule, not even one with no
+working days: an owner may leave an employee without working days on purpose
+so they can't be booked. Employees get the business's working week only when
+they are created ([Create business](create-business.md) for the owner,
+[Join business](join-business.md)). A working range whose start equals its
+end is rejected; it would cover no time, since only an end before the start
+runs past midnight.
+
 `clientDataRetentionMonths` is how long the business keeps a client who
 stops visiting. The business sets it as the controller of its clients'
 data, within 12 to 120 months (default 36, `null` keeps the stored value).
@@ -56,7 +64,9 @@ flowchart TD
     Perm -- Yes --> ScheduleGiven{body.schedule present?}
     ScheduleGiven -- Yes --> WorkHours{any active day with empty workingTime?}
     WorkHours -- Yes --> R422a([422 BUSINESS_ACTIVE_DAY_WITHOUT_WORK_HOURS 200019])
-    WorkHours -- No --> DayOffRange{any dayOff.start > end?}
+    WorkHours -- No --> EmptyRange{schedule.hasEmptyWorkHour - any range with from == to?}
+    EmptyRange -- Yes --> R422e([422 BUSINESS_EMPTY_WORK_HOUR_RANGE 200042])
+    EmptyRange -- No --> DayOffRange{any dayOff.start > end?}
     DayOffRange -- Yes --> R422b([422 BUSINESS_INVALID_DAY_OFF_RANGE 200020])
     DayOffRange -- No --> Retention{body.clientDataRetentionMonths present and outside 12..120?}
     ScheduleGiven -- No --> Retention

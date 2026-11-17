@@ -1,0 +1,3 @@
+DELETE ewh FROM employee_working_hours ewh JOIN employee e ON e.id = ewh.employee_id JOIN business b ON b.id = e.business_id WHERE e.working_days = 0 AND b.working_days <> 0;
+INSERT INTO employee_working_hours (id, createdAt, employee_id, day_of_week, start_time, end_time) SELECT UNHEX(REPLACE(UUID(), '-', '')), UTC_TIMESTAMP(6), e.id, bwh.day_of_week, bwh.start_time, bwh.end_time FROM employee e JOIN business b ON b.id = e.business_id JOIN business_working_hours bwh ON bwh.business_id = b.id WHERE e.working_days = 0 AND b.working_days <> 0;
+UPDATE employee e JOIN business b ON b.id = e.business_id SET e.working_days = b.working_days, e.updatedAt = UTC_TIMESTAMP(6) WHERE e.working_days = 0 AND b.working_days <> 0;

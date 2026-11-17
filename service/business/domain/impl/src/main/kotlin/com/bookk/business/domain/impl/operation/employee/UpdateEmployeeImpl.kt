@@ -39,6 +39,7 @@ internal class UpdateEmployeeImpl(
         if (employee.schedule.days.values.any { it.isActive && it.workingTime.isEmpty() }) {
             throw UpdateEmployee.Error.ActiveDayWithoutWorkHours()
         }
+        if (employee.schedule.hasEmptyWorkHour()) throw UpdateEmployee.Error.EmptyWorkHourRange()
         if (employee.schedule.dayOffs.any { it.start > it.end }) {
             throw UpdateEmployee.Error.InvalidDayOffRange()
         }

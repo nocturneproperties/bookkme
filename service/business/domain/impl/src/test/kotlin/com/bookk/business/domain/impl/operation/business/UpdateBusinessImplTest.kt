@@ -211,6 +211,24 @@ internal class UpdateBusinessImplTest {
     }
 
     @Test
+    fun `should return failure when a working range starts and ends at the same time`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.transactionManager.mockTransaction()
+        val schedule = Schedule(
+            workingDays = listOf(DayOfWeek.MONDAY),
+            workingHours = mapOf(DayOfWeek.MONDAY to listOf(WorkHour(LocalTime(9, 0), LocalTime(9, 0)))),
+        )
+
+        whenn()
+        val result = fixture.sut(requestUserId, updateModel(schedule = schedule))
+
+        then()
+        assertTrue(result.exceptionOrNull() is UpdateBusiness.Error.EmptyWorkHourRange)
+        coVerify(exactly = 0) { fixture.businessDataSource.updateBusiness(any(), any()) }
+    }
+
+    @Test
     fun `should return failure when day off range start date is after end date`() = runUnitTest {
         given()
         val fixture = SutFixture()

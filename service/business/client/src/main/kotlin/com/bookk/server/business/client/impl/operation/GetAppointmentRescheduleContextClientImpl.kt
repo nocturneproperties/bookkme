@@ -19,13 +19,20 @@ internal class GetAppointmentRescheduleContextClientImpl(
         businessId: Uuid,
         employeeId: Uuid?,
         serviceIds: List<Uuid>,
+        currentAssignee: Boolean,
     ): Result<AppointmentRescheduleContext> = runSuspendCatching {
         httpClient.post(
             BusinessRouting.Api.Internal.Business.Id.AppointmentRescheduleContext(
                 parent = BusinessRouting.Api.Internal.Business.Id(id = businessId),
             ),
         ) {
-            setBody(AppointmentRescheduleContextRequest(employeeId = employeeId, serviceIds = serviceIds))
+            setBody(
+                AppointmentRescheduleContextRequest(
+                    employeeId = employeeId,
+                    serviceIds = serviceIds,
+                    currentAssignee = currentAssignee,
+                ),
+            )
         }.bodyOrThrow()
     }
 }

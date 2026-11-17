@@ -18,22 +18,6 @@ interface CreateAppointmentRequest {
             ),
             Error
 
-        class RequestForThisTimeNotAllowed :
-            BusinessError(
-                statusCode = HttpStatusCode.UnprocessableEntity.value,
-                code = AppointmentErrorCodes.TIME_NOT_ALLOWED,
-                message = "Request for this time not allowed",
-            ),
-            Error
-
-        class RequestForThisDateNotAllowed :
-            BusinessError(
-                statusCode = HttpStatusCode.UnprocessableEntity.value,
-                code = AppointmentErrorCodes.DATE_NOT_ALLOWED,
-                message = "Request for this date and time not allowed",
-            ),
-            Error
-
         class DateInThePastNotAllowed :
             BusinessError(
                 statusCode = HttpStatusCode.UnprocessableEntity.value,

@@ -160,6 +160,25 @@ internal class UpdateEmployeeImplTest {
     }
 
     @Test
+    fun `should return failure when a working range starts and ends at the same time`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.transactionManager.mockTransaction()
+        val schedule = Schedule(
+            workingDays = listOf(DayOfWeek.MONDAY),
+            workingHours = mapOf(DayOfWeek.MONDAY to listOf(WorkHour(LocalTime(0, 0), LocalTime(0, 0)))),
+        )
+        val employee = Employee.stub(schedule = schedule)
+
+        whenn()
+        val result = fixture.sut(requestUserId, updateModel(employee))
+
+        then()
+        assertTrue(result.exceptionOrNull() is UpdateEmployee.Error.EmptyWorkHourRange)
+        coVerify(exactly = 0) { fixture.employeeDataSource.updateEmployee(any()) }
+    }
+
+    @Test
     fun `should return failure when day off range start date is after end date`() = runUnitTest {
         given()
         val fixture = SutFixture()

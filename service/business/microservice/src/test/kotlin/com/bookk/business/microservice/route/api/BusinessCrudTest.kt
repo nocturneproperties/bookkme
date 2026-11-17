@@ -622,6 +622,39 @@ internal class BusinessCrudTest {
     }
 
     @Test
+    fun `should return unprocessable entity when a working range starts and ends at the same time`() = routeTest {
+        given()
+        val useCase: UpdateBusiness = mockk()
+        coEvery { useCase.invoke(userId, any()) } returns
+            Result.failure(UpdateBusiness.Error.EmptyWorkHourRange())
+
+        setupApplication(
+            extension = {
+                install(Authentication) {
+                    provider {
+                        authenticate { it.principal(AppPrincipal(Uuid.random(), userId, Uuid.random())) }
+                    }
+                }
+            },
+            diModule = module { single { useCase } },
+            routeUnderTest = { businessCrud() },
+        )
+
+        whenn()
+        val client = createTestClient()
+        val response = client.put(BusinessRouting.Api.Business.Id(id = businessId)) {
+            setBody(updateModel(schedule = Schedule(listOf(DayOfWeek.MONDAY), emptyMap())))
+        }
+
+        then()
+        assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
+        assertEquals(
+            BusinessErrorCodes.BUSINESS_EMPTY_WORK_HOUR_RANGE,
+            response.body<SimpleServerError>().errorCode,
+        )
+    }
+
+    @Test
     fun `should return unprocessable entity when day off range start date is not before end date`() = routeTest {
         given()
         val useCase: UpdateBusiness = mockk()

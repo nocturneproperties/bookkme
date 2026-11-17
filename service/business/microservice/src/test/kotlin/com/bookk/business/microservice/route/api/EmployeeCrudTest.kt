@@ -195,6 +195,31 @@ internal class EmployeeCrudTest {
     }
 
     @Test
+    fun `should return unprocessable entity when a working range starts and ends at the same time`() = routeTest {
+        given()
+        val useCase: UpdateEmployee = mockk()
+        val employee = createTestEmployee()
+        coEvery { useCase.invoke(userId, updateModel(employee)) } returns
+            Result.failure(UpdateEmployee.Error.EmptyWorkHourRange())
+        authenticatedApplication(useCase)
+
+        whenn()
+        val client = createTestClient()
+        val response = client.put(
+            BusinessRouting.Api.Employee.Id(BusinessRouting.Api.Employee(businessId = businessId), employee.id),
+        ) {
+            setBody(updateModel(employee))
+        }
+
+        then()
+        assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
+        assertEquals(
+            BusinessErrorCodes.BUSINESS_EMPLOYEE_EMPTY_WORK_HOUR_RANGE,
+            response.body<SimpleServerError>().errorCode,
+        )
+    }
+
+    @Test
     fun `should return unprocessable entity when day off range is invalid`() = routeTest {
         given()
         val useCase: UpdateEmployee = mockk()

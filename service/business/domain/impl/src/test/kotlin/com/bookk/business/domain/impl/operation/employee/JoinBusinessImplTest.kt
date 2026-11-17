@@ -9,6 +9,8 @@ import com.bookk.business.domain.api.employee.operation.JoinBusiness
 import com.bookk.business.domain.datasource.BusinessDataSource
 import com.bookk.business.domain.datasource.EmployeeDataSource
 import com.bookk.business.domain.datasource.EmployeeInvitationDataSource
+import com.bookk.business.domain.datasource.LockedBusiness
+import com.bookk.business.domain.datasource.RowLock
 import com.bookk.core.data.eventstreaming.StandardEventProducer
 import com.bookk.core.domain.datasource.transaction.TransactionManager
 import com.bookk.core.domain.datasource.transaction.mockTransaction
@@ -22,10 +24,16 @@ import com.bookk.server.user.client.UserClient
 import com.bookk.server.user.client.api.UserSnapshot
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.coVerifyOrder
 import io.mockk.mockk
 import io.mockk.slot
+import kotlinx.datetime.DayOfWeek
+import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
 import library.permissions.ResourcePermission
+import library.schedule.DayOffRange
+import library.schedule.Schedule
+import library.schedule.WorkHour
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -71,6 +79,7 @@ internal class JoinBusinessImplTest {
         coEvery {
             invitationDataSource.getInvitationByCodeHash(EmployeeInvitationCode.hash(requireNotNull(invitation.code)))
         } returns invitation
+        coEvery { businessDataSource.lockBusiness(invitation.businessId, RowLock.SHARED) } returns LockedBusiness("USD")
         coEvery { employeeDataSource.getEmployeeByUserId(invitation.businessId, requestUserId) } returns null
         coEvery { invitationDataSource.redeemInvitation(invitation.id) } returns true
         coEvery { userClient.getUserById(requestUserId) } returns Result.success(userSnapshot(requestUserId))
@@ -262,6 +271,8 @@ internal class JoinBusinessImplTest {
                     EmployeeInvitationCode.hash(requireNotNull(invitation.code)),
                 )
             } returns invitation
+            coEvery { businessDataSource.lockBusiness(invitation.businessId, RowLock.SHARED) } returns
+                LockedBusiness("USD")
         }
 
         whenn()
@@ -286,6 +297,8 @@ internal class JoinBusinessImplTest {
                     EmployeeInvitationCode.hash(requireNotNull(invitation.code)),
                 )
             } returns invitation
+            coEvery { businessDataSource.lockBusiness(invitation.businessId, RowLock.SHARED) } returns
+                LockedBusiness("USD")
             coEvery { employeeDataSource.getEmployeeByUserId(invitation.businessId, requestUserId) } returns null
             coEvery { invitationDataSource.redeemInvitation(invitation.id) } returns false
         }
@@ -313,6 +326,8 @@ internal class JoinBusinessImplTest {
                     EmployeeInvitationCode.hash(requireNotNull(invitation.code)),
                 )
             } returns invitation
+            coEvery { businessDataSource.lockBusiness(invitation.businessId, RowLock.SHARED) } returns
+                LockedBusiness("USD")
             coEvery {
                 employeeDataSource.getEmployeeByUserId(invitation.businessId, requestUserId)
             } returns Employee.stub(businessId = invitation.businessId, userId = requestUserId)
@@ -365,10 +380,7 @@ internal class JoinBusinessImplTest {
                     EmployeeInvitationCode.hash(requireNotNull(invitation.code)),
                 )
             } returns invitation
-            coEvery { employeeDataSource.getEmployeeByUserId(invitation.businessId, requestUserId) } returns null
-            coEvery { invitationDataSource.redeemInvitation(invitation.id) } returns true
-            coEvery { userClient.getUserById(requestUserId) } returns Result.success(userSnapshot(requestUserId))
-            coEvery { businessDataSource.getBusinessById(invitation.businessId) } returns null
+            coEvery { businessDataSource.lockBusiness(invitation.businessId, RowLock.SHARED) } returns null
         }
 
         whenn()
@@ -377,6 +389,59 @@ internal class JoinBusinessImplTest {
         then()
         assertTrue(result.isFailure)
         assertTrue(result.exceptionOrNull() is Error.NotFound)
+        coVerify(exactly = 0) { fixture.invitationDataSource.redeemInvitation(any()) }
         coVerify(exactly = 0) { fixture.employeeDataSource.createEmployee(any()) }
     }
+
+    @Test
+    fun `should start the new employee on the business working week without its day offs`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val requestUserId = Uuid.random()
+        val invitation = EmployeeInvitation.stub()
+        val employee = Employee.stub(businessId = invitation.businessId, userId = requestUserId)
+        val workingWeek = Schedule(
+            workingDays = listOf(DayOfWeek.MONDAY),
+            workingHours = mapOf(DayOfWeek.MONDAY to listOf(WorkHour.NINE_TO_FIVE)),
+        )
+        val dayOff = DayOffRange(LocalDate(2026, 12, 31), LocalDate(2026, 12, 31))
+        val business = business(invitation.businessId).copy(schedule = workingWeek.copy(dayOffs = listOf(dayOff)))
+        with(fixture) {
+            stubHappyPath(requestUserId, invitation, employee)
+            coEvery { businessDataSource.getBusinessById(invitation.businessId) } returns business
+        }
+
+        whenn()
+        val result = fixture.sut(requestUserId, requireNotNull(invitation.code))
+
+        then()
+        assertTrue(result.isSuccess)
+        coVerify(exactly = 1) { fixture.employeeDataSource.createEmployee(match { it.schedule == workingWeek }) }
+    }
+
+    @Test
+    fun `should lock the business before re-reading the invitation and copying the business schedule`() =
+        runUnitTest {
+            given()
+            val fixture = SutFixture()
+            val requestUserId = Uuid.random()
+            val invitation = EmployeeInvitation.stub()
+            val codeHash = EmployeeInvitationCode.hash(requireNotNull(invitation.code))
+            val employee = Employee.stub(businessId = invitation.businessId, userId = requestUserId)
+            with(fixture) { stubHappyPath(requestUserId, invitation, employee) }
+
+            whenn()
+            val result = fixture.sut(requestUserId, requireNotNull(invitation.code))
+
+            then()
+            assertTrue(result.isSuccess)
+            coVerifyOrder {
+                fixture.invitationDataSource.getInvitationByCodeHash(codeHash)
+                fixture.businessDataSource.lockBusiness(invitation.businessId, RowLock.SHARED)
+                fixture.invitationDataSource.getInvitationByCodeHash(codeHash)
+                fixture.invitationDataSource.redeemInvitation(invitation.id)
+                fixture.businessDataSource.getBusinessById(invitation.businessId)
+                fixture.employeeDataSource.createEmployee(any())
+            }
+        }
 }

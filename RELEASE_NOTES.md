@@ -2,13 +2,20 @@
 
 ## 0.20.0
 
-Changes since `monolith/0.19.0`. Sends email through the Hostinger Mail API instead of Postmark, deletes sent copies after 5 years, and removes the one-time client-name indexing job that 0.19.0 ran.
+Changes since `monolith/0.19.0`. Sends email through the Hostinger Mail API instead of Postmark, deletes sent copies after 5 years, checks bookings against the employee's schedule and accepts bookings across midnight, and removes the one-time client-name indexing job that 0.19.0 ran.
 
 ### Clients
 
 - Code emails, account notices and their push notifications now call the service BookkMe instead of Bookk, in every language.
 - Data exports now download as `bookkme-personal-data.json` and `bookkme-business-data.json` (`Content-Disposition` of `GET /api/user/export/download` and `GET /api/business/{businessId}/export/download`).
 - `EMAIL_UNDELIVERABLE` (910005) now comes only for an address the mail API refuses outright; a bounce after sending is no longer reported, so the code is simply never received.
+- Booking a request (`POST /api/appointments/request`), approving it (`POST /api/appointments`), booking instantly (`POST /api/appointments/instant`) and moving an appointment (`PUT /api/appointments/{id}`) now also reject a slot outside the employee's own working days, hours or days off with the new `EMPLOYEE_DATE_NOT_ALLOWED` (300027) or `EMPLOYEE_TIME_NOT_ALLOWED` (300028); show only slots inside both schedules.
+- `DATE_NOT_ALLOWED` (300003) and `TIME_NOT_ALLOWED` (300002) are renamed `BUSINESS_DATE_NOT_ALLOWED` and `BUSINESS_TIME_NOT_ALLOWED` with the same values and now mean only the business schedule; the business schedule is checked first.
+- A working range whose end is before its start (20:00 to 00:00, 22:00 to 02:00) now runs past midnight, and ranges that meet at midnight join, so a booking that starts one day and ends the next is accepted.
+- Saving a business (`PUT /api/business/{id}`) or an employee answers 422 `BUSINESS_EMPTY_WORK_HOUR_RANGE` (200042) or `BUSINESS_EMPLOYEE_EMPTY_WORK_HOUR_RANGE` (200043) for a working range that starts and ends at the same time; such a range already stored covers no time.
+- Approving a request can now answer 422 `BUSINESS_EMPLOYEE_SUSPENDED` (200033) or 404 `BUSINESS_EMPLOYEE_NOT_EXISTS` (200024) when its employee was suspended or removed.
+- New employees, the owner of a new business included, start with the business's working days and hours; saving the business schedule later doesn't change any employee, so an employee left without working days can't be booked.
+- Moving an appointment while keeping its employee still works when that employee is suspended (their schedule applies) or removed (only the business schedule applies).
 
 ### Services
 
@@ -16,6 +23,7 @@ Changes since `monolith/0.19.0`. Sends email through the Hostinger Mail API inst
 - `APPLICATION_POSTMARK_SERVER_TOKEN` and `APPLICATION_EMAIL_FROM` are replaced by `APPLICATION_HOSTINGER_MAIL_TOKEN` (`development_token` still logs instead of sending), `APPLICATION_HOSTINGER_MAILBOX_ID` and `APPLICATION_EMAIL_SENDER_NAME`; auth and a standalone notifications service fail to start emailing without them.
 - New job `auth-deleteExpiredSentEmails` deletes, once a week, the copies Hostinger keeps in the sending mailbox's Sent folder once they are 5 years old.
 - The job `appointments-indexClientNames` is removed; appointments stored before 0.19.0 that it hasn't indexed are found by service name only.
+- Business migration `V20` gives every employee with no working days the working days and hours of a business that has any; such employees were bookable at any business hour until now.
 
 ### Upgrade
 
