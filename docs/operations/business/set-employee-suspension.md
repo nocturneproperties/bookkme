@@ -35,12 +35,20 @@ too. No dedicated suspension event
 or handler exists. The employee's dashboard (`GET dashboard`) also stops
 resolving to the business while suspended (404, as with no dashboard set).
 
+Suspended employees don't count toward the business's employee limit
+(`max_employees`, 100 unless an operator stored another value), so suspending
+someone frees a place. Reinstating counts the active employees under an
+exclusive business lock and is refused while the business is full;
+suspending is always allowed.
+
 ```mermaid
 flowchart TD
     Start([PUT /api/business/businessId/employee/id/suspension]) --> Auth{JWT valid?}
     Auth -- No --> R401([401 Unauthorized])
     Auth -- Yes --> Tx[[Begin transaction]]
-    Tx --> PermCheck{BusinessDataSource.isOwner caller, businessId?}
+    Tx --> Lock[BusinessDataSource.lockBusiness businessId EXCLUSIVE - first statement, gives LockedBusiness.limits]
+    Lock -- not found --> R404nf([404 Error.NotFound])
+    Lock -- locked --> PermCheck{BusinessDataSource.isOwner caller, businessId?}
     PermCheck -- No --> R404a([404 Error.OperationNotAllowed])
     PermCheck -- Yes --> Lookup[EmployeeDataSource.getEmployee businessId, id]
     Lookup --> Found{employee found?}
@@ -49,7 +57,9 @@ flowchart TD
     Owner -- Yes --> R422o([422 BUSINESS_OWNER_SUSPENSION_NOT_ALLOWED 200032])
     Owner -- No --> Same{employee.isSuspended == suspended?}
     Same -- Yes --> R200a([200 Employee unchanged])
-    Same -- No --> Set[EmployeeDataSource.setSuspendedAt id, now or null - findByIdAndUpdate row lock]
+    Same -- No --> Reinstate{reinstating and EmployeeDataSource.countActiveEmployees businessId >= limits.maxEmployees?}
+    Reinstate -- Yes --> R422l([422 BUSINESS_EMPLOYEES_LIMIT_REACHED 200044])
+    Reinstate -- No --> Set[EmployeeDataSource.setSuspendedAt id, now or null - findByIdAndUpdate row lock]
     Set --> Event[eventProducer.send BusinessEvent.EmployeePermissionsChanged updated.permissions, suspended = updated.isSuspended]
     Event --> R200([200 Employee with updated suspendedAt])
 ```

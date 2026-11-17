@@ -2,7 +2,7 @@
 
 ## 0.20.0
 
-Changes since `monolith/0.19.0`. Sends email through the Hostinger Mail API instead of Postmark, deletes sent copies after 5 years, checks bookings against the employee's schedule and accepts bookings across midnight, and removes the one-time client-name indexing job that 0.19.0 ran.
+Changes since `monolith/0.19.0`. Sends email through the Hostinger Mail API instead of Postmark, deletes sent copies after 5 years, checks bookings against the employee's schedule and accepts bookings across midnight, lets one person own several businesses, limits how much a business or person can create, and removes the one-time client-name indexing job that 0.19.0 ran.
 
 ### Clients
 
@@ -16,6 +16,14 @@ Changes since `monolith/0.19.0`. Sends email through the Hostinger Mail API inst
 - Approving a request can now answer 422 `BUSINESS_EMPLOYEE_SUSPENDED` (200033) or 404 `BUSINESS_EMPLOYEE_NOT_EXISTS` (200024) when its employee was suspended or removed.
 - New employees, the owner of a new business included, start with the business's working days and hours; saving the business schedule later doesn't change any employee, so an employee left without working days can't be booked.
 - Moving an appointment while keeping its employee still works when that employee is suspended (their schedule applies) or removed (only the business schedule applies).
+- Creating an employee invitation (`POST /api/business/{businessId}/employee_invitation`), joining a business (`POST /api/business/employee_invitation/redeem`) or reinstating a suspended employee (`PUT /api/business/{businessId}/employee/{id}/suspension`) answers 422 `BUSINESS_EMPLOYEES_LIMIT_REACHED` (200044) once the business has 100 active employees; suspended ones don't count.
+- A user can now own several businesses: `POST /api/business` no longer answers `BUSINESS_ALREADY_EXIST` (200001), which is removed, and answers 422 `BUSINESS_OWNED_BUSINESSES_LIMIT_REACHED` (200045) once the user owns 20; joining a business as an employee has no such limit.
+- The personal data export lists every business the user owns in `businesses.ownedBusinesses` instead of one `businesses.ownedBusiness`.
+- Creating a client (`POST /api/business/{businessId}/clients`) answers 422 `BUSINESS_CLIENTS_LIMIT_REACHED` (200046) at 20,000 clients, and an import (`POST /api/business/{businessId}/clients/import`) creates clients up to the limit and rejects the rest with that code; clients booking through the app are never refused.
+- Creating a service answers 422 `BUSINESS_SERVICES_LIMIT_REACHED` (200047) at 300 services, and a service group `BUSINESS_SERVICE_GROUPS_LIMIT_REACHED` (200048) at 50 groups.
+- Booking a request (`POST /api/appointments/request`) answers 422 `PENDING_REQUESTS_LIMIT_REACHED` (300029) while the user already has 10 requests waiting at that business; `GET /api/appointments/settings/{businessId}` returns the limit as `maxPendingRequestsPerClient`.
+- New `POST /api/appointments/request/{id}/withdraw` lets the person who made a pending request take it back (204); someone else's or an unknown request answers 404, an answered one 422 `REQUEST_ALREADY_APPROVED` or `REQUEST_ALREADY_DECLINED`.
+- Asking for a passkey challenge (`GET /api/auth/passkey/add/challenge`) or adding a passkey (`POST /api/auth/passkey/add/finish`) answers 422 `PASSKEYS_LIMIT_REACHED` (13) once the account has 10 passkeys; `add/finish` answers 204, not 201 as documented before, and 404 when the signed-in account no longer exists.
 
 ### Services
 
@@ -23,6 +31,7 @@ Changes since `monolith/0.19.0`. Sends email through the Hostinger Mail API inst
 - `APPLICATION_POSTMARK_SERVER_TOKEN` and `APPLICATION_EMAIL_FROM` are replaced by `APPLICATION_HOSTINGER_MAIL_TOKEN` (`development_token` still logs instead of sending), `APPLICATION_HOSTINGER_MAILBOX_ID` and `APPLICATION_EMAIL_SENDER_NAME`; auth and a standalone notifications service fail to start emailing without them.
 - New job `auth-deleteExpiredSentEmails` deletes, once a week, the copies Hostinger keeps in the sending mailbox's Sent folder once they are 5 years old.
 - The job `appointments-indexClientNames` is removed; appointments stored before 0.19.0 that it hasn't indexed are found by service name only.
+- Migrations business `V21` and appointments `V13` add empty limit columns (`business.max_employees`, `max_clients`, `max_services`, `max_service_groups`, `appointment_settings.max_pending_requests_per_client`) and the table `business.user_limits` (`max_businesses`, the businesses one person may own), and replace the unique index on `business.user_id` with a plain one; set one to raise or lower that limit for a single business or person, see Creation limits in `README.md`.
 - Business migration `V20` gives every employee with no working days the working days and hours of a business that has any; such employees were bookable at any business hour until now.
 
 ### Upgrade

@@ -18,6 +18,7 @@ import com.bookk.core.domain.entity.onConstraintFailure
 import com.bookk.core.domain.entity.runSuspendCatching
 import com.bookk.server.business.client.api.event.BusinessEvent
 import com.bookk.server.user.client.UserClient
+import com.bookk.server.user.client.api.UserSnapshot
 import kotlin.time.Clock
 import kotlin.uuid.Uuid
 
@@ -34,7 +35,8 @@ internal class JoinBusinessImpl(
         val codeHash = EmployeeInvitationCode.hash(code)
         return runSuspendCatching {
             val businessId = transactionManager.transactionOrThrow { findInvitation(codeHash).businessId }
-            transactionManager.transactionOrThrow { join(requestUserId, codeHash, businessId) }
+            val requestUser = userClient.getUserById(requestUserId).getOrThrow()
+            transactionManager.transactionOrThrow { join(requestUser, codeHash, businessId) }
         }.onConstraintFailure {
             throw JoinBusiness.Error.EmployeeExist()
         }
@@ -44,8 +46,9 @@ internal class JoinBusinessImpl(
         return invitationDataSource.getInvitationByCodeHash(codeHash) ?: throw Error.NotFound()
     }
 
-    private suspend fun join(requestUserId: Uuid, codeHash: String, businessId: Uuid): Employee {
-        businessDataSource.lockBusiness(businessId, RowLock.SHARED) ?: throw Error.NotFound()
+    private suspend fun join(requestUser: UserSnapshot, codeHash: String, businessId: Uuid): Employee {
+        val requestUserId = requestUser.id
+        val locked = businessDataSource.lockBusiness(businessId, RowLock.EXCLUSIVE) ?: throw Error.NotFound()
         val invitation = findInvitation(codeHash)
         if (invitation.status != EmployeeInvitationStatus.PENDING) {
             throw JoinBusiness.Error.InvitationAlreadyProcessed()
@@ -53,10 +56,12 @@ internal class JoinBusinessImpl(
         if (employeeDataSource.getEmployeeByUserId(invitation.businessId, requestUserId) != null) {
             throw JoinBusiness.Error.EmployeeExist()
         }
+        if (employeeDataSource.countActiveEmployees(invitation.businessId) >= locked.limits.maxEmployees) {
+            throw JoinBusiness.Error.EmployeesLimitReached()
+        }
         if (!invitationDataSource.redeemInvitation(invitation.id)) {
             throw JoinBusiness.Error.InvitationAlreadyProcessed()
         }
-        val requestUser = userClient.getUserById(requestUserId).getOrThrow()
         val business = businessDataSource.getBusinessById(invitation.businessId) ?: throw Error.NotFound()
 
         val employee = employeeDataSource.createEmployee(

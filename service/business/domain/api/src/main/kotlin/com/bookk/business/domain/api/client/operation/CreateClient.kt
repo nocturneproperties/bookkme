@@ -28,5 +28,13 @@ interface CreateClient {
             code = BusinessErrorCodes.BUSINESS_CLIENT_MISSING_CONTACT_INFO,
             message = "Client must have at least a phone or an email",
         )
+
+        class ClientsLimitReached :
+            BusinessError(
+                statusCode = HttpStatusCode.UnprocessableEntity.value,
+                code = BusinessErrorCodes.BUSINESS_CLIENTS_LIMIT_REACHED,
+                message = "Business already has the maximum number of clients",
+            ),
+            Error
     }
 }

@@ -1,10 +1,13 @@
 package com.bookk.business.domain.impl.operation.employee
 
+import com.bookk.business.domain.api.business.entity.BusinessLimits
 import com.bookk.business.domain.api.business.entity.BusinessPermissions
 import com.bookk.business.domain.api.employee.entity.Employee
 import com.bookk.business.domain.api.employee.operation.SetEmployeeSuspension
 import com.bookk.business.domain.datasource.BusinessDataSource
 import com.bookk.business.domain.datasource.EmployeeDataSource
+import com.bookk.business.domain.datasource.LockedBusiness
+import com.bookk.business.domain.datasource.RowLock
 import com.bookk.core.data.eventstreaming.StandardEventProducer
 import com.bookk.core.domain.datasource.transaction.TransactionManager
 import com.bookk.core.domain.datasource.transaction.mockTransaction
@@ -16,6 +19,7 @@ import com.bookk.core.test.whenn
 import com.bookk.server.business.client.api.event.BusinessEvent
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.coVerifyOrder
 import io.mockk.mockk
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -36,9 +40,95 @@ internal class SetEmployeeSuspensionImplTest {
         val sut = SetEmployeeSuspensionImpl(employeeDataSource, businessDataSource, transactionManager, eventProducer)
 
         init {
+            coEvery { businessDataSource.lockBusiness(businessId, RowLock.EXCLUSIVE) } returns LockedBusiness.stub()
+            coEvery { employeeDataSource.countActiveEmployees(businessId) } returns 0
             coEvery { businessDataSource.isOwner(any(), any()) } returns false
             coEvery { businessDataSource.isOwner(requestUserId, businessId) } returns true
         }
+    }
+
+    @Test
+    fun `should refuse to reactivate an employee when the business already has its maximum of active staff`() =
+        runUnitTest {
+            given()
+            val fixture = SutFixture(requestUserId, businessId)
+            val employee = Employee.stub(businessId = businessId, suspendedAt = Instant.fromEpochMilliseconds(1))
+            with(fixture) {
+                transactionManager.mockTransaction()
+                coEvery { businessDataSource.lockBusiness(businessId, RowLock.EXCLUSIVE) } returns
+                    LockedBusiness.stub(limits = BusinessLimits.stub(maxEmployees = 3))
+                coEvery { employeeDataSource.getEmployee(businessId, employee.id) } returns employee
+                coEvery { employeeDataSource.countActiveEmployees(businessId) } returns 3
+            }
+
+            whenn()
+            val result = fixture.sut(requestUserId, businessId, employee.id, suspended = false)
+
+            then()
+            assertTrue(result.exceptionOrNull() is SetEmployeeSuspension.Error.EmployeesLimitReached)
+            coVerify(exactly = 0) { fixture.employeeDataSource.setSuspendedAt(any(), any()) }
+        }
+
+    @Test
+    fun `should suspend an employee of a business that is over its staff limit`() = runUnitTest {
+        given()
+        val fixture = SutFixture(requestUserId, businessId)
+        val employee = Employee.stub(businessId = businessId)
+        val suspended = employee.copy(suspendedAt = Instant.fromEpochMilliseconds(1))
+        with(fixture) {
+            transactionManager.mockTransaction()
+            coEvery { businessDataSource.lockBusiness(businessId, RowLock.EXCLUSIVE) } returns
+                LockedBusiness.stub(limits = BusinessLimits.stub(maxEmployees = 3))
+            coEvery { employeeDataSource.getEmployee(businessId, employee.id) } returns employee
+            coEvery { employeeDataSource.countActiveEmployees(businessId) } returns 5
+            coEvery { employeeDataSource.setSuspendedAt(employee.id, any()) } returns suspended
+        }
+
+        whenn()
+        val result = fixture.sut(requestUserId, businessId, employee.id, suspended = true)
+
+        then()
+        assertEquals(suspended, result.getOrNull())
+    }
+
+    @Test
+    fun `should lock the business before checking ownership and counting active staff`() = runUnitTest {
+        given()
+        val fixture = SutFixture(requestUserId, businessId)
+        val employee = Employee.stub(businessId = businessId, suspendedAt = Instant.fromEpochMilliseconds(1))
+        with(fixture) {
+            transactionManager.mockTransaction()
+            coEvery { employeeDataSource.getEmployee(businessId, employee.id) } returns employee
+            coEvery { employeeDataSource.setSuspendedAt(employee.id, null) } returns employee.copy(suspendedAt = null)
+        }
+
+        whenn()
+        val result = fixture.sut(requestUserId, businessId, employee.id, suspended = false)
+
+        then()
+        assertTrue(result.isSuccess)
+        coVerifyOrder {
+            fixture.businessDataSource.lockBusiness(businessId, RowLock.EXCLUSIVE)
+            fixture.businessDataSource.isOwner(requestUserId, businessId)
+            fixture.employeeDataSource.countActiveEmployees(businessId)
+            fixture.employeeDataSource.setSuspendedAt(employee.id, null)
+        }
+    }
+
+    @Test
+    fun `should return not found when suspending staff of a business that does not exist`() = runUnitTest {
+        given()
+        val fixture = SutFixture(requestUserId, businessId)
+        with(fixture) {
+            transactionManager.mockTransaction()
+            coEvery { businessDataSource.lockBusiness(businessId, RowLock.EXCLUSIVE) } returns null
+        }
+
+        whenn()
+        val result = fixture.sut(requestUserId, businessId, Uuid.random(), suspended = true)
+
+        then()
+        assertTrue(result.exceptionOrNull() is Error.NotFound)
     }
 
     @Test

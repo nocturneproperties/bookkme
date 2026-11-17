@@ -56,7 +56,7 @@ internal class UpdateServiceImplTest {
             transactionManager.mockTransaction()
             allowServiceUpdates(userId, service.businessId)
             coEvery { businessDataSource.lockBusiness(service.businessId, RowLock.SHARED) } returns
-                LockedBusiness("USD")
+                LockedBusiness.stub("USD")
             coEvery { serviceDataSource.getServiceGroup(service.group.id, service.businessId) } returns service.group
             coEvery { serviceDataSource.editService(service) } returns service
         }
@@ -80,7 +80,7 @@ internal class UpdateServiceImplTest {
             transactionManager.mockTransaction()
             allowServiceUpdates(userId, service.businessId)
             coEvery { businessDataSource.lockBusiness(service.businessId, RowLock.SHARED) } returns
-                LockedBusiness("EUR")
+                LockedBusiness.stub("EUR")
             coEvery { serviceDataSource.getServiceGroup(service.group.id, service.businessId) } returns service.group
             coEvery { serviceDataSource.editService(priced) } returns priced
         }
@@ -103,7 +103,7 @@ internal class UpdateServiceImplTest {
             transactionManager.mockTransaction()
             allowServiceUpdates(userId, service.businessId)
             coEvery { businessDataSource.lockBusiness(service.businessId, RowLock.SHARED) } returns
-                LockedBusiness("JPY")
+                LockedBusiness.stub("JPY")
         }
 
         whenn()
@@ -159,7 +159,7 @@ internal class UpdateServiceImplTest {
         with(fixture) {
             transactionManager.mockTransaction()
             coEvery { businessDataSource.lockBusiness(service.businessId, RowLock.SHARED) } returns
-                LockedBusiness("USD")
+                LockedBusiness.stub("USD")
             coEvery {
                 businessPermissionDataSource.getPermission(userId, service.businessId, BusinessResource.SERVICES)
             } returns ResourcePermission(view = true, update = false, delete = false)
@@ -185,7 +185,7 @@ internal class UpdateServiceImplTest {
             transactionManager.mockTransaction()
             allowServiceUpdates(userId, service.businessId)
             coEvery { businessDataSource.lockBusiness(service.businessId, RowLock.SHARED) } returns
-                LockedBusiness("USD")
+                LockedBusiness.stub("USD")
             coEvery { serviceDataSource.getServiceGroup(service.group.id, service.businessId) } returns service.group
             coEvery { serviceDataSource.editService(service) } throws
                 Error.UniqueConstraintFailed("", RuntimeException())
@@ -209,7 +209,7 @@ internal class UpdateServiceImplTest {
             transactionManager.mockTransaction()
             allowServiceUpdates(userId, service.businessId)
             coEvery { businessDataSource.lockBusiness(service.businessId, RowLock.SHARED) } returns
-                LockedBusiness("usd")
+                LockedBusiness.stub("usd")
         }
 
         whenn()
@@ -230,7 +230,7 @@ internal class UpdateServiceImplTest {
             transactionManager.mockTransaction()
             allowServiceUpdates(userId, service.businessId)
             coEvery { businessDataSource.lockBusiness(service.businessId, RowLock.SHARED) } returns
-                LockedBusiness("USD")
+                LockedBusiness.stub("USD")
             coEvery { serviceDataSource.getServiceGroup(service.group.id, service.businessId) } returns null
         }
 
@@ -257,7 +257,7 @@ internal class UpdateServiceImplTest {
             transactionManager.mockTransaction()
             allowServiceUpdates(userId, service.businessId)
             coEvery { businessDataSource.lockBusiness(service.businessId, RowLock.SHARED) } returns
-                LockedBusiness("USD")
+                LockedBusiness.stub("USD")
             coEvery { serviceDataSource.getServiceGroup(storedGroup.id, service.businessId) } returns storedGroup
             coEvery { serviceDataSource.editService(resolved) } returns resolved
         }
@@ -280,7 +280,7 @@ internal class UpdateServiceImplTest {
             transactionManager.mockTransaction()
             allowServiceUpdates(userId, service.businessId)
             coEvery { businessDataSource.lockBusiness(service.businessId, RowLock.SHARED) } returns
-                LockedBusiness("USD")
+                LockedBusiness.stub("USD")
             coEvery { serviceDataSource.getServiceGroup(service.group.id, service.businessId) } returns service.group
             coEvery { serviceDataSource.editService(service) } returns service
         }

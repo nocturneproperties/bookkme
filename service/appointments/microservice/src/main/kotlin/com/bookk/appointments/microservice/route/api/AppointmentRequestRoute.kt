@@ -6,6 +6,7 @@ import com.bookk.appointments.domain.api.operation.CreateAppointmentRequest
 import com.bookk.appointments.domain.api.operation.DeclineAppointmentRequest
 import com.bookk.appointments.domain.api.operation.GetAppointmentRequests
 import com.bookk.appointments.domain.api.operation.GetPendingAppointmentRequests
+import com.bookk.appointments.domain.api.operation.WithdrawAppointmentRequest
 import com.bookk.appointments.domain.impl.di.AppointmentsScope
 import com.bookk.appointments.microservice.route.AppointmentsRouting.Api
 import com.bookk.core.service.di.injectScoped
@@ -66,7 +67,7 @@ fun Routing.requests() {
          * Response: 204 application/x-protobuf Request successfully created
          * Response: 400 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Create appointment request errors<br>PRICE_CHANGED (300013) While booking, price for services has been changed, refresh<br>DURATION_CHANGED (300017) While booking, duration for services has been changed, refresh<br>SERVICES_VALIDATION_FAILED (300014) Quote token invalid or requested services does not match with the quote token
          * Response: 404 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Create appointment request errors<br>BUSINESS_EMPLOYEE_NOT_EXISTS (200024) Employee with this id is missing<br>Also returned when the account booking was deleted
-         * Response: 422 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Create appointment request errors<br>REQUEST_EXISTS (300001) Request for this time already exists<br>BUSINESS_DATE_NOT_ALLOWED (300003) The business does not work on this date<br>BUSINESS_TIME_NOT_ALLOWED (300002) This time is outside the business working hours<br>EMPLOYEE_DATE_NOT_ALLOWED (300027) The employee does not work on this date<br>EMPLOYEE_TIME_NOT_ALLOWED (300028) This time is outside the employee working hours<br>DATE_IN_PAST (300012) Request date is in the past<br>QUOTE_TOKEN_ALREADY_USED (300016) Quote token invalid or requested services does not match with the quote token<br>BUSINESS_QUOTE_SERVICE_NOT_FOUND (200013) One or more services not found<br>BUSINESS_EMPLOYEE_SUSPENDED (200033) Employee is suspended and cannot be booked
+         * Response: 422 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Create appointment request errors<br>REQUEST_EXISTS (300001) Request for this time already exists<br>BUSINESS_DATE_NOT_ALLOWED (300003) The business does not work on this date<br>BUSINESS_TIME_NOT_ALLOWED (300002) This time is outside the business working hours<br>EMPLOYEE_DATE_NOT_ALLOWED (300027) The employee does not work on this date<br>EMPLOYEE_TIME_NOT_ALLOWED (300028) This time is outside the employee working hours<br>DATE_IN_PAST (300012) Request date is in the past<br>QUOTE_TOKEN_ALREADY_USED (300016) Quote token invalid or requested services does not match with the quote token<br>BUSINESS_QUOTE_SERVICE_NOT_FOUND (200013) One or more services not found<br>BUSINESS_EMPLOYEE_SUSPENDED (200033) Employee is suspended and cannot be booked<br>PENDING_REQUESTS_LIMIT_REACHED (300029) You already have the maximum number of pending requests at this business
          * See: docs/operations/appointments/create-appointment-request.md
          */
         post<Api.Appointment.Request> {
@@ -110,6 +111,25 @@ fun Routing.requests() {
                     ),
                 )
             }
+        }
+
+        /**
+         * Withdraw appointment request
+         *
+         * Summary: Withdraw appointment request
+         * Description: Withdraws a pending appointment request the caller made, freeing its place under the business's limit of pending requests per client. The business is not notified; the request disappears from its pending list
+         * Tag: appointment
+         * Security: jwt
+         * Response: 204 application/x-protobuf Appointment request withdrawn
+         * Response: 404 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Request is not found or was made by someone else
+         * Response: 422 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Withdraw appointment request errors<br>REQUEST_ALREADY_APPROVED (300008) Appointment request already approved<br>REQUEST_ALREADY_DECLINED (300007) Appointment request already declined
+         * See: docs/operations/appointments/withdraw-appointment-request.md
+         */
+        post<Api.Appointment.RequestWithdraw> {
+            val principal = requireNotNull(call.principal<AppPrincipal>())
+            val withdrawRequest by application.injectScoped<WithdrawAppointmentRequest>(AppointmentsScope)
+
+            call.respondWith(withdrawRequest(principal.userId, it.id))
         }
     }
 }

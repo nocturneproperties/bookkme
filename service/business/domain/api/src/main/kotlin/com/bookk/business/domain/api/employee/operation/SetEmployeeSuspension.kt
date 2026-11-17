@@ -22,5 +22,13 @@ interface SetEmployeeSuspension {
                 message = "Business owner cannot be suspended",
             ),
             Error
+
+        class EmployeesLimitReached :
+            BusinessError(
+                statusCode = HttpStatusCode.UnprocessableEntity.value,
+                code = BusinessErrorCodes.BUSINESS_EMPLOYEES_LIMIT_REACHED,
+                message = "Business already has the maximum number of employees",
+            ),
+            Error
     }
 }

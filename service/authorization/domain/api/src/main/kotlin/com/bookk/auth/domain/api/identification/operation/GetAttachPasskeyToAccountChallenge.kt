@@ -17,5 +17,13 @@ interface GetAttachPasskeyToAccountChallenge {
                 message = "Unable to provide registration challenge",
             ),
             Error
+
+        class PasskeysLimitReached :
+            BusinessError(
+                statusCode = HttpStatusCode.UnprocessableEntity.value,
+                code = AuthErrorCodes.PASSKEYS_LIMIT_REACHED,
+                message = "Account already has the maximum number of passkeys",
+            ),
+            Error
     }
 }

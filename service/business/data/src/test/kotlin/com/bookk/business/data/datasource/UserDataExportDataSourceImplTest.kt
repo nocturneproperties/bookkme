@@ -33,7 +33,6 @@ import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
 import org.jetbrains.exposed.v1.jdbc.update
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 import kotlin.time.Instant
 import kotlin.uuid.Uuid
@@ -84,18 +83,19 @@ internal class UserDataExportDataSourceImplTest {
     }
 
     @Test
-    fun `should export the business the user owns`() = runUnitTest {
+    fun `should export every business the user owns`() = runUnitTest {
         given()
         val fixture = SutFixture()
         val owned = fixture.business(ownerId = fixture.userId, name = "Olena's studio")
+        val second = fixture.business(ownerId = fixture.userId, name = "Olena's barbershop")
         val createdAt = Instant.fromEpochMilliseconds(1_700_000_000_000)
         suspendTransaction {
             BusinessTable.update({ BusinessTable.id eq owned.id }) {
                 it[instagram] = "@studio"
                 it[latitude] = 50.45
                 it[longitude] = 30.52
-                it[this.createdAt] = createdAt
             }
+            BusinessTable.update({ BusinessTable.userId eq fixture.userId }) { it[this.createdAt] = createdAt }
         }
 
         whenn()
@@ -103,15 +103,22 @@ internal class UserDataExportDataSourceImplTest {
 
         then()
         assertEquals(
-            BusinessUserDataExport.OwnedBusinessExport.stub(
-                id = owned.id,
-                name = "Olena's studio",
-                latitude = 50.45,
-                longitude = 30.52,
-                instagram = "@studio",
-                createdAt = createdAt,
+            setOf(
+                BusinessUserDataExport.OwnedBusinessExport.stub(
+                    id = owned.id,
+                    name = "Olena's studio",
+                    latitude = 50.45,
+                    longitude = 30.52,
+                    instagram = "@studio",
+                    createdAt = createdAt,
+                ),
+                BusinessUserDataExport.OwnedBusinessExport.stub(
+                    id = second.id,
+                    name = "Olena's barbershop",
+                    createdAt = createdAt,
+                ),
             ),
-            export.ownedBusiness,
+            export.ownedBusinesses.toSet(),
         )
     }
 
@@ -258,7 +265,7 @@ internal class UserDataExportDataSourceImplTest {
         val export = fixture.export()
 
         then()
-        assertNull(export.ownedBusiness)
+        assertEquals(emptyList<BusinessUserDataExport.OwnedBusinessExport>(), export.ownedBusinesses)
         assertEquals(emptyList<BusinessUserDataExport.EmploymentExport>(), export.employments)
         assertEquals(emptyList<BusinessUserDataExport.ClientRecordExport>(), export.clientRecords)
     }

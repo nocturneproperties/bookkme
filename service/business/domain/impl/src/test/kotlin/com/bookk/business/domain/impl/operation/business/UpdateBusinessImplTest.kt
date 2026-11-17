@@ -448,7 +448,8 @@ internal class UpdateBusinessImplTest {
         val businessId = Uuid.random()
         with(fixture) {
             transactionManager.mockTransaction()
-            coEvery { businessDataSource.lockBusiness(businessId, RowLock.EXCLUSIVE) } returns LockedBusiness("USD")
+            coEvery { businessDataSource.lockBusiness(businessId, RowLock.EXCLUSIVE) } returns
+                LockedBusiness.stub("USD")
             coEvery { serviceDataSource.hasServices(businessId) } returns false
         }
 
@@ -467,7 +468,8 @@ internal class UpdateBusinessImplTest {
         val businessId = Uuid.random()
         with(fixture) {
             transactionManager.mockTransaction()
-            coEvery { businessDataSource.lockBusiness(businessId, RowLock.EXCLUSIVE) } returns LockedBusiness("USD")
+            coEvery { businessDataSource.lockBusiness(businessId, RowLock.EXCLUSIVE) } returns
+                LockedBusiness.stub("USD")
             coEvery { serviceDataSource.hasServices(businessId) } returns true
         }
 
@@ -487,7 +489,8 @@ internal class UpdateBusinessImplTest {
         val businessId = Uuid.random()
         with(fixture) {
             transactionManager.mockTransaction()
-            coEvery { businessDataSource.lockBusiness(businessId, RowLock.EXCLUSIVE) } returns LockedBusiness("USD")
+            coEvery { businessDataSource.lockBusiness(businessId, RowLock.EXCLUSIVE) } returns
+                LockedBusiness.stub("USD")
             coEvery { serviceDataSource.hasServices(businessId) } returns true
         }
 
@@ -506,7 +509,8 @@ internal class UpdateBusinessImplTest {
         val businessId = Uuid.random()
         with(fixture) {
             transactionManager.mockTransaction()
-            coEvery { businessDataSource.lockBusiness(businessId, RowLock.EXCLUSIVE) } returns LockedBusiness("USD")
+            coEvery { businessDataSource.lockBusiness(businessId, RowLock.EXCLUSIVE) } returns
+                LockedBusiness.stub("USD")
             coEvery { serviceDataSource.hasServices(businessId) } returns false
         }
 
@@ -559,7 +563,8 @@ internal class UpdateBusinessImplTest {
         with(fixture) {
             transactionManager.mockTransaction()
             grantPermission(ResourcePermission(view = true, update = false, delete = false))
-            coEvery { businessDataSource.lockBusiness(businessId, RowLock.EXCLUSIVE) } returns LockedBusiness("USD")
+            coEvery { businessDataSource.lockBusiness(businessId, RowLock.EXCLUSIVE) } returns
+                LockedBusiness.stub("USD")
         }
 
         whenn()
@@ -578,7 +583,8 @@ internal class UpdateBusinessImplTest {
         val businessId = Uuid.random()
         with(fixture) {
             transactionManager.mockTransaction()
-            coEvery { businessDataSource.lockBusiness(businessId, RowLock.EXCLUSIVE) } returns LockedBusiness("USD")
+            coEvery { businessDataSource.lockBusiness(businessId, RowLock.EXCLUSIVE) } returns
+                LockedBusiness.stub("USD")
             coEvery { serviceDataSource.hasServices(businessId) } returns false
         }
 
@@ -602,7 +608,8 @@ internal class UpdateBusinessImplTest {
         val businessId = Uuid.random()
         with(fixture) {
             transactionManager.mockTransaction()
-            coEvery { businessDataSource.lockBusiness(businessId, RowLock.EXCLUSIVE) } returns LockedBusiness("usd")
+            coEvery { businessDataSource.lockBusiness(businessId, RowLock.EXCLUSIVE) } returns
+                LockedBusiness.stub("usd")
             coEvery { serviceDataSource.hasServices(businessId) } returns true
         }
 
@@ -621,7 +628,8 @@ internal class UpdateBusinessImplTest {
         val businessId = Uuid.random()
         with(fixture) {
             transactionManager.mockTransaction()
-            coEvery { businessDataSource.lockBusiness(businessId, RowLock.EXCLUSIVE) } returns LockedBusiness("usd")
+            coEvery { businessDataSource.lockBusiness(businessId, RowLock.EXCLUSIVE) } returns
+                LockedBusiness.stub("usd")
         }
 
         whenn()

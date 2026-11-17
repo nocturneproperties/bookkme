@@ -10,11 +10,13 @@ interface AppointmentRequestDataSource {
     suspend fun getForUpdate(id: Uuid): AppointmentRequest?
     suspend fun getPending(businessId: Uuid): List<AppointmentRequest>
     suspend fun getPendingByUser(userId: Uuid, businessId: Uuid): List<AppointmentRequest>
+    suspend fun countPendingByUser(userId: Uuid, businessId: Uuid): Long
     suspend fun create(request: AppointmentRequest): AppointmentRequest
     suspend fun update(request: AppointmentRequest): AppointmentRequest
     suspend fun delete(request: AppointmentRequest)
     suspend fun approve(request: AppointmentRequest)
     suspend fun decline(id: Uuid, reason: String): AppointmentRequest
+    suspend fun withdraw(id: Uuid)
 
     suspend fun hasOverlapsWith(request: AppointmentRequest): Boolean
     suspend fun cancelOutdated(before: Instant)

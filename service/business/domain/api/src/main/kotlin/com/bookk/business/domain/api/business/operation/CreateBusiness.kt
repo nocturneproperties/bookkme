@@ -11,12 +11,6 @@ interface CreateBusiness {
     suspend operator fun invoke(userId: Uuid, request: BusinessCreateRequest): Result<Business>
 
     sealed interface Error {
-        class BusinessExist : BusinessError(
-            statusCode = HttpStatusCode.UnprocessableEntity.value,
-            code = BusinessErrorCodes.BUSINESS_ALREADY_EXIST,
-            message = "Business already exist",
-        )
-
         class BusinessValidationError : BusinessError(
             statusCode = HttpStatusCode.UnprocessableEntity.value,
             code = BusinessErrorCodes.BUSINESS_NAME_VALIDATION_ERROR,
@@ -28,6 +22,14 @@ interface CreateBusiness {
                 statusCode = HttpStatusCode.UnprocessableEntity.value,
                 code = BusinessErrorCodes.BUSINESS_INVALID_CURRENCY,
                 message = "Currency code is not a supported ISO 4217 currency",
+            ),
+            Error
+
+        class OwnedBusinessesLimitReached :
+            BusinessError(
+                statusCode = HttpStatusCode.UnprocessableEntity.value,
+                code = BusinessErrorCodes.BUSINESS_OWNED_BUSINESSES_LIMIT_REACHED,
+                message = "You already own the maximum number of businesses",
             ),
             Error
     }

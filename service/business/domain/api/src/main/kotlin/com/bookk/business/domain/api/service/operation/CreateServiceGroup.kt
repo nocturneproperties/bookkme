@@ -21,5 +21,13 @@ interface CreateServiceGroup {
             code = BusinessErrorCodes.BUSINESS_SERVICE_GROUP_VALIDATION_ERROR,
             message = "Invalid service group name",
         )
+
+        class ServiceGroupsLimitReached :
+            BusinessError(
+                statusCode = HttpStatusCode.UnprocessableEntity.value,
+                code = BusinessErrorCodes.BUSINESS_SERVICE_GROUPS_LIMIT_REACHED,
+                message = "Business already has the maximum number of service groups",
+            ),
+            Error
     }
 }

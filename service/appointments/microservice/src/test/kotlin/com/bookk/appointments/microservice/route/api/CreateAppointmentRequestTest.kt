@@ -269,6 +269,43 @@ internal class CreateAppointmentRequestTest {
     }
 
     @Test
+    fun `should return unprocessable entity when the client has too many pending requests`() = routeTest {
+        given()
+        val useCase: CreateAppointmentRequest = mockk()
+        val userId = Uuid.random()
+        val draft = AppointmentRequestDraft.stub()
+        coEvery { useCase.invoke(userId, any()) } returns
+            Result.failure(CreateAppointmentRequest.Error.PendingRequestsLimitReached())
+
+        setupApplication(
+            extension = {
+                install(Authentication) {
+                    provider {
+                        authenticate { context ->
+                            context.principal(AppPrincipal(Uuid.random(), userId, Uuid.random()))
+                        }
+                    }
+                }
+            },
+            diModule = module { single { useCase } },
+            routeUnderTest = { requests() },
+        )
+
+        whenn()
+        val client = createTestClient()
+        val response = client.post(Api.Appointment.Request()) {
+            setBody(draft)
+        }
+
+        then()
+        assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
+        assertEquals(
+            AppointmentErrorCodes.PENDING_REQUESTS_LIMIT_REACHED,
+            response.body<SimpleServerError>().errorCode,
+        )
+    }
+
+    @Test
     fun `should return bad request when price changed`() = routeTest {
         given()
         val useCase: CreateAppointmentRequest = mockk()

@@ -3,6 +3,7 @@ package com.bookk.business.domain.impl.operation.user
 import com.bookk.business.domain.api.client.entity.ErasedClient
 import com.bookk.business.domain.datasource.ClientDataSource
 import com.bookk.business.domain.datasource.EmployeeDataSource
+import com.bookk.business.domain.datasource.UserLimitsDataSource
 import com.bookk.core.domain.datasource.transaction.TransactionManager
 import com.bookk.core.domain.datasource.transaction.mockTransaction
 import com.bookk.core.test.given
@@ -25,6 +26,7 @@ internal class DeleteUserBusinessDataImplTest {
     private class SutFixture {
         val clientDataSource = mockk<ClientDataSource>()
         val employeeDataSource = mockk<EmployeeDataSource>()
+        val userLimitsDataSource = mockk<UserLimitsDataSource>()
         val transactionManager = mockk<TransactionManager>()
         val dataExports = mockk<DataExports>()
         val deletesInTransaction = mutableListOf<Boolean>()
@@ -34,6 +36,7 @@ internal class DeleteUserBusinessDataImplTest {
             transactionManager,
             clientDataSource,
             employeeDataSource,
+            userLimitsDataSource,
             dataExports,
             subjectKeys,
         )
@@ -50,6 +53,9 @@ internal class DeleteUserBusinessDataImplTest {
                 deletesInTransaction += transactionManager.isInTransaction()
             }
             coEvery { employeeDataSource.deleteEmployeesByUserId(userId) } coAnswers {
+                deletesInTransaction += transactionManager.isInTransaction()
+            }
+            coEvery { userLimitsDataSource.deleteForUser(userId) } coAnswers {
                 deletesInTransaction += transactionManager.isInTransaction()
             }
             coEvery { dataExports.discardAll(any()) } coAnswers {
@@ -72,7 +78,7 @@ internal class DeleteUserBusinessDataImplTest {
         assertTrue(result.isSuccess)
         coVerify(exactly = 1) { fixture.clientDataSource.deleteClients(emptyList()) }
         coVerify(exactly = 1) { fixture.employeeDataSource.deleteEmployeesByUserId(userId) }
-        assertEquals(listOf(true, true), fixture.deletesInTransaction)
+        assertEquals(listOf(true, true, true), fixture.deletesInTransaction)
     }
 
     @Test

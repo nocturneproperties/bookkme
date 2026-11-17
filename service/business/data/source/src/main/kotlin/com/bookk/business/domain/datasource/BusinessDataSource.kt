@@ -12,7 +12,7 @@ interface BusinessDataSource {
     suspend fun updateBusiness(model: BusinessUpdateModel, updatedAt: Instant): Business
     suspend fun getBusinessById(id: Uuid): Business?
     suspend fun lockBusiness(id: Uuid, lock: RowLock): LockedBusiness?
-    suspend fun isBusinessExist(userId: Uuid): Boolean
+    suspend fun countBusinessesOwnedBy(userId: Uuid): Long
     suspend fun isOwner(userId: Uuid, businessId: Uuid): Boolean
     suspend fun getUserBusinessIdsForUpdate(userId: Uuid): List<Uuid>
     suspend fun deleteBusinesses(businessIds: Collection<Uuid>)

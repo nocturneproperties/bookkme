@@ -14,6 +14,7 @@ import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
 import org.jetbrains.exposed.v1.jdbc.update
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -59,6 +60,31 @@ internal class AccountDataSourceImplTest {
         assertNotNull(found)
         assertEquals(auth.userId, found!!.userId)
         assertEquals(auth.uuid, found.uuid)
+    }
+
+    @Test
+    fun `should lock an existing account`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val auth = suspendTransaction { fixture.sut.createAuthorization(Authentication.stub()) }
+
+        whenn()
+        val locked = suspendTransaction { fixture.sut.lockAccount(auth.id) }
+
+        then()
+        assertTrue(locked)
+    }
+
+    @Test
+    fun `should not lock a missing account`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+
+        whenn()
+        val locked = suspendTransaction { fixture.sut.lockAccount(Uuid.random()) }
+
+        then()
+        assertFalse(locked)
     }
 
     @Test

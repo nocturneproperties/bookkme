@@ -21,6 +21,7 @@ import org.jetbrains.exposed.v1.core.or
 import org.jetbrains.exposed.v1.dao.with
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.select
+import org.jetbrains.exposed.v1.jdbc.selectAll
 import kotlin.time.Clock
 import kotlin.time.Instant
 import kotlin.uuid.Uuid
@@ -52,6 +53,12 @@ internal class EmployeeDataSourceImpl(private val contactCipher: ContactCipher) 
 
     override suspend fun setSuspendedAt(id: Uuid, suspendedAt: Instant?): Employee = dbQuery {
         (EmployeeEntity.findByIdAndUpdateSuspension(id, suspendedAt) ?: throw Error.NotFound()).domain()
+    }
+
+    override suspend fun countActiveEmployees(businessId: Uuid): Long = dbQuery {
+        EmployeeTable.selectAll()
+            .where { (EmployeeTable.businessId eq businessId) and EmployeeTable.suspendedAt.isNull() }
+            .count()
     }
 
     override suspend fun getEmployees(businessId: Uuid): List<Employee> = dbQuery {
@@ -163,6 +170,7 @@ internal class EmployeeDataSourceImpl(private val contactCipher: ContactCipher) 
         EmployeeTable.innerJoin(BusinessTable)
             .select(EmployeeTable.userId)
             .where { (BusinessTable.userId eq ownerUserId) and (EmployeeTable.userId neq ownerUserId) }
+            .withDistinct()
             .map { it[EmployeeTable.userId] }
     }
 

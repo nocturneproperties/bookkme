@@ -6,6 +6,7 @@ import com.bookk.business.domain.api.employee.entity.EmployeeInvitationStatus
 import com.bookk.business.domain.api.employee.operation.CreateEmployeeInvitation
 import com.bookk.business.domain.datasource.BusinessDataSource
 import com.bookk.business.domain.datasource.BusinessPermissionDataSource
+import com.bookk.business.domain.datasource.EmployeeDataSource
 import com.bookk.business.domain.datasource.EmployeeInvitationDataSource
 import com.bookk.business.domain.datasource.RowLock
 import com.bookk.core.domain.datasource.transaction.TransactionManager
@@ -19,6 +20,7 @@ import kotlin.uuid.Uuid
 internal class CreateEmployeeInvitationImpl(
     private val invitationDataSource: EmployeeInvitationDataSource,
     private val businessDataSource: BusinessDataSource,
+    private val employeeDataSource: EmployeeDataSource,
     private val businessPermissionDataSource: BusinessPermissionDataSource,
     private val transactionManager: TransactionManager,
 ) : CreateEmployeeInvitation {
@@ -26,9 +28,12 @@ internal class CreateEmployeeInvitationImpl(
         requestUserId: Uuid,
         businessId: Uuid,
     ): Result<EmployeeInvitation> = transactionManager.transaction {
-        businessDataSource.lockBusiness(businessId, RowLock.EXCLUSIVE) ?: throw Error.NotFound()
+        val locked = businessDataSource.lockBusiness(businessId, RowLock.EXCLUSIVE) ?: throw Error.NotFound()
         businessPermissionDataSource.getPermission(requestUserId, businessId, BusinessResource.EMPLOYEES)
             .assert(PermissionAction.UPDATE)
+        if (employeeDataSource.countActiveEmployees(businessId) >= locked.limits.maxEmployees) {
+            throw CreateEmployeeInvitation.Error.EmployeesLimitReached()
+        }
         val pendingInvitations = invitationDataSource.countPendingInvitations(businessId)
         if (pendingInvitations >= CreateEmployeeInvitation.MAX_PENDING_INVITATIONS) {
             throw CreateEmployeeInvitation.Error.PendingInvitationsLimitReached()

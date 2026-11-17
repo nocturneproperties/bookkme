@@ -25,6 +25,7 @@ import org.jetbrains.exposed.v1.jdbc.batchInsert
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.insert
 import org.jetbrains.exposed.v1.jdbc.select
+import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.update
 import kotlin.time.Clock
 import kotlin.time.Instant
@@ -57,6 +58,10 @@ internal class ClientDataSourceImpl(private val contactCipher: ContactCipher) : 
 
     override suspend fun getClients(businessId: Uuid): List<Client> = dbQuery {
         ClientEntity.find { ClientTable.businessId eq businessId }.toList().domains()
+    }
+
+    override suspend fun countClients(businessId: Uuid): Long = dbQuery {
+        ClientTable.selectAll().where { ClientTable.businessId eq businessId }.count()
     }
 
     override suspend fun getClientsByEmails(businessId: Uuid, emails: Collection<String>): List<Client> = dbQuery {

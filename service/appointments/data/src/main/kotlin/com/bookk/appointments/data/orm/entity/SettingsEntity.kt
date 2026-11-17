@@ -20,6 +20,7 @@ internal class SettingsEntity(id: EntityID<Uuid>) : UuidEntity(id) {
     var inBetweenBreakInMinutes by SettingsTable.inBetweenBreakInMinutes
     var appointmentNote by SettingsTable.appointmentNote
     var updatedAt by SettingsTable.updatedAt
+    val maxPendingRequestsPerClient by SettingsTable.maxPendingRequestsPerClient
 
     fun domain(): AppointmentSettings = AppointmentSettings(
         id = id.value,
@@ -31,6 +32,8 @@ internal class SettingsEntity(id: EntityID<Uuid>) : UuidEntity(id) {
         appointmentNote = appointmentNote,
         permissions = ResourcePermission.NONE,
         automaticCompletion = automaticCompletion,
+        maxPendingRequestsPerClient = maxPendingRequestsPerClient
+            ?: AppointmentSettings.DEFAULT_MAX_PENDING_REQUESTS_PER_CLIENT,
     )
 
     companion object : DecoratorUuidEntityClass<SettingsEntity>(SettingsTable) {

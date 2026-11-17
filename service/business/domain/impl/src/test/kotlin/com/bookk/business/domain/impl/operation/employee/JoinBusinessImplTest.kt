@@ -1,6 +1,7 @@
 package com.bookk.business.domain.impl.operation.employee
 
 import com.bookk.business.domain.api.business.entity.Business
+import com.bookk.business.domain.api.business.entity.BusinessLimits
 import com.bookk.business.domain.api.business.entity.BusinessPermissions
 import com.bookk.business.domain.api.employee.entity.Employee
 import com.bookk.business.domain.api.employee.entity.EmployeeInvitation
@@ -43,9 +44,11 @@ internal class JoinBusinessImplTest {
 
     private class SutFixture {
         val invitationDataSource = mockk<EmployeeInvitationDataSource>()
-        val employeeDataSource = mockk<EmployeeDataSource>()
+        val employeeDataSource = mockk<EmployeeDataSource> { coEvery { countActiveEmployees(any()) } returns 0 }
         val businessDataSource = mockk<BusinessDataSource>()
-        val userClient = mockk<UserClient>()
+        val userClient = mockk<UserClient> {
+            coEvery { getUserById(any()) } answers { Result.success(UserSnapshot.stub(id = firstArg())) }
+        }
         val transactionManager = mockk<TransactionManager>()
         val eventProducer = mockk<StandardEventProducer>(relaxed = true)
         val sut = JoinBusinessImpl(
@@ -79,7 +82,8 @@ internal class JoinBusinessImplTest {
         coEvery {
             invitationDataSource.getInvitationByCodeHash(EmployeeInvitationCode.hash(requireNotNull(invitation.code)))
         } returns invitation
-        coEvery { businessDataSource.lockBusiness(invitation.businessId, RowLock.SHARED) } returns LockedBusiness("USD")
+        coEvery { businessDataSource.lockBusiness(invitation.businessId, RowLock.EXCLUSIVE) } returns
+            LockedBusiness.stub("USD")
         coEvery { employeeDataSource.getEmployeeByUserId(invitation.businessId, requestUserId) } returns null
         coEvery { invitationDataSource.redeemInvitation(invitation.id) } returns true
         coEvery { userClient.getUserById(requestUserId) } returns Result.success(userSnapshot(requestUserId))
@@ -271,8 +275,8 @@ internal class JoinBusinessImplTest {
                     EmployeeInvitationCode.hash(requireNotNull(invitation.code)),
                 )
             } returns invitation
-            coEvery { businessDataSource.lockBusiness(invitation.businessId, RowLock.SHARED) } returns
-                LockedBusiness("USD")
+            coEvery { businessDataSource.lockBusiness(invitation.businessId, RowLock.EXCLUSIVE) } returns
+                LockedBusiness.stub("USD")
         }
 
         whenn()
@@ -297,9 +301,10 @@ internal class JoinBusinessImplTest {
                     EmployeeInvitationCode.hash(requireNotNull(invitation.code)),
                 )
             } returns invitation
-            coEvery { businessDataSource.lockBusiness(invitation.businessId, RowLock.SHARED) } returns
-                LockedBusiness("USD")
+            coEvery { businessDataSource.lockBusiness(invitation.businessId, RowLock.EXCLUSIVE) } returns
+                LockedBusiness.stub("USD")
             coEvery { employeeDataSource.getEmployeeByUserId(invitation.businessId, requestUserId) } returns null
+            coEvery { userClient.getUserById(requestUserId) } returns Result.success(userSnapshot(requestUserId))
             coEvery { invitationDataSource.redeemInvitation(invitation.id) } returns false
         }
 
@@ -326,8 +331,8 @@ internal class JoinBusinessImplTest {
                     EmployeeInvitationCode.hash(requireNotNull(invitation.code)),
                 )
             } returns invitation
-            coEvery { businessDataSource.lockBusiness(invitation.businessId, RowLock.SHARED) } returns
-                LockedBusiness("USD")
+            coEvery { businessDataSource.lockBusiness(invitation.businessId, RowLock.EXCLUSIVE) } returns
+                LockedBusiness.stub("USD")
             coEvery {
                 employeeDataSource.getEmployeeByUserId(invitation.businessId, requestUserId)
             } returns Employee.stub(businessId = invitation.businessId, userId = requestUserId)
@@ -368,6 +373,54 @@ internal class JoinBusinessImplTest {
     }
 
     @Test
+    fun `should refuse to join a business that already has its maximum of employees`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val requestUserId = Uuid.random()
+        val invitation = EmployeeInvitation.stub()
+        with(fixture) {
+            stubHappyPath(requestUserId, invitation, Employee.stub(businessId = invitation.businessId))
+            coEvery { businessDataSource.lockBusiness(invitation.businessId, RowLock.EXCLUSIVE) } returns
+                LockedBusiness.stub("USD", BusinessLimits.stub(maxEmployees = 3))
+            coEvery { employeeDataSource.countActiveEmployees(invitation.businessId) } returns 3
+        }
+
+        whenn()
+        val result = fixture.sut(requestUserId, requireNotNull(invitation.code))
+
+        then()
+        assertTrue(result.exceptionOrNull() is JoinBusiness.Error.EmployeesLimitReached)
+        coVerify(exactly = 0) { fixture.invitationDataSource.redeemInvitation(any()) }
+        coVerify(exactly = 0) { fixture.employeeDataSource.createEmployee(any()) }
+    }
+
+    @Test
+    fun `should join while the business is one below its employee limit`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val requestUserId = Uuid.random()
+        val invitation = EmployeeInvitation.stub()
+        with(fixture) {
+            stubHappyPath(requestUserId, invitation, Employee.stub(businessId = invitation.businessId))
+            coEvery { businessDataSource.lockBusiness(invitation.businessId, RowLock.EXCLUSIVE) } returns
+                LockedBusiness.stub("USD", BusinessLimits.stub(maxEmployees = 3))
+            coEvery { employeeDataSource.countActiveEmployees(invitation.businessId) } returns 2
+        }
+
+        whenn()
+        val result = fixture.sut(requestUserId, requireNotNull(invitation.code))
+
+        then()
+        assertTrue(result.isSuccess)
+        coVerifyOrder {
+            fixture.userClient.getUserById(requestUserId)
+            fixture.businessDataSource.lockBusiness(invitation.businessId, RowLock.EXCLUSIVE)
+            fixture.employeeDataSource.countActiveEmployees(invitation.businessId)
+            fixture.employeeDataSource.createEmployee(any())
+        }
+    }
+
+    @Test
     fun `should return failure when business does not exist`() = runUnitTest {
         given()
         val fixture = SutFixture()
@@ -380,7 +433,7 @@ internal class JoinBusinessImplTest {
                     EmployeeInvitationCode.hash(requireNotNull(invitation.code)),
                 )
             } returns invitation
-            coEvery { businessDataSource.lockBusiness(invitation.businessId, RowLock.SHARED) } returns null
+            coEvery { businessDataSource.lockBusiness(invitation.businessId, RowLock.EXCLUSIVE) } returns null
         }
 
         whenn()
@@ -437,7 +490,7 @@ internal class JoinBusinessImplTest {
             assertTrue(result.isSuccess)
             coVerifyOrder {
                 fixture.invitationDataSource.getInvitationByCodeHash(codeHash)
-                fixture.businessDataSource.lockBusiness(invitation.businessId, RowLock.SHARED)
+                fixture.businessDataSource.lockBusiness(invitation.businessId, RowLock.EXCLUSIVE)
                 fixture.invitationDataSource.getInvitationByCodeHash(codeHash)
                 fixture.invitationDataSource.redeemInvitation(invitation.id)
                 fixture.businessDataSource.getBusinessById(invitation.businessId)

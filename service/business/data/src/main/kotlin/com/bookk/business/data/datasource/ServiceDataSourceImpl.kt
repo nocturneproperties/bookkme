@@ -15,6 +15,7 @@ import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.insertAndGetId
 import org.jetbrains.exposed.v1.jdbc.select
+import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.update
 import kotlin.time.Clock
 import kotlin.uuid.Uuid
@@ -55,6 +56,14 @@ internal class ServiceDataSourceImpl : DataSource(), ServiceDataSource {
         ServiceEntity.find {
             ServiceTable.businessId eq businessId
         }.map { it.toDomain() }
+    }
+
+    override suspend fun countServices(businessId: Uuid): Long = dbQuery {
+        ServiceTable.selectAll().where { ServiceTable.businessId eq businessId }.count()
+    }
+
+    override suspend fun countServiceGroups(businessId: Uuid): Long = dbQuery {
+        ServiceGroupTable.selectAll().where { ServiceGroupTable.businessId eq businessId }.count()
     }
 
     override suspend fun hasServices(businessId: Uuid): Boolean = dbQuery {

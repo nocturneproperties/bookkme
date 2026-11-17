@@ -32,7 +32,7 @@ The details of each area live in `docs/agents/`. Open the matching file before w
 | Transaction retries, lock-first ordering, gap locks, double booking, MariaDB locking tests | `docs/agents/transactions-and-locking.md` |
 | Datasources and DAO entities (writes on the entity, referrers, get-or-create, `EntityID`) | `docs/agents/data-layer.md` |
 | Passkey action confirmation, email codes, single-use tokens, data from other services, Android signing certificates | `docs/agents/security.md` |
-| Business currency, client uniqueness/takeover/merges, device identity | `docs/agents/domain-rules.md` |
+| Business currency, client uniqueness/takeover/merges, creation limits, device identity | `docs/agents/domain-rules.md` |
 | Data export, legal documents, `client_id` vs users, account and client erasure, dormancy, retention, erasure records | `docs/agents/personal-data.md` |
 | OpenAPI plugin details, Swagger tests | `docs/agents/openapi.md` |
 | H2 datasource tests, scheduled job tests, virtual time, `runUnitTest` timeout | `docs/agents/testing-advanced.md` |

@@ -302,10 +302,11 @@ internal class BusinessCrudTest {
     }
 
     @Test
-    fun `should return unprocessable entity when business already exists`() = routeTest {
+    fun `should return unprocessable entity when the user owns their maximum of businesses`() = routeTest {
         given()
         val useCase: CreateBusiness = mockk()
-        coEvery { useCase.invoke(userId, any()) } returns Result.failure(CreateBusiness.Error.BusinessExist())
+        coEvery { useCase.invoke(userId, any()) } returns
+            Result.failure(CreateBusiness.Error.OwnedBusinessesLimitReached())
 
         setupApplication(
             extension = {
@@ -327,7 +328,10 @@ internal class BusinessCrudTest {
 
         then()
         assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
-        assertEquals(BusinessErrorCodes.BUSINESS_ALREADY_EXIST, response.body<SimpleServerError>().errorCode)
+        assertEquals(
+            BusinessErrorCodes.BUSINESS_OWNED_BUSINESSES_LIMIT_REACHED,
+            response.body<SimpleServerError>().errorCode,
+        )
     }
 
     @Test

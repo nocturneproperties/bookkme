@@ -13,7 +13,7 @@ private val MONDAY_TO_FRIDAY: Byte = DayOfWeek.entries
     .fold(0) { acc, day -> acc or (1 shl day.isoDayNumber).toByte() }
 
 object BusinessTable : UuidTable("business") {
-    val userId = uuid("user_id").uniqueIndex()
+    val userId = uuid("user_id").index()
     val name = varchar("name", 512)
     val description = varchar("description", 1024)
     val address = varchar("address", 512)
@@ -30,6 +30,10 @@ object BusinessTable : UuidTable("business") {
     val clientDataRetentionMonths = integer(
         "client_data_retention_months",
     ).default(Business.DEFAULT_CLIENT_DATA_RETENTION_MONTHS)
+    val maxEmployees = integer("max_employees").nullable()
+    val maxClients = integer("max_clients").nullable()
+    val maxServices = integer("max_services").nullable()
+    val maxServiceGroups = integer("max_service_groups").nullable()
     val createdAt = timestamp("created_at").clientDefault { Clock.System.now() }
     val updatedAt = timestamp("updated_at").clientDefault { Clock.System.now() }
 }

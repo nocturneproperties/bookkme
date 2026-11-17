@@ -20,8 +20,11 @@ data class AppointmentSettings(
     @ProtoNumber(7) val appointmentNote: String,
     @ProtoNumber(8) val permissions: ResourcePermission,
     @ProtoNumber(9) val automaticCompletion: Boolean,
+    @ProtoNumber(10) val maxPendingRequestsPerClient: Int = DEFAULT_MAX_PENDING_REQUESTS_PER_CLIENT,
 ) {
     companion object {
+        const val DEFAULT_MAX_PENDING_REQUESTS_PER_CLIENT = 10
+
         fun stub(businessId: Uuid = Uuid.random()) = AppointmentSettings(businessId = businessId, TimeZone.of("UTC"))
     }
 

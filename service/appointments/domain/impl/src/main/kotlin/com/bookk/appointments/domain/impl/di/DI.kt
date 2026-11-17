@@ -26,6 +26,7 @@ import com.bookk.appointments.domain.api.operation.IsAppointmentsEnabled
 import com.bookk.appointments.domain.api.operation.MarkAppointmentNoShow
 import com.bookk.appointments.domain.api.operation.MarkAppointmentsCompleted
 import com.bookk.appointments.domain.api.operation.UpdateAppointment
+import com.bookk.appointments.domain.api.operation.WithdrawAppointmentRequest
 import com.bookk.appointments.domain.impl.event.AppointmentEventHandler
 import com.bookk.appointments.domain.impl.operation.CancelAppointmentImpl
 import com.bookk.appointments.domain.impl.operation.CompleteAppointmentImpl
@@ -57,6 +58,7 @@ import com.bookk.appointments.domain.impl.operation.MarkAppointmentsCompletedImp
 import com.bookk.appointments.domain.impl.operation.SyncEmployeePermission
 import com.bookk.appointments.domain.impl.operation.UpdateAppointmentImpl
 import com.bookk.appointments.domain.impl.operation.UpdateBusinessInformation
+import com.bookk.appointments.domain.impl.operation.WithdrawAppointmentRequestImpl
 import com.bookk.core.data.eventstreaming.EventHandler
 import com.bookk.server.appointments.client.api.export.ExportBusinessAppointments
 import com.bookk.server.appointments.client.api.export.ExportUserAppointments
@@ -91,6 +93,7 @@ fun appointmentsDomainModule() = module {
         scopedOf(::SyncEmployeePermission)
         scopedOf(::LinkClientUser)
         scopedOf(::DeclineAppointmentRequestImpl) bind DeclineAppointmentRequest::class
+        scopedOf(::WithdrawAppointmentRequestImpl) bind WithdrawAppointmentRequest::class
         scopedOf(::IsAppointmentsEnabledImpl) bind IsAppointmentsEnabled::class
         scopedOf(::GetClientBusinessesAppointmentsStatusImpl) bind GetClientBusinessesAppointmentsStatus::class
         scopedOf(::MarkAppointmentsCompletedImpl) bind MarkAppointmentsCompleted::class

@@ -10,6 +10,7 @@ import kotlin.uuid.Uuid
 interface AccountDataSource {
     suspend fun createAuthorization(info: Authentication): Authentication
     suspend fun getAuthRecordById(id: Uuid): Authentication?
+    suspend fun lockAccount(id: Uuid): Boolean
     suspend fun getAuthRecordByUUID(uuid: Uuid): Authentication?
     suspend fun getAuthRecordByUserId(userId: Uuid): Authentication?
     suspend fun getAccountActivity(userId: Uuid): AccountActivity?

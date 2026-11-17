@@ -1,5 +1,6 @@
 package com.bookk.business.domain.impl.operation.service
 
+import com.bookk.business.domain.api.business.entity.BusinessLimits
 import com.bookk.business.domain.api.business.entity.BusinessResource
 import com.bookk.business.domain.api.service.entity.Service
 import com.bookk.business.domain.api.service.entity.ServiceGroup
@@ -30,7 +31,7 @@ import kotlin.uuid.Uuid
 internal class CreateServiceImplTest {
 
     private class SutFixture {
-        val serviceDataSource = mockk<ServiceDataSource>()
+        val serviceDataSource = mockk<ServiceDataSource> { coEvery { countServices(any()) } returns 0 }
         val businessDataSource = mockk<BusinessDataSource>()
         val businessPermissionDataSource = mockk<BusinessPermissionDataSource>()
         val transactionManager = mockk<TransactionManager>()
@@ -46,6 +47,57 @@ internal class CreateServiceImplTest {
     }
 
     @Test
+    fun `should refuse a service when the business already has its maximum of services`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val service = Service.stub(price = Money.parse("USD 100"))
+        with(fixture) {
+            transactionManager.mockTransaction()
+            allowServiceUpdates(userId, service.businessId)
+            coEvery { businessDataSource.lockBusiness(service.businessId, RowLock.EXCLUSIVE) } returns
+                LockedBusiness.stub("USD", BusinessLimits.stub(maxServices = 4))
+            coEvery { serviceDataSource.countServices(service.businessId) } returns 4
+        }
+
+        whenn()
+        val result = fixture.sut(userId, service)
+
+        then()
+        assertTrue(result.exceptionOrNull() is CreateService.Error.ServicesLimitReached)
+        coVerify(exactly = 0) { fixture.serviceDataSource.createService(any()) }
+    }
+
+    @Test
+    fun `should lock the business exclusively before counting services`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val service = Service.stub(price = Money.parse("USD 100"))
+        with(fixture) {
+            transactionManager.mockTransaction()
+            allowServiceUpdates(userId, service.businessId)
+            coEvery { businessDataSource.lockBusiness(service.businessId, RowLock.EXCLUSIVE) } returns
+                LockedBusiness.stub("USD", BusinessLimits.stub(maxServices = 4))
+            coEvery { serviceDataSource.countServices(service.businessId) } returns 3
+            coEvery { serviceDataSource.getServiceGroup(service.group.id, service.businessId) } returns service.group
+            coEvery { serviceDataSource.createService(service) } returns service
+        }
+
+        whenn()
+        val result = fixture.sut(userId, service)
+
+        then()
+        assertTrue(result.isSuccess)
+        coVerifyOrder {
+            fixture.businessDataSource.lockBusiness(service.businessId, RowLock.EXCLUSIVE)
+            fixture.businessPermissionDataSource.getPermission(userId, service.businessId, BusinessResource.SERVICES)
+            fixture.serviceDataSource.countServices(service.businessId)
+            fixture.serviceDataSource.createService(service)
+        }
+    }
+
+    @Test
     fun `should create service successfully when valid data provided`() = runUnitTest {
         given()
         val fixture = SutFixture()
@@ -54,8 +106,8 @@ internal class CreateServiceImplTest {
         with(fixture) {
             transactionManager.mockTransaction()
             allowServiceUpdates(userId, service.businessId)
-            coEvery { businessDataSource.lockBusiness(service.businessId, RowLock.SHARED) } returns
-                LockedBusiness("USD")
+            coEvery { businessDataSource.lockBusiness(service.businessId, RowLock.EXCLUSIVE) } returns
+                LockedBusiness.stub("USD")
             coEvery { serviceDataSource.getServiceGroup(service.group.id, service.businessId) } returns service.group
             coEvery { serviceDataSource.createService(service) } returns service
         }
@@ -78,8 +130,8 @@ internal class CreateServiceImplTest {
         with(fixture) {
             transactionManager.mockTransaction()
             allowServiceUpdates(userId, service.businessId)
-            coEvery { businessDataSource.lockBusiness(service.businessId, RowLock.SHARED) } returns
-                LockedBusiness("EUR")
+            coEvery { businessDataSource.lockBusiness(service.businessId, RowLock.EXCLUSIVE) } returns
+                LockedBusiness.stub("EUR")
             coEvery { serviceDataSource.getServiceGroup(service.group.id, service.businessId) } returns service.group
             coEvery { serviceDataSource.createService(priced) } returns priced
         }
@@ -102,8 +154,8 @@ internal class CreateServiceImplTest {
         with(fixture) {
             transactionManager.mockTransaction()
             allowServiceUpdates(userId, service.businessId)
-            coEvery { businessDataSource.lockBusiness(service.businessId, RowLock.SHARED) } returns
-                LockedBusiness("JPY")
+            coEvery { businessDataSource.lockBusiness(service.businessId, RowLock.EXCLUSIVE) } returns
+                LockedBusiness.stub("JPY")
             coEvery { serviceDataSource.getServiceGroup(service.group.id, service.businessId) } returns service.group
             coEvery { serviceDataSource.createService(priced) } returns priced
         }
@@ -124,8 +176,8 @@ internal class CreateServiceImplTest {
         with(fixture) {
             transactionManager.mockTransaction()
             allowServiceUpdates(userId, service.businessId)
-            coEvery { businessDataSource.lockBusiness(service.businessId, RowLock.SHARED) } returns
-                LockedBusiness("JPY")
+            coEvery { businessDataSource.lockBusiness(service.businessId, RowLock.EXCLUSIVE) } returns
+                LockedBusiness.stub("JPY")
         }
 
         whenn()
@@ -145,7 +197,7 @@ internal class CreateServiceImplTest {
         with(fixture) {
             transactionManager.mockTransaction()
             allowServiceUpdates(userId, service.businessId)
-            coEvery { businessDataSource.lockBusiness(service.businessId, RowLock.SHARED) } returns null
+            coEvery { businessDataSource.lockBusiness(service.businessId, RowLock.EXCLUSIVE) } returns null
         }
 
         whenn()
@@ -180,8 +232,8 @@ internal class CreateServiceImplTest {
         val service = Service.stub()
         with(fixture) {
             transactionManager.mockTransaction()
-            coEvery { businessDataSource.lockBusiness(service.businessId, RowLock.SHARED) } returns
-                LockedBusiness("USD")
+            coEvery { businessDataSource.lockBusiness(service.businessId, RowLock.EXCLUSIVE) } returns
+                LockedBusiness.stub("USD")
             coEvery {
                 businessPermissionDataSource.getPermission(userId, service.businessId, BusinessResource.SERVICES)
             } returns ResourcePermission(view = true, update = false, delete = false)
@@ -206,8 +258,8 @@ internal class CreateServiceImplTest {
         with(fixture) {
             transactionManager.mockTransaction()
             allowServiceUpdates(userId, service.businessId)
-            coEvery { businessDataSource.lockBusiness(service.businessId, RowLock.SHARED) } returns
-                LockedBusiness("USD")
+            coEvery { businessDataSource.lockBusiness(service.businessId, RowLock.EXCLUSIVE) } returns
+                LockedBusiness.stub("USD")
             coEvery { serviceDataSource.getServiceGroup(service.group.id, service.businessId) } returns service.group
             coEvery { serviceDataSource.createService(service) } throws
                 Error.UniqueConstraintFailed("", RuntimeException())
@@ -230,8 +282,8 @@ internal class CreateServiceImplTest {
         with(fixture) {
             transactionManager.mockTransaction()
             allowServiceUpdates(userId, service.businessId)
-            coEvery { businessDataSource.lockBusiness(service.businessId, RowLock.SHARED) } returns
-                LockedBusiness("usd")
+            coEvery { businessDataSource.lockBusiness(service.businessId, RowLock.EXCLUSIVE) } returns
+                LockedBusiness.stub("usd")
         }
 
         whenn()
@@ -251,8 +303,8 @@ internal class CreateServiceImplTest {
         with(fixture) {
             transactionManager.mockTransaction()
             allowServiceUpdates(userId, service.businessId)
-            coEvery { businessDataSource.lockBusiness(service.businessId, RowLock.SHARED) } returns
-                LockedBusiness("USD")
+            coEvery { businessDataSource.lockBusiness(service.businessId, RowLock.EXCLUSIVE) } returns
+                LockedBusiness.stub("USD")
             coEvery { serviceDataSource.getServiceGroup(service.group.id, service.businessId) } returns null
         }
 
@@ -278,8 +330,8 @@ internal class CreateServiceImplTest {
         with(fixture) {
             transactionManager.mockTransaction()
             allowServiceUpdates(userId, service.businessId)
-            coEvery { businessDataSource.lockBusiness(service.businessId, RowLock.SHARED) } returns
-                LockedBusiness("USD")
+            coEvery { businessDataSource.lockBusiness(service.businessId, RowLock.EXCLUSIVE) } returns
+                LockedBusiness.stub("USD")
             coEvery { serviceDataSource.getServiceGroup(storedGroup.id, service.businessId) } returns storedGroup
             coEvery { serviceDataSource.createService(resolved) } returns resolved
         }
@@ -301,8 +353,8 @@ internal class CreateServiceImplTest {
         with(fixture) {
             transactionManager.mockTransaction()
             allowServiceUpdates(userId, service.businessId)
-            coEvery { businessDataSource.lockBusiness(service.businessId, RowLock.SHARED) } returns
-                LockedBusiness("USD")
+            coEvery { businessDataSource.lockBusiness(service.businessId, RowLock.EXCLUSIVE) } returns
+                LockedBusiness.stub("USD")
             coEvery { serviceDataSource.getServiceGroup(service.group.id, service.businessId) } returns service.group
             coEvery { serviceDataSource.createService(service) } returns service
         }
@@ -313,7 +365,7 @@ internal class CreateServiceImplTest {
         then()
         assertTrue(result.isSuccess)
         coVerifyOrder {
-            fixture.businessDataSource.lockBusiness(service.businessId, RowLock.SHARED)
+            fixture.businessDataSource.lockBusiness(service.businessId, RowLock.EXCLUSIVE)
             fixture.businessPermissionDataSource.getPermission(userId, service.businessId, BusinessResource.SERVICES)
             fixture.serviceDataSource.getServiceGroup(service.group.id, service.businessId)
             fixture.serviceDataSource.createService(service)

@@ -44,7 +44,7 @@ internal fun Route.passkeyOperations() {
          * Tag: auth
          * Security: jwt
          * Response: 200 application/x-protobuf [com.bookk.auth.domain.api.registration.entity.RegistrationChallengeResponse] Registration challenge
-         * Response: 422 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Passkey errors<br>UNABLE_TO_GENERATE_REGISTRATION_CHALLENGE (10) Unable to provide registration challenge
+         * Response: 422 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Passkey errors<br>UNABLE_TO_GENERATE_REGISTRATION_CHALLENGE (10) Unable to provide registration challenge<br>PASSKEYS_LIMIT_REACHED (13) Account already has the maximum number of passkeys (10)
          */
         get<Api.Auth.PassKey.AddChallenge> {
             val principal = requireNotNull(call.principal<AppPrincipal>())
@@ -60,8 +60,9 @@ internal fun Route.passkeyOperations() {
          * Tag: auth
          * Security: jwt
          * Body: application/x-protobuf [com.bookk.auth.domain.api.identification.entity.AddPasskeyRequest] Passkey verification payload
-         * Response: 201 application/x-protobuf Passkey created
-         * Response: 422 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Passkey errors<br>LAST_PASSKEY (9) Can't delete passkey if it's the only one registered
+         * Response: 204 application/x-protobuf Passkey created
+         * Response: 422 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Passkey errors<br>PASSKEYS_LIMIT_REACHED (13) Account already has the maximum number of passkeys (10)<br>CHALLENGE_WINDOW_EXPIRED (6) Challenge window expired<br>VERIFICATION_FAILED (4) Passkey verification failed
+         * Response: 404 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] The signed-in account no longer exists
          * See: docs/operations/authorization/add-passkey.md
          */
         post<Api.Auth.PassKey.AddFinish> {

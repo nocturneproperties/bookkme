@@ -99,7 +99,7 @@ only inside the cluster, like every `/api/internal` route):
 |---|---|---|
 | `profile`, `legalAcceptances` | user | Profile with its creation time, accepted legal document versions |
 | `account` | auth (`ExportAccountData`) | Account creation and last activity time, passkeys (name, created, last used, backed up; never key material), devices (name, signed in, last sign-in) |
-| `businesses` | business (`ExportUserBusinessData`) | The business the user owns, their employee rows (suspended ones too) with permissions, working hours and days off, their client rows as each business keeps them (the business's `description` included), the business their dashboard shows |
+| `businesses` | business (`ExportUserBusinessData`) | Every business the user owns, their employee rows (suspended ones too) with permissions, working hours and days off, their client rows as each business keeps them (the business's `description` included), the business their dashboard shows |
 | `appointments` | appointments (`ExportUserAppointments`) | Every appointment and request where the user is the client, the employee or the one who booked (`roles`), with times, services, prices, status and employee name |
 | `notifications` | notifications (`ExportUserNotificationData`) | Notification settings and channels, devices (language, whether push is registered; never the push token), email and Telegram targets |
 

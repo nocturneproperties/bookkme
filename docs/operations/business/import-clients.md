@@ -28,7 +28,9 @@ flowchart TD
     Start([POST /api/business/businessId/clients/import]) --> Auth{JWT valid?}
     Auth -- No --> R401([401 Unauthorized])
     Auth -- Yes --> Tx[[Begin transaction]]
-    Tx --> Suspended{BusinessPermissionDataSource.getPermission - caller is a suspended employee of the business?}
+    Tx --> Lock[BusinessDataSource.lockBusiness businessId EXCLUSIVE - first statement, gives LockedBusiness.limits]
+    Lock -- not found --> R404nf([404 Error.NotFound])
+    Lock -- locked --> Suspended{BusinessPermissionDataSource.getPermission - caller is a suspended employee of the business?}
     Suspended -- Yes --> R403s([403 BUSINESS_EMPLOYEE_ACCESS_SUSPENDED 200034])
     Suspended -- No --> Perm{caller CLIENTS.update?}
     Perm -- No --> R404a([404 Error.OperationNotAllowed])
@@ -37,7 +39,9 @@ flowchart TD
     Size -- No --> Validate[validatedFields per entry - invalid entry goes to rejected with 200005 or 200025]
     Validate --> Lookup[ClientDataSource.getClientsByEmails businessId emails]
     Lookup --> Dedup[entry whose email is taken by an existing client or an earlier entry goes to rejected with 200004]
-    Dedup --> Any{any entry accepted?}
+    Dedup --> Slots[free slots = limits.maxClients - ClientDataSource.countClients businessId]
+    Slots --> OverLimit[entries past the free slots go to rejected with BUSINESS_CLIENTS_LIMIT_REACHED 200046, in request order]
+    OverLimit --> Any{any entry accepted?}
     Any -- No --> R200([200 ClientImportResult created and rejected])
     Any -- Yes --> Insert[ClientDataSource.createDetachedClients businessId accepted]
     Insert -- unique index violated by a concurrent write --> R422e([422 BUSINESS_CLIENT_EXISTS 200004])

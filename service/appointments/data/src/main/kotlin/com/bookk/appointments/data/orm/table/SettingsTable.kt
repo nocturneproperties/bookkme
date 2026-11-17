@@ -13,4 +13,5 @@ object SettingsTable : BaseUUIDTable("appointment_settings") {
     val appointmentNote = varchar("appointment_note", 2048)
     val automaticApproval = bool("automatic_approval")
     val automaticCompletion = bool("automatic_completion").default(true)
+    val maxPendingRequestsPerClient = integer("max_pending_requests_per_client").nullable()
 }

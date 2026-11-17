@@ -29,11 +29,11 @@ fun Route.businessCrud() {
          * Create business
          *
          * Summary: Create business
-         * Description: Create new business with specific name
+         * Description: Create new business with specific name. A user can own several businesses, up to their limit (20 by default)
          * Tag: business
          * Security: jwt
          * Body: application/x-protobuf [com.bookk.business.domain.api.business.entity.BusinessCreateRequest]
-         * Response: 422 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Create business errors<br>BUSINESS_ALREADY_EXIST (200001) Business already exist<br>BUSINESS_NAME_VALIDATION_ERROR (200002) Business name invalid<br>BUSINESS_INVALID_CURRENCY (200035) Currency code is not a supported ISO 4217 currency
+         * Response: 422 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Create business errors<br>BUSINESS_NAME_VALIDATION_ERROR (200002) Business name invalid<br>BUSINESS_INVALID_CURRENCY (200035) Currency code is not a supported ISO 4217 currency<br>BUSINESS_OWNED_BUSINESSES_LIMIT_REACHED (200045) You already own the maximum number of businesses
          * See: docs/operations/business/create-business.md
          */
         post<Api.Business> {

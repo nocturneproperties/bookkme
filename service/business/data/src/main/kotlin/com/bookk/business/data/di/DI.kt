@@ -10,6 +10,7 @@ import com.bookk.business.data.datasource.EmployeeInvitationDataSourceImpl
 import com.bookk.business.data.datasource.ErasedClientDataSourceImpl
 import com.bookk.business.data.datasource.ServiceDataSourceImpl
 import com.bookk.business.data.datasource.UserDataExportDataSourceImpl
+import com.bookk.business.data.datasource.UserLimitsDataSourceImpl
 import com.bookk.business.domain.api.BUSINESS_SCHEMA
 import com.bookk.business.domain.api.BUSINESS_SHORT_RETENTION_SCHEMA
 import com.bookk.business.domain.datasource.BusinessDataExportDataSource
@@ -21,6 +22,7 @@ import com.bookk.business.domain.datasource.EmployeeInvitationDataSource
 import com.bookk.business.domain.datasource.ErasedClientDataSource
 import com.bookk.business.domain.datasource.ServiceDataSource
 import com.bookk.business.domain.datasource.UserDataExportDataSource
+import com.bookk.business.domain.datasource.UserLimitsDataSource
 import com.bookk.core.data.ExposedTransactionManager
 import com.bookk.core.data.database.createDatabase
 import com.bookk.core.domain.datasource.transaction.TransactionManager
@@ -48,6 +50,7 @@ fun businessDataModule(environment: (String) -> String? = System::getenv) = modu
         scoped<BusinessDataExportDataSource> { BusinessDataExportDataSourceImpl(get()) }
         scoped<EmployeeDataSource> { EmployeeDataSourceImpl(get()) }
         scoped<EmployeeInvitationDataSource> { EmployeeInvitationDataSourceImpl() }
+        scoped<UserLimitsDataSource> { UserLimitsDataSourceImpl() }
         scoped { createDatabase(schemaName = BUSINESS_SCHEMA) }
         scoped<TransactionManager> { ExposedTransactionManager(get()) }
     }

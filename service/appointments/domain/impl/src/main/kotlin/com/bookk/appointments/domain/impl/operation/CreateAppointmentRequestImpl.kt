@@ -8,6 +8,7 @@ import com.bookk.appointments.domain.api.entity.BookingQuoteError
 import com.bookk.appointments.domain.api.operation.CreateAppointment
 import com.bookk.appointments.domain.api.operation.CreateAppointmentRequest
 import com.bookk.appointments.domain.api.operation.CreateAppointmentRequest.Error.DateInThePastNotAllowed
+import com.bookk.appointments.domain.api.operation.CreateAppointmentRequest.Error.PendingRequestsLimitReached
 import com.bookk.appointments.domain.api.operation.CreateAppointmentRequest.Error.RequestForThisTimeExists
 import com.bookk.appointments.domain.datasource.AppointmentDataSource
 import com.bookk.appointments.domain.datasource.AppointmentRequestDataSource
@@ -90,6 +91,7 @@ internal class CreateAppointmentRequestImpl(
         }
 
         assertRequestIsSchedulable(request, settings, employeeSchedule)
+        assertPendingRequestsBelowLimit(userId, request.businessId, settings)
 
         requestDataSource.create(request).also {
             eventProducer.send(
@@ -107,6 +109,11 @@ internal class CreateAppointmentRequestImpl(
                     it,
                 )
             }
+    }
+
+    private suspend fun assertPendingRequestsBelowLimit(userId: Uuid, businessId: Uuid, settings: AppointmentSettings) {
+        val pendingRequests = requestDataSource.countPendingByUser(userId, businessId)
+        if (pendingRequests >= settings.maxPendingRequestsPerClient) throw PendingRequestsLimitReached()
     }
 
     private suspend fun assertRequestIsSchedulable(

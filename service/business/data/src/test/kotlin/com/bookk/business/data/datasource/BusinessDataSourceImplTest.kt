@@ -11,6 +11,7 @@ import com.bookk.business.data.orm.table.EmployeeDayOffTable
 import com.bookk.business.data.orm.table.EmployeeTable
 import com.bookk.business.data.orm.table.EmployeeWorkingHoursTable
 import com.bookk.business.domain.api.business.entity.Business
+import com.bookk.business.domain.api.business.entity.BusinessLimits
 import com.bookk.business.domain.api.business.entity.BusinessUpdateModel
 import com.bookk.business.domain.api.client.entity.Client
 import com.bookk.business.domain.api.employee.entity.Employee
@@ -31,6 +32,7 @@ import library.schedule.WorkHour
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
+import org.jetbrains.exposed.v1.jdbc.update
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotEquals
@@ -83,6 +85,43 @@ internal class BusinessDataSourceImplTest {
     )
 
     @Test
+    fun `should lock a business with the default limits when none are stored`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val created = suspendTransaction { fixture.sut.createBusiness(Uuid.random(), "Salon", "EUR", TimeZone.UTC) }
+
+        whenn()
+        val locked = suspendTransaction { fixture.sut.lockBusiness(created.id, RowLock.EXCLUSIVE) }
+
+        then()
+        assertEquals(BusinessLimits.stub(), locked!!.limits)
+    }
+
+    @Test
+    fun `should lock a business with the limits stored for it`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val created = suspendTransaction { fixture.sut.createBusiness(Uuid.random(), "Salon", "EUR", TimeZone.UTC) }
+        suspendTransaction {
+            BusinessTable.update({ BusinessTable.id eq created.id }) {
+                it[maxEmployees] = 7
+                it[maxClients] = 70
+                it[maxServices] = 17
+                it[maxServiceGroups] = 3
+            }
+        }
+
+        whenn()
+        val locked = suspendTransaction { fixture.sut.lockBusiness(created.id, RowLock.SHARED) }
+
+        then()
+        assertEquals(
+            BusinessLimits(maxEmployees = 7, maxClients = 70, maxServices = 17, maxServiceGroups = 3),
+            locked!!.limits,
+        )
+    }
+
+    @Test
     fun `should create business and retrieve by id`() = runUnitTest {
         given()
         val fixture = SutFixture()
@@ -124,7 +163,7 @@ internal class BusinessDataSourceImplTest {
         val locked = suspendTransaction { fixture.sut.lockBusiness(created.id, RowLock.EXCLUSIVE) }
 
         then()
-        assertEquals(LockedBusiness("EUR"), locked)
+        assertEquals(LockedBusiness.stub("EUR"), locked)
     }
 
     @Test
@@ -139,7 +178,7 @@ internal class BusinessDataSourceImplTest {
         val locked = suspendTransaction { fixture.sut.lockBusiness(created.id, RowLock.SHARED) }
 
         then()
-        assertEquals(LockedBusiness("EUR"), locked)
+        assertEquals(LockedBusiness.stub("EUR"), locked)
     }
 
     @Test
@@ -155,29 +194,48 @@ internal class BusinessDataSourceImplTest {
     }
 
     @Test
-    fun `should report business exists after creation`() = runUnitTest {
+    fun `should let one user own several businesses`() = runUnitTest {
         given()
         val fixture = SutFixture()
         val userId = Uuid.random()
         suspendTransaction { fixture.sut.createBusiness(userId, "Salon", "USD", TimeZone.UTC) }
 
         whenn()
-        val exists = suspendTransaction { fixture.sut.isBusinessExist(userId) }
+        val second = suspendTransaction { fixture.sut.createBusiness(userId, "Barbershop", "USD", TimeZone.UTC) }
 
         then()
-        assertTrue(exists)
+        assertTrue(suspendTransaction { fixture.sut.isOwner(userId, second.id) })
     }
 
     @Test
-    fun `should report business does not exist for unknown user`() = runUnitTest {
+    fun `should count only the businesses the user owns`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        suspendTransaction {
+            fixture.sut.createBusiness(userId, "Salon", "USD", TimeZone.UTC)
+            fixture.sut.createBusiness(userId, "Barbershop", "USD", TimeZone.UTC)
+            val employer = fixture.sut.createBusiness(Uuid.random(), "Employer", "USD", TimeZone.UTC)
+            fixture.employeeSut.createEmployee(Employee.stub(businessId = employer.id, userId = userId))
+        }
+
+        whenn()
+        val count = suspendTransaction { fixture.sut.countBusinessesOwnedBy(userId) }
+
+        then()
+        assertEquals(2L, count)
+    }
+
+    @Test
+    fun `should count no businesses for a user who owns none`() = runUnitTest {
         given()
         val fixture = SutFixture()
 
         whenn()
-        val exists = suspendTransaction { fixture.sut.isBusinessExist(Uuid.random()) }
+        val count = suspendTransaction { fixture.sut.countBusinessesOwnedBy(Uuid.random()) }
 
         then()
-        assertFalse(exists)
+        assertEquals(0L, count)
     }
 
     @Test
