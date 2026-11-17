@@ -125,13 +125,13 @@ fun Route.employeeCrud() {
          * Suspend or reinstate employee
          *
          * Summary: Suspend or reinstate employee
-         * Description: Suspends an employee, or reinstates a suspended one. A suspended employee keeps their stored permissions but is treated as having none, and cannot be booked by clients, until reinstated. Only the business owner can suspend employees, and the business owner cannot be suspended. Requesting the state the employee is already in changes nothing and returns the employee as is
+         * Description: Suspends an employee, or reinstates a suspended one. A suspended employee keeps their stored permissions but is treated as having none, and cannot be booked by clients, until reinstated. Only the business owner can suspend employees, and the business owner cannot be suspended. Requesting the state the employee is already in changes nothing and returns the employee as is. Suspended employees don't count toward the business's employee limit, so reinstating one is refused while the business is full
          * Tag: employee
          * Security: jwt
          * Body: application/x-protobuf [com.bookk.business.microservice.route.api.EmployeeSuspensionRequest]
          * Response: 200 application/x-protobuf [com.bookk.business.domain.api.employee.entity.Employee] Employee with updated suspension state
          * Response: 404 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Employee is not found or the caller is not the business owner
-         * Response: 422 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Set employee suspension errors<br>BUSINESS_OWNER_SUSPENSION_NOT_ALLOWED (200032) Business owner cannot be suspended
+         * Response: 422 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Set employee suspension errors<br>BUSINESS_OWNER_SUSPENSION_NOT_ALLOWED (200032) Business owner cannot be suspended<br>BUSINESS_EMPLOYEES_LIMIT_REACHED (200044) Reinstating would exceed the business's limit of active employees
          * See: docs/operations/business/set-employee-suspension.md
          */
         put<Api.Employee.Id.Suspension> {

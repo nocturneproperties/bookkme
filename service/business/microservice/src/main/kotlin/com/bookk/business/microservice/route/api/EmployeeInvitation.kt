@@ -35,7 +35,7 @@ fun Route.employeeInvitationCrud() {
          * Security: jwt
          * Response: 200 application/x-protobuf [com.bookk.business.domain.api.employee.entity.EmployeeInvitation] Created invitation
          * Response: 404 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Business is not found or the caller has no rights to invite
-         * Response: 422 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Create invitation errors<br>BUSINESS_EMPLOYEE_PENDING_INVITATIONS_LIMIT_REACHED (200028) Business already has the maximum number of pending invitations<br>BUSINESS_EMPLOYEE_DAILY_INVITATIONS_LIMIT_REACHED (200029) Business already created the maximum number of invitations in the last 24 hours
+         * Response: 422 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Create invitation errors<br>BUSINESS_EMPLOYEE_PENDING_INVITATIONS_LIMIT_REACHED (200028) Business already has the maximum number of pending invitations<br>BUSINESS_EMPLOYEE_DAILY_INVITATIONS_LIMIT_REACHED (200029) Business already created the maximum number of invitations in the last 24 hours<br>BUSINESS_EMPLOYEES_LIMIT_REACHED (200044) Business already has the maximum number of employees
          * Response: 403 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Caller is a suspended employee of this business<br>BUSINESS_EMPLOYEE_ACCESS_SUSPENDED (200034) Your access to this business is suspended
          * See: docs/operations/business/create-employee-invitation.md
          */
@@ -72,7 +72,7 @@ fun Route.employeeInvitationCrud() {
          * Body: application/x-protobuf [com.bookk.business.microservice.route.api.EmployeeInvitationRedeemRequest]
          * Response: 200 application/x-protobuf [com.bookk.business.domain.api.employee.entity.Employee] Created employee
          * Response: 404 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Invite code is unknown
-         * Response: 422 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Join business errors<br>BUSINESS_EMPLOYEE_INVITATION_CODE_EMPTY (200031) Invitation code must not be empty<br>BUSINESS_EMPLOYEE_INVITATION_ALREADY_PROCESSED (200017) Invitation is already processed<br>BUSINESS_EMPLOYEE_EXISTS (200018) User is already an employee of this business
+         * Response: 422 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Join business errors<br>BUSINESS_EMPLOYEE_INVITATION_CODE_EMPTY (200031) Invitation code must not be empty<br>BUSINESS_EMPLOYEE_INVITATION_ALREADY_PROCESSED (200017) Invitation is already processed<br>BUSINESS_EMPLOYEE_EXISTS (200018) User is already an employee of this business<br>BUSINESS_EMPLOYEES_LIMIT_REACHED (200044) Business already has the maximum number of employees<br>BUSINESS_MEMBERSHIPS_LIMIT_REACHED (200045) You already belong to the maximum number of businesses
          * See: docs/operations/business/join-business.md
          */
         post<Api.RedeemEmployeeInvitation> {

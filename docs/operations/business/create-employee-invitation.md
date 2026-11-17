@@ -65,13 +65,15 @@ flowchart TD
     Start([POST /api/business/businessId/employee_invitation]) --> Auth{JWT valid?}
     Auth -- No --> R401([401 Unauthorized])
     Auth -- Yes --> Tx[[Begin transaction]]
-    Tx --> LockBiz[BusinessDataSource.lockBusiness businessId EXCLUSIVE, SELECT FOR UPDATE, first statement of the transaction]
+    Tx --> LockBiz[BusinessDataSource.lockBusiness businessId EXCLUSIVE, SELECT FOR UPDATE, first statement of the transaction, gives LockedBusiness.limits]
     LockBiz -- not found --> R404b([404 Error.NotFound])
     LockBiz -- locked --> Suspended{BusinessPermissionDataSource.getPermission - caller is a suspended employee of the business?}
     Suspended -- Yes --> R403s([403 BUSINESS_EMPLOYEE_ACCESS_SUSPENDED 200034])
     Suspended -- No --> Perm{caller EMPLOYEES.update?}
     Perm -- No --> R404a([404 Error.OperationNotAllowed])
-    Perm -- Yes --> Count[EmployeeInvitationDataSource.countPendingInvitations businessId]
+    Perm -- Yes --> Employees{EmployeeDataSource.countActiveEmployees businessId - suspended employees excluded >= limits.maxEmployees?}
+    Employees -- Yes --> R422e([422 EmployeesLimitReached, BUSINESS_EMPLOYEES_LIMIT_REACHED 200044])
+    Employees -- No --> Count[EmployeeInvitationDataSource.countPendingInvitations businessId]
     Count -- ">= MAX_PENDING_INVITATIONS 20" --> R422([422 PendingInvitationsLimitReached, BUSINESS_EMPLOYEE_PENDING_INVITATIONS_LIMIT_REACHED 200028])
     Count -- below limit --> CountToday[EmployeeInvitationDataSource.countInvitationsCreatedSince businessId, now - 24h, any status]
     CountToday -- ">= MAX_INVITATIONS_PER_DAY 50" --> R422b([422 DailyInvitationsLimitReached, BUSINESS_EMPLOYEE_DAILY_INVITATIONS_LIMIT_REACHED 200029])

@@ -555,6 +555,24 @@ internal class EmployeeCrudTest {
     }
 
     @Test
+    fun `should return unprocessable entity when reinstating an employee into a full business`() = routeTest {
+        given()
+        val useCase: SetEmployeeSuspension = mockk()
+        val id = Uuid.random()
+        coEvery { useCase.invoke(userId, businessId, id, false) } returns
+            Result.failure(SetEmployeeSuspension.Error.EmployeesLimitReached())
+        authenticatedApplication(useCase)
+
+        whenn()
+        val client = createTestClient()
+        val response = client.put(suspensionResource(id)) { setBody(EmployeeSuspensionRequest(suspended = false)) }
+
+        then()
+        assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
+        assertEquals(BusinessErrorCodes.BUSINESS_EMPLOYEES_LIMIT_REACHED, response.body<SimpleServerError>().errorCode)
+    }
+
+    @Test
     fun `should return not found when suspending an unknown employee`() = routeTest {
         given()
         val useCase: SetEmployeeSuspension = mockk()
