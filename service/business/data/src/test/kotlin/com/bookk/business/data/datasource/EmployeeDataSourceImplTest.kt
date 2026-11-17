@@ -102,6 +102,52 @@ internal class EmployeeDataSourceImplTest {
     }
 
     @Test
+    fun `should count every business the user is an employee of, suspended or not`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val userId = Uuid.random()
+        val otherBusinessId = suspendTransaction {
+            fixture.businessSut.createBusiness(Uuid.random(), "Other", "USD", TimeZone.UTC)
+        }.id
+        suspendTransaction {
+            fixture.sut.createEmployee(Employee.stub(businessId = fixture.businessId, userId = userId))
+            val suspended = fixture.sut.createEmployee(Employee.stub(businessId = otherBusinessId, userId = userId))
+            fixture.sut.setSuspendedAt(suspended.id, Instant.parse("2000-01-01T00:00:00Z"))
+            fixture.sut.createEmployee(Employee.stub(businessId = fixture.businessId))
+        }
+
+        whenn()
+        val count = suspendTransaction { fixture.sut.countBusinessesOfUser(userId) }
+
+        then()
+        assertEquals(2L, count)
+    }
+
+    @Test
+    fun `should count only the active employees of one business`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val otherBusinessId = suspendTransaction {
+            fixture.businessSut.createBusiness(Uuid.random(), "Other", "USD", TimeZone.UTC)
+        }.id
+        suspendTransaction {
+            fixture.sut.createEmployee(Employee.stub(businessId = fixture.businessId))
+            fixture.sut.createEmployee(Employee.stub(businessId = fixture.businessId))
+            val suspended = fixture.sut.createEmployee(Employee.stub(businessId = fixture.businessId))
+            fixture.sut.setSuspendedAt(suspended.id, Instant.parse("2000-01-01T00:00:00Z"))
+            fixture.sut.createEmployee(Employee.stub(businessId = otherBusinessId))
+        }
+
+        whenn()
+        val count = suspendTransaction { fixture.sut.countActiveEmployees(fixture.businessId) }
+
+        then()
+        assertEquals(2L, count)
+    }
+
+    @Test
     fun `should create employee and retrieve by business`() = runUnitTest {
         given()
         val fixture = SutFixture()

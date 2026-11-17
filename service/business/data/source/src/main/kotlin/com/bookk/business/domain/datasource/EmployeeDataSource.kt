@@ -9,6 +9,8 @@ interface EmployeeDataSource {
     suspend fun createEmployee(employee: Employee): Employee
     suspend fun updateEmployee(model: EmployeeUpdateModel): Employee
     suspend fun getEmployees(businessId: Uuid): List<Employee>
+    suspend fun countActiveEmployees(businessId: Uuid): Long
+    suspend fun countBusinessesOfUser(userId: Uuid): Long
     suspend fun getEmployee(businessId: Uuid, id: Uuid): Employee?
     suspend fun setSuspendedAt(id: Uuid, suspendedAt: Instant?): Employee
     suspend fun getEmployeeByUserId(businessId: Uuid, userId: Uuid): Employee?

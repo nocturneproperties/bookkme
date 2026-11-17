@@ -30,6 +30,10 @@ object BusinessTable : UuidTable("business") {
     val clientDataRetentionMonths = integer(
         "client_data_retention_months",
     ).default(Business.DEFAULT_CLIENT_DATA_RETENTION_MONTHS)
+    val maxEmployees = integer("max_employees").nullable()
+    val maxClients = integer("max_clients").nullable()
+    val maxServices = integer("max_services").nullable()
+    val maxServiceGroups = integer("max_service_groups").nullable()
     val createdAt = timestamp("created_at").clientDefault { Clock.System.now() }
     val updatedAt = timestamp("updated_at").clientDefault { Clock.System.now() }
 }

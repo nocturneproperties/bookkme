@@ -71,6 +71,27 @@ internal class ClientDataSourceImplTest {
     }
 
     @Test
+    fun `should count detached and integrated clients of one business only`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val otherBusinessId = suspendTransaction {
+            fixture.businessSut.createBusiness(Uuid.random(), "Other", "USD", TimeZone.UTC)
+        }.id
+        suspendTransaction {
+            fixture.sut.createDetachedClient(fixture.businessId, Client.Detached.stub(email = null))
+            fixture.sut.getOrCreateIntegratedClient(fixture.businessId, Client.Integrated.stub())
+            fixture.sut.createDetachedClient(otherBusinessId, Client.Detached.stub(email = null))
+        }
+
+        whenn()
+        val count = suspendTransaction { fixture.sut.countClients(fixture.businessId) }
+
+        then()
+        assertEquals(2L, count)
+    }
+
+    @Test
     fun `should create detached client and retrieve by business`() = runUnitTest {
         given()
         val fixture = SutFixture()

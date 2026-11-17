@@ -47,7 +47,8 @@ internal class DeleteServiceGroupImplTest {
         val id = Uuid.random()
         with(fixture) {
             transactionManager.mockTransaction()
-            coEvery { businessDataSource.lockBusiness(businessId, RowLock.EXCLUSIVE) } returns LockedBusiness("USD")
+            coEvery { businessDataSource.lockBusiness(businessId, RowLock.EXCLUSIVE) } returns
+                LockedBusiness.stub("USD")
             coEvery {
                 businessPermissionDataSource.getPermission(userId, businessId, BusinessResource.SERVICES)
             } returns
@@ -71,7 +72,8 @@ internal class DeleteServiceGroupImplTest {
         val id = Uuid.random()
         with(fixture) {
             transactionManager.mockTransaction()
-            coEvery { businessDataSource.lockBusiness(businessId, RowLock.EXCLUSIVE) } returns LockedBusiness("USD")
+            coEvery { businessDataSource.lockBusiness(businessId, RowLock.EXCLUSIVE) } returns
+                LockedBusiness.stub("USD")
             coEvery {
                 businessPermissionDataSource.getPermission(userId, businessId, BusinessResource.SERVICES)
             } returns
@@ -95,7 +97,8 @@ internal class DeleteServiceGroupImplTest {
         val id = Uuid.random()
         with(fixture) {
             transactionManager.mockTransaction()
-            coEvery { businessDataSource.lockBusiness(businessId, RowLock.EXCLUSIVE) } returns LockedBusiness("USD")
+            coEvery { businessDataSource.lockBusiness(businessId, RowLock.EXCLUSIVE) } returns
+                LockedBusiness.stub("USD")
             coEvery {
                 businessPermissionDataSource.getPermission(userId, businessId, BusinessResource.SERVICES)
             } returns
