@@ -33,5 +33,13 @@ interface JoinBusiness {
                 message = "User is already an employee of this business",
             ),
             Error
+
+        class EmployeesLimitReached :
+            BusinessError(
+                statusCode = HttpStatusCode.UnprocessableEntity.value,
+                code = BusinessErrorCodes.BUSINESS_EMPLOYEES_LIMIT_REACHED,
+                message = "Business already has the maximum number of employees",
+            ),
+            Error
     }
 }
