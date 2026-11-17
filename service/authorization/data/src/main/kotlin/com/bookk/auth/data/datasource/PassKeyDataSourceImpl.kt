@@ -72,6 +72,12 @@ internal class PassKeyDataSourceImpl(
             .singleOrNull()
     }
 
+    override suspend fun countPasskeys(authId: Uuid): Long = dbQuery {
+        PasskeyCredentialTable.selectAll()
+            .where { PasskeyCredentialTable.authId eq authId }
+            .count()
+    }
+
     override suspend fun getCredentialBy(authId: Uuid): List<PasskeyCredential> = dbQuery {
         AuthenticationTable
             .innerJoin(

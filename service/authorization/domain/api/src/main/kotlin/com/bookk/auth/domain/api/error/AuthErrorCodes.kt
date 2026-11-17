@@ -15,4 +15,5 @@ object AuthErrorCodes {
     const val UNABLE_TO_GENERATE_REGISTRATION_CHALLENGE = BASE + 10
     const val PASSKEY_NOT_OWNED = BASE + 11
     const val ACTION_CONFIRMATION_INVALID = BASE + 12
+    const val PASSKEYS_LIMIT_REACHED = BASE + 13
 }

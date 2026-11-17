@@ -3,11 +3,14 @@ package com.bookk.auth.domain.impl.operation.identification
 import com.bookk.auth.domain.api.authentication.entity.Authentication
 import com.bookk.auth.domain.api.identification.entity.Device
 import com.bookk.auth.domain.api.identification.operation.GetAttachPasskeyToAccountChallenge
+import com.bookk.auth.domain.api.identification.operation.GetAttachPasskeyToAccountChallenge.Error.PasskeysLimitReached
 import com.bookk.auth.domain.api.identification.operation.GetAttachPasskeyToAccountChallenge.Error.UnableToGeneratePasskeyChallenge
 import com.bookk.auth.domain.api.registration.entity.RegistrationChallengeResponse
+import com.bookk.auth.domain.api.registration.operation.AttachNewPasskeyToAccount
 import com.bookk.auth.domain.api.registration.operation.StartPasskeyRegistration
 import com.bookk.auth.domain.datasource.AccountDataSource
 import com.bookk.auth.domain.datasource.DeviceDataSource
+import com.bookk.auth.domain.datasource.PassKeyDataSource
 import com.bookk.core.domain.datasource.transaction.TransactionManager
 import com.bookk.core.domain.datasource.transaction.transactionOrThrow
 import com.bookk.core.domain.entity.runSuspendCatching
@@ -18,6 +21,7 @@ internal class GetAttachPasskeyToAccountChallengeImpl(
     private val startPasskeyRegistration: StartPasskeyRegistration,
     private val accountDataSource: AccountDataSource,
     private val deviceDataSource: DeviceDataSource,
+    private val passKeyDataSource: PassKeyDataSource,
     private val userClient: UserClient,
     private val transactionManager: TransactionManager,
 ) : GetAttachPasskeyToAccountChallenge {
@@ -33,7 +37,11 @@ internal class GetAttachPasskeyToAccountChallengeImpl(
     }
 
     private suspend fun getAuthorizationInfo(authId: Uuid): Authentication = transactionManager.transactionOrThrow {
-        accountDataSource.getAuthRecordById(authId) ?: throw UnableToGeneratePasskeyChallenge()
+        val auth = accountDataSource.getAuthRecordById(authId) ?: throw UnableToGeneratePasskeyChallenge()
+        if (passKeyDataSource.countPasskeys(authId) >= AttachNewPasskeyToAccount.MAX_PASSKEYS) {
+            throw PasskeysLimitReached()
+        }
+        auth
     }
 
     private suspend fun getDeviceInfo(deviceId: Uuid): Device = transactionManager.transactionOrThrow {
