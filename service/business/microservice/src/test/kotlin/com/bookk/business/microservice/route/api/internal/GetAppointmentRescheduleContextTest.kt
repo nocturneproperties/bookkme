@@ -18,6 +18,7 @@ import io.ktor.client.request.setBody
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.testing.ApplicationTestBuilder
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.mockk
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
@@ -38,7 +39,8 @@ internal class GetAppointmentRescheduleContextTest {
         val useCase: GetAppointmentRescheduleContext = mockk()
         val body = AppointmentRescheduleContextRequest.stub()
         val context = AppointmentRescheduleContext.stub()
-        coEvery { useCase.invoke(businessId, body.employeeId, body.serviceIds) } returns Result.success(context)
+        coEvery { useCase.invoke(businessId, body.employeeId, body.serviceIds, body.currentAssignee) } returns
+            Result.success(context)
 
         setupApplication(
             diModule = module { single { useCase } },
@@ -57,12 +59,35 @@ internal class GetAppointmentRescheduleContextTest {
     }
 
     @Test
+    fun `should pass on that the employee is the appointment's current assignee`() = routeTest {
+        given()
+        val useCase: GetAppointmentRescheduleContext = mockk()
+        val body = AppointmentRescheduleContextRequest.stub(currentAssignee = true)
+        val context = AppointmentRescheduleContext.stub()
+        coEvery { useCase.invoke(businessId, body.employeeId, body.serviceIds, true) } returns Result.success(context)
+
+        setupApplication(
+            diModule = module { single { useCase } },
+            routeUnderTest = { getAppointmentRescheduleContext() },
+        )
+
+        whenn()
+        val client = createTestClient()
+        val response = client.post(resource()) { setBody(body) }
+
+        then()
+        assertEquals(HttpStatusCode.OK, response.status)
+        coVerify(exactly = 1) { useCase.invoke(businessId, body.employeeId, body.serviceIds, true) }
+    }
+
+    @Test
     fun `should resolve services only when no employee is requested`() = routeTest {
         given()
         val useCase: GetAppointmentRescheduleContext = mockk()
         val body = AppointmentRescheduleContextRequest.stub(employeeId = null)
         val context = AppointmentRescheduleContext.stub(employee = null)
-        coEvery { useCase.invoke(businessId, null, body.serviceIds) } returns Result.success(context)
+        coEvery { useCase.invoke(businessId, null, body.serviceIds, body.currentAssignee) } returns
+            Result.success(context)
 
         setupApplication(
             diModule = module { single { useCase } },
@@ -111,7 +136,8 @@ internal class GetAppointmentRescheduleContextTest {
     private suspend fun ApplicationTestBuilder.assertRejected(error: Throwable, status: HttpStatusCode, code: Int) {
         val useCase: GetAppointmentRescheduleContext = mockk()
         val body = AppointmentRescheduleContextRequest.stub()
-        coEvery { useCase.invoke(businessId, body.employeeId, body.serviceIds) } returns Result.failure(error)
+        coEvery { useCase.invoke(businessId, body.employeeId, body.serviceIds, body.currentAssignee) } returns
+            Result.failure(error)
 
         setupApplication(
             diModule = module { single { useCase } },

@@ -44,7 +44,12 @@ internal class GetAppointmentRescheduleContextImplTest {
         }
 
         whenn()
-        val result = fixture.sut.invoke(businessId, employee.id, listOf(service.id, service.id))
+        val result = fixture.sut.invoke(
+            businessId,
+            employee.id,
+            listOf(service.id, service.id),
+            currentAssignee = false,
+        )
 
         then()
         assertEquals(employee, result.getOrNull()?.employee)
@@ -63,7 +68,7 @@ internal class GetAppointmentRescheduleContextImplTest {
         }
 
         whenn()
-        val result = fixture.sut.invoke(businessId, null, listOf(service.id))
+        val result = fixture.sut.invoke(businessId, null, listOf(service.id), currentAssignee = false)
 
         then()
         assertNull(result.getOrNull()?.employee)
@@ -83,7 +88,7 @@ internal class GetAppointmentRescheduleContextImplTest {
         }
 
         whenn()
-        val result = fixture.sut.invoke(businessId, employee.id, emptyList())
+        val result = fixture.sut.invoke(businessId, employee.id, emptyList(), currentAssignee = false)
 
         then()
         assertEquals(emptyList<Service>(), result.getOrNull()?.services)
@@ -102,7 +107,7 @@ internal class GetAppointmentRescheduleContextImplTest {
         }
 
         whenn()
-        val result = fixture.sut.invoke(businessId, employeeId, emptyList())
+        val result = fixture.sut.invoke(businessId, employeeId, emptyList(), currentAssignee = false)
 
         then()
         assertTrue(result.exceptionOrNull() is GetAppointmentRescheduleContext.Error.EmployeeNotFound)
@@ -120,7 +125,7 @@ internal class GetAppointmentRescheduleContextImplTest {
         }
 
         whenn()
-        val result = fixture.sut.invoke(businessId, employee.id, emptyList())
+        val result = fixture.sut.invoke(businessId, employee.id, emptyList(), currentAssignee = false)
 
         then()
         assertTrue(result.exceptionOrNull() is GetAppointmentRescheduleContext.Error.EmployeeSuspended)
@@ -138,9 +143,46 @@ internal class GetAppointmentRescheduleContextImplTest {
         }
 
         whenn()
-        val result = fixture.sut.invoke(businessId, null, listOf(foreignService.id))
+        val result = fixture.sut.invoke(businessId, null, listOf(foreignService.id), currentAssignee = false)
 
         then()
         assertTrue(result.exceptionOrNull() is GetAppointmentRescheduleContext.Error.ServiceNotFound)
+    }
+
+    @Test
+    fun `should resolve a suspended employee who is the current assignee`() = runUnitTest {
+        given()
+        val businessId = Uuid.random()
+        val employee = Employee.stub(businessId = businessId, suspendedAt = Instant.fromEpochMilliseconds(0))
+        val fixture = SutFixture()
+        with(fixture) {
+            transactionManager.mockTransaction()
+            coEvery { employeeDataSource.getEmployee(businessId, employee.id) } returns employee
+        }
+
+        whenn()
+        val result = fixture.sut.invoke(businessId, employee.id, emptyList(), currentAssignee = true)
+
+        then()
+        assertEquals(employee, result.getOrNull()?.employee)
+    }
+
+    @Test
+    fun `should return no employee when the current assignee was removed`() = runUnitTest {
+        given()
+        val businessId = Uuid.random()
+        val employeeId = Uuid.random()
+        val fixture = SutFixture()
+        with(fixture) {
+            transactionManager.mockTransaction()
+            coEvery { employeeDataSource.getEmployee(businessId, employeeId) } returns null
+        }
+
+        whenn()
+        val result = fixture.sut.invoke(businessId, employeeId, emptyList(), currentAssignee = true)
+
+        then()
+        assertTrue(result.isSuccess)
+        assertNull(result.getOrNull()?.employee)
     }
 }

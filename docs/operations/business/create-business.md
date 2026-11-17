@@ -12,7 +12,10 @@ at creation time. This is what makes `GetUserBusinesses` return owned and
 employed-at businesses through the same query, and it is also why
 `JoinBusiness` rejects the owner redeeming an invite code for their own
 business — `EmployeeDataSource.getEmployeeByUserId` already finds their
-owner-employee row and `JoinBusiness.Error.EmployeeExist` fires.
+owner-employee row and `JoinBusiness.Error.EmployeeExist` fires. The owner
+starts on the new business's working week (`business.schedule.workingWeek()`,
+Monday to Friday 9 to 17 by default), since bookings check the employee's
+schedule as well as the business's.
 
 ```mermaid
 flowchart TD
@@ -27,7 +30,7 @@ flowchart TD
     Exists -- Yes --> R422b([422 BUSINESS_ALREADY_EXIST 200001])
     Exists -- No --> Create[BusinessDataSource.createBusiness userId name currencyCode timeZone]
     Create --> ResolveOwner[UserClient.getUserById userId]
-    ResolveOwner --> CreateEmployee[EmployeeDataSource.createEmployee owner as employee of business.id, permissions = BusinessPermissions.FULL - also upserts the five business_permission_grants rows]
+    ResolveOwner --> CreateEmployee[EmployeeDataSource.createEmployee owner as employee of business.id, schedule = business.schedule.workingWeek, permissions = BusinessPermissions.FULL - also upserts the five business_permission_grants rows]
     CreateEmployee --> Constraint{Unique constraint violated?}
     Constraint -- Yes --> R422b
     Constraint -- No --> R200([200 Created Business - permissions = FULL, employeeId = owner employee id, clientId = null])

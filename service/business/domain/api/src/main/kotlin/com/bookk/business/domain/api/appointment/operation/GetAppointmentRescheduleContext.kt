@@ -11,6 +11,7 @@ interface GetAppointmentRescheduleContext {
         businessId: Uuid,
         employeeId: Uuid?,
         serviceIds: List<Uuid>,
+        currentAssignee: Boolean,
     ): Result<AppointmentRescheduleContext>
 
     sealed interface Error {

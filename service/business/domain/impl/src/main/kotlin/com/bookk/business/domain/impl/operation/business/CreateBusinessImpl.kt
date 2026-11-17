@@ -9,7 +9,6 @@ import com.bookk.business.domain.datasource.BusinessDataSource
 import com.bookk.business.domain.datasource.EmployeeDataSource
 import com.bookk.core.domain.datasource.transaction.TransactionManager
 import com.bookk.server.user.client.UserClient
-import library.schedule.Schedule
 import library.validation.CurrencyValidator
 import library.validation.NameValidator
 import kotlin.time.Clock
@@ -42,7 +41,7 @@ internal class CreateBusinessImpl(
                 email = owner.email,
                 userId = userId,
                 services = emptyList(),
-                schedule = Schedule.empty(),
+                schedule = business.schedule.workingWeek(),
                 createdAt = Clock.System.now(),
                 permissions = BusinessPermissions.FULL,
                 suspendedAt = null,

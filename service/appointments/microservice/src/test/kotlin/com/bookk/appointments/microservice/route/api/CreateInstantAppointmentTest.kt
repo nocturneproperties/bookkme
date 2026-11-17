@@ -3,6 +3,7 @@ package com.bookk.appointments.microservice.route.api
 import com.bookk.appointments.domain.api.entity.Appointment
 import com.bookk.appointments.domain.api.entity.AppointmentErrorCodes
 import com.bookk.appointments.domain.api.entity.BookingQuoteError
+import com.bookk.appointments.domain.api.entity.BookingScheduleError
 import com.bookk.appointments.domain.api.entity.InstantAppointmentDraft
 import com.bookk.appointments.domain.api.operation.CreateInstantAppointment
 import com.bookk.appointments.microservice.route.AppointmentsRouting
@@ -102,27 +103,51 @@ internal class CreateInstantAppointmentTest {
     }
 
     @Test
-    fun `should return unprocessable entity when time not allowed`() = routeTest {
+    fun `should return unprocessable entity when the time is outside the business working hours`() = routeTest {
         given()
-        val error = CreateInstantAppointment.Error.RequestForThisTimeNotAllowed()
+        val error = BookingScheduleError.BusinessTimeNotAllowed()
 
         whenn()
         val response = respondsWithError(error)
 
         then()
-        response.assertError(HttpStatusCode.UnprocessableEntity, AppointmentErrorCodes.TIME_NOT_ALLOWED)
+        response.assertError(HttpStatusCode.UnprocessableEntity, AppointmentErrorCodes.BUSINESS_TIME_NOT_ALLOWED)
     }
 
     @Test
-    fun `should return unprocessable entity when date not allowed`() = routeTest {
+    fun `should return unprocessable entity when the time is outside the employee working hours`() = routeTest {
         given()
-        val error = CreateInstantAppointment.Error.RequestForThisDateNotAllowed()
+        val error = BookingScheduleError.EmployeeTimeNotAllowed()
 
         whenn()
         val response = respondsWithError(error)
 
         then()
-        response.assertError(HttpStatusCode.UnprocessableEntity, AppointmentErrorCodes.DATE_NOT_ALLOWED)
+        response.assertError(HttpStatusCode.UnprocessableEntity, AppointmentErrorCodes.EMPLOYEE_TIME_NOT_ALLOWED)
+    }
+
+    @Test
+    fun `should return unprocessable entity when the business does not work on the date`() = routeTest {
+        given()
+        val error = BookingScheduleError.BusinessDateNotAllowed()
+
+        whenn()
+        val response = respondsWithError(error)
+
+        then()
+        response.assertError(HttpStatusCode.UnprocessableEntity, AppointmentErrorCodes.BUSINESS_DATE_NOT_ALLOWED)
+    }
+
+    @Test
+    fun `should return unprocessable entity when the employee does not work on the date`() = routeTest {
+        given()
+        val error = BookingScheduleError.EmployeeDateNotAllowed()
+
+        whenn()
+        val response = respondsWithError(error)
+
+        then()
+        response.assertError(HttpStatusCode.UnprocessableEntity, AppointmentErrorCodes.EMPLOYEE_DATE_NOT_ALLOWED)
     }
 
     @Test

@@ -6,6 +6,7 @@ import com.bookk.appointments.domain.api.entity.AppointmentSettings
 import com.bookk.appointments.domain.api.entity.AppointmentStatus
 import com.bookk.appointments.domain.api.entity.AppointmentStatusError
 import com.bookk.appointments.domain.api.entity.AppointmentUpdate
+import com.bookk.appointments.domain.api.entity.BookingScheduleError
 import com.bookk.appointments.domain.api.entity.EmployeeSnapshot
 import com.bookk.appointments.domain.api.entity.PriceAdjustment
 import com.bookk.appointments.domain.api.entity.RequestedService
@@ -27,14 +28,20 @@ import com.bookk.core.test.then
 import com.bookk.core.test.whenn
 import com.bookk.server.appointments.client.api.event.AppointmentEvent
 import com.bookk.server.business.client.api.BusinessClient
+import io.mockk.Runs
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.coVerifyOrder
+import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
 import io.mockk.runs
+import io.mockk.verify
+import kotlinx.datetime.LocalDate
 import library.permissions.EmployeeAccessSuspended
 import library.permissions.ResourcePermission
+import library.schedule.DayOffRange
+import library.schedule.Schedule
 import org.joda.money.Money
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -75,8 +82,11 @@ internal class UpdateAppointmentImplTest {
             coEvery { appointmentDataSource.get(stored.id) } returns stored
             coEvery { appointmentDataSource.getForUpdate(stored.id) } returns stored
             coEvery { settingsDataSource.getForUpdate(stored.businessId) } returns settings
-            coEvery { settings.isInWorkday(any()) } returns true
-            coEvery { settings.isInWorktime(any(), any()) } returns true
+            coEvery {
+                businessClient.getAppointmentRescheduleContext(stored.businessId, stored.employee.id, emptyList(), true)
+            } returns
+                Result.success(AppointmentRescheduleContext(employee = sameEmployee(stored), services = emptyList()))
+            every { settings.requireBookable(any(), any(), any()) } just Runs
             coEvery { appointmentPermissionDataSource.getPermission(userId, stored.businessId) } returns permission
             coEvery { appointmentDataSource.hasOverlapsWith(any<Appointment>()) } returns false
             coEvery { appointmentDataSource.reopen(stored.id) } just runs
@@ -89,6 +99,22 @@ internal class UpdateAppointmentImplTest {
     }
 
     private val futureDate = Instant.parse("2099-01-01T00:00:00Z")
+
+    private companion object {
+        val employeeSchedule = Schedule().copy(
+            dayOffs = listOf(DayOffRange(LocalDate(2099, 1, 1), LocalDate(2099, 1, 1))),
+        )
+
+        fun sameEmployee(stored: Appointment): Employee {
+            return Employee.stub(
+                id = stored.employee.id,
+                businessId = stored.businessId,
+                userId = stored.employee.userId,
+                name = "Renamed",
+                schedule = employeeSchedule,
+            )
+        }
+    }
     private val laterDate = Instant.parse("2099-01-02T00:00:00Z")
 
     private fun keepingEverything(stored: Appointment, date: Instant = laterDate) = AppointmentUpdate(
@@ -115,7 +141,14 @@ internal class UpdateAppointmentImplTest {
         val expected = stored.copy(date = laterDate, note = "Updated note")
         assertEquals(expected, result.getOrNull())
         coVerify(exactly = 1) { fixture.appointmentDataSource.update(expected) }
-        coVerify(exactly = 0) { fixture.businessClient.getAppointmentRescheduleContext(any(), any(), any()) }
+        coVerify(exactly = 1) {
+            fixture.businessClient.getAppointmentRescheduleContext(
+                stored.businessId,
+                stored.employee.id,
+                emptyList(),
+                true,
+            )
+        }
     }
 
     @Test
@@ -152,7 +185,9 @@ internal class UpdateAppointmentImplTest {
 
         then()
         assertEquals(listOf(storedService, storedService), result.getOrNull()?.services)
-        coVerify(exactly = 0) { fixture.businessClient.getAppointmentRescheduleContext(any(), any(), any()) }
+        coVerify(exactly = 0) {
+            fixture.businessClient.getAppointmentRescheduleContext(any(), any(), match { it.isNotEmpty() }, any())
+        }
     }
 
     @Test
@@ -172,8 +207,14 @@ internal class UpdateAppointmentImplTest {
         with(fixture) {
             givenValidUpdate(userId, stored)
             coEvery {
-                businessClient.getAppointmentRescheduleContext(stored.businessId, null, listOf(added.id))
-            } returns Result.success(AppointmentRescheduleContext(employee = null, services = listOf(added)))
+                businessClient.getAppointmentRescheduleContext(
+                    stored.businessId,
+                    stored.employee.id,
+                    listOf(added.id),
+                    true,
+                )
+            } returns
+                Result.success(AppointmentRescheduleContext(employee = sameEmployee(stored), services = listOf(added)))
         }
 
         whenn()
@@ -202,7 +243,7 @@ internal class UpdateAppointmentImplTest {
         with(fixture) {
             givenValidUpdate(userId, stored)
             coEvery {
-                businessClient.getAppointmentRescheduleContext(stored.businessId, newEmployee.id, emptyList())
+                businessClient.getAppointmentRescheduleContext(stored.businessId, newEmployee.id, emptyList(), false)
             } returns Result.success(AppointmentRescheduleContext(employee = newEmployee, services = emptyList()))
         }
 
@@ -227,7 +268,7 @@ internal class UpdateAppointmentImplTest {
         with(fixture) {
             givenValidUpdate(userId, stored)
             coEvery {
-                businessClient.getAppointmentRescheduleContext(stored.businessId, update.employeeId, emptyList())
+                businessClient.getAppointmentRescheduleContext(stored.businessId, update.employeeId, emptyList(), false)
             } returns Result.failure(employeeNotFound)
         }
 
@@ -248,7 +289,7 @@ internal class UpdateAppointmentImplTest {
         val update = keepingEverything(stored).copy(employeeId = Uuid.random())
         with(fixture) {
             givenValidUpdate(userId, stored)
-            coEvery { businessClient.getAppointmentRescheduleContext(any(), any(), any()) } returns
+            coEvery { businessClient.getAppointmentRescheduleContext(any(), any(), any(), any()) } returns
                 Result.failure(Error.NotFound())
         }
 
@@ -421,7 +462,7 @@ internal class UpdateAppointmentImplTest {
 
         then()
         assertTrue(result.exceptionOrNull() is Error.OperationNotAllowed)
-        coVerify(exactly = 0) { fixture.businessClient.getAppointmentRescheduleContext(any(), any(), any()) }
+        coVerify(exactly = 0) { fixture.businessClient.getAppointmentRescheduleContext(any(), any(), any(), any()) }
         coVerify(exactly = 0) { fixture.appointmentDataSource.update(any()) }
     }
 
@@ -566,14 +607,14 @@ internal class UpdateAppointmentImplTest {
         val stored = Appointment.stub(date = futureDate)
         with(fixture) {
             givenValidUpdate(userId, stored)
-            coEvery { settings.isInWorkday(any()) } returns false
+            every { settings.requireBookable(any(), any(), any()) } throws BookingScheduleError.BusinessDateNotAllowed()
         }
 
         whenn()
         val result = fixture.sut(userId, keepingEverything(stored))
 
         then()
-        assertTrue(result.exceptionOrNull() is UpdateAppointment.Error.RequestForThisDateNotAllowed)
+        assertTrue(result.exceptionOrNull() is BookingScheduleError.BusinessDateNotAllowed)
         coVerify(exactly = 0) { fixture.appointmentDataSource.update(any()) }
     }
 
@@ -585,14 +626,14 @@ internal class UpdateAppointmentImplTest {
         val stored = Appointment.stub(date = futureDate)
         with(fixture) {
             givenValidUpdate(userId, stored)
-            coEvery { settings.isInWorktime(any(), any()) } returns false
+            every { settings.requireBookable(any(), any(), any()) } throws BookingScheduleError.BusinessTimeNotAllowed()
         }
 
         whenn()
         val result = fixture.sut(userId, keepingEverything(stored))
 
         then()
-        assertTrue(result.exceptionOrNull() is UpdateAppointment.Error.RequestForThisTimeNotAllowed)
+        assertTrue(result.exceptionOrNull() is BookingScheduleError.BusinessTimeNotAllowed)
         coVerify(exactly = 0) { fixture.appointmentDataSource.update(any()) }
     }
 
@@ -629,7 +670,7 @@ internal class UpdateAppointmentImplTest {
 
         then()
         assertTrue(isExpected(result.exceptionOrNull()))
-        coVerify(exactly = 0) { fixture.businessClient.getAppointmentRescheduleContext(any(), any(), any()) }
+        coVerify(exactly = 0) { fixture.businessClient.getAppointmentRescheduleContext(any(), any(), any(), any()) }
         coVerify(exactly = 0) { fixture.appointmentDataSource.update(any()) }
     }
 
@@ -770,8 +811,8 @@ internal class UpdateAppointmentImplTest {
         then()
         assertEquals(AppointmentStatus.COMPLETED, result.getOrNull()?.status)
         assertEquals(stored.services.size * 2, result.getOrNull()?.services?.size)
-        coVerify(exactly = 0) { fixture.settings.isInWorkday(any()) }
-        coVerify(exactly = 0) { fixture.settings.isInWorktime(any(), any()) }
+        coVerify(exactly = 0) { fixture.businessClient.getAppointmentRescheduleContext(any(), any(), any(), any()) }
+        verify(exactly = 0) { fixture.settings.requireBookable(any(), any(), any()) }
         coVerify(exactly = 0) { fixture.appointmentDataSource.hasOverlapsWith(any()) }
     }
 
@@ -793,4 +834,134 @@ internal class UpdateAppointmentImplTest {
         then()
         assertTrue(result.exceptionOrNull() is UpdateAppointment.Error.AppointmentForThisTimeExists)
     }
+
+    @Test
+    fun `should check a rescheduled slot against the assigned employee's schedule`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val stored = Appointment.stub(date = futureDate)
+        fixture.givenValidUpdate(userId, stored)
+        every { fixture.settings.requireBookable(any(), any(), employeeSchedule) } throws
+            BookingScheduleError.EmployeeTimeNotAllowed()
+
+        whenn()
+        val result = fixture.sut(userId, keepingEverything(stored))
+
+        then()
+        assertTrue(result.exceptionOrNull() is BookingScheduleError.EmployeeTimeNotAllowed)
+        coVerify(exactly = 0) { fixture.appointmentDataSource.update(any()) }
+    }
+
+    @Test
+    fun `should move an appointment of a suspended employee it keeps, checking their schedule`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val stored = Appointment.stub(date = futureDate)
+        fixture.givenValidUpdate(userId, stored)
+        val suspended = sameEmployee(stored).copy(suspendedAt = Instant.parse("2000-01-01T00:00:00Z"))
+        coEvery {
+            fixture.businessClient.getAppointmentRescheduleContext(
+                stored.businessId,
+                stored.employee.id,
+                emptyList(),
+                true,
+            )
+        } returns Result.success(AppointmentRescheduleContext(employee = suspended, services = emptyList()))
+
+        whenn()
+        val result = fixture.sut(userId, keepingEverything(stored))
+
+        then()
+        assertTrue(result.isSuccess)
+        verify(exactly = 1) { fixture.settings.requireBookable(laterDate, any(), employeeSchedule) }
+    }
+
+    @Test
+    fun `should check only the business schedule when the kept employee was removed`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val stored = Appointment.stub(date = futureDate)
+        fixture.givenValidUpdate(userId, stored)
+        coEvery {
+            fixture.businessClient.getAppointmentRescheduleContext(
+                stored.businessId,
+                stored.employee.id,
+                emptyList(),
+                true,
+            )
+        } returns Result.success(AppointmentRescheduleContext(employee = null, services = emptyList()))
+
+        whenn()
+        val result = fixture.sut(userId, keepingEverything(stored))
+
+        then()
+        assertEquals(stored.employee, result.getOrNull()?.employee)
+        verify(exactly = 1) { fixture.settings.requireBookable(laterDate, any(), null) }
+    }
+
+    @Test
+    fun `should check the slot against the schedule of a newly assigned employee`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val stored = Appointment.stub(date = futureDate)
+        val newEmployee = Employee.stub(businessId = stored.businessId, schedule = Schedule.empty())
+        val update = keepingEverything(stored).copy(employeeId = newEmployee.id)
+        with(fixture) {
+            givenValidUpdate(userId, stored)
+            coEvery {
+                businessClient.getAppointmentRescheduleContext(stored.businessId, newEmployee.id, emptyList(), false)
+            } returns Result.success(AppointmentRescheduleContext(employee = newEmployee, services = emptyList()))
+            every { settings.requireBookable(any(), any(), Schedule.empty()) } throws
+                BookingScheduleError.EmployeeDateNotAllowed()
+        }
+
+        whenn()
+        val result = fixture.sut(userId, update)
+
+        then()
+        assertTrue(result.exceptionOrNull() is BookingScheduleError.EmployeeDateNotAllowed)
+        coVerify(exactly = 0) { fixture.appointmentDataSource.update(any()) }
+    }
+
+    @Test
+    fun `should check a scheduled appointment whose services change in place against the employee's schedule`() =
+        runUnitTest {
+            given()
+            val fixture = SutFixture()
+            val userId = Uuid.random()
+            val stored = Appointment.stub(date = futureDate)
+            fixture.givenValidUpdate(userId, stored)
+            val update = keepingEverything(stored, date = stored.date).copy(
+                services = stored.services.map { RequestedService(serviceId = it.id, count = 2) },
+            )
+
+            whenn()
+            val result = fixture.sut(userId, update)
+
+            then()
+            assertTrue(result.isSuccess)
+            verify(exactly = 1) { fixture.settings.requireBookable(any(), any(), employeeSchedule) }
+        }
+
+    @Test
+    fun `should not ask for the employee's schedule when only the note of a scheduled appointment changes`() =
+        runUnitTest {
+            given()
+            val fixture = SutFixture()
+            val userId = Uuid.random()
+            val stored = Appointment.stub(date = futureDate)
+            fixture.givenValidUpdate(userId, stored)
+
+            whenn()
+            val result = fixture.sut(userId, keepingEverything(stored, date = stored.date))
+
+            then()
+            assertTrue(result.isSuccess)
+            coVerify(exactly = 0) { fixture.businessClient.getAppointmentRescheduleContext(any(), any(), any(), any()) }
+            verify(exactly = 1) { fixture.settings.requireBookable(stored.date, stored.dateEnd, null) }
+        }
 }

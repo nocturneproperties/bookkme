@@ -20,9 +20,12 @@ internal class GetAppointmentRescheduleContextImpl(
         businessId: Uuid,
         employeeId: Uuid?,
         serviceIds: List<Uuid>,
+        currentAssignee: Boolean,
     ): Result<AppointmentRescheduleContext> = transactionManager.transaction {
         AppointmentRescheduleContext(
-            employee = employeeId?.let { resolveEmployee(businessId, it) },
+            employee = employeeId?.let {
+                if (currentAssignee) resolveCurrentAssignee(businessId, it) else resolveEmployee(businessId, it)
+            },
             services = resolveServices(businessId, serviceIds),
         )
     }
@@ -31,6 +34,10 @@ internal class GetAppointmentRescheduleContextImpl(
         val employee = employeeDataSource.getEmployee(businessId, employeeId) ?: throw Error.EmployeeNotFound()
         if (employee.isSuspended) throw Error.EmployeeSuspended()
         return employee
+    }
+
+    private suspend fun resolveCurrentAssignee(businessId: Uuid, employeeId: Uuid): Employee? {
+        return employeeDataSource.getEmployee(businessId, employeeId)
     }
 
     private suspend fun resolveServices(businessId: Uuid, serviceIds: List<Uuid>): List<Service> {

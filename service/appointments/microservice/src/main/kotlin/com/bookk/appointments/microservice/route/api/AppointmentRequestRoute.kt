@@ -59,14 +59,14 @@ fun Routing.requests() {
          * Create appointment request
          *
          * Summary: Create appointment request
-         * Description: Create new appointment request
+         * Description: Create new appointment request. The slot must fit both the business schedule and the employee's schedule, where a working range whose end is at or before its start runs past midnight
          * Tag: appointment
          * Security: jwt
          * Body: application/x-protobuf [com.bookk.appointments.domain.api.entity.AppointmentRequestDraft]
          * Response: 204 application/x-protobuf Request successfully created
          * Response: 400 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Create appointment request errors<br>PRICE_CHANGED (300013) While booking, price for services has been changed, refresh<br>DURATION_CHANGED (300017) While booking, duration for services has been changed, refresh<br>SERVICES_VALIDATION_FAILED (300014) Quote token invalid or requested services does not match with the quote token
          * Response: 404 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Create appointment request errors<br>BUSINESS_EMPLOYEE_NOT_EXISTS (200024) Employee with this id is missing<br>Also returned when the account booking was deleted
-         * Response: 422 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Create appointment request errors<br>REQUEST_EXISTS (300001) Request for this time already exists<br>DATE_NOT_ALLOWED (300003) Request for this date not allowed<br>TIME_NOT_ALLOWED (300002) Request for this time not allowed<br>DATE_IN_PAST (300012) Request date is in the past<br>QUOTE_TOKEN_ALREADY_USED (300016) Quote token invalid or requested services does not match with the quote token<br>BUSINESS_QUOTE_SERVICE_NOT_FOUND (200013) One or more services not found<br>BUSINESS_EMPLOYEE_SUSPENDED (200033) Employee is suspended and cannot be booked
+         * Response: 422 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Create appointment request errors<br>REQUEST_EXISTS (300001) Request for this time already exists<br>BUSINESS_DATE_NOT_ALLOWED (300003) The business does not work on this date<br>BUSINESS_TIME_NOT_ALLOWED (300002) This time is outside the business working hours<br>EMPLOYEE_DATE_NOT_ALLOWED (300027) The employee does not work on this date<br>EMPLOYEE_TIME_NOT_ALLOWED (300028) This time is outside the employee working hours<br>DATE_IN_PAST (300012) Request date is in the past<br>QUOTE_TOKEN_ALREADY_USED (300016) Quote token invalid or requested services does not match with the quote token<br>BUSINESS_QUOTE_SERVICE_NOT_FOUND (200013) One or more services not found<br>BUSINESS_EMPLOYEE_SUSPENDED (200033) Employee is suspended and cannot be booked
          * See: docs/operations/appointments/create-appointment-request.md
          */
         post<Api.Appointment.Request> {

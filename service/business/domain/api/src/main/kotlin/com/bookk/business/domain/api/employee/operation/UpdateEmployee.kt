@@ -27,6 +27,14 @@ interface UpdateEmployee {
             ),
             Error
 
+        class EmptyWorkHourRange :
+            BusinessError(
+                statusCode = HttpStatusCode.UnprocessableEntity.value,
+                code = BusinessErrorCodes.BUSINESS_EMPLOYEE_EMPTY_WORK_HOUR_RANGE,
+                message = "Working range must not start and end at the same time",
+            ),
+            Error
+
         class InvalidDayOffRange :
             BusinessError(
                 statusCode = HttpStatusCode.UnprocessableEntity.value,

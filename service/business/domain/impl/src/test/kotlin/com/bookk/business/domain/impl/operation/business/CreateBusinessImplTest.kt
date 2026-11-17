@@ -18,7 +18,10 @@ import com.bookk.server.user.client.api.UserSnapshot
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
+import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
+import library.schedule.DayOffRange
+import library.schedule.Schedule
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -80,6 +83,31 @@ internal class CreateBusinessImplTest {
                         it.permissions == BusinessPermissions.FULL
                 },
             )
+        }
+    }
+
+    @Test
+    fun `should give the owner the working week of the new business`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val business = Business.stub(name = "Name", currencyCode = "USD").copy(
+            schedule = Schedule().copy(dayOffs = listOf(DayOffRange(LocalDate(2026, 6, 22), LocalDate(2026, 6, 22)))),
+        )
+        with(fixture) {
+            transactionManager.mockTransaction()
+            coEvery { businessDataSource.isBusinessExist(userId) } returns false
+            coEvery { businessDataSource.createBusiness(userId, "Name", "USD", TimeZone.UTC) } returns business
+            coEvery { userClient.getUserById(userId) } returns Result.success(UserSnapshot.stub(id = userId))
+            coEvery { employeeDataSource.createEmployee(any()) } returns Employee.stub(businessId = business.id)
+        }
+
+        whenn()
+        fixture.sut(userId, BusinessCreateRequest(name = "Name", currencyCode = "USD", timeZone = TimeZone.UTC))
+
+        then()
+        coVerify(exactly = 1) {
+            fixture.employeeDataSource.createEmployee(match { it.schedule == business.schedule.workingWeek() })
         }
     }
 

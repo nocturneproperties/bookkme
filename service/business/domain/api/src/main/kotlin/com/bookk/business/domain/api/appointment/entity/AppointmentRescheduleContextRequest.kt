@@ -8,11 +8,17 @@ import kotlin.uuid.Uuid
 data class AppointmentRescheduleContextRequest(
     @ProtoNumber(1) val employeeId: Uuid?,
     @ProtoNumber(2) val serviceIds: List<Uuid>,
+    @ProtoNumber(3) val currentAssignee: Boolean = false,
 ) {
     companion object {
         fun stub(
             employeeId: Uuid? = Uuid.random(),
             serviceIds: List<Uuid> = listOf(Uuid.random()),
-        ) = AppointmentRescheduleContextRequest(employeeId = employeeId, serviceIds = serviceIds)
+            currentAssignee: Boolean = false,
+        ) = AppointmentRescheduleContextRequest(
+            employeeId = employeeId,
+            serviceIds = serviceIds,
+            currentAssignee = currentAssignee,
+        )
     }
 }
