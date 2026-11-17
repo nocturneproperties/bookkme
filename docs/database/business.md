@@ -25,7 +25,7 @@ erDiagram
 
     BUSINESS {
         uuid id PK
-        uuid user_id UK "logical FK -> user.profile.id (owner)"
+        uuid user_id "logical FK -> user.profile.id (owner); indexed, one user may own several businesses"
         string name
         string description
         string address
@@ -57,8 +57,8 @@ erDiagram
     }
 
     USER_LIMITS {
-        uuid user_id PK "logical FK -> user.profile.id; created on first business creation or join"
-        int max_businesses "nullable; operator override of how many businesses the user may own or work at, NULL means 20"
+        uuid user_id PK "logical FK -> user.profile.id; created on the user's first business creation"
+        int max_businesses "nullable; operator override of how many businesses the user may own, NULL means 20"
         timestamp created_at
     }
 
@@ -242,7 +242,7 @@ erDiagram
 
 `OUTBOX_EVENT` is not part of the business domain model either — it's the shared transactional outbox (`library/outbox`, one instance per service schema). `eventProducer.send` inserts the encoded event in the same transaction as the business write, so an event exists exactly when its write committed; `OutboxRelay` then locks the oldest rows (`SELECT … FOR UPDATE`), publishes them to Kafka (or the embedded transport in the monolith) and deletes them. Delivery is at-least-once, deduplicated by consumers through the event's idempotency key. See [Transactional outbox](../transactional-outbox.md).
 
-`USER_LIMITS` holds a person's own creation limits inside the business service. Creating a business and joining one create the row if it is missing and lock it (`SELECT … FOR UPDATE`) before counting the person's businesses, so their creates and joins run one at a time without a cross-service call; deleting the account deletes the row. Only an operator sets `max_businesses`.
+`USER_LIMITS` holds a person's own creation limits inside the business service. Creating a business creates the row if it is missing and locks it (`SELECT … FOR UPDATE`) before counting the businesses the person owns, so their creations run one at a time without a cross-service call; businesses they only work at don't count; deleting the account deletes the row. Only an operator sets `max_businesses`.
 
 `CLIENT` holds each client's name, last name, phone, email and notes encrypted under the client's own key (`*_encrypted`, `library/encryption`, keyed by `id`), and `EMPLOYEE` an employee's name, last name, phone and email under their user's key (keyed by `user_id`), so deleting the row and shredding that key leaves nothing readable in backups. A client's email stays unique within the business and searchable (booking takeover, imports, profile merges) through `email_index`, a keyed HMAC of the trimmed, lowercased email; employees are never looked up by contact, so they get no index. 0.19.0 dropped the plaintext columns that rows written before 0.18.0 had.
 

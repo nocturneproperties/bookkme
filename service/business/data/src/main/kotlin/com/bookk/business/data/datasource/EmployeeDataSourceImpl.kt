@@ -61,10 +61,6 @@ internal class EmployeeDataSourceImpl(private val contactCipher: ContactCipher) 
             .count()
     }
 
-    override suspend fun countBusinessesOfUser(userId: Uuid): Long = dbQuery {
-        EmployeeTable.selectAll().where { EmployeeTable.userId eq userId }.count()
-    }
-
     override suspend fun getEmployees(businessId: Uuid): List<Employee> = dbQuery {
         EmployeeEntity.find {
             EmployeeTable.businessId eq businessId
@@ -174,6 +170,7 @@ internal class EmployeeDataSourceImpl(private val contactCipher: ContactCipher) 
         EmployeeTable.innerJoin(BusinessTable)
             .select(EmployeeTable.userId)
             .where { (BusinessTable.userId eq ownerUserId) and (EmployeeTable.userId neq ownerUserId) }
+            .withDistinct()
             .map { it[EmployeeTable.userId] }
     }
 

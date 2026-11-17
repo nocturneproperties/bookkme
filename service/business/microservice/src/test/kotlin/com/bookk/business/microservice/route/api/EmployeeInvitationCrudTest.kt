@@ -357,33 +357,6 @@ internal class EmployeeInvitationCrudTest {
     }
 
     @Test
-    fun `should return unprocessable entity when the user belongs to their maximum of businesses on join`() = routeTest {
-        given()
-        val useCase: JoinBusiness = mockk()
-        coEvery { useCase.invoke(userId, "ABCD1234") } returns
-            Result.failure(JoinBusiness.Error.MembershipsLimitReached())
-
-        setupApplication(
-            extension = jwtAuthentication(),
-            diModule = module { single { useCase } },
-            routeUnderTest = { employeeInvitationCrud() },
-        )
-
-        whenn()
-        val client = createTestClient()
-        val response = client.post(BusinessRouting.Api.RedeemEmployeeInvitation()) {
-            setBody(EmployeeInvitationRedeemRequest(code = "ABCD1234"))
-        }
-
-        then()
-        assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
-        assertEquals(
-            BusinessErrorCodes.BUSINESS_MEMBERSHIPS_LIMIT_REACHED,
-            response.body<SimpleServerError>().errorCode,
-        )
-    }
-
-    @Test
     fun `should return unprocessable entity when the business is full on join`() = routeTest {
         given()
         val useCase: JoinBusiness = mockk()

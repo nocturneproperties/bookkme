@@ -5,7 +5,6 @@ import library.permissions.PermissionErrorCodes
 object BusinessErrorCodes {
     private const val BASE = 200000
 
-    const val BUSINESS_ALREADY_EXIST = BASE + 1
     const val BUSINESS_NAME_VALIDATION_ERROR = BASE + 2
     const val BUSINESS_NOT_FOUND = BASE + 3
 
@@ -61,7 +60,7 @@ object BusinessErrorCodes {
     const val BUSINESS_EMPTY_WORK_HOUR_RANGE = BASE + 42
     const val BUSINESS_EMPLOYEE_EMPTY_WORK_HOUR_RANGE = BASE + 43
     const val BUSINESS_EMPLOYEES_LIMIT_REACHED = BASE + 44
-    const val BUSINESS_MEMBERSHIPS_LIMIT_REACHED = BASE + 45
+    const val BUSINESS_OWNED_BUSINESSES_LIMIT_REACHED = BASE + 45
     const val BUSINESS_CLIENTS_LIMIT_REACHED = BASE + 46
     const val BUSINESS_SERVICES_LIMIT_REACHED = BASE + 47
     const val BUSINESS_SERVICE_GROUPS_LIMIT_REACHED = BASE + 48

@@ -194,29 +194,48 @@ internal class BusinessDataSourceImplTest {
     }
 
     @Test
-    fun `should report business exists after creation`() = runUnitTest {
+    fun `should let one user own several businesses`() = runUnitTest {
         given()
         val fixture = SutFixture()
         val userId = Uuid.random()
         suspendTransaction { fixture.sut.createBusiness(userId, "Salon", "USD", TimeZone.UTC) }
 
         whenn()
-        val exists = suspendTransaction { fixture.sut.isBusinessExist(userId) }
+        val second = suspendTransaction { fixture.sut.createBusiness(userId, "Barbershop", "USD", TimeZone.UTC) }
 
         then()
-        assertTrue(exists)
+        assertTrue(suspendTransaction { fixture.sut.isOwner(userId, second.id) })
     }
 
     @Test
-    fun `should report business does not exist for unknown user`() = runUnitTest {
+    fun `should count only the businesses the user owns`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        suspendTransaction {
+            fixture.sut.createBusiness(userId, "Salon", "USD", TimeZone.UTC)
+            fixture.sut.createBusiness(userId, "Barbershop", "USD", TimeZone.UTC)
+            val employer = fixture.sut.createBusiness(Uuid.random(), "Employer", "USD", TimeZone.UTC)
+            fixture.employeeSut.createEmployee(Employee.stub(businessId = employer.id, userId = userId))
+        }
+
+        whenn()
+        val count = suspendTransaction { fixture.sut.countBusinessesOwnedBy(userId) }
+
+        then()
+        assertEquals(2L, count)
+    }
+
+    @Test
+    fun `should count no businesses for a user who owns none`() = runUnitTest {
         given()
         val fixture = SutFixture()
 
         whenn()
-        val exists = suspendTransaction { fixture.sut.isBusinessExist(Uuid.random()) }
+        val count = suspendTransaction { fixture.sut.countBusinessesOwnedBy(Uuid.random()) }
 
         then()
-        assertFalse(exists)
+        assertEquals(0L, count)
     }
 
     @Test

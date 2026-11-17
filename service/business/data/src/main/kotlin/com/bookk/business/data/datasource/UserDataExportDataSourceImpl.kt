@@ -44,7 +44,7 @@ internal class UserDataExportDataSourceImpl(
         val businessNames =
             businessNames(employees.map { it.businessId.value } + clients.map { it.businessId.value })
         BusinessUserDataExport(
-            ownedBusiness = BusinessEntity.find { BusinessTable.userId eq userId }.singleOrNull()?.toExport(),
+            ownedBusinesses = BusinessEntity.find { BusinessTable.userId eq userId }.map { it.toExport() },
             employments = employees.zip(employeeContacts) { entity, contact ->
                 entity.toDomain(contact).toExport(businessNames.getValue(entity.businessId.value))
             },

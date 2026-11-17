@@ -73,11 +73,8 @@ internal class BusinessDataSourceImpl : DataSource(), BusinessDataSource {
         }
     }
 
-    override suspend fun isBusinessExist(userId: Uuid): Boolean = dbQuery {
-        BusinessTable.select(BusinessTable.id)
-            .where { BusinessTable.userId eq userId }
-            .empty()
-            .not()
+    override suspend fun countBusinessesOwnedBy(userId: Uuid): Long = dbQuery {
+        BusinessTable.select(BusinessTable.id).where { BusinessTable.userId eq userId }.count()
     }
 
     override suspend fun isOwner(userId: Uuid, businessId: Uuid): Boolean = dbQuery {

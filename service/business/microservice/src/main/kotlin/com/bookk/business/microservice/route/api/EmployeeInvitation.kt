@@ -72,7 +72,7 @@ fun Route.employeeInvitationCrud() {
          * Body: application/x-protobuf [com.bookk.business.microservice.route.api.EmployeeInvitationRedeemRequest]
          * Response: 200 application/x-protobuf [com.bookk.business.domain.api.employee.entity.Employee] Created employee
          * Response: 404 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Invite code is unknown
-         * Response: 422 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Join business errors<br>BUSINESS_EMPLOYEE_INVITATION_CODE_EMPTY (200031) Invitation code must not be empty<br>BUSINESS_EMPLOYEE_INVITATION_ALREADY_PROCESSED (200017) Invitation is already processed<br>BUSINESS_EMPLOYEE_EXISTS (200018) User is already an employee of this business<br>BUSINESS_EMPLOYEES_LIMIT_REACHED (200044) Business already has the maximum number of employees<br>BUSINESS_MEMBERSHIPS_LIMIT_REACHED (200045) You already belong to the maximum number of businesses
+         * Response: 422 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Join business errors<br>BUSINESS_EMPLOYEE_INVITATION_CODE_EMPTY (200031) Invitation code must not be empty<br>BUSINESS_EMPLOYEE_INVITATION_ALREADY_PROCESSED (200017) Invitation is already processed<br>BUSINESS_EMPLOYEE_EXISTS (200018) User is already an employee of this business<br>BUSINESS_EMPLOYEES_LIMIT_REACHED (200044) Business already has the maximum number of employees
          * See: docs/operations/business/join-business.md
          */
         post<Api.RedeemEmployeeInvitation> {

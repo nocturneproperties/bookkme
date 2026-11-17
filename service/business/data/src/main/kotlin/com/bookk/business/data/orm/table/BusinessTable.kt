@@ -13,7 +13,7 @@ private val MONDAY_TO_FRIDAY: Byte = DayOfWeek.entries
     .fold(0) { acc, day -> acc or (1 shl day.isoDayNumber).toByte() }
 
 object BusinessTable : UuidTable("business") {
-    val userId = uuid("user_id").uniqueIndex()
+    val userId = uuid("user_id").index()
     val name = varchar("name", 512)
     val description = varchar("description", 1024)
     val address = varchar("address", 512)
