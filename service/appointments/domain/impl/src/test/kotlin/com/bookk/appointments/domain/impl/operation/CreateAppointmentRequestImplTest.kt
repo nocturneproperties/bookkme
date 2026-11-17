@@ -77,7 +77,9 @@ internal class CreateAppointmentRequestImplTest {
     private val futureDate = Instant.parse("2099-01-01T00:00:00Z")
 
     private class SutFixture {
-        val requestDataSource = mockk<AppointmentRequestDataSource>()
+        val requestDataSource = mockk<AppointmentRequestDataSource> {
+            coEvery { countPendingByUser(any(), any()) } returns 0
+        }
         val appointmentDataSource = mockk<AppointmentDataSource>()
         val settingsDataSource = mockk<AppointmentSettingsDataSource>()
         val createAppointment = mockk<CreateAppointment>()
@@ -196,6 +198,7 @@ internal class CreateAppointmentRequestImplTest {
             } returns Result.success(context)
             coEvery { settingsDataSource.getForUpdate(businessId) } returns settings
             coEvery { settings.automaticApproval } returns false
+            every { settings.maxPendingRequestsPerClient } returns 10
             every { settings.requireBookable(any(), any(), any()) } just Runs
             coEvery { requestDataSource.hasOverlapsWith(any()) } returns false
             coEvery { appointmentDataSource.hasOverlapsWith(any()) } returns false
@@ -246,6 +249,7 @@ internal class CreateAppointmentRequestImplTest {
             } returns Result.success(context)
             coEvery { settingsDataSource.getForUpdate(businessId) } returns settings
             coEvery { settings.automaticApproval } returns false
+            every { settings.maxPendingRequestsPerClient } returns 10
             every { settings.requireBookable(any(), any(), any()) } just Runs
             coEvery { requestDataSource.hasOverlapsWith(any()) } returns false
             coEvery { appointmentDataSource.hasOverlapsWith(any()) } returns false
@@ -360,6 +364,7 @@ internal class CreateAppointmentRequestImplTest {
             } returns Result.success(context)
             coEvery { settingsDataSource.getForUpdate(businessId) } returns settings
             coEvery { settings.automaticApproval } returns false
+            every { settings.maxPendingRequestsPerClient } returns 10
             every { settings.requireBookable(draft.date, any(), any()) } throws
                 BookingScheduleError.BusinessDateNotAllowed()
             mockValidToken(draft, totalOf(expand(context, draft)), durationOf(expand(context, draft)))
@@ -391,6 +396,7 @@ internal class CreateAppointmentRequestImplTest {
             } returns Result.success(context)
             coEvery { settingsDataSource.getForUpdate(businessId) } returns settings
             coEvery { settings.automaticApproval } returns false
+            every { settings.maxPendingRequestsPerClient } returns 10
             mockValidToken(draft, totalOf(expand(context, draft)), durationOf(expand(context, draft)))
             transactionManager.mockTransaction()
         }
@@ -448,6 +454,7 @@ internal class CreateAppointmentRequestImplTest {
             } returns Result.success(context)
             coEvery { settingsDataSource.getForUpdate(businessId) } returns settings
             coEvery { settings.automaticApproval } returns false
+            every { settings.maxPendingRequestsPerClient } returns 10
             every { settings.requireBookable(any(), any(), any()) } throws BookingScheduleError.BusinessTimeNotAllowed()
             mockValidToken(draft, totalOf(expand(context, draft)), durationOf(expand(context, draft)))
             transactionManager.mockTransaction()
@@ -478,6 +485,7 @@ internal class CreateAppointmentRequestImplTest {
             } returns Result.success(context)
             coEvery { settingsDataSource.getForUpdate(businessId) } returns settings
             coEvery { settings.automaticApproval } returns false
+            every { settings.maxPendingRequestsPerClient } returns 10
             every { settings.requireBookable(any(), any(), any()) } just Runs
             coEvery { requestDataSource.hasOverlapsWith(any()) } returns false
             coEvery { appointmentDataSource.hasOverlapsWith(any()) } returns false
@@ -497,6 +505,152 @@ internal class CreateAppointmentRequestImplTest {
     }
 
     @Test
+    fun `should reject a request when the client already has the business's maximum of pending requests`() =
+        runUnitTest {
+            given()
+            val fixture = SutFixture()
+            val userId = Uuid.random()
+            val businessId = Uuid.random()
+            val context = bookingContext(businessId, Uuid.random(), Uuid.random(), Uuid.random())
+            val draft = draftFor(context, businessId, futureDate)
+            val settings = mockk<AppointmentSettings>()
+
+            with(fixture) {
+                coEvery {
+                    businessClient.getAppointmentBookingContext(
+                        businessId,
+                        draft.employeeId,
+                        userId,
+                        distinctIds(draft),
+                    )
+                } returns Result.success(context)
+                coEvery { settingsDataSource.getForUpdate(businessId) } returns settings
+                every { settings.automaticApproval } returns false
+                every { settings.maxPendingRequestsPerClient } returns 3
+                every { settings.requireBookable(any(), any(), any()) } just Runs
+                coEvery { requestDataSource.hasOverlapsWith(any()) } returns false
+                coEvery { appointmentDataSource.hasOverlapsWith(any()) } returns false
+                coEvery { requestDataSource.countPendingByUser(userId, businessId) } returns 3
+                mockValidToken(draft, totalOf(expand(context, draft)), durationOf(expand(context, draft)))
+                transactionManager.mockTransaction()
+            }
+
+            whenn()
+            val result = fixture.sut.invoke(userId, draft)
+
+            then()
+            assertTrue(result.exceptionOrNull() is CreateAppointmentRequest.Error.PendingRequestsLimitReached)
+            coVerify(exactly = 0) { fixture.requestDataSource.create(any()) }
+        }
+
+    @Test
+    fun `should report a past date rather than the pending request limit`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val businessId = Uuid.random()
+        val context = bookingContext(businessId, Uuid.random(), Uuid.random(), Uuid.random())
+        val draft = draftFor(context, businessId, Instant.parse("2000-01-01T00:00:00Z"))
+        val settings = mockk<AppointmentSettings>()
+
+        with(fixture) {
+            coEvery {
+                businessClient.getAppointmentBookingContext(businessId, draft.employeeId, userId, distinctIds(draft))
+            } returns Result.success(context)
+            coEvery { settingsDataSource.getForUpdate(businessId) } returns settings
+            every { settings.automaticApproval } returns false
+            every { settings.maxPendingRequestsPerClient } returns 3
+            coEvery { requestDataSource.countPendingByUser(userId, businessId) } returns 3
+            mockValidToken(draft, totalOf(expand(context, draft)), durationOf(expand(context, draft)))
+            transactionManager.mockTransaction()
+        }
+
+        whenn()
+        val result = fixture.sut.invoke(userId, draft)
+
+        then()
+        assertTrue(result.exceptionOrNull() is CreateAppointmentRequest.Error.DateInThePastNotAllowed)
+    }
+
+    @Test
+    fun `should accept a request while the client has fewer pending requests than the business allows`() =
+        runUnitTest {
+            given()
+            val fixture = SutFixture()
+            val userId = Uuid.random()
+            val businessId = Uuid.random()
+            val context = bookingContext(businessId, Uuid.random(), Uuid.random(), Uuid.random())
+            val draft = draftFor(context, businessId, futureDate)
+            val settings = mockk<AppointmentSettings>()
+
+            with(fixture) {
+                coEvery {
+                    businessClient.getAppointmentBookingContext(
+                        businessId,
+                        draft.employeeId,
+                        userId,
+                        distinctIds(draft),
+                    )
+                } returns Result.success(context)
+                coEvery { settingsDataSource.getForUpdate(businessId) } returns settings
+                every { settings.automaticApproval } returns false
+                every { settings.maxPendingRequestsPerClient } returns 3
+                every { settings.requireBookable(any(), any(), any()) } just Runs
+                coEvery { requestDataSource.countPendingByUser(userId, businessId) } returns 2
+                coEvery { requestDataSource.hasOverlapsWith(any()) } returns false
+                coEvery { appointmentDataSource.hasOverlapsWith(any()) } returns false
+                coEvery { requestDataSource.create(any()) } answers { firstArg() }
+                coEvery { subscriptionDataSource.getBusinessSnapshot(any()) } returns BusinessSnapshot.stub()
+                coEvery { eventProducer.send(any(), any()) } returns Unit
+                mockValidToken(draft, totalOf(expand(context, draft)), durationOf(expand(context, draft)))
+                transactionManager.mockTransaction()
+            }
+
+            whenn()
+            val result = fixture.sut.invoke(userId, draft)
+
+            then()
+            assertTrue(result.isSuccess)
+            coVerifyOrder {
+                fixture.settingsDataSource.getForUpdate(businessId)
+                fixture.requestDataSource.countPendingByUser(userId, businessId)
+                fixture.requestDataSource.create(any())
+            }
+        }
+
+    @Test
+    fun `should not limit pending requests when the business approves bookings automatically`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val businessId = Uuid.random()
+        val context = bookingContext(businessId, Uuid.random(), Uuid.random(), Uuid.random())
+        val draft = draftFor(context, businessId, futureDate)
+        val settings = AppointmentSettings.stub(businessId).copy(
+            automaticApproval = true,
+            maxPendingRequestsPerClient = 0,
+        )
+
+        with(fixture) {
+            coEvery {
+                businessClient.getAppointmentBookingContext(businessId, draft.employeeId, userId, distinctIds(draft))
+            } returns Result.success(context)
+            coEvery { settingsDataSource.getForUpdate(businessId) } returns settings
+            coEvery { createAppointment.createBypassingPermissions(any(), any()) } returns
+                Result.success(mockk())
+            mockValidToken(draft, totalOf(expand(context, draft)), durationOf(expand(context, draft)))
+            transactionManager.mockTransaction()
+        }
+
+        whenn()
+        val result = fixture.sut.invoke(userId, draft)
+
+        then()
+        assertTrue(result.isSuccess)
+        coVerify(exactly = 0) { fixture.requestDataSource.countPendingByUser(any(), any()) }
+    }
+
+    @Test
     fun `should return failure when request overlaps with existing appointment`() = runUnitTest {
         given()
         val fixture = SutFixture()
@@ -512,6 +666,7 @@ internal class CreateAppointmentRequestImplTest {
             } returns Result.success(context)
             coEvery { settingsDataSource.getForUpdate(businessId) } returns settings
             coEvery { settings.automaticApproval } returns false
+            every { settings.maxPendingRequestsPerClient } returns 10
             every { settings.requireBookable(any(), any(), any()) } just Runs
             coEvery { requestDataSource.hasOverlapsWith(any()) } returns true
             mockValidToken(draft, totalOf(expand(context, draft)), durationOf(expand(context, draft)))
@@ -543,6 +698,7 @@ internal class CreateAppointmentRequestImplTest {
             } returns Result.success(context)
             coEvery { settingsDataSource.getForUpdate(businessId) } returns settings
             coEvery { settings.automaticApproval } returns false
+            every { settings.maxPendingRequestsPerClient } returns 10
             every { settings.requireBookable(any(), any(), any()) } just Runs
             coEvery { requestDataSource.hasOverlapsWith(any()) } returns false
             coEvery { appointmentDataSource.hasOverlapsWith(any()) } returns false
@@ -733,6 +889,7 @@ internal class CreateAppointmentRequestImplTest {
             } returns Result.success(context)
             coEvery { settingsDataSource.getForUpdate(businessId) } returns settings
             coEvery { settings.automaticApproval } returns false
+            every { settings.maxPendingRequestsPerClient } returns 10
             every { settings.requireBookable(any(), any(), any()) } just Runs
             coEvery { requestDataSource.hasOverlapsWith(any()) } returns false
             coEvery { appointmentDataSource.hasOverlapsWith(any()) } returns false
@@ -770,6 +927,7 @@ internal class CreateAppointmentRequestImplTest {
             } returns Result.success(context)
             coEvery { settingsDataSource.getForUpdate(businessId) } returns settings
             coEvery { settings.automaticApproval } returns false
+            every { settings.maxPendingRequestsPerClient } returns 10
             every { settings.requireBookable(any(), any(), any()) } just Runs
             coEvery { requestDataSource.hasOverlapsWith(any()) } returns false
             coEvery { appointmentDataSource.hasOverlapsWith(any()) } returns false
@@ -808,6 +966,7 @@ internal class CreateAppointmentRequestImplTest {
             } returns Result.success(context)
             coEvery { settingsDataSource.getForUpdate(businessId) } returns settings
             coEvery { settings.automaticApproval } returns false
+            every { settings.maxPendingRequestsPerClient } returns 10
             every { settings.requireBookable(any(), any(), any()) } just Runs
             coEvery { requestDataSource.hasOverlapsWith(any()) } returns false
             coEvery { appointmentDataSource.hasOverlapsWith(any()) } returns false
@@ -847,6 +1006,7 @@ internal class CreateAppointmentRequestImplTest {
             } returns Result.success(context)
             coEvery { settingsDataSource.getForUpdate(businessId) } returns settings
             coEvery { settings.automaticApproval } returns false
+            every { settings.maxPendingRequestsPerClient } returns 10
             every { settings.requireBookable(any(), any(), any()) } just Runs
             coEvery { requestDataSource.hasOverlapsWith(any()) } returns false
             coEvery { appointmentDataSource.hasOverlapsWith(any()) } returns false
@@ -887,6 +1047,7 @@ internal class CreateAppointmentRequestImplTest {
             } returns Result.success(context)
             coEvery { settingsDataSource.getForUpdate(businessId) } returns settings
             coEvery { settings.automaticApproval } returns false
+            every { settings.maxPendingRequestsPerClient } returns 10
             every { settings.requireBookable(any(), any(), any()) } just Runs
             coEvery { requestDataSource.hasOverlapsWith(any()) } returns false
             coEvery { appointmentDataSource.hasOverlapsWith(any()) } returns false
@@ -928,6 +1089,7 @@ internal class CreateAppointmentRequestImplTest {
             } returns Result.success(context)
             coEvery { settingsDataSource.getForUpdate(businessId) } returns settings
             coEvery { settings.automaticApproval } returns false
+            every { settings.maxPendingRequestsPerClient } returns 10
             every { settings.requireBookable(any(), any(), any()) } just Runs
             coEvery { requestDataSource.hasOverlapsWith(any()) } returns false
             coEvery { appointmentDataSource.hasOverlapsWith(any()) } returns false
@@ -1112,6 +1274,7 @@ internal class CreateAppointmentRequestImplTest {
             } returns Result.success(context)
             coEvery { settingsDataSource.getForUpdate(businessId) } returns settings
             coEvery { settings.automaticApproval } returns false
+            every { settings.maxPendingRequestsPerClient } returns 10
             every { settings.requireBookable(any(), any(), any()) } just Runs
             coEvery { requestDataSource.hasOverlapsWith(any()) } returns false
             coEvery { appointmentDataSource.hasOverlapsWith(any()) } returns false
@@ -1153,6 +1316,7 @@ internal class CreateAppointmentRequestImplTest {
             } returns Result.success(context)
             coEvery { settingsDataSource.getForUpdate(businessId) } returns settings
             coEvery { settings.automaticApproval } returns false
+            every { settings.maxPendingRequestsPerClient } returns 10
             every { settings.requireBookable(any(), any(), any()) } just Runs
             coEvery { requestDataSource.hasOverlapsWith(any()) } returns false
             coEvery { appointmentDataSource.hasOverlapsWith(any()) } returns false
@@ -1194,6 +1358,7 @@ internal class CreateAppointmentRequestImplTest {
             } returns Result.success(context)
             coEvery { settingsDataSource.getForUpdate(businessId) } returns settings
             coEvery { settings.automaticApproval } returns false
+            every { settings.maxPendingRequestsPerClient } returns 10
             every { settings.requireBookable(any(), any(), any()) } just Runs
             coEvery { requestDataSource.hasOverlapsWith(any()) } returns false
             coEvery { appointmentDataSource.hasOverlapsWith(any()) } returns false
@@ -1242,6 +1407,7 @@ internal class CreateAppointmentRequestImplTest {
             } returns Result.success(context)
             coEvery { settingsDataSource.getForUpdate(businessId) } returns settings
             coEvery { settings.automaticApproval } returns false
+            every { settings.maxPendingRequestsPerClient } returns 10
             every { settings.requireBookable(draft.date, any(), employeeSchedule) } throws
                 BookingScheduleError.EmployeeTimeNotAllowed()
             mockValidToken(draft, totalOf(expand(context, draft)), durationOf(expand(context, draft)))
@@ -1273,6 +1439,7 @@ internal class CreateAppointmentRequestImplTest {
             } returns Result.success(context)
             coEvery { settingsDataSource.getForUpdate(businessId) } returns settings
             coEvery { settings.automaticApproval } returns false
+            every { settings.maxPendingRequestsPerClient } returns 10
             every {
                 settings.requireBookable(draft.date, any(), context.employee.schedule)
             } throws BookingScheduleError.EmployeeDateNotAllowed()

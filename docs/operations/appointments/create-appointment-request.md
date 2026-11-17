@@ -88,6 +88,17 @@ details and before the booking reached appointments. A client deletion
 running at the same moment either finishes first or waits for the booking
 and then erases it by `client_id`.
 
+A user holds at most a fixed number of pending requests at one business
+(`AppointmentSettings.maxPendingRequestsPerClient`: 10, or the value an
+operator stored in `appointment_settings.max_pending_requests_per_client`).
+The count runs after the settings row lock, so concurrent requests by the same
+user can't both take the last slot. Only requests waiting for approval count;
+a business that approves automatically books straight away and isn't limited.
+The limit is checked after the date, schedule and overlap checks, so a request
+that is wrong anyway reports that error. The client frees a place by
+withdrawing a request ([Withdraw appointment
+request](withdraw-appointment-request.md)).
+
 ```mermaid
 flowchart TD
     Start([POST /api/appointments/request]) --> Auth{JWT valid?}
@@ -145,7 +156,9 @@ flowchart TD
     OverlapRequests -- Yes --> R422f([422 REQUEST_EXISTS 300001])
     OverlapRequests -- No --> OverlapAppointments{AppointmentDataSource.hasOverlapsWith<br/>overlaps a SCHEDULED appointment of the client?}
     OverlapAppointments -- Yes --> R422f
-    OverlapAppointments -- No --> Create[AppointmentRequestDataSource.create request]
+    OverlapAppointments -- No --> Pending{AppointmentRequestDataSource.countPendingByUser userId businessId >= settings.maxPendingRequestsPerClient?}
+    Pending -- Yes --> R422p([422 PENDING_REQUESTS_LIMIT_REACHED 300029])
+    Pending -- No --> Create[AppointmentRequestDataSource.create request]
     Create --> Snapshot[AppointmentSubscriptionDataSource.getBusinessSnapshot businessId]
     Snapshot -- missing --> R404d([404 Error.NotFound - logged as data inconsistency])
     Snapshot -- found --> Visit[eventProducer.send AppointmentEvent.ClientVisitBooked businessId client.id dateEnd]

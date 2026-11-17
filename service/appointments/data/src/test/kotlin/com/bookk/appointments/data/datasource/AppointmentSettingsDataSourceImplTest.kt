@@ -18,7 +18,9 @@ import kotlinx.datetime.LocalTime
 import library.schedule.DayOffRange
 import library.schedule.Schedule
 import library.schedule.WorkHour
+import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
+import org.jetbrains.exposed.v1.jdbc.update
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
@@ -62,6 +64,70 @@ internal class AppointmentSettingsDataSourceImplTest {
         assertNotNull(found)
         assertEquals(fixture.businessId, found!!.businessId)
         assertEquals(settings.inBetweenBreakInMinutes, created.inBetweenBreakInMinutes)
+    }
+
+    @Test
+    fun `should give new settings the default pending request limit`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+
+        whenn()
+        suspendTransaction {
+            fixture.sut.create(AppointmentSettings.stub(fixture.businessId).copy(maxPendingRequestsPerClient = 1))
+        }
+        val found = suspendTransaction { fixture.sut.getForUpdate(fixture.businessId) }
+
+        then()
+        assertEquals(AppointmentSettings.DEFAULT_MAX_PENDING_REQUESTS_PER_CLIENT, found!!.maxPendingRequestsPerClient)
+    }
+
+    @Test
+    fun `should read the pending request limit stored for the business`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        suspendTransaction { fixture.sut.create(AppointmentSettings.stub(fixture.businessId)) }
+        suspendTransaction {
+            SettingsTable.update({ SettingsTable.businessId eq fixture.businessId }) {
+                it[maxPendingRequestsPerClient] = 25
+            }
+        }
+
+        whenn()
+        val found = suspendTransaction { fixture.sut.getForUpdate(fixture.businessId) }
+
+        then()
+        assertEquals(25, found!!.maxPendingRequestsPerClient)
+    }
+
+    @Test
+    fun `should keep the stored pending request limit when updating settings`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        suspendTransaction { fixture.sut.create(AppointmentSettings.stub(fixture.businessId)) }
+        suspendTransaction {
+            SettingsTable.update({ SettingsTable.businessId eq fixture.businessId }) {
+                it[maxPendingRequestsPerClient] = 25
+            }
+        }
+
+        whenn()
+        val updated = suspendTransaction {
+            fixture.sut.update(
+                AppointmentSettingsUpdate(
+                    businessId = fixture.businessId,
+                    inBetweenBreakInMinutes = 5,
+                    appointmentNote = "",
+                    automaticApproval = true,
+                    automaticCompletion = null,
+                ),
+            )
+        }
+
+        then()
+        assertEquals(25, updated.maxPendingRequestsPerClient)
     }
 
     @Test

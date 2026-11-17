@@ -25,5 +25,13 @@ interface CreateAppointmentRequest {
                 message = "Request date is in the past",
             ),
             Error
+
+        class PendingRequestsLimitReached :
+            BusinessError(
+                statusCode = HttpStatusCode.UnprocessableEntity.value,
+                code = AppointmentErrorCodes.PENDING_REQUESTS_LIMIT_REACHED,
+                message = "You already have the maximum number of pending requests at this business",
+            ),
+            Error
     }
 }

@@ -155,6 +155,7 @@ erDiagram
         string appointment_note
         bool automatic_approval
         bool automatic_completion "default true; completes appointments after their business-local end day; unresolved expiry always runs"
+        int max_pending_requests_per_client "nullable; operator override of the pending requests one user may hold at the business, NULL means 10"
         timestamp createdAt
         timestamp updatedAt
     }
