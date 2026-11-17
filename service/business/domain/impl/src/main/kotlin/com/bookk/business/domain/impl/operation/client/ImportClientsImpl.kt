@@ -7,10 +7,13 @@ import com.bookk.business.domain.api.client.entity.RejectedClient
 import com.bookk.business.domain.api.client.entity.toRemote
 import com.bookk.business.domain.api.client.operation.ImportClients
 import com.bookk.business.domain.api.error.BusinessErrorCodes
+import com.bookk.business.domain.datasource.BusinessDataSource
 import com.bookk.business.domain.datasource.BusinessPermissionDataSource
 import com.bookk.business.domain.datasource.ClientDataSource
+import com.bookk.business.domain.datasource.RowLock
 import com.bookk.core.domain.datasource.transaction.TransactionManager
 import com.bookk.core.domain.entity.BusinessError
+import com.bookk.core.domain.entity.Error
 import com.bookk.core.domain.entity.onConstraintFailure
 import library.permissions.PermissionAction
 import library.permissions.assert
@@ -20,12 +23,14 @@ internal class ImportClientsImpl(
     private val transactionManager: TransactionManager,
     private val clientDataSource: ClientDataSource,
     private val businessPermissionDataSource: BusinessPermissionDataSource,
+    private val businessDataSource: BusinessDataSource,
 ) : ImportClients {
     override suspend fun invoke(
         requestUserId: Uuid,
         businessId: Uuid,
         clients: List<Client.Detached>,
     ): Result<ClientImportResult> = transactionManager.transaction {
+        val locked = businessDataSource.lockBusiness(businessId, RowLock.EXCLUSIVE) ?: throw Error.NotFound()
         businessPermissionDataSource.getPermission(requestUserId, businessId, BusinessResource.CLIENTS)
             .assert(PermissionAction.UPDATE)
         if (clients.size > ImportClients.MAX_CLIENTS) throw ImportClients.Error.TooManyClients()
@@ -49,14 +54,19 @@ internal class ImportClientsImpl(
             .mapNotNull { it.email?.lowercase() }
             .toMutableSet()
 
-        val accepted = validated.mapNotNull { (index, fields) ->
+        val unique = validated.filter { (index, fields) ->
             val email = fields.email?.lowercase()
-            if (email != null && !takenEmails.add(email)) {
-                rejected += RejectedClient(index, BusinessErrorCodes.BUSINESS_CLIENT_EXISTS)
-                return@mapNotNull null
-            }
-            fields.toDetachedClient()
+            val isDuplicate = email != null && !takenEmails.add(email)
+            if (isDuplicate) rejected += RejectedClient(index, BusinessErrorCodes.BUSINESS_CLIENT_EXISTS)
+            !isDuplicate
         }
+
+        val freeSlots = (locked.limits.maxClients - clientDataSource.countClients(businessId))
+            .coerceIn(0L, unique.size.toLong())
+            .toInt()
+        rejected +=
+            unique.drop(freeSlots).map { RejectedClient(it.index, BusinessErrorCodes.BUSINESS_CLIENTS_LIMIT_REACHED) }
+        val accepted = unique.take(freeSlots).map { it.value.toDetachedClient() }
 
         val created = if (accepted.isEmpty()) {
             emptyList()
