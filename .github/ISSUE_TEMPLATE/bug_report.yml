@@ -1,0 +1,95 @@
+name: Bug report
+description: Something in BookkMe does not work as it should.
+title: "[BUG] "
+labels: ["bug"]
+type: Bug
+assignees: ["an22"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. Issues are for bugs only: ideas go to [Discussions](https://github.com/nocturneproperties/bookkme/discussions/categories/ideas), and security problems go to [private vulnerability reporting](https://github.com/nocturneproperties/bookkme/security/advisories/new).
+  - type: input
+    id: version
+    attributes:
+      label: BookkMe version
+      description: The server version you run (image tag or the top entry of RELEASE_NOTES.md). Write "hosted" if you use bookkme.app.
+      placeholder: "0.20.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: setup
+    attributes:
+      label: How do you run BookkMe?
+      options:
+        - Hosted (bookkme.app)
+        - Self-hosted monolith
+        - Self-hosted microservices
+        - Local development setup
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected area
+      options:
+        - Sign-in and accounts
+        - Businesses and employees
+        - Clients
+        - Appointments and booking
+        - Notifications and email
+        - Data export and erasure
+        - Deployment
+        - Other
+    validations:
+      required: false
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Sign in as a business owner
+        2. Open ...
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behaviour
+      description: Include the HTTP status and error code if the server answered with one.
+    validations:
+      required: true
+  - type: input
+    id: client
+    attributes:
+      label: Client app and version
+      description: The app you used, if the bug shows there.
+      placeholder: "Android 1.4.0"
+    validations:
+      required: false
+  - type: textarea
+    id: logs
+    attributes:
+      label: Server log excerpt
+      description: The lines around the failure. Remove emails, phone numbers, names and tokens first.
+      render: shell
+    validations:
+      required: false
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Before you submit
+      options:
+        - label: This is not a security vulnerability.
+          required: true
+        - label: I searched the existing issues and found no report of this bug.
+          required: true
+        - label: I removed personal data (emails, phones, names, tokens) from everything above.
+          required: true
