@@ -62,6 +62,9 @@ configs:
   loki_security_rules_cfg:
     name: loki_security_rules_cfg-v1
     file: loki/security_rules.yml
+  loki_certificate_rules_cfg:
+    name: loki_certificate_rules_cfg-v1
+    file: loki/certificate_rules.yml
   alloy_cfg:
     name: alloy_cfg-v3
     file: alloy/config.alloy
@@ -205,6 +208,8 @@ services:
         target: /etc/loki/loki.yml
       - source: loki_security_rules_cfg
         target: /etc/loki/rules/fake/security_rules.yml
+      - source: loki_certificate_rules_cfg
+        target: /etc/loki/rules/fake/certificate_rules.yml
     volumes:
       - loki_data:/loki
     networks:
