@@ -1,0 +1,19 @@
+groups:
+  - name: site_alerts
+    rules:
+      - alert: SiteDown
+        expr: absent(container_last_seen{container_label_com_docker_swarm_service_name="site_site"} > time() - 30)
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "The website has no running container"
+          description: "No container of site_site has been seen for 5 minutes, so every page of the website answers 502. See 'docker service ps --no-trunc site_site', and redeploy with 'make deploy-site v=<version>'."
+
+      - alert: SiteErrors
+        expr: sum(increase(site_requests_total{status_class="5xx"}[10m])) > 5 and sum(increase(site_requests_total{status_class="5xx"}[10m])) / sum(increase(site_requests_total[10m])) > 0.1
+        labels:
+          severity: warning
+        annotations:
+          summary: "The website answers {{ $value | humanizePercentage }} of requests with 5xx"
+          description: "More than 5 website requests and more than 10% of them failed with a 5xx status in 10 minutes. 502 and 504 mean nginx could not reach site.service (a crash or a stalled deploy), other 5xx come from the site itself. See the Website dashboard and the site's logs (Grafana, Logs, stack site)."

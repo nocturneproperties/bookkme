@@ -63,6 +63,61 @@ loki.process "containers" {
     }
   }
 
+  stage.match {
+    selector = "{stack=\"nginx\", service=\"nginx\"} |= \"\\\"log\\\":\\\"site\\\"\""
+
+    stage.json {
+      expressions = { status = "", bytes = "", request_time = "", kind = "", client = "" }
+    }
+
+    stage.regex {
+      source     = "status"
+      expression = "^(?P<status_class>[1-5])\\d\\d$"
+    }
+
+    stage.template {
+      source   = "status_class"
+      template = "{{ if .Value }}{{ .Value }}xx{{ else }}other{{ end }}"
+    }
+
+    stage.labels {
+      values = { status_class = "", kind = "", client = "" }
+    }
+
+    stage.metrics {
+      metric.counter {
+        name              = "requests_total"
+        prefix            = "site_"
+        description       = "Website requests answered by nginx"
+        match_all         = true
+        action            = "inc"
+        max_idle_duration = "720h"
+      }
+
+      metric.counter {
+        name              = "response_bytes_total"
+        prefix            = "site_"
+        description       = "Website response body bytes sent by nginx"
+        source            = "bytes"
+        action            = "add"
+        max_idle_duration = "720h"
+      }
+
+      metric.histogram {
+        name              = "request_duration_seconds"
+        prefix            = "site_"
+        description       = "Website request time measured by nginx"
+        source            = "request_time"
+        buckets           = [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10]
+        max_idle_duration = "720h"
+      }
+    }
+
+    stage.label_drop {
+      values = ["status_class", "kind", "client"]
+    }
+  }
+
   forward_to = [loki.write.default.receiver]
 }
 

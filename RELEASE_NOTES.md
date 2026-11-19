@@ -2,7 +2,7 @@
 
 ## 0.20.0
 
-Changes since `monolith/0.19.0`. Sends email through the Hostinger Mail API instead of Postmark, deletes sent copies after 5 years, checks bookings against the employee's schedule and accepts bookings across midnight, lets one person own several businesses, limits how much a business or person can create, and removes the one-time client-name indexing job that 0.19.0 ran.
+Changes since `monolith/0.19.0`. Sends email through the Hostinger Mail API instead of Postmark, deletes sent copies after 5 years, checks bookings against the employee's schedule and accepts bookings across midnight, lets one person own several businesses, limits how much a business or person can create, removes the one-time client-name indexing job that 0.19.0 ran, and adds a Grafana dashboard for the website.
 
 ### Clients
 
@@ -34,11 +34,18 @@ Changes since `monolith/0.19.0`. Sends email through the Hostinger Mail API inst
 - Migrations business `V21` and appointments `V13` add empty limit columns (`business.max_employees`, `max_clients`, `max_services`, `max_service_groups`, `appointment_settings.max_pending_requests_per_client`) and the table `business.user_limits` (`max_businesses`, the businesses one person may own), and replace the unique index on `business.user_id` with a plain one; set one to raise or lower that limit for a single business or person, see Creation limits in `README.md`.
 - Business migration `V20` gives every employee with no working days the working days and hours of a business that has any; such employees were bookable at any business hour until now.
 
+### Monitoring
+
+- New Grafana dashboard **Website**: traffic, status, response time and bandwidth from nginx, top pages, referrers, countries and 404s from its logs, and the site container's memory and CPU.
+- nginx logs website requests as `site_access` JSON lines without the user agent or query string; the API domain's logging is unchanged.
+- New alerts `SiteDown` (no site container for 5 minutes) and `SiteErrors` (more than 10% 5xx in 10 minutes) in `prometheus/site_alerts.yml`; Prometheus scrapes Alloy as job `alloy`.
+
 ### Upgrade
 
 - Deploy only after 0.19.0 has run in prod and its indexing pass finished: `SELECT COUNT(*) FROM appointments.appointment WHERE client_name_encrypted IS NOT NULL AND client_name_index IS NULL` should leave only appointments whose client key was lost.
 - Prod: run `make vault-update` (drops `vault_postmark_server_token`), then set `vault_hostinger_mail_token` and `vault_hostinger_mailbox_id` with `make vault-edit`; the deploy refuses either one unset. Add the sending mailbox domain's Hostinger SPF and DKIM records in Cloudflare first.
 - Keep nothing you want to keep in the sending mailbox's Sent folder: the app deletes everything there older than 5 years.
+- Prod: run `make infra tags=nginx,monitoring` for the website dashboard (`prometheus_cfg-v3`, `prometheus_site_alerts_cfg-v1`, `alloy_cfg-v3`, `grafana_dashboard_website-v1`); nginx reloads without a restart.
 
 ## 0.19.0
 

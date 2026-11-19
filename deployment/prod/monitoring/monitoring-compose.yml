@@ -24,7 +24,7 @@ secrets:
 
 configs:
   prometheus_cfg:
-    name: prometheus_cfg-v2
+    name: prometheus_cfg-v3
     file: prometheus/prometheus.yml
   prometheus_alerts_cfg:
     name: prometheus_alerts_cfg-v9
@@ -32,6 +32,9 @@ configs:
   prometheus_security_alerts_cfg:
     name: prometheus_security_alerts_cfg-v1
     file: prometheus/security_alerts.yml
+  prometheus_site_alerts_cfg:
+    name: prometheus_site_alerts_cfg-v1
+    file: prometheus/site_alerts.yml
   alertmanager_cfg:
     name: alertmanager_cfg-v2
     file: alertmanager/config.yml
@@ -50,6 +53,9 @@ configs:
   grafana_dashboard_logs:
     name: grafana_dashboard_logs-v1
     file: grafana/dashboards/logs.json
+  grafana_dashboard_website:
+    name: grafana_dashboard_website-v1
+    file: grafana/dashboards/website.json
   loki_cfg:
     name: loki_cfg-v2
     file: loki/loki.yml
@@ -57,7 +63,7 @@ configs:
     name: loki_security_rules_cfg-v1
     file: loki/security_rules.yml
   alloy_cfg:
-    name: alloy_cfg-v2
+    name: alloy_cfg-v3
     file: alloy/config.alloy
 
 x-templates:
@@ -94,6 +100,8 @@ services:
         target: /etc/prometheus/rules/node_alerts.yml
       - source: prometheus_security_alerts_cfg
         target: /etc/prometheus/rules/security_alerts.yml
+      - source: prometheus_site_alerts_cfg
+        target: /etc/prometheus/rules/site_alerts.yml
     secrets:
       - prometheus_password
       - prometheus_web_config
@@ -221,6 +229,7 @@ services:
     hostname: "{{.Node.Hostname}}"
     command:
       - 'run'
+      - '--server.http.listen-addr=0.0.0.0:12345'
       - '--storage.path=/var/lib/alloy/data'
       - '/etc/alloy/config.alloy'
     configs:
@@ -261,6 +270,8 @@ services:
         target: /var/lib/grafana/dashboards/infrastructure.json
       - source: grafana_dashboard_logs
         target: /var/lib/grafana/dashboards/logs.json
+      - source: grafana_dashboard_website
+        target: /var/lib/grafana/dashboards/website.json
     environment:
       GF_SECURITY_ADMIN_USER: "${GRAFANA_USER}"
       GF_SECURITY_ADMIN_PASSWORD: "${GRAFANA_PASSWORD}"
