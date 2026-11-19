@@ -1,6 +1,6 @@
 # Data export
 
-A user can download everything Bookk holds about them (GDPR Art. 15 and 20),
+A user can download everything BookkMe holds about them (GDPR Art. 15 and 20),
 and the owner of a business can download everything the business holds
 (Art. 28(3)(g)). Both are one JSON document, built in the background,
 confirmed with a passkey action confirmation token, and kept 72 hours. Scope and
@@ -87,7 +87,7 @@ issued by `POST /api/auth/passkey/confirm_action` for `EXPORT_PERSONAL_DATA`, th
 nil business id and the caller's own user id as target
 (`ActionConfirmationGrant.personalDataExport`). `GET /api/user/export` reports the
 state, `GET /api/user/export/download` hands out the file
-(`bookk-personal-data.json`). Diagram: [Start personal data
+(`bookkme-personal-data.json`). Diagram: [Start personal data
 export](operations/user/start-personal-data-export.md).
 
 `PersonalDataExportAssembler` (user service) reads the user's own data in
@@ -99,7 +99,7 @@ only inside the cluster, like every `/api/internal` route):
 |---|---|---|
 | `profile`, `legalAcceptances` | user | Profile with its creation time, accepted legal document versions |
 | `account` | auth (`ExportAccountData`) | Account creation and last activity time, passkeys (name, created, last used, backed up; never key material), devices (name, signed in, last sign-in) |
-| `businesses` | business (`ExportUserBusinessData`) | The business the user owns, their employee rows (suspended ones too) with permissions, working hours and days off, their client rows as each business keeps them (the business's `description` included), the business their dashboard shows |
+| `businesses` | business (`ExportUserBusinessData`) | Every business the user owns, their employee rows (suspended ones too) with permissions, working hours and days off, their client rows as each business keeps them (the business's `description` included), the business their dashboard shows |
 | `appointments` | appointments (`ExportUserAppointments`) | Every appointment and request where the user is the client, the employee or the one who booked (`roles`), with times, services, prices, status and employee name |
 | `notifications` | notifications (`ExportUserNotificationData`) | Notification settings and channels, devices (language, whether push is registered; never the push token), email and Telegram targets |
 
@@ -124,7 +124,7 @@ owner only (anyone else gets 404): the token is issued for
 `EXPORT_BUSINESS_DATA` with the business id as business and target
 (`ActionConfirmationGrant.businessDataExport`). `GET /api/business/{businessId}/export`
 reports the state, `GET /api/business/{businessId}/export/download` hands out
-`bookk-business-data.json`. The export row is keyed by the business id in
+`bookkme-business-data.json`. The export row is keyed by the business id in
 `business.data_export`. Diagram: [Start business data
 export](operations/business/start-business-data-export.md).
 

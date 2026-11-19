@@ -14,6 +14,7 @@ import io.ktor.server.testing.ApplicationTestBuilder
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
+import library.email.DeleteExpiredSentEmails
 import library.scheduler.SchedulerConfiguration
 import library.scheduler.test.registeredJobs
 import library.scheduler.test.runJob
@@ -32,6 +33,7 @@ internal class AuthJobsTest {
         val handleDormantAccounts = mockk<HandleDormantAccounts>()
         val reapplyAccountErasures = mockk<ReapplyAccountErasures>()
         val deleteExpiredErasureRecords = mockk<DeleteExpiredErasureRecords>()
+        val deleteExpiredSentEmails = mockk<DeleteExpiredSentEmails>()
         val scheduler = SchedulerConfiguration()
 
         suspend fun registerJobs(builder: ApplicationTestBuilder) {
@@ -41,6 +43,7 @@ internal class AuthJobsTest {
                 scoped { handleDormantAccounts }
                 scoped { reapplyAccountErasures }
                 scoped { deleteExpiredErasureRecords }
+                scoped { deleteExpiredSentEmails }
             }
             application.registerAuthJobs(scheduler)
         }
@@ -62,6 +65,7 @@ internal class AuthJobsTest {
                 "auth-handleDormantAccounts" to 1.days,
                 "auth-reapplyErasures" to 1.minutes,
                 "auth-deleteExpiredErasureRecords" to 1.days,
+                "auth-deleteExpiredSentEmails" to 7.days,
             ),
             fixture.scheduler.registeredJobs(),
         )
@@ -207,6 +211,35 @@ internal class AuthJobsTest {
 
         whenn()
         val result = runCatching { fixture.scheduler.runJob("auth-deleteExpiredErasureRecords") }
+
+        then()
+        assertSame(error, result.exceptionOrNull())
+    }
+
+    @Test
+    fun `should delete expired copies from the sending mailbox`() = routeTest {
+        given()
+        val fixture = SutFixture()
+        coEvery { fixture.deleteExpiredSentEmails.invoke() } returns Result.success(Unit)
+        fixture.registerJobs(this)
+
+        whenn()
+        fixture.scheduler.runJob("auth-deleteExpiredSentEmails")
+
+        then()
+        coVerify(exactly = 1) { fixture.deleteExpiredSentEmails.invoke() }
+    }
+
+    @Test
+    fun `should surface a failed sent email cleanup`() = routeTest {
+        given()
+        val fixture = SutFixture()
+        val error = RuntimeException("sent email cleanup failed")
+        coEvery { fixture.deleteExpiredSentEmails.invoke() } returns Result.failure(error)
+        fixture.registerJobs(this)
+
+        whenn()
+        val result = runCatching { fixture.scheduler.runJob("auth-deleteExpiredSentEmails") }
 
         then()
         assertSame(error, result.exceptionOrNull())

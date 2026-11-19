@@ -8,7 +8,23 @@ whoever holds a `PENDING` code can join. Joining creates the `Employee`
 row for the calling user and grants baseline view-only access
 (`view = true`, nothing else) on every `BusinessResource` — customizable
 afterward by an owner via [Set employee
-permissions](set-employee-permissions.md). `JoinBusinessImpl` (not the
+permissions](set-employee-permissions.md). The new employee starts on the
+business's working days and hours (`Schedule.workingWeek()`, without the
+business day offs), so they can be booked right away; they change it later
+through [Update employee](update-employee.md). The schedule is copied in a
+second transaction that first takes an exclusive lock on the business row
+(`lockBusiness … EXCLUSIVE`), found through the invitation read in a first
+short transaction: a concurrent [Update business](update-business.md) holds
+the row until it commits, so the copy is either the schedule before that
+update (the join committed first) or after it, never an old snapshot that
+outlives the update. The lock is exclusive so two joins at one business run
+one at a time against its limit of active employees (`max_employees`, 100
+unless an operator stored another value; suspended employees don't count).
+The limit is checked before the invitation is redeemed, so a refused join
+leaves the code usable. Joining has no per-person limit: `max_businesses`
+counts only the businesses a person owns. The joiner's profile
+is fetched from the user service before the second transaction, so no
+cross-service call runs while the business row is locked. `JoinBusinessImpl` (not the
 datasource — see below) hashes the
 submitted plaintext code (SHA-256, `EmployeeInvitationCode.hash`) and
 looks it up via `EmployeeInvitationDataSource.getInvitationByCodeHash` —
@@ -40,21 +56,28 @@ flowchart TD
     Auth -- No --> R401([401 Unauthorized])
     Auth -- Yes --> Blank{code.isBlank?}
     Blank -- Yes --> R422c([422 BUSINESS_EMPLOYEE_INVITATION_CODE_EMPTY 200031])
-    Blank -- No --> Tx[[Begin transaction]]
-    Tx --> HashCode[EmployeeInvitationCode.hash the submitted code]
-    HashCode --> GetInvite[EmployeeInvitationDataSource.getInvitationByCodeHash code_hash]
-    GetInvite -- not found or hash already cleared --> R404a([404 Error.NotFound])
+    Blank -- No --> HashCode[EmployeeInvitationCode.hash the submitted code]
+    HashCode --> Tx1[[Transaction 1]]
+    Tx1 --> FindInvite[EmployeeInvitationDataSource.getInvitationByCodeHash code_hash - businessId only]
+    FindInvite -- not found or hash already cleared --> R404a([404 Error.NotFound])
+    FindInvite -- found --> GetUser[UserClient.getUserById requestUserId - outside any transaction]
+    GetUser -- error --> RErr([Propagate user-service error])
+    GetUser -- ok --> Tx2[[Transaction 2]]
+    Tx2 --> LockBiz[BusinessDataSource.lockBusiness businessId EXCLUSIVE - first statement, gives LockedBusiness.limits]
+    LockBiz -- not found --> R404b
+    LockBiz -- locked --> GetInvite[EmployeeInvitationDataSource.getInvitationByCodeHash code_hash again]
+    GetInvite -- not found or hash already cleared --> R404a
     GetInvite -- found --> Status{invitation.status == PENDING?}
     Status -- No --> R422a([422 BUSINESS_EMPLOYEE_INVITATION_ALREADY_PROCESSED 200017])
     Status -- Yes --> AlreadyEmployee{employeeDataSource.getEmployeeByUserId already an employee?}
     AlreadyEmployee -- Yes --> R422b([422 BUSINESS_EMPLOYEE_EXISTS 200018])
-    AlreadyEmployee -- No --> Redeem[EmployeeInvitationDataSource.redeemInvitation id, clears code_hash]
+    AlreadyEmployee -- No --> Full{EmployeeDataSource.countActiveEmployees businessId >= limits.maxEmployees?}
+    Full -- Yes --> R422e([422 BUSINESS_EMPLOYEES_LIMIT_REACHED 200044])
+    Full -- No --> Redeem[EmployeeInvitationDataSource.redeemInvitation id, clears code_hash]
     Redeem -- race lost, already processed --> R422a
-    Redeem -- ok --> GetUser[UserClient.getUserById requestUserId]
-    GetUser -- error --> RErr([Propagate user-service error])
-    GetUser -- ok --> GetBiz[BusinessDataSource.getBusinessById businessId]
+    Redeem -- ok --> GetBiz[BusinessDataSource.getBusinessById businessId]
     GetBiz -- not found --> R404b([404 Error.NotFound])
-    GetBiz -- found --> CreateEmployee[EmployeeDataSource.createEmployee from requestUser, permissions = BusinessPermissions.VIEW_ONLY - also upserts the five business_permission_grants rows]
+    GetBiz -- found --> CreateEmployee[EmployeeDataSource.createEmployee from requestUser, schedule = business.schedule.workingWeek, permissions = BusinessPermissions.VIEW_ONLY - also upserts the five business_permission_grants rows]
     CreateEmployee -- employee_business_id_user_id_unique violated, concurrent join --> R422b
     CreateEmployee -- ok --> Event[eventProducer.send BusinessEvent.EmployeeInvitationRedeemed]
     Event --> PermEvent[eventProducer.send BusinessEvent.EmployeePermissionsChanged employee.permissions]

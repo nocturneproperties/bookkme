@@ -1,0 +1,26 @@
+name: Documentation issue
+description: Something in the README, self-hosting docs or published texts is wrong or out of date.
+title: "[DOCS] "
+labels: ["documentation"]
+type: Task
+assignees: ["an22"]
+body:
+  - type: input
+    id: location
+    attributes:
+      label: Page or section
+      placeholder: "README.md › Running as microservices"
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What is wrong
+    validations:
+      required: true
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: Suggested fix
+    validations:
+      required: false

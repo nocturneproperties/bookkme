@@ -7,14 +7,19 @@ import com.bookk.core.test.runUnitTest
 import com.bookk.core.test.then
 import com.bookk.core.test.whenn
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.util.Properties
 
 internal class NotificationMessagesTest {
 
     private fun keysOf(resource: String): Set<String> {
+        return propertiesOf(resource).stringPropertyNames()
+    }
+
+    private fun propertiesOf(resource: String): Properties {
         val stream = requireNotNull(javaClass.classLoader.getResourceAsStream(resource)) { "Missing $resource" }
-        return stream.reader(Charsets.UTF_8).use { reader -> Properties().apply { load(reader) }.stringPropertyNames() }
+        return stream.reader(Charsets.UTF_8).use { reader -> Properties().apply { load(reader) } }
     }
 
     private fun bundleOf(language: Language): String = when (language) {
@@ -32,5 +37,21 @@ internal class NotificationMessagesTest {
 
         then()
         keysByLanguage.forEach { (language, keys) -> assertEquals(baseKeys, keys, "$language") }
+    }
+
+    @Test
+    fun `should call the service BookkMe in every notification message`() = runUnitTest {
+        given()
+        val shortName = Regex("Bookk(?!Me)")
+
+        whenn()
+        val messages = Language.entries.flatMap { language ->
+            val properties = propertiesOf(bundleOf(language))
+            properties.stringPropertyNames().map { key -> "$language $key" to properties.getProperty(key) }
+        }
+
+        then()
+        val misnamed = messages.filter { (_, message) -> shortName.containsMatchIn(message) }.map { it.first }
+        assertTrue(misnamed.isEmpty()) { misnamed.toString() }
     }
 }

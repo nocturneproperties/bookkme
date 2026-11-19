@@ -32,7 +32,7 @@ The details of each area live in `docs/agents/`. Open the matching file before w
 | Transaction retries, lock-first ordering, gap locks, double booking, MariaDB locking tests | `docs/agents/transactions-and-locking.md` |
 | Datasources and DAO entities (writes on the entity, referrers, get-or-create, `EntityID`) | `docs/agents/data-layer.md` |
 | Passkey action confirmation, email codes, single-use tokens, data from other services, Android signing certificates | `docs/agents/security.md` |
-| Business currency, client uniqueness/takeover/merges, device identity | `docs/agents/domain-rules.md` |
+| Business currency, client uniqueness/takeover/merges, creation limits, device identity | `docs/agents/domain-rules.md` |
 | Data export, legal documents, `client_id` vs users, account and client erasure, dormancy, retention, erasure records | `docs/agents/personal-data.md` |
 | OpenAPI plugin details, Swagger tests | `docs/agents/openapi.md` |
 | H2 datasource tests, scheduled job tests, virtual time, `runUnitTest` timeout | `docs/agents/testing-advanced.md` |
@@ -73,6 +73,7 @@ The details of each area live in `docs/agents/`. Open the matching file before w
 - **Claim a single-use token with one atomic `CacheClient.setIfAbsent`**, never a `get` check followed by a `set` (`docs/agents/security.md`).
 - **Every amount inside one business is in the business currency** (`docs/agents/domain-rules.md`).
 - **Every write that books a slot takes `AppointmentSettingsDataSource.getForUpdate(businessId)` before its overlap check;** never a unique index on slot columns (`docs/agents/transactions-and-locking.md`).
+- **Every write that books a slot checks both schedules:** `AppointmentSettings.requireBookable(date, dateEnd, employeeSchedule)` with the booked employee's current `Schedule` from business (booking context or `getAppointmentRescheduleContext`). It throws the shared `BookingScheduleError` (business date, business time, employee date, employee time, checked in that order, so an employee error means the slot is inside the business schedule); an operation lists all four under its route's 422 instead of declaring its own date/time errors. Coverage is `library.schedule.Schedule.covers`: a `WorkHour` whose `to < from` runs past midnight, one whose `to == from` covers nothing (`UpdateBusiness`/`UpdateEmployee` reject it with `EmptyWorkHourRange`), and touching ranges join, so never compare times of day by hand. A range's end instant is not working time (`Schedule.isWorkingAt` is half-open). Employees get the business's working week only when created (owner in `CreateBusiness`, `JoinBusiness`); saving the business schedule never rewrites an employee's, since no working days can be deliberate.
 
 ## Recipe: new business operation
 

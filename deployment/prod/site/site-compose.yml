@@ -1,0 +1,40 @@
+networks:
+  operational:
+    external: true
+
+services:
+  site:
+    image: ${SITE_IMAGE}:${SITE_VERSION}
+    networks:
+      operational:
+        aliases:
+          - site.service
+    environment:
+      JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=50 -XX:+ExitOnOutOfMemoryError
+      TZ: UTC
+    logging:
+      options:
+        max-size: 20m
+        max-file: 5
+    deploy:
+      placement:
+        constraints: [ node.role == worker ]
+      replicas: 1
+      update_config:
+        parallelism: 1
+        order: start-first
+        failure_action: rollback
+        delay: 10s
+      rollback_config:
+        parallelism: 1
+        order: stop-first
+      restart_policy:
+        condition: any
+        delay: 10s
+        max_attempts: 5
+        window: 10m
+      resources:
+        limits:
+          memory: 384M
+        reservations:
+          memory: 128M

@@ -11,6 +11,7 @@ import com.bookk.core.data.DataSource
 import com.bookk.core.data.cache.CacheClient
 import com.bookk.core.data.cache.setIfAbsent
 import com.bookk.core.domain.entity.Error
+import org.jetbrains.exposed.v1.core.Op
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.greater
@@ -19,6 +20,7 @@ import org.jetbrains.exposed.v1.core.less
 import org.jetbrains.exposed.v1.core.or
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.select
+import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.update
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.minutes
@@ -53,13 +55,13 @@ internal class AppointmentRequestDataSourceImpl(
 
     override suspend fun getPendingByUser(userId: Uuid, businessId: Uuid): List<AppointmentRequest> = dbQuery {
         AppointmentRequestEntity
-            .find {
-                AppointmentRequestTable.initiatorUserId.eq(userId)
-                    .and(AppointmentRequestTable.businessId.eq(businessId))
-                    .and(AppointmentRequestTable.status.eq(AppointmentRequestStatus.PENDING))
-            }
+            .find { pendingOfUser(userId, businessId) }
             .toList()
             .decrypted()
+    }
+
+    override suspend fun countPendingByUser(userId: Uuid, businessId: Uuid): Long = dbQuery {
+        AppointmentRequestTable.selectAll().where { pendingOfUser(userId, businessId) }.count()
     }
 
     override suspend fun create(request: AppointmentRequest): AppointmentRequest = dbQuery {
@@ -107,6 +109,13 @@ internal class AppointmentRequestDataSourceImpl(
             it.declineReason = reason
             it.updatedAt = Clock.System.now()
         }?.decrypted() ?: throw Error.NotFound()
+    }
+
+    override suspend fun withdraw(id: Uuid) = dbQuery<Unit> {
+        AppointmentRequestEntity.findByIdAndUpdate(id) {
+            it.status = AppointmentRequestStatus.CANCELLED
+            it.updatedAt = Clock.System.now()
+        } ?: throw Error.NotFound()
     }
 
     override suspend fun hasOverlapsWith(request: AppointmentRequest): Boolean = dbQuery {
@@ -209,5 +218,11 @@ internal class AppointmentRequestDataSourceImpl(
     private suspend fun List<AppointmentRequestEntity>.decrypted(): List<AppointmentRequest> {
         val snapshots = snapshotCipher.decryptAll(map { it.storedSnapshot() }, AppointmentRequestTable.tableName)
         return zip(snapshots) { entity, snapshot -> entity.domain(snapshot) }
+    }
+
+    private fun pendingOfUser(userId: Uuid, businessId: Uuid): Op<Boolean> {
+        return AppointmentRequestTable.initiatorUserId.eq(userId)
+            .and(AppointmentRequestTable.businessId.eq(businessId))
+            .and(AppointmentRequestTable.status.eq(AppointmentRequestStatus.PENDING))
     }
 }

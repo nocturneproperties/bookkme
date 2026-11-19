@@ -120,6 +120,31 @@ internal class EmployeeInvitationCrudTest {
     }
 
     @Test
+    fun `should return unprocessable entity when the business has its maximum of employees for an invitation`() = routeTest {
+        given()
+        val useCase: CreateEmployeeInvitation = mockk()
+        coEvery { useCase.invoke(userId, businessId) } returns
+            Result.failure(CreateEmployeeInvitation.Error.EmployeesLimitReached())
+
+        setupApplication(
+            extension = jwtAuthentication(),
+            diModule = module { single { useCase } },
+            routeUnderTest = { employeeInvitationCrud() },
+        )
+
+        whenn()
+        val client = createTestClient()
+        val response = client.post(BusinessRouting.Api.EmployeeInvitation(businessId = businessId))
+
+        then()
+        assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
+        assertEquals(
+            BusinessErrorCodes.BUSINESS_EMPLOYEES_LIMIT_REACHED,
+            response.body<SimpleServerError>().errorCode,
+        )
+    }
+
+    @Test
     fun `should return unprocessable entity when the daily invitations limit is reached`() = routeTest {
         given()
         val useCase: CreateEmployeeInvitation = mockk()
@@ -329,6 +354,30 @@ internal class EmployeeInvitationCrudTest {
         then()
         assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
         assertEquals(BusinessErrorCodes.BUSINESS_EMPLOYEE_EXISTS, response.body<SimpleServerError>().errorCode)
+    }
+
+    @Test
+    fun `should return unprocessable entity when the business is full on join`() = routeTest {
+        given()
+        val useCase: JoinBusiness = mockk()
+        coEvery { useCase.invoke(userId, "ABCD1234") } returns
+            Result.failure(JoinBusiness.Error.EmployeesLimitReached())
+
+        setupApplication(
+            extension = jwtAuthentication(),
+            diModule = module { single { useCase } },
+            routeUnderTest = { employeeInvitationCrud() },
+        )
+
+        whenn()
+        val client = createTestClient()
+        val response = client.post(BusinessRouting.Api.RedeemEmployeeInvitation()) {
+            setBody(EmployeeInvitationRedeemRequest(code = "ABCD1234"))
+        }
+
+        then()
+        assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
+        assertEquals(BusinessErrorCodes.BUSINESS_EMPLOYEES_LIMIT_REACHED, response.body<SimpleServerError>().errorCode)
     }
 
     @Test

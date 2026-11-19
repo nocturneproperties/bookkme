@@ -1,3 +1,11 @@
+- name: Refuse a missing or shared website domain
+  ansible.builtin.assert:
+    that:
+      - site.domain_name not in ['', 'CHANGE_ME']
+      - site.domain_name != vault_stack_env.DOMAIN_NAME
+    fail_msg: "The website is served on vault_stack_env.EMAIL_DOMAIN_NAME, which must be set with 'make vault-edit' and differ from DOMAIN_NAME"
+    quiet: true
+
 - name: Read Cloudflare's published IP ranges
   ansible.builtin.uri:
     url: "https://www.cloudflare.com/{{ item }}"

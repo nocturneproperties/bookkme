@@ -236,7 +236,7 @@ internal class EmailCodeIssuerImplTest {
         val fixture = SutFixture()
         val first = fixture.issue().getOrThrow()
         fixture.timeSource += EmailCodeIssuerImpl.RESEND_COOLDOWN + 1.seconds
-        coEvery { fixture.sender.send(any()) } returns Result.failure(IllegalStateException("Postmark is down"))
+        coEvery { fixture.sender.send(any()) } returns Result.failure(IllegalStateException("Mail API is down"))
 
         whenn()
         val result = fixture.issue()

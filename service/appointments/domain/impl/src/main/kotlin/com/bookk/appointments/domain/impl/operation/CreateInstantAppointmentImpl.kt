@@ -23,6 +23,7 @@ import com.bookk.server.appointments.client.api.event.AppointmentEvent
 import com.bookk.server.business.client.api.BusinessClient
 import library.permissions.PermissionAction
 import library.permissions.assertOrSelf
+import library.schedule.Schedule
 import library.signing.TokenValidatorFactory
 import org.slf4j.LoggerFactory
 import kotlin.time.Clock
@@ -80,20 +81,17 @@ internal class CreateInstantAppointmentImpl(
             if (deletedClientDataSource.isDeletedForShare(appointment.businessId, appointment.client.id)) {
                 throw Error.OperationNotAllowed()
             }
-            requireBookable(appointment)
+            requireBookable(appointment, context.employee.schedule)
             appointmentDataSource.create(appointment).also {
                 eventProducer.send(AppointmentEvent.ClientVisitBooked(it.businessId, it.client.id, it.dateEnd))
             }
         }
     }
 
-    private suspend fun requireBookable(appointment: Appointment) {
+    private suspend fun requireBookable(appointment: Appointment, employeeSchedule: Schedule) {
         val settings = settingsDataSource.getForUpdate(appointment.businessId) ?: throw Error.NotFound()
         if (appointment.date < Clock.System.now()) throw CreateInstantAppointment.Error.DateInThePastNotAllowed()
-        if (!settings.isInWorkday(appointment.date)) throw CreateInstantAppointment.Error.RequestForThisDateNotAllowed()
-        if (!settings.isInWorktime(appointment.date, appointment.dateEnd)) {
-            throw CreateInstantAppointment.Error.RequestForThisTimeNotAllowed()
-        }
+        settings.requireBookable(appointment.date, appointment.dateEnd, employeeSchedule)
         if (appointmentDataSource.hasOverlapsWith(appointment)) {
             throw CreateInstantAppointment.Error.AppointmentForThisTimeExists()
         }

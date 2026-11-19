@@ -45,12 +45,12 @@ internal class AccountDormancyWarningNotificationTest {
         val email = event.notification.email(Language.EN)
 
         then()
-        assertEquals("Your Bookk account will be deleted", push.title)
+        assertEquals("Your BookkMe account will be deleted", push.title)
         assertEquals(
-            "You haven't used Bookk for almost 3 years, so your account will be deleted on $deletionDate. Open the app to keep it.",
+            "You haven't used BookkMe for almost 3 years, so your account will be deleted on $deletionDate. Open the app to keep it.",
             push.body,
         )
-        assertEquals("Your Bookk account will be deleted on $deletionDate", email.subject)
+        assertEquals("Your BookkMe account will be deleted on $deletionDate", email.subject)
     }
 
     @Test
@@ -63,9 +63,9 @@ internal class AccountDormancyWarningNotificationTest {
         val push = event.notification.push(Language.UK)
 
         then()
-        assertEquals("Ваш акаунт Bookk буде видалено", push.title)
+        assertEquals("Ваш акаунт BookkMe буде видалено", push.title)
         assertEquals(
-            "Ви не користувалися Bookk майже 3 роки, тож ваш акаунт буде видалено $deletionDate. Відкрийте застосунок, щоб зберегти його.",
+            "Ви не користувалися BookkMe майже 3 роки, тож ваш акаунт буде видалено $deletionDate. Відкрийте застосунок, щоб зберегти його.",
             push.body,
         )
     }
@@ -81,9 +81,9 @@ internal class AccountDormancyWarningNotificationTest {
         val text = event.notification.text(Language.EN)
 
         then()
-        assertEquals("Last reminder: your Bookk account will be deleted", push.title)
+        assertEquals("Last reminder: your BookkMe account will be deleted", push.title)
         assertEquals(
-            "Last reminder: your Bookk account will be deleted on $deletionDate. Sign in to keep it.",
+            "Last reminder: your BookkMe account will be deleted on $deletionDate. Sign in to keep it.",
             text.text,
         )
     }
@@ -98,6 +98,6 @@ internal class AccountDormancyWarningNotificationTest {
         val email = event.notification.email(Language.UK)
 
         then()
-        assertEquals("Останнє нагадування: акаунт Bookk буде видалено $deletionDate", email.subject)
+        assertEquals("Останнє нагадування: акаунт BookkMe буде видалено $deletionDate", email.subject)
     }
 }

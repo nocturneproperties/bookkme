@@ -1099,7 +1099,7 @@
       "id": 14,
       "gridPos": {
         "h": 4,
-        "w": 6,
+        "w": 5,
         "x": 0,
         "y": 43
       }
@@ -1107,7 +1107,7 @@
     {
       "type": "stat",
       "title": "Stored on disk",
-      "description": "Encrypted dumps and binlogs in /srv/backups/bookk on the manager, refreshed every 5 minutes.",
+      "description": "Encrypted dumps, binlogs and key dumps in /srv/backups/bookk on the manager, refreshed every 5 minutes.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -1160,8 +1160,8 @@
       "id": 15,
       "gridPos": {
         "h": 4,
-        "w": 6,
-        "x": 6,
+        "w": 5,
+        "x": 5,
         "y": 43
       }
     },
@@ -1229,8 +1229,77 @@
       "id": 16,
       "gridPos": {
         "h": 4,
-        "w": 6,
-        "x": 12,
+        "w": 5,
+        "x": 10,
+        "y": 43
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Last key dump",
+      "description": "Time since the newest dump of the per-person keys finished. The keys are dumped every 5 minutes, and KeyBackupMissing fires after 30 minutes.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "time() - max(bookk_backup_keys_last_success_timestamp_seconds)",
+          "instant": true,
+          "range": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 600
+              },
+              {
+                "color": "red",
+                "value": 900
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          },
+          "noValue": "No data"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center",
+        "orientation": "auto"
+      },
+      "id": 19,
+      "gridPos": {
+        "h": 4,
+        "w": 5,
+        "x": 15,
         "y": 43
       }
     },
@@ -1298,15 +1367,15 @@
       "id": 17,
       "gridPos": {
         "h": 4,
-        "w": 6,
-        "x": 18,
+        "w": 4,
+        "x": 20,
         "y": 43
       }
     },
     {
       "type": "timeseries",
       "title": "Backup storage",
-      "description": "Encrypted dumps and binlogs on the manager, stacked. It levels off once 30 days are kept.",
+      "description": "Encrypted dumps, binlogs and key dumps on the manager, stacked. It levels off once 30 days of dumps and binlogs and 7 days of keys are kept.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"

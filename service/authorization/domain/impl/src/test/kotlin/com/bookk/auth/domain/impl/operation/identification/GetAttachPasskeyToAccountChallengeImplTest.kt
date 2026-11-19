@@ -5,9 +5,11 @@ import com.bookk.auth.domain.api.identification.entity.Device
 import com.bookk.auth.domain.api.identification.entity.DeviceInfo
 import com.bookk.auth.domain.api.identification.operation.GetAttachPasskeyToAccountChallenge
 import com.bookk.auth.domain.api.registration.entity.RegistrationChallengeResponse
+import com.bookk.auth.domain.api.registration.operation.AttachNewPasskeyToAccount
 import com.bookk.auth.domain.api.registration.operation.StartPasskeyRegistration
 import com.bookk.auth.domain.datasource.AccountDataSource
 import com.bookk.auth.domain.datasource.DeviceDataSource
+import com.bookk.auth.domain.datasource.PassKeyDataSource
 import com.bookk.core.domain.datasource.transaction.TransactionManager
 import com.bookk.core.domain.datasource.transaction.mockTransaction
 import com.bookk.core.test.given
@@ -17,6 +19,7 @@ import com.bookk.core.test.whenn
 import com.bookk.server.user.client.UserClient
 import com.bookk.server.user.client.api.UserSnapshot
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.mockk
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -29,12 +32,14 @@ internal class GetAttachPasskeyToAccountChallengeImplTest {
         val startPasskeyRegistration = mockk<StartPasskeyRegistration>()
         val accountDataSource = mockk<AccountDataSource>()
         val deviceDataSource = mockk<DeviceDataSource>()
+        val passKeyDataSource = mockk<PassKeyDataSource> { coEvery { countPasskeys(any()) } returns 0 }
         val userClient = mockk<UserClient>()
         val transactionManager = mockk<TransactionManager>()
         val sut = GetAttachPasskeyToAccountChallengeImpl(
             startPasskeyRegistration,
             accountDataSource,
             deviceDataSource,
+            passKeyDataSource,
             userClient,
             transactionManager,
         )
@@ -98,6 +103,26 @@ internal class GetAttachPasskeyToAccountChallengeImplTest {
         then()
         assertTrue(result.isSuccess)
         assertEquals(challenge, result.getOrNull())
+    }
+
+    @Test
+    fun `should refuse a challenge when the account already has the maximum number of passkeys`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val authId = Uuid.random()
+        with(fixture) {
+            transactionManager.mockTransaction()
+            coEvery { accountDataSource.getAuthRecordById(authId) } returns makeAuthentication(authId)
+            coEvery { passKeyDataSource.countPasskeys(authId) } returns
+                AttachNewPasskeyToAccount.MAX_PASSKEYS.toLong()
+        }
+
+        whenn()
+        val result = fixture.sut.invoke(authId, Uuid.random(), Uuid.random())
+
+        then()
+        assertTrue(result.exceptionOrNull() is GetAttachPasskeyToAccountChallenge.Error.PasskeysLimitReached)
+        coVerify(exactly = 0) { fixture.startPasskeyRegistration(any(), any()) }
     }
 
     @Test

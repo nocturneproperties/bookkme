@@ -61,3 +61,15 @@ scrape_configs:
       - names: ['tasks.loki']
         type: A
         port: 3100
+
+  - job_name: 'alloy'
+    dns_sd_configs:
+      - names: ['tasks.alloy']
+        type: A
+        port: 12345
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        regex: 'site_.+'
+        action: keep
+      - regex: 'component_id|component_path'
+        action: labeldrop

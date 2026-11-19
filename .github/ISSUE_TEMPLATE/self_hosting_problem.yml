@@ -1,0 +1,80 @@
+name: Self-hosting or upgrade problem
+description: A self-hosted deploy, start-up, migration or upgrade fails.
+title: "[SELF-HOSTING] "
+labels: ["bug"]
+type: Bug
+assignees: ["an22"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this when BookkMe fails to start, migrate or upgrade on your own servers. For general setup questions, ask in [Q&A](https://github.com/nocturneproperties/bookkme/discussions/categories/q-a).
+  - type: input
+    id: from_version
+    attributes:
+      label: Version upgraded from
+      description: Leave empty for a fresh install.
+      placeholder: "0.19.1"
+    validations:
+      required: false
+  - type: input
+    id: to_version
+    attributes:
+      label: Version you deploy
+      placeholder: "0.20.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: setup
+    attributes:
+      label: Setup
+      options:
+        - Monolith
+        - Microservices
+    validations:
+      required: true
+  - type: input
+    id: dependencies
+    attributes:
+      label: MariaDB and Valkey versions
+      placeholder: "MariaDB 11.4, Valkey 8.0"
+    validations:
+      required: true
+  - type: textarea
+    id: upgrade_steps
+    attributes:
+      label: Upgrade steps followed
+      description: Which steps from the RELEASE_NOTES.md entries between the two versions you ran, and which you skipped.
+    validations:
+      required: false
+  - type: textarea
+    id: what_happened
+    attributes:
+      label: What happened
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Start-up or Flyway log
+      description: Remove passwords, hostnames you consider private, emails and tokens first.
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment variables
+      description: Names and non-secret values only. Never paste passwords, keys or secret file contents.
+      render: shell
+    validations:
+      required: false
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Before you submit
+      options:
+        - label: I removed every password, key, token and personal data from everything above.
+          required: true
+        - label: I read the upgrade steps in RELEASE_NOTES.md for every version I skipped.
+          required: true

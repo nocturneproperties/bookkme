@@ -211,6 +211,24 @@ internal class UpdateBusinessImplTest {
     }
 
     @Test
+    fun `should return failure when a working range starts and ends at the same time`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.transactionManager.mockTransaction()
+        val schedule = Schedule(
+            workingDays = listOf(DayOfWeek.MONDAY),
+            workingHours = mapOf(DayOfWeek.MONDAY to listOf(WorkHour(LocalTime(9, 0), LocalTime(9, 0)))),
+        )
+
+        whenn()
+        val result = fixture.sut(requestUserId, updateModel(schedule = schedule))
+
+        then()
+        assertTrue(result.exceptionOrNull() is UpdateBusiness.Error.EmptyWorkHourRange)
+        coVerify(exactly = 0) { fixture.businessDataSource.updateBusiness(any(), any()) }
+    }
+
+    @Test
     fun `should return failure when day off range start date is after end date`() = runUnitTest {
         given()
         val fixture = SutFixture()
@@ -430,7 +448,8 @@ internal class UpdateBusinessImplTest {
         val businessId = Uuid.random()
         with(fixture) {
             transactionManager.mockTransaction()
-            coEvery { businessDataSource.lockBusiness(businessId, RowLock.EXCLUSIVE) } returns LockedBusiness("USD")
+            coEvery { businessDataSource.lockBusiness(businessId, RowLock.EXCLUSIVE) } returns
+                LockedBusiness.stub("USD")
             coEvery { serviceDataSource.hasServices(businessId) } returns false
         }
 
@@ -449,7 +468,8 @@ internal class UpdateBusinessImplTest {
         val businessId = Uuid.random()
         with(fixture) {
             transactionManager.mockTransaction()
-            coEvery { businessDataSource.lockBusiness(businessId, RowLock.EXCLUSIVE) } returns LockedBusiness("USD")
+            coEvery { businessDataSource.lockBusiness(businessId, RowLock.EXCLUSIVE) } returns
+                LockedBusiness.stub("USD")
             coEvery { serviceDataSource.hasServices(businessId) } returns true
         }
 
@@ -469,7 +489,8 @@ internal class UpdateBusinessImplTest {
         val businessId = Uuid.random()
         with(fixture) {
             transactionManager.mockTransaction()
-            coEvery { businessDataSource.lockBusiness(businessId, RowLock.EXCLUSIVE) } returns LockedBusiness("USD")
+            coEvery { businessDataSource.lockBusiness(businessId, RowLock.EXCLUSIVE) } returns
+                LockedBusiness.stub("USD")
             coEvery { serviceDataSource.hasServices(businessId) } returns true
         }
 
@@ -488,7 +509,8 @@ internal class UpdateBusinessImplTest {
         val businessId = Uuid.random()
         with(fixture) {
             transactionManager.mockTransaction()
-            coEvery { businessDataSource.lockBusiness(businessId, RowLock.EXCLUSIVE) } returns LockedBusiness("USD")
+            coEvery { businessDataSource.lockBusiness(businessId, RowLock.EXCLUSIVE) } returns
+                LockedBusiness.stub("USD")
             coEvery { serviceDataSource.hasServices(businessId) } returns false
         }
 
@@ -541,7 +563,8 @@ internal class UpdateBusinessImplTest {
         with(fixture) {
             transactionManager.mockTransaction()
             grantPermission(ResourcePermission(view = true, update = false, delete = false))
-            coEvery { businessDataSource.lockBusiness(businessId, RowLock.EXCLUSIVE) } returns LockedBusiness("USD")
+            coEvery { businessDataSource.lockBusiness(businessId, RowLock.EXCLUSIVE) } returns
+                LockedBusiness.stub("USD")
         }
 
         whenn()
@@ -560,7 +583,8 @@ internal class UpdateBusinessImplTest {
         val businessId = Uuid.random()
         with(fixture) {
             transactionManager.mockTransaction()
-            coEvery { businessDataSource.lockBusiness(businessId, RowLock.EXCLUSIVE) } returns LockedBusiness("USD")
+            coEvery { businessDataSource.lockBusiness(businessId, RowLock.EXCLUSIVE) } returns
+                LockedBusiness.stub("USD")
             coEvery { serviceDataSource.hasServices(businessId) } returns false
         }
 
@@ -584,7 +608,8 @@ internal class UpdateBusinessImplTest {
         val businessId = Uuid.random()
         with(fixture) {
             transactionManager.mockTransaction()
-            coEvery { businessDataSource.lockBusiness(businessId, RowLock.EXCLUSIVE) } returns LockedBusiness("usd")
+            coEvery { businessDataSource.lockBusiness(businessId, RowLock.EXCLUSIVE) } returns
+                LockedBusiness.stub("usd")
             coEvery { serviceDataSource.hasServices(businessId) } returns true
         }
 
@@ -603,7 +628,8 @@ internal class UpdateBusinessImplTest {
         val businessId = Uuid.random()
         with(fixture) {
             transactionManager.mockTransaction()
-            coEvery { businessDataSource.lockBusiness(businessId, RowLock.EXCLUSIVE) } returns LockedBusiness("usd")
+            coEvery { businessDataSource.lockBusiness(businessId, RowLock.EXCLUSIVE) } returns
+                LockedBusiness.stub("usd")
         }
 
         whenn()

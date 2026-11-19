@@ -1,6 +1,7 @@
 package com.bookk.appointments.domain.impl.entity
 
 import com.bookk.appointments.domain.api.entity.AppointmentSettings
+import com.bookk.appointments.domain.api.entity.BookingScheduleError
 import com.bookk.core.test.given
 import com.bookk.core.test.runUnitTest
 import com.bookk.core.test.then
@@ -8,224 +9,361 @@ import com.bookk.core.test.whenn
 import kotlinx.datetime.DayOfWeek
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalTime
-import kotlinx.datetime.atStartOfDayIn
 import kotlinx.datetime.atTime
 import kotlinx.datetime.toInstant
 import library.schedule.DayOffRange
 import library.schedule.Schedule
 import library.schedule.WorkHour
-import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import kotlin.uuid.Uuid
+import kotlin.time.Instant
 
 internal class AppointmentSettingsTest {
 
-    private fun settingsWithDayOffs(dayOffs: List<DayOffRange>) = AppointmentSettings.stub(
-        businessId = Uuid.random(),
-    ).copy(
-        schedule = Schedule(
-            workingDays = listOf(
-                DayOfWeek.MONDAY,
-                DayOfWeek.TUESDAY,
-                DayOfWeek.WEDNESDAY,
-                DayOfWeek.THURSDAY,
-                DayOfWeek.FRIDAY,
-            ),
-            workingHours = mapOf(),
-            dayOffs = dayOffs,
-        ),
-    )
+    private val monday = LocalDate(2026, 6, 22)
 
-    private fun settingsWithWorkingHours(workingHours: List<WorkHour>) = AppointmentSettings.stub(
-        businessId = Uuid.random(),
-    ).copy(
-        schedule = Schedule(
+    private fun weekdaySchedule(dayOffs: List<DayOffRange> = emptyList()): Schedule {
+        val weekdays = listOf(
+            DayOfWeek.MONDAY,
+            DayOfWeek.TUESDAY,
+            DayOfWeek.WEDNESDAY,
+            DayOfWeek.THURSDAY,
+            DayOfWeek.FRIDAY,
+        )
+        return Schedule(
+            workingDays = weekdays,
+            workingHours = weekdays.associateWith { listOf(WorkHour.NINE_TO_FIVE) },
+            dayOffs = dayOffs,
+        )
+    }
+
+    private fun mondaySchedule(workingHours: List<WorkHour>): Schedule {
+        return Schedule(
             workingDays = listOf(DayOfWeek.MONDAY),
             workingHours = mapOf(DayOfWeek.MONDAY to workingHours),
-        ),
-    )
+        )
+    }
 
-    @Test
-    fun `should return true when date is a working day with no day-offs`() = runUnitTest {
-        given()
-        val settings = settingsWithDayOffs(dayOffs = listOf())
-        val monday = LocalDate(2026, 6, 22).atStartOfDayIn(settings.timeZone)
+    private fun settingsWith(schedule: Schedule): AppointmentSettings {
+        return AppointmentSettings.stub().copy(schedule = schedule)
+    }
 
-        whenn()
-        val result = settings.isInWorkday(monday)
+    private fun AppointmentSettings.at(date: LocalDate, hour: Int, minute: Int = 0): Instant {
+        return date.atTime(hour, minute).toInstant(timeZone)
+    }
 
-        then()
-        assertTrue(result)
+    private fun AppointmentSettings.rejectionOf(start: Instant, end: Instant, employeeSchedule: Schedule?): Throwable? {
+        return runCatching { requireBookable(start, end, employeeSchedule) }.exceptionOrNull()
     }
 
     @Test
-    fun `should return false when date falls inside a day-off range`() = runUnitTest {
-        given()
-        val range = DayOffRange(start = LocalDate(2026, 6, 22), end = LocalDate(2026, 6, 26))
-        val settings = settingsWithDayOffs(dayOffs = listOf(range))
-        val wednesday = LocalDate(2026, 6, 24).atStartOfDayIn(settings.timeZone)
+    fun `should accept a slot inside the business hours on a working day without an employee schedule`() =
+        runUnitTest {
+            given()
+            val settings = settingsWith(weekdaySchedule())
 
-        whenn()
-        val result = settings.isInWorkday(wednesday)
+            whenn()
+            val error = settings.rejectionOf(settings.at(monday, 10), settings.at(monday, 11), null)
 
-        then()
-        assertFalse(result)
-    }
+            then()
+            assertNull(error)
+        }
 
     @Test
-    fun `should return false when date is the boundary of a day-off range`() = runUnitTest {
+    fun `should reject with business date error when the date falls inside a business day-off range`() = runUnitTest {
         given()
         val range = DayOffRange(start = LocalDate(2026, 6, 22), end = LocalDate(2026, 6, 26))
-        val settings = settingsWithDayOffs(dayOffs = listOf(range))
-        val rangeEnd = LocalDate(2026, 6, 26).atStartOfDayIn(settings.timeZone)
+        val settings = settingsWith(weekdaySchedule(dayOffs = listOf(range)))
+        val wednesday = LocalDate(2026, 6, 24)
 
         whenn()
-        val result = settings.isInWorkday(rangeEnd)
+        val error = settings.rejectionOf(settings.at(wednesday, 10), settings.at(wednesday, 11), null)
 
         then()
-        assertFalse(result)
+        assertTrue(error is BookingScheduleError.BusinessDateNotAllowed)
     }
 
     @Test
-    fun `should return true when date is outside any day-off range`() = runUnitTest {
+    fun `should reject with business date error on the last day of a business day-off range`() = runUnitTest {
+        given()
+        val range = DayOffRange(start = LocalDate(2026, 6, 22), end = LocalDate(2026, 6, 26))
+        val settings = settingsWith(weekdaySchedule(dayOffs = listOf(range)))
+        val rangeEnd = LocalDate(2026, 6, 26)
+
+        whenn()
+        val error = settings.rejectionOf(settings.at(rangeEnd, 10), settings.at(rangeEnd, 11), null)
+
+        then()
+        assertTrue(error is BookingScheduleError.BusinessDateNotAllowed)
+    }
+
+    @Test
+    fun `should accept a working day outside every business day-off range`() = runUnitTest {
         given()
         val range = DayOffRange(start = LocalDate(2026, 6, 22), end = LocalDate(2026, 6, 24))
-        val settings = settingsWithDayOffs(dayOffs = listOf(range))
-        val friday = LocalDate(2026, 6, 26).atStartOfDayIn(settings.timeZone)
+        val settings = settingsWith(weekdaySchedule(dayOffs = listOf(range)))
+        val friday = LocalDate(2026, 6, 26)
 
         whenn()
-        val result = settings.isInWorkday(friday)
+        val error = settings.rejectionOf(settings.at(friday, 10), settings.at(friday, 11), null)
 
         then()
-        assertTrue(result)
+        assertNull(error)
     }
 
     @Test
-    fun `should return false when date is not a working day regardless of day-offs`() = runUnitTest {
+    fun `should reject with business date error when the business does not work that weekday`() = runUnitTest {
         given()
-        val settings = settingsWithDayOffs(dayOffs = listOf())
-        val saturday = LocalDate(2026, 6, 27).atStartOfDayIn(settings.timeZone)
+        val settings = settingsWith(weekdaySchedule())
+        val saturday = LocalDate(2026, 6, 27)
 
         whenn()
-        val result = settings.isInWorkday(saturday)
+        val error = settings.rejectionOf(settings.at(saturday, 10), settings.at(saturday, 11), null)
 
         then()
-        assertFalse(result)
+        assertTrue(error is BookingScheduleError.BusinessDateNotAllowed)
     }
 
     @Test
-    fun `should return true when appointment range is fully contained in a working time slot`() = runUnitTest {
+    fun `should accept a slot that exactly matches the business working range`() = runUnitTest {
         given()
-        val settings = settingsWithWorkingHours(listOf(WorkHour(LocalTime(9, 0), LocalTime(17, 0))))
-        val monday = LocalDate(2026, 6, 22)
-        val start = monday.atTime(10, 0).toInstant(settings.timeZone)
-        val end = monday.atTime(11, 0).toInstant(settings.timeZone)
+        val settings = settingsWith(mondaySchedule(listOf(WorkHour.NINE_TO_FIVE)))
 
         whenn()
-        val result = settings.isInWorktime(start, end)
+        val error = settings.rejectionOf(settings.at(monday, 9), settings.at(monday, 17), null)
 
         then()
-        assertTrue(result)
+        assertNull(error)
     }
 
     @Test
-    fun `should return true when appointment range exactly matches a working time slot`() = runUnitTest {
+    fun `should reject with business time error when the slot starts before the business hours`() = runUnitTest {
         given()
-        val settings = settingsWithWorkingHours(listOf(WorkHour(LocalTime(9, 0), LocalTime(17, 0))))
-        val monday = LocalDate(2026, 6, 22)
-        val start = monday.atTime(9, 0).toInstant(settings.timeZone)
-        val end = monday.atTime(17, 0).toInstant(settings.timeZone)
+        val settings = settingsWith(mondaySchedule(listOf(WorkHour.NINE_TO_FIVE)))
 
         whenn()
-        val result = settings.isInWorktime(start, end)
+        val error = settings.rejectionOf(settings.at(monday, 8), settings.at(monday, 10), null)
 
         then()
-        assertTrue(result)
+        assertTrue(error is BookingScheduleError.BusinessTimeNotAllowed)
     }
 
     @Test
-    fun `should return false when appointment starts before the working time slot`() = runUnitTest {
+    fun `should reject with business time error when the slot ends after the business hours`() = runUnitTest {
         given()
-        val settings = settingsWithWorkingHours(listOf(WorkHour(LocalTime(9, 0), LocalTime(17, 0))))
-        val monday = LocalDate(2026, 6, 22)
-        val start = monday.atTime(8, 0).toInstant(settings.timeZone)
-        val end = monday.atTime(10, 0).toInstant(settings.timeZone)
+        val settings = settingsWith(mondaySchedule(listOf(WorkHour.NINE_TO_FIVE)))
 
         whenn()
-        val result = settings.isInWorktime(start, end)
+        val error = settings.rejectionOf(settings.at(monday, 16), settings.at(monday, 18), null)
 
         then()
-        assertFalse(result)
+        assertTrue(error is BookingScheduleError.BusinessTimeNotAllowed)
     }
 
     @Test
-    fun `should return false when appointment ends after the working time slot`() = runUnitTest {
+    fun `should reject with business time error when the business has no hours that day`() = runUnitTest {
         given()
-        val settings = settingsWithWorkingHours(listOf(WorkHour(LocalTime(9, 0), LocalTime(17, 0))))
-        val monday = LocalDate(2026, 6, 22)
-        val start = monday.atTime(16, 0).toInstant(settings.timeZone)
-        val end = monday.atTime(18, 0).toInstant(settings.timeZone)
+        val settings = settingsWith(mondaySchedule(emptyList()))
 
         whenn()
-        val result = settings.isInWorktime(start, end)
+        val error = settings.rejectionOf(settings.at(monday, 10), settings.at(monday, 11), null)
 
         then()
-        assertFalse(result)
+        assertTrue(error is BookingScheduleError.BusinessTimeNotAllowed)
     }
 
     @Test
-    fun `should return false when no working time slot is defined for the day`() = runUnitTest {
+    fun `should accept a slot inside one of several business working ranges`() = runUnitTest {
         given()
-        val settings = settingsWithWorkingHours(listOf())
-        val monday = LocalDate(2026, 6, 22)
-        val start = monday.atTime(10, 0).toInstant(settings.timeZone)
-        val end = monday.atTime(11, 0).toInstant(settings.timeZone)
+        val ranges = listOf(WorkHour(LocalTime(9, 0), LocalTime(12, 0)), WorkHour(LocalTime(13, 0), LocalTime(17, 0)))
+        val settings = settingsWith(mondaySchedule(ranges))
 
         whenn()
-        val result = settings.isInWorktime(start, end)
+        val error = settings.rejectionOf(settings.at(monday, 14), settings.at(monday, 15), null)
 
         then()
-        assertFalse(result)
+        assertNull(error)
     }
 
     @Test
-    fun `should return true when appointment fits within one of multiple working time slots`() = runUnitTest {
-        given()
-        val settings = settingsWithWorkingHours(
-            listOf(
+    fun `should reject with business time error when the slot spans the gap between business ranges`() =
+        runUnitTest {
+            given()
+            val ranges = listOf(
                 WorkHour(LocalTime(9, 0), LocalTime(12, 0)),
                 WorkHour(LocalTime(13, 0), LocalTime(17, 0)),
-            ),
-        )
-        val monday = LocalDate(2026, 6, 22)
-        val start = monday.atTime(14, 0).toInstant(settings.timeZone)
-        val end = monday.atTime(15, 0).toInstant(settings.timeZone)
+            )
+            val settings = settingsWith(mondaySchedule(ranges))
+
+            whenn()
+            val error = settings.rejectionOf(settings.at(monday, 11), settings.at(monday, 14), null)
+
+            then()
+            assertTrue(error is BookingScheduleError.BusinessTimeNotAllowed)
+        }
+
+    @Test
+    fun `should reject with employee date error when the business works that day but the employee does not`() =
+        runUnitTest {
+            given()
+            val settings = settingsWith(mondaySchedule(listOf(WorkHour.NINE_TO_FIVE)))
+            val employeeSchedule = Schedule(
+                workingDays = listOf(DayOfWeek.TUESDAY),
+                workingHours = mapOf(DayOfWeek.TUESDAY to listOf(WorkHour.NINE_TO_FIVE)),
+            )
+
+            whenn()
+            val error = settings.rejectionOf(settings.at(monday, 10), settings.at(monday, 11), employeeSchedule)
+
+            then()
+            assertTrue(error is BookingScheduleError.EmployeeDateNotAllowed)
+        }
+
+    @Test
+    fun `should reject with employee date error when the date is a day off of the employee only`() = runUnitTest {
+        given()
+        val settings = settingsWith(mondaySchedule(listOf(WorkHour.NINE_TO_FIVE)))
+        val employeeSchedule = settings.schedule.copy(dayOffs = listOf(DayOffRange(monday, monday)))
 
         whenn()
-        val result = settings.isInWorktime(start, end)
+        val error = settings.rejectionOf(settings.at(monday, 10), settings.at(monday, 11), employeeSchedule)
 
         then()
-        assertTrue(result)
+        assertTrue(error is BookingScheduleError.EmployeeDateNotAllowed)
     }
 
     @Test
-    fun `should return false when appointment spans across the gap between two working time slots`() = runUnitTest {
+    fun `should reject with business date error when neither the business nor the employee works that day`() =
+        runUnitTest {
+            given()
+            val settings = settingsWith(weekdaySchedule())
+            val saturday = LocalDate(2026, 6, 27)
+
+            whenn()
+            val error = settings.rejectionOf(settings.at(saturday, 10), settings.at(saturday, 11), Schedule.empty())
+
+            then()
+            assertTrue(error is BookingScheduleError.BusinessDateNotAllowed)
+        }
+
+    @Test
+    fun `should reject with business time error before checking the employee schedule`() = runUnitTest {
         given()
-        val settings = settingsWithWorkingHours(
-            listOf(
-                WorkHour(LocalTime(9, 0), LocalTime(12, 0)),
-                WorkHour(LocalTime(13, 0), LocalTime(17, 0)),
-            ),
-        )
-        val monday = LocalDate(2026, 6, 22)
-        val start = monday.atTime(11, 0).toInstant(settings.timeZone)
-        val end = monday.atTime(14, 0).toInstant(settings.timeZone)
+        val settings = settingsWith(mondaySchedule(listOf(WorkHour.NINE_TO_FIVE)))
 
         whenn()
-        val result = settings.isInWorktime(start, end)
+        val error = settings.rejectionOf(settings.at(monday, 18), settings.at(monday, 19), Schedule.empty())
 
         then()
-        assertFalse(result)
+        assertTrue(error is BookingScheduleError.BusinessTimeNotAllowed)
+    }
+
+    @Test
+    fun `should accept a slot when both the business and the employee work at that time`() = runUnitTest {
+        given()
+        val settings = settingsWith(mondaySchedule(listOf(WorkHour.NINE_TO_FIVE)))
+
+        whenn()
+        val error = settings.rejectionOf(settings.at(monday, 10), settings.at(monday, 11), settings.schedule)
+
+        then()
+        assertNull(error)
+    }
+
+    @Test
+    fun `should accept a start after midnight inside the previous day's overnight range`() = runUnitTest {
+        given()
+        val settings = settingsWith(mondaySchedule(listOf(WorkHour(LocalTime(22, 0), LocalTime(2, 0)))))
+        val tuesday = LocalDate(2026, 6, 23)
+
+        whenn()
+        val error = settings.rejectionOf(settings.at(tuesday, 1), settings.at(tuesday, 1, 30), settings.schedule)
+
+        then()
+        assertNull(error)
+    }
+
+    @Test
+    fun `should reject with business date error at the midnight an overnight range ends before a day off`() =
+        runUnitTest {
+            given()
+            val settings = settingsWith(mondaySchedule(listOf(WorkHour(LocalTime(20, 0), LocalTime(0, 0)))))
+            val tuesday = LocalDate(2026, 6, 23)
+
+            whenn()
+            val error = settings.rejectionOf(settings.at(tuesday, 0), settings.at(tuesday, 0, 30), null)
+
+            then()
+            assertTrue(error is BookingScheduleError.BusinessDateNotAllowed)
+        }
+
+    @Test
+    fun `should reject with employee date error at the midnight the employee's overnight range ends`() =
+        runUnitTest {
+            given()
+            val businessSchedule = Schedule(
+                workingDays = listOf(DayOfWeek.MONDAY, DayOfWeek.TUESDAY),
+                workingHours = mapOf(
+                    DayOfWeek.MONDAY to listOf(WorkHour(LocalTime(20, 0), LocalTime(0, 0))),
+                    DayOfWeek.TUESDAY to listOf(WorkHour(LocalTime(0, 0), LocalTime(17, 0))),
+                ),
+            )
+            val settings = settingsWith(businessSchedule)
+            val employeeSchedule = mondaySchedule(listOf(WorkHour(LocalTime(20, 0), LocalTime(0, 0))))
+            val tuesday = LocalDate(2026, 6, 23)
+
+            whenn()
+            val error = settings.rejectionOf(settings.at(tuesday, 0), settings.at(tuesday, 0, 30), employeeSchedule)
+
+            then()
+            assertTrue(error is BookingScheduleError.EmployeeDateNotAllowed)
+        }
+
+    @Test
+    fun `should reject with employee time error when the slot is outside the employee working hours`() =
+        runUnitTest {
+            given()
+            val settings = settingsWith(mondaySchedule(listOf(WorkHour.NINE_TO_FIVE)))
+            val employeeSchedule = mondaySchedule(listOf(WorkHour(LocalTime(12, 0), LocalTime(17, 0))))
+
+            whenn()
+            val error = settings.rejectionOf(settings.at(monday, 10), settings.at(monday, 11), employeeSchedule)
+
+            then()
+            assertTrue(error is BookingScheduleError.EmployeeTimeNotAllowed)
+        }
+
+    @Test
+    fun `should reject with business time error when the slot is inside the employee hours only`() = runUnitTest {
+        given()
+        val settings = settingsWith(mondaySchedule(listOf(WorkHour(LocalTime(12, 0), LocalTime(17, 0)))))
+        val employeeSchedule = mondaySchedule(listOf(WorkHour.NINE_TO_FIVE))
+
+        whenn()
+        val error = settings.rejectionOf(settings.at(monday, 10), settings.at(monday, 11), employeeSchedule)
+
+        then()
+        assertTrue(error is BookingScheduleError.BusinessTimeNotAllowed)
+    }
+
+    @Test
+    fun `should accept a slot that runs past midnight into the next day's hours`() = runUnitTest {
+        given()
+        val schedule = Schedule(
+            workingDays = listOf(DayOfWeek.MONDAY, DayOfWeek.TUESDAY),
+            workingHours = mapOf(
+                DayOfWeek.MONDAY to listOf(WorkHour(LocalTime(20, 0), LocalTime(0, 0))),
+                DayOfWeek.TUESDAY to listOf(WorkHour(LocalTime(0, 0), LocalTime(17, 0))),
+            ),
+        )
+        val settings = settingsWith(schedule)
+        val tuesday = LocalDate(2026, 6, 23)
+
+        whenn()
+        val error = settings.rejectionOf(settings.at(monday, 23), settings.at(tuesday, 1), schedule)
+
+        then()
+        assertNull(error)
     }
 }

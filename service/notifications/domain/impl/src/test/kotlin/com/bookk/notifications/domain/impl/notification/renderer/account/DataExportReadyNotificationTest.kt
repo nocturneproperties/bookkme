@@ -49,7 +49,7 @@ internal class DataExportReadyNotificationTest {
         then()
         assertEquals("Your data export is ready", push.title)
         assertEquals("Download it in the app before $until, when it is deleted.", push.body)
-        assertEquals("Your Bookk data export is ready", email.subject)
+        assertEquals("Your BookkMe data export is ready", email.subject)
     }
 
     @Test
@@ -77,7 +77,7 @@ internal class DataExportReadyNotificationTest {
         then()
         assertEquals("Your business data export is ready", push.title)
         assertEquals("Download it in the app before $until, when it is deleted.", push.body)
-        assertEquals("Your Bookk business data export is ready. Download it in the app before $until.", text.text)
+        assertEquals("Your BookkMe business data export is ready. Download it in the app before $until.", text.text)
     }
 
     @Test

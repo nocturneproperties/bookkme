@@ -25,6 +25,14 @@ interface CreateEmployeeInvitation {
                 message = "Business already created the maximum number of invitations in the last 24 hours",
             ),
             Error
+
+        class EmployeesLimitReached :
+            BusinessError(
+                statusCode = HttpStatusCode.UnprocessableEntity.value,
+                code = BusinessErrorCodes.BUSINESS_EMPLOYEES_LIMIT_REACHED,
+                message = "Business already has the maximum number of employees",
+            ),
+            Error
     }
 
     companion object {

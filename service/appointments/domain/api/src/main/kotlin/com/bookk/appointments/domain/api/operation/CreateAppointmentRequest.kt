@@ -18,27 +18,19 @@ interface CreateAppointmentRequest {
             ),
             Error
 
-        class RequestForThisTimeNotAllowed :
-            BusinessError(
-                statusCode = HttpStatusCode.UnprocessableEntity.value,
-                code = AppointmentErrorCodes.TIME_NOT_ALLOWED,
-                message = "Request for this time not allowed",
-            ),
-            Error
-
-        class RequestForThisDateNotAllowed :
-            BusinessError(
-                statusCode = HttpStatusCode.UnprocessableEntity.value,
-                code = AppointmentErrorCodes.DATE_NOT_ALLOWED,
-                message = "Request for this date and time not allowed",
-            ),
-            Error
-
         class DateInThePastNotAllowed :
             BusinessError(
                 statusCode = HttpStatusCode.UnprocessableEntity.value,
                 code = AppointmentErrorCodes.DATE_IN_PAST,
                 message = "Request date is in the past",
+            ),
+            Error
+
+        class PendingRequestsLimitReached :
+            BusinessError(
+                statusCode = HttpStatusCode.UnprocessableEntity.value,
+                code = AppointmentErrorCodes.PENDING_REQUESTS_LIMIT_REACHED,
+                message = "You already have the maximum number of pending requests at this business",
             ),
             Error
     }

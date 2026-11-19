@@ -1,0 +1,61 @@
+name: Infrastructure task (maintainers only)
+description: Production, monitoring, DNS, mail or deployment work by the BookkMe maintainers.
+labels: ["enhancement", "infrastructure"]
+type: Task
+assignees: ["an22"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Maintainers only.** Issues opened from this template by anyone else are closed. Read `deployment/AGENTS.md` before planning the change.
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: What changes in production and why.
+    validations:
+      required: true
+  - type: textarea
+    id: must_cover
+    attributes:
+      label: Must cover
+    validations:
+      required: true
+  - type: input
+    id: stacks
+    attributes:
+      label: Affected stacks and Ansible tags
+      placeholder: "monitoring, nginx"
+    validations:
+      required: true
+  - type: textarea
+    id: metrics
+    attributes:
+      label: Metrics and alerts touched
+      description: Dashboards and alerts query metric names and labels, so list every one that is added, renamed or removed.
+    validations:
+      required: false
+  - type: textarea
+    id: manual_steps
+    attributes:
+      label: Manual steps
+      description: Vault changes, Cloudflare, provider panels, DNS records and anything else done by hand.
+    validations:
+      required: false
+  - type: textarea
+    id: rollback
+    attributes:
+      label: Rollback plan
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      value: |
+        - [ ] Deployed to the test swarm and checked there
+        - [ ] Each new alert triggered once
+        - [ ] `deployment/ansible/README.md` updated
+        - [ ] Deployed to production
+    validations:
+      required: true

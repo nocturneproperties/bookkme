@@ -4,8 +4,8 @@ object AppointmentErrorCodes {
     private const val BASE = 300000
 
     const val REQUEST_EXISTS = BASE + 1
-    const val TIME_NOT_ALLOWED = BASE + 2
-    const val DATE_NOT_ALLOWED = BASE + 3
+    const val BUSINESS_TIME_NOT_ALLOWED = BASE + 2
+    const val BUSINESS_DATE_NOT_ALLOWED = BASE + 3
     const val APPOINTMENT_EXISTS = BASE + 4
     const val APPOINTMENT_ALREADY_CANCELED = BASE + 5
     const val REQUEST_ALREADY_DECLINED = BASE + 7
@@ -22,4 +22,7 @@ object AppointmentErrorCodes {
     const val PRICE_ADJUSTMENT_REASON_TOO_LONG = BASE + 23
     const val SERVICE_SELECTION_INVALID = BASE + 24
     const val APPOINTMENT_EDIT_WINDOW_CLOSED = BASE + 26
+    const val EMPLOYEE_DATE_NOT_ALLOWED = BASE + 27
+    const val EMPLOYEE_TIME_NOT_ALLOWED = BASE + 28
+    const val PENDING_REQUESTS_LIMIT_REACHED = BASE + 29
 }

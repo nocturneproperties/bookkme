@@ -129,6 +129,32 @@ internal class AppointmentRequestDataSourceImplTest {
     }
 
     @Test
+    fun `should count only pending requests of the given user in the business`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val userId = Uuid.random()
+        val otherBusiness = BusinessSnapshot.stub()
+        suspendTransaction { fixture.subscriptionSut.attachBusiness(otherBusiness) }
+        suspendTransaction { fixture.sut.create(fixture.buildRequest(userId = userId)) }
+        suspendTransaction { fixture.sut.create(fixture.buildRequest(userId = userId)) }
+        val approved = suspendTransaction { fixture.sut.create(fixture.buildRequest(userId = userId)) }
+        suspendTransaction { fixture.sut.approve(approved) }
+        val declined = suspendTransaction { fixture.sut.create(fixture.buildRequest(userId = userId)) }
+        suspendTransaction { fixture.sut.decline(declined.id, "Fully booked") }
+        suspendTransaction { fixture.sut.create(fixture.buildRequest()) }
+        suspendTransaction {
+            fixture.sut.create(AppointmentRequest.stub(initiatorUserId = userId, businessId = otherBusiness.id))
+        }
+
+        whenn()
+        val count = suspendTransaction { fixture.sut.countPendingByUser(userId, fixture.businessId) }
+
+        then()
+        assertEquals(2L, count)
+    }
+
+    @Test
     fun `should retrieve only pending requests`() = runUnitTest {
         given()
         val fixture = SutFixture()
@@ -173,6 +199,22 @@ internal class AppointmentRequestDataSourceImplTest {
         then()
         assertEquals(AppointmentRequestStatus.DECLINED, declined.status)
         assertEquals("Fully booked", declined.declineReason)
+    }
+
+    @Test
+    fun `should mark a withdrawn request cancelled so it stops counting as pending`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val userId = Uuid.random()
+        val created = suspendTransaction { fixture.sut.create(fixture.buildRequest(userId = userId)) }
+
+        whenn()
+        suspendTransaction { fixture.sut.withdraw(created.id) }
+
+        then()
+        assertEquals(AppointmentRequestStatus.CANCELLED, suspendTransaction { fixture.sut.get(created.id) }!!.status)
+        assertEquals(0L, suspendTransaction { fixture.sut.countPendingByUser(userId, fixture.businessId) })
     }
 
     @Test

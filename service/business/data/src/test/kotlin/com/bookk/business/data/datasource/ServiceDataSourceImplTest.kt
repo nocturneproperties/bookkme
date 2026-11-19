@@ -49,6 +49,31 @@ internal class ServiceDataSourceImplTest {
     }
 
     @Test
+    fun `should count the services and service groups of one business only`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val otherBusinessId = suspendTransaction {
+            fixture.businessSut.createBusiness(Uuid.random(), "Other", "USD", TimeZone.UTC)
+        }.id
+        suspendTransaction {
+            val group = fixture.sut.createServiceGroup(ServiceGroup.stub(businessId = fixture.businessId, name = "A"))
+            fixture.sut.createServiceGroup(ServiceGroup.stub(businessId = fixture.businessId, name = "B"))
+            fixture.sut.createService(Service.stub(businessId = fixture.businessId, group = group, name = "Cut"))
+            val other = fixture.sut.createServiceGroup(ServiceGroup.stub(businessId = otherBusinessId, name = "A"))
+            fixture.sut.createService(Service.stub(businessId = otherBusinessId, group = other, name = "Cut"))
+        }
+
+        whenn()
+        val services = suspendTransaction { fixture.sut.countServices(fixture.businessId) }
+        val groups = suspendTransaction { fixture.sut.countServiceGroups(fixture.businessId) }
+
+        then()
+        assertEquals(1L, services)
+        assertEquals(2L, groups)
+    }
+
+    @Test
     fun `should create service group and retrieve`() = runUnitTest {
         given()
         val fixture = SutFixture()

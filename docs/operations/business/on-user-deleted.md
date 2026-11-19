@@ -30,7 +30,8 @@ flowchart TD
     DeleteData --> SelClients["ClientDataSource.getClientsOfUserForUpdate userId and EmployeeDataSource.getBusinessIdsOfUserForUpdate userId - SELECT business_id, id and the employee business ids FOR UPDATE WHERE user_id"]
     SelClients --> DelClients["ClientDataSource.deleteClients the selected ids - one DELETE, in every business"]
     DelClients --> DelEmployees["EmployeeDataSource.deleteEmployeesByUserId userId - DELETE; services, working hours, days off and permission grants go by ON DELETE CASCADE"]
-    DelEmployees --> DiscardExports["DataExports.discardAll distinct business ids of the selected clients and employees - one SELECT FOR UPDATE, one DELETE, SubjectKeys.shredAll in one upsert"]
+    DelEmployees --> DelLimits["UserLimitsDataSource.deleteForUser userId - DELETE FROM user_limits"]
+    DelLimits --> DiscardExports["DataExports.discardAll distinct business ids of the selected clients and employees - one SELECT FOR UPDATE, one DELETE, SubjectKeys.shredAll in one upsert"]
     DiscardExports --> ShredUser["SubjectKeys.shredAll userId and the selected client ids - last"]
     DelEmployees -- throws --> Dlt
     ShredUser -- ok --> Ack([Marked processed])

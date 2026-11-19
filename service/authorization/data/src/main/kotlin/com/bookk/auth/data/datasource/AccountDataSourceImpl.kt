@@ -44,6 +44,13 @@ internal class AccountDataSourceImpl : DataSource(), AccountDataSource {
             .singleOrNull()
     }
 
+    override suspend fun lockAccount(id: Uuid): Boolean = dbQuery {
+        AuthenticationTable.select(AuthenticationTable.id)
+            .where { AuthenticationTable.id eq id }
+            .forUpdate()
+            .any()
+    }
+
     override suspend fun getAuthRecordByUUID(uuid: Uuid): Authentication? = dbQuery {
         AuthenticationTable.selectAll()
             .where { AuthenticationTable.uuid eq uuid }

@@ -8,9 +8,8 @@ import com.bookk.appointments.domain.api.entity.BookingQuoteError
 import com.bookk.appointments.domain.api.operation.CreateAppointment
 import com.bookk.appointments.domain.api.operation.CreateAppointmentRequest
 import com.bookk.appointments.domain.api.operation.CreateAppointmentRequest.Error.DateInThePastNotAllowed
-import com.bookk.appointments.domain.api.operation.CreateAppointmentRequest.Error.RequestForThisDateNotAllowed
+import com.bookk.appointments.domain.api.operation.CreateAppointmentRequest.Error.PendingRequestsLimitReached
 import com.bookk.appointments.domain.api.operation.CreateAppointmentRequest.Error.RequestForThisTimeExists
-import com.bookk.appointments.domain.api.operation.CreateAppointmentRequest.Error.RequestForThisTimeNotAllowed
 import com.bookk.appointments.domain.datasource.AppointmentDataSource
 import com.bookk.appointments.domain.datasource.AppointmentRequestDataSource
 import com.bookk.appointments.domain.datasource.AppointmentSettingsDataSource
@@ -27,6 +26,7 @@ import com.bookk.core.domain.entity.runSuspendCatching
 import com.bookk.library.serializer.moneyFormatter
 import com.bookk.server.appointments.client.api.event.AppointmentEvent
 import com.bookk.server.business.client.api.BusinessClient
+import library.schedule.Schedule
 import library.signing.TokenValidatorFactory
 import org.slf4j.LoggerFactory
 import kotlin.time.Clock
@@ -70,12 +70,13 @@ internal class CreateAppointmentRequestImpl(
 
         quoteVerifier.verifyOfferUnchanged(verifiedOffer, request.totalAmount, request.dateEnd - request.date)
 
-        createOrRequestAppointment(userId, request).getOrThrow()
+        createOrRequestAppointment(userId, request, bookingContext.employee.schedule).getOrThrow()
     }
 
     private suspend fun createOrRequestAppointment(
         userId: Uuid,
         request: AppointmentRequest,
+        employeeSchedule: Schedule,
     ): Result<Unit> = transactionManager.transaction<Unit> {
         if (deletedUserDataSource.isDeletedForShare(userId)) throw Error.OperationNotAllowed()
         if (deletedClientDataSource.isDeletedForShare(request.businessId, request.client.id)) {
@@ -84,12 +85,13 @@ internal class CreateAppointmentRequestImpl(
         val settings = settingsDataSource.getForUpdate(request.businessId) ?: throw Error.NotFound()
 
         if (settings.automaticApproval) {
-            return@transaction createAppointment.createBypassingPermissions(request)
+            return@transaction createAppointment.createBypassingPermissions(request, employeeSchedule)
                 .map { Unit }
                 .getOrThrow()
         }
 
-        assertRequestIsSchedulable(request, settings)
+        assertRequestIsSchedulable(request, settings, employeeSchedule)
+        assertPendingRequestsBelowLimit(userId, request.businessId, settings)
 
         requestDataSource.create(request).also {
             eventProducer.send(
@@ -109,10 +111,18 @@ internal class CreateAppointmentRequestImpl(
             }
     }
 
-    private suspend fun assertRequestIsSchedulable(request: AppointmentRequest, settings: AppointmentSettings) {
+    private suspend fun assertPendingRequestsBelowLimit(userId: Uuid, businessId: Uuid, settings: AppointmentSettings) {
+        val pendingRequests = requestDataSource.countPendingByUser(userId, businessId)
+        if (pendingRequests >= settings.maxPendingRequestsPerClient) throw PendingRequestsLimitReached()
+    }
+
+    private suspend fun assertRequestIsSchedulable(
+        request: AppointmentRequest,
+        settings: AppointmentSettings,
+        employeeSchedule: Schedule,
+    ) {
         if (request.date < Clock.System.now()) throw DateInThePastNotAllowed()
-        if (!settings.isInWorkday(request.date)) throw RequestForThisDateNotAllowed()
-        if (!settings.isInWorktime(request.date, request.dateEnd)) throw RequestForThisTimeNotAllowed()
+        settings.requireBookable(request.date, request.dateEnd, employeeSchedule)
         if (requestDataSource.hasOverlapsWith(request)) throw RequestForThisTimeExists()
         if (appointmentDataSource.hasOverlapsWith(request)) throw RequestForThisTimeExists()
     }

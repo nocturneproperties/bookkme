@@ -11,6 +11,7 @@ interface ClientDataSource {
     suspend fun createDetachedClient(businessId: Uuid, client: Client.Detached): Client
     suspend fun createDetachedClients(businessId: Uuid, clients: List<Client.Detached>): List<Client>
     suspend fun getClients(businessId: Uuid): List<Client>
+    suspend fun countClients(businessId: Uuid): Long
     suspend fun getClientsByEmails(businessId: Uuid, emails: Collection<String>): List<Client>
     suspend fun getClientById(businessId: Uuid, id: Uuid): Client?
     suspend fun getClientForUpdate(businessId: Uuid, id: Uuid): Client?

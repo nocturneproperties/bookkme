@@ -6,6 +6,7 @@ import com.bookk.business.data.orm.table.BusinessDayOffTable
 import com.bookk.business.data.orm.table.BusinessTable
 import com.bookk.business.data.orm.table.EmployeeTable
 import com.bookk.business.domain.api.business.entity.Business
+import com.bookk.business.domain.api.business.entity.BusinessLimits
 import com.bookk.business.domain.api.business.entity.BusinessUpdateModel
 import com.bookk.business.domain.api.business.entity.UserBusinesses
 import com.bookk.business.domain.datasource.BusinessDataSource
@@ -16,6 +17,7 @@ import com.bookk.core.data.forShare
 import com.bookk.core.domain.entity.Error
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
+import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.inList
@@ -55,19 +57,24 @@ internal class BusinessDataSourceImpl : DataSource(), BusinessDataSource {
     }
 
     override suspend fun lockBusiness(id: Uuid, lock: RowLock): LockedBusiness? = dbQuery {
-        val query = BusinessTable.select(BusinessTable.currency).where { BusinessTable.id eq id }
+        val query = BusinessTable.select(
+            BusinessTable.currency,
+            BusinessTable.maxEmployees,
+            BusinessTable.maxClients,
+            BusinessTable.maxServices,
+            BusinessTable.maxServiceGroups,
+        ).where { BusinessTable.id eq id }
         val lockedQuery = when (lock) {
             RowLock.SHARED -> query.forShare()
             RowLock.EXCLUSIVE -> query.forUpdate()
         }
-        lockedQuery.singleOrNull()?.let { LockedBusiness(currencyCode = it[BusinessTable.currency]) }
+        lockedQuery.singleOrNull()?.let {
+            LockedBusiness(currencyCode = it[BusinessTable.currency], limits = it.limits())
+        }
     }
 
-    override suspend fun isBusinessExist(userId: Uuid): Boolean = dbQuery {
-        BusinessTable.select(BusinessTable.id)
-            .where { BusinessTable.userId eq userId }
-            .empty()
-            .not()
+    override suspend fun countBusinessesOwnedBy(userId: Uuid): Long = dbQuery {
+        BusinessTable.select(BusinessTable.id).where { BusinessTable.userId eq userId }.count()
     }
 
     override suspend fun isOwner(userId: Uuid, businessId: Uuid): Boolean = dbQuery {
@@ -160,5 +167,14 @@ internal class BusinessDataSourceImpl : DataSource(), BusinessDataSource {
         BusinessTable
             .select(BusinessTable.id, BusinessTable.clientDataRetentionMonths)
             .associate { it[BusinessTable.id].value to it[BusinessTable.clientDataRetentionMonths] }
+    }
+
+    private fun ResultRow.limits(): BusinessLimits {
+        return BusinessLimits(
+            maxEmployees = this[BusinessTable.maxEmployees] ?: BusinessLimits.DEFAULT_MAX_EMPLOYEES,
+            maxClients = this[BusinessTable.maxClients] ?: BusinessLimits.DEFAULT_MAX_CLIENTS,
+            maxServices = this[BusinessTable.maxServices] ?: BusinessLimits.DEFAULT_MAX_SERVICES,
+            maxServiceGroups = this[BusinessTable.maxServiceGroups] ?: BusinessLimits.DEFAULT_MAX_SERVICE_GROUPS,
+        )
     }
 }

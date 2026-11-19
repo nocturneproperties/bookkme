@@ -1,12 +1,16 @@
 package com.bookk.business.domain.impl.operation.client
 
+import com.bookk.business.domain.api.business.entity.BusinessLimits
 import com.bookk.business.domain.api.business.entity.BusinessResource
 import com.bookk.business.domain.api.client.entity.Client
 import com.bookk.business.domain.api.client.entity.RejectedClient
 import com.bookk.business.domain.api.client.operation.ImportClients
 import com.bookk.business.domain.api.error.BusinessErrorCodes
+import com.bookk.business.domain.datasource.BusinessDataSource
 import com.bookk.business.domain.datasource.BusinessPermissionDataSource
 import com.bookk.business.domain.datasource.ClientDataSource
+import com.bookk.business.domain.datasource.LockedBusiness
+import com.bookk.business.domain.datasource.RowLock
 import com.bookk.core.domain.datasource.transaction.TransactionManager
 import com.bookk.core.domain.datasource.transaction.mockTransaction
 import com.bookk.core.domain.entity.Error
@@ -16,6 +20,7 @@ import com.bookk.core.test.then
 import com.bookk.core.test.whenn
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.coVerifyOrder
 import io.mockk.mockk
 import library.permissions.ResourcePermission
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -29,10 +34,14 @@ internal class ImportClientsImplTest {
     private val businessId = Uuid.random()
 
     private class SutFixture {
-        val clientDataSource = mockk<ClientDataSource>()
+        val clientDataSource = mockk<ClientDataSource> { coEvery { countClients(any()) } returns 0 }
         val businessPermissionDataSource = mockk<BusinessPermissionDataSource>()
+        val businessDataSource = mockk<BusinessDataSource> {
+            coEvery { lockBusiness(any(), RowLock.EXCLUSIVE) } returns LockedBusiness.stub("USD")
+        }
         val transactionManager = mockk<TransactionManager>()
-        val sut = ImportClientsImpl(transactionManager, clientDataSource, businessPermissionDataSource)
+        val sut =
+            ImportClientsImpl(transactionManager, clientDataSource, businessPermissionDataSource, businessDataSource)
 
         init {
             transactionManager.mockTransaction()
@@ -40,6 +49,75 @@ internal class ImportClientsImplTest {
                 ResourcePermission.FULL
             coEvery { clientDataSource.getClientsByEmails(any(), any()) } returns emptyList()
             coEvery { clientDataSource.createDetachedClients(any(), any()) } answers { secondArg() }
+        }
+    }
+
+    @Test
+    fun `should create clients up to the business limit and reject the rest by index`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val clients = listOf(
+            Client.Detached.stub(name = "Ann", phone = "+1111", email = null),
+            Client.Detached.stub(phone = "not a phone", email = null),
+            Client.Detached.stub(name = "Ben", phone = "+2222", email = null),
+            Client.Detached.stub(name = "Cid", phone = "+3333", email = null),
+        )
+        with(fixture) {
+            coEvery { businessDataSource.lockBusiness(businessId, RowLock.EXCLUSIVE) } returns
+                LockedBusiness.stub("USD", BusinessLimits.stub(maxClients = 10))
+            coEvery { clientDataSource.countClients(businessId) } returns 8
+        }
+
+        whenn()
+        val result = fixture.sut(requestUserId, businessId, clients)
+
+        then()
+        assertEquals(listOf("Ann", "Ben"), result.getOrThrow().created.map { it.name })
+        assertEquals(
+            listOf(
+                RejectedClient(1, BusinessErrorCodes.BUSINESS_CLIENT_NAME_VALIDATION_ERROR),
+                RejectedClient(3, BusinessErrorCodes.BUSINESS_CLIENTS_LIMIT_REACHED),
+            ),
+            result.getOrThrow().rejected,
+        )
+    }
+
+    @Test
+    fun `should reject every client when the business is already over its client limit`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val clients = listOf(Client.Detached.stub(phone = "+1111", email = null))
+        with(fixture) {
+            coEvery { businessDataSource.lockBusiness(businessId, RowLock.EXCLUSIVE) } returns
+                LockedBusiness.stub("USD", BusinessLimits.stub(maxClients = 10))
+            coEvery { clientDataSource.countClients(businessId) } returns 12
+        }
+
+        whenn()
+        val result = fixture.sut(requestUserId, businessId, clients)
+
+        then()
+        assertTrue(result.getOrThrow().created.isEmpty())
+        assertEquals(
+            listOf(RejectedClient(0, BusinessErrorCodes.BUSINESS_CLIENTS_LIMIT_REACHED)),
+            result.getOrThrow().rejected,
+        )
+        coVerify(exactly = 0) { fixture.clientDataSource.createDetachedClients(any(), any()) }
+    }
+
+    @Test
+    fun `should lock the business before checking the import permission`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+
+        whenn()
+        fixture.sut(requestUserId, businessId, listOf(Client.Detached.stub(phone = "+1111", email = null)))
+
+        then()
+        coVerifyOrder {
+            fixture.businessDataSource.lockBusiness(businessId, RowLock.EXCLUSIVE)
+            fixture.businessPermissionDataSource.getPermission(requestUserId, businessId, BusinessResource.CLIENTS)
+            fixture.clientDataSource.countClients(businessId)
         }
     }
 

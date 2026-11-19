@@ -54,6 +54,34 @@ internal class PassKeyDataSourceImplTest {
     }
 
     @Test
+    fun `should count only the passkeys of the given account`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val auth = fixture.insertAuth()
+        val other = fixture.insertAuth()
+        suspendTransaction {
+            fixture.sut.createPasskeyCredential(PasskeyCredential.stub(authInfo = auth))
+            fixture.sut.createPasskeyCredential(
+                PasskeyCredential.stub(
+                    authInfo = auth,
+                    credDescriptor = PasskeyCredential.CredentialDescriptor(
+                        id = ByteArray(24) { 1 },
+                        type = "public-key",
+                        transports = setOf("internal"),
+                    ),
+                ),
+            )
+            fixture.sut.createPasskeyCredential(PasskeyCredential.stub(authInfo = other))
+        }
+
+        whenn()
+        val count = suspendTransaction { fixture.sut.countPasskeys(auth.id) }
+
+        then()
+        assertEquals(2L, count)
+    }
+
+    @Test
     fun `should return empty list when no credentials for auth`() = runUnitTest {
         given()
         val fixture = SutFixture()

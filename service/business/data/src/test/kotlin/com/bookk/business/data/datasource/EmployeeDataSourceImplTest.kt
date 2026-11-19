@@ -102,6 +102,29 @@ internal class EmployeeDataSourceImplTest {
     }
 
     @Test
+    fun `should count only the active employees of one business`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val otherBusinessId = suspendTransaction {
+            fixture.businessSut.createBusiness(Uuid.random(), "Other", "USD", TimeZone.UTC)
+        }.id
+        suspendTransaction {
+            fixture.sut.createEmployee(Employee.stub(businessId = fixture.businessId))
+            fixture.sut.createEmployee(Employee.stub(businessId = fixture.businessId))
+            val suspended = fixture.sut.createEmployee(Employee.stub(businessId = fixture.businessId))
+            fixture.sut.setSuspendedAt(suspended.id, Instant.parse("2000-01-01T00:00:00Z"))
+            fixture.sut.createEmployee(Employee.stub(businessId = otherBusinessId))
+        }
+
+        whenn()
+        val count = suspendTransaction { fixture.sut.countActiveEmployees(fixture.businessId) }
+
+        then()
+        assertEquals(2L, count)
+    }
+
+    @Test
     fun `should create employee and retrieve by business`() = runUnitTest {
         given()
         val fixture = SutFixture()
@@ -1073,6 +1096,26 @@ internal class EmployeeDataSourceImplTest {
             fixture.sut.createEmployee(Employee.stub(businessId = owned.id, userId = ownerId))
             fixture.sut.createEmployee(Employee.stub(businessId = owned.id, userId = memberId))
             fixture.sut.createEmployee(Employee.stub(businessId = other.id, userId = Uuid.random()))
+        }
+
+        whenn()
+        val members = suspendTransaction { fixture.sut.getOwnedBusinessMemberUserIds(ownerId) }
+
+        then()
+        assertEquals(listOf(memberId), members)
+    }
+
+    @Test
+    fun `should list a member of several businesses the user owns once`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val ownerId = Uuid.random()
+        val memberId = Uuid.random()
+        suspendTransaction {
+            val first = fixture.businessSut.createBusiness(ownerId, "First", "USD", TimeZone.UTC)
+            val second = fixture.businessSut.createBusiness(ownerId, "Second", "USD", TimeZone.UTC)
+            fixture.sut.createEmployee(Employee.stub(businessId = first.id, userId = memberId))
+            fixture.sut.createEmployee(Employee.stub(businessId = second.id, userId = memberId))
         }
 
         whenn()

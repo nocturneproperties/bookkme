@@ -497,6 +497,37 @@ internal class ClientCrudTest {
     }
 
     @Test
+    fun `should return unprocessable entity when the business has its maximum of clients`() = routeTest {
+        given()
+        val useCase: CreateClient = mockk()
+        val clientRemote = ClientRemote.stub()
+        coEvery { useCase.invoke(userId, businessId, clientRemote.toDetachedClient()) } returns
+            Result.failure(CreateClient.Error.ClientsLimitReached())
+
+        setupApplication(
+            extension = {
+                install(Authentication) {
+                    provider {
+                        authenticate { it.principal(AppPrincipal(Uuid.random(), userId, Uuid.random())) }
+                    }
+                }
+            },
+            diModule = module { single { useCase } },
+            routeUnderTest = { clientCrud() },
+        )
+
+        whenn()
+        val httpClient = createTestClient()
+        val response = httpClient.post(BusinessRouting.Api.Clients(businessId = businessId)) {
+            setBody(clientRemote)
+        }
+
+        then()
+        assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
+        assertEquals(BusinessErrorCodes.BUSINESS_CLIENTS_LIMIT_REACHED, response.body<SimpleServerError>().errorCode)
+    }
+
+    @Test
     fun `should return unprocessable entity when client validation error`() = routeTest {
         given()
         val useCase: CreateClient = mockk()

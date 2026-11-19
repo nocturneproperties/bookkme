@@ -103,6 +103,31 @@ internal class ImportClientsTest {
     }
 
     @Test
+    fun `should return the clients over the business client limit as rejected`() = routeTest {
+        given()
+        val useCase: ImportClients = mockk()
+        val imported = ClientImportResult.stub(
+            rejected = listOf(RejectedClient(1, BusinessErrorCodes.BUSINESS_CLIENTS_LIMIT_REACHED)),
+        )
+        coEvery { useCase.invoke(userId, businessId, any()) } returns Result.success(imported)
+        setup(useCase)
+
+        whenn()
+        val response = createTestClient().post(
+            BusinessRouting.Api.Clients.Import(BusinessRouting.Api.Clients(businessId = businessId)),
+        ) {
+            setBody(request)
+        }
+
+        then()
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertEquals(
+            listOf(RejectedClient(1, BusinessErrorCodes.BUSINESS_CLIENTS_LIMIT_REACHED)),
+            response.body<ClientImportResult>().rejected,
+        )
+    }
+
+    @Test
     fun `should return unprocessable entity when the import is too large`() = routeTest {
         given()
         val useCase: ImportClients = mockk()

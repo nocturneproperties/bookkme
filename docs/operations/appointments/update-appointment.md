@@ -19,11 +19,20 @@ is ever taken from the client:
   including its price, so rescheduling never silently re-prices a booking;
   only **newly added** services are resolved from the catalog.
 
-When nothing needs resolving (a plain date/note change) no call leaves the
-service. Otherwise one call, `BusinessClient.getAppointmentRescheduleContext`
+An edit that moves the slot (a new date or employee, or changed services on a
+still `SCHEDULED` appointment) is checked against the schedule of the employee
+it ends up with, so that employee is resolved even when it doesn't change; its
+stored snapshot is still kept. A kept employee is asked for with
+`currentAssignee = true`: a suspended one is still resolved and its schedule
+applies, and a removed one comes back as no employee, so only the business
+schedule is checked. Only a newly assigned employee is rejected for being
+suspended or missing. When nothing needs resolving (a note change, or
+a correction of a `COMPLETED` or `NO_SHOW` appointment's existing services) no
+call leaves the service and only the business schedule is checked. Otherwise
+one call, `BusinessClient.getAppointmentRescheduleContext`
 (`POST /api/internal/business/{id}/appointment-reschedule-context`), resolves
-the changed employee and the added services together. Unlike the booking
-context it never resolves or creates a client.
+the employee and the added services together. Unlike the booking context it
+never resolves or creates a client.
 
 Changing the date or assigned employee reopens an eligible appointment as
 `SCHEDULED`, clears `completedBy` and removes its previous checkout adjustment
@@ -56,7 +65,9 @@ plain read:
    taken after both locks. An edit reserves a slot when it changes the date or
    employee (`AppointmentUpdate.reschedules`) or the stored appointment is
    still `SCHEDULED`; such an edit is checked for workday, worktime and
-   overlaps. Historical corrections that keep the date and employee of a
+   overlaps against the business schedule and, when the slot moves, the
+   employee's schedule. A working range whose end is before its start
+   runs past midnight, and ranges that touch across days join. Historical corrections that keep the date and employee of a
    `COMPLETED` or `NO_SHOW` appointment reserve no slot and skip those booking
    checks, even when they change its services. A rescheduled appointment is
    reopened first (`AppointmentDataSource.reopen`: `SCHEDULED`, no
@@ -99,11 +110,11 @@ flowchart TD
     Stored -- UNRESOLVED --> R422w
     Window -- Yes --> R422w([422 APPOINTMENT_EDIT_WINDOW_CLOSED 300026])
     Past -- Yes --> R422p([422 DATE_IN_PAST 300012])
-    Past -- No, in transaction 1 --> Changes{employeeId changed or a service id not on the appointment?}
+    Past -- No, in transaction 1 --> Changes{slot moves - date or employee changed, or services changed on a SCHEDULED appointment - or a service id not on the appointment?}
     Changes -- No --> Rebuild
-    Changes -- Yes --> Resolve[BusinessClient.getAppointmentRescheduleContext businessId changedEmployeeId addedServiceIds - no transaction, no lock]
-    Resolve -- employee missing --> R404e([404 BUSINESS_EMPLOYEE_NOT_EXISTS 200024])
-    Resolve -- employee suspended --> R422es([422 BUSINESS_EMPLOYEE_SUSPENDED 200033])
+    Changes -- Yes --> Resolve[BusinessClient.getAppointmentRescheduleContext businessId employeeId if the slot moves, addedServiceIds, currentAssignee = employee kept - no transaction, no lock]
+    Resolve -- new employee missing --> R404e([404 BUSINESS_EMPLOYEE_NOT_EXISTS 200024])
+    Resolve -- new employee suspended --> R422es([422 BUSINESS_EMPLOYEE_SUSPENDED 200033])
     Resolve -- service missing or foreign --> R422sv([422 BUSINESS_QUOTE_SERVICE_NOT_FOUND 200013])
     Resolve -- resolved --> Rebuild[rescheduled = checked copy with date, note, employee snapshot, services expanded per count - stored snapshots reused, keep outcome and checkout unless date or employee changed]
     Rebuild --> Tx2[[Transaction 2 - book]]
@@ -115,11 +126,17 @@ flowchart TD
     Same -- Yes, check again --> Check
     Past -- No, in transaction 2 --> Booking{update.reschedules locked or locked status SCHEDULED?}
     Booking -- No --> Reopen
-    Booking -- Yes --> Workday{settings.isInWorkday date?}
-    Workday -- No --> R422d([422 DATE_NOT_ALLOWED 300003])
-    Workday -- Yes --> Worktime{settings.isInWorktime date, dateEnd?}
-    Worktime -- No --> R422t([422 TIME_NOT_ALLOWED 300002])
-    Worktime -- Yes --> Overlap{AppointmentDataSource.hasOverlapsWith rescheduled?}
+    Booking -- Yes --> BizDay{settings.requireBookable - business works on date, or inside its range running past midnight?}
+    BizDay -- No --> R422bd([422 BUSINESS_DATE_NOT_ALLOWED 300003])
+    BizDay -- Yes --> BizTime{business ranges cover date to dateEnd, past midnight joined?}
+    BizTime -- No --> R422bt([422 BUSINESS_TIME_NOT_ALLOWED 300002])
+    BizTime -- Yes --> EmpKnown{employee schedule resolved - the slot moves and the employee still exists?}
+    EmpKnown -- No --> Overlap{AppointmentDataSource.hasOverlapsWith rescheduled?}
+    EmpKnown -- Yes --> EmpDay{employee.schedule works on date, or inside its range running past midnight?}
+    EmpDay -- No --> R422ed([422 EMPLOYEE_DATE_NOT_ALLOWED 300027])
+    EmpDay -- Yes --> EmpTime{employee.schedule ranges cover date to dateEnd?}
+    EmpTime -- No --> R422et([422 EMPLOYEE_TIME_NOT_ALLOWED 300028])
+    EmpTime -- Yes --> Overlap{AppointmentDataSource.hasOverlapsWith rescheduled?}
     Overlap -- Yes --> R422o([422 APPOINTMENT_EXISTS 300004])
     Overlap -- No --> Reopen{update.reschedules locked?}
     Reopen -- Yes --> Reopened[AppointmentDataSource.reopen id - SCHEDULED, completedBy null, checkout adjustment deleted]

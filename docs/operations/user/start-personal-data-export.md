@@ -4,7 +4,7 @@
 `user-buildDataExports` job → `BuildDataExports` with
 `PersonalDataExportAssembler`
 
-Queues a JSON copy of everything Bookk holds about the caller, built in the
+Queues a JSON copy of everything BookkMe holds about the caller, built in the
 background and kept 72 hours. Lifecycle, storage and the document's
 sections: [Data export](../../data-export.md).
 

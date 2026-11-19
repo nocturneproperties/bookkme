@@ -1,0 +1,46 @@
+name: Feature or task (maintainers only)
+description: Planned work by the BookkMe maintainers. Feature requests from others go to Discussions.
+labels: ["enhancement"]
+type: Feature
+assignees: ["an22"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Maintainers only.** To suggest a feature, use [Discussions › Ideas](https://github.com/nocturneproperties/bookkme/discussions/categories/ideas). Issues opened from this template by anyone else are closed.
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: The problem, why it matters now, and links to related issues.
+    validations:
+      required: true
+  - type: textarea
+    id: must_cover
+    attributes:
+      label: Must cover
+      description: The behaviour the change has to deliver, one bullet per rule or case.
+      placeholder: |
+        - **Case:** what happens
+    validations:
+      required: true
+  - type: textarea
+    id: out_of_scope
+    attributes:
+      label: Out of scope
+    validations:
+      required: false
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      value: |
+        - [ ] Operation tests cover the success path and every error case
+        - [ ] Route tests cover every status, 401 and the permission 404
+        - [ ] Migration appended to the unreleased script and run against MariaDB
+        - [ ] `docs/database/` and `docs/operations/` diagrams updated
+        - [ ] Embedded module registered in the monolith (new service only)
+        - [ ] `README.md` updated
+        - [ ] Version bumped and `RELEASE_NOTES.md` entry written
+    validations:
+      required: true

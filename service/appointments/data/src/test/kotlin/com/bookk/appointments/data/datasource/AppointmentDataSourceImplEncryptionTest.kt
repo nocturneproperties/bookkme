@@ -31,7 +31,6 @@ import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
-import org.jetbrains.exposed.v1.jdbc.update
 import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
@@ -88,14 +87,6 @@ internal class AppointmentDataSourceImplEncryptionTest {
 
         fun nameIndex(fullName: String): String {
             return blindIndex.ofCaseInsensitive(fullName)
-        }
-
-        suspend fun storedBeforeNameIndex(vararg ids: Uuid) {
-            suspendTransaction {
-                ids.forEach { id ->
-                    AppointmentTable.update({ AppointmentTable.id eq id }) { it[clientNameIndex] = null }
-                }
-            }
         }
 
         suspend fun page(query: String, limit: Int = 10, offset: Long = 0): List<Uuid> {
@@ -514,80 +505,6 @@ internal class AppointmentDataSourceImplEncryptionTest {
 
         then()
         assertEquals(emptyList<String>(), fixture.missingKeys.reported)
-    }
-
-    @Test
-    fun `should index the client names of appointments stored without one`() = runUnitTest {
-        given()
-        val fixture = SutFixture()
-        fixture.setup()
-        val alice = fixture.create(fixture.appointment(client = ClientSnapshot.stub().copy(fullName = "Alice Smith")))
-        val carol = fixture.create(fixture.appointment(client = ClientSnapshot.stub().copy(fullName = "Carol Jones")))
-        fixture.storedBeforeNameIndex(alice.id, carol.id)
-
-        whenn()
-        val cursor = suspendTransaction { fixture.sut.indexClientNames(after = Uuid.NIL, limit = 10) }
-
-        then()
-        assertEquals(maxOf(alice.id, carol.id), cursor)
-        assertEquals(fixture.nameIndex("Alice Smith"), fixture.storedRow(alice.id)[AppointmentTable.clientNameIndex])
-        assertEquals(fixture.nameIndex("Carol Jones"), fixture.storedRow(carol.id)[AppointmentTable.clientNameIndex])
-    }
-
-    @Test
-    fun `should index at most the given number of appointments after the cursor`() = runUnitTest {
-        given()
-        val fixture = SutFixture()
-        fixture.setup()
-        val ids = (0 until 3).map { fixture.create(fixture.appointment()).id }.sorted()
-        fixture.storedBeforeNameIndex(*ids.toTypedArray())
-
-        whenn()
-        val cursor = suspendTransaction { fixture.sut.indexClientNames(after = ids[0], limit = 1) }
-
-        then()
-        assertEquals(ids[1], cursor)
-        assertNull(fixture.storedRow(ids[0])[AppointmentTable.clientNameIndex])
-        assertEquals(
-            fixture.nameIndex(ClientSnapshot.stub().fullName),
-            fixture.storedRow(ids[1])[AppointmentTable.clientNameIndex],
-        )
-        assertNull(fixture.storedRow(ids[2])[AppointmentTable.clientNameIndex])
-    }
-
-    @Test
-    fun `should move past an appointment whose client key is missing without indexing or reporting it`() =
-        runUnitTest {
-            given()
-            val fixture = SutFixture()
-            fixture.setup()
-            val created = fixture.create(fixture.appointment())
-            fixture.storedBeforeNameIndex(created.id)
-            fixture.subjectKeys.loseKey(created.client.id)
-
-            whenn()
-            val cursor = suspendTransaction { fixture.sut.indexClientNames(after = Uuid.NIL, limit = 10) }
-
-            then()
-            assertEquals(created.id, cursor)
-            assertNull(fixture.storedRow(created.id)[AppointmentTable.clientNameIndex])
-            assertEquals(emptyList<String>(), fixture.missingKeys.reported)
-        }
-
-    @Test
-    fun `should find nothing to index once every readable appointment has its index`() = runUnitTest {
-        given()
-        val fixture = SutFixture()
-        fixture.setup()
-        fixture.create(fixture.appointment())
-        val anonymized = fixture.create(fixture.appointment())
-        suspendTransaction { fixture.sut.anonymizeClient(fixture.businessId, anonymized.client.id) }
-
-        whenn()
-        val cursor = suspendTransaction { fixture.sut.indexClientNames(after = Uuid.NIL, limit = 10) }
-
-        then()
-        assertNull(cursor)
     }
 
     @Test

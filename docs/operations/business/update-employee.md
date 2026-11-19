@@ -35,7 +35,9 @@ flowchart TD
     EmailCheck -- No --> R422a
     EmailCheck -- Yes --> WorkHours{any active day with empty workingTime?}
     WorkHours -- Yes --> R422b([422 BUSINESS_EMPLOYEE_ACTIVE_DAY_WITHOUT_WORK_HOURS 200022])
-    WorkHours -- No --> DayOffRange{any dayOff.start > end?}
+    WorkHours -- No --> EmptyRange{schedule.hasEmptyWorkHour - any range with from == to?}
+    EmptyRange -- Yes --> R422e([422 BUSINESS_EMPLOYEE_EMPTY_WORK_HOUR_RANGE 200043])
+    EmptyRange -- No --> DayOffRange{any dayOff.start > end?}
     DayOffRange -- Yes --> R422c([422 BUSINESS_EMPLOYEE_INVALID_DAY_OFF_RANGE 200023])
     DayOffRange -- No --> Update[EmployeeDataSource.updateEmployee model]
     Update --> R200([200 Updated Employee with its permissions, via EmployeeEntity.grants])

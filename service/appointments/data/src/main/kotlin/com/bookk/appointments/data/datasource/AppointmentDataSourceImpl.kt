@@ -392,24 +392,6 @@ internal class AppointmentDataSourceImpl(
         this[AppointmentTable.clientUserId] = null
     }
 
-    override suspend fun indexClientNames(after: Uuid, limit: Int): Uuid? = dbQuery {
-        val unindexed = AppointmentEntity
-            .find {
-                (AppointmentTable.id greater after) and
-                    AppointmentTable.clientNameIndex.isNull() and
-                    AppointmentTable.clientNameEncrypted.isNotNull()
-            }
-            .orderBy(AppointmentTable.id to SortOrder.ASC)
-            .limit(limit)
-            .forUpdate()
-            .toList()
-        val nameIndexes = snapshotCipher.clientNameIndexes(unindexed.map { it.storedSnapshot() })
-        unindexed.zip(nameIndexes).forEach { (entity, nameIndex) ->
-            nameIndex?.let { AppointmentEntity.findByIdAndUpdateClientNameIndex(entity.id.value, it) }
-        }
-        unindexed.lastOrNull()?.id?.value
-    }
-
     private suspend fun AppointmentEntity.decrypted(): Appointment {
         return domain(snapshotCipher.decrypt(storedSnapshot(), AppointmentTable.tableName))
     }

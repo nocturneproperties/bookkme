@@ -13,6 +13,7 @@ erDiagram
     PROFILE ||--o{ EMPLOYEE : "user_id"
     PROFILE ||--o{ CLIENT : "user_id (nullable)"
     PROFILE ||--o{ BUSINESS_PERMISSION_GRANTS : "user_id"
+    PROFILE ||--o| USER_LIMITS : "user_id (erased by AuthEvent.UserDeleted)"
     PROFILE ||--o{ APPOINTMENT_PERMISSION_GRANTS : "userId"
     PROFILE ||--o{ NOTIFICATION_SETTINGS : "user_id"
     PROFILE ||--o{ DEVICE : "user_id"

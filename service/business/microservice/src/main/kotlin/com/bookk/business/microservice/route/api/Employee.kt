@@ -75,7 +75,7 @@ fun Route.employeeCrud() {
          * Body: application/x-protobuf [com.bookk.business.domain.api.employee.entity.EmployeeUpdateModel]
          * Response: 200 application/x-protobuf [com.bookk.business.domain.api.employee.entity.Employee] Updated employee
          * Response: 404 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Employee is not found or the caller has no rights to edit it
-         * Response: 422 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Update employee errors<br>BUSINESS_EMPLOYEE_VALIDATION_ERROR (200021) Invalid employee name, last name, phone or email<br>BUSINESS_EMPLOYEE_ACTIVE_DAY_WITHOUT_WORK_HOURS (200022) Active day must have at least one work hour<br>BUSINESS_EMPLOYEE_INVALID_DAY_OFF_RANGE (200023) Day off range start date must not be after end date
+         * Response: 422 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Update employee errors<br>BUSINESS_EMPLOYEE_VALIDATION_ERROR (200021) Invalid employee name, last name, phone or email<br>BUSINESS_EMPLOYEE_ACTIVE_DAY_WITHOUT_WORK_HOURS (200022) Active day must have at least one work hour<br>BUSINESS_EMPLOYEE_EMPTY_WORK_HOUR_RANGE (200043) Working range must not start and end at the same time<br>BUSINESS_EMPLOYEE_INVALID_DAY_OFF_RANGE (200023) Day off range start date must not be after end date
          * Response: 403 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Caller is a suspended employee of this business<br>BUSINESS_EMPLOYEE_ACCESS_SUSPENDED (200034) Your access to this business is suspended
          * See: docs/operations/business/update-employee.md
          */
@@ -125,13 +125,13 @@ fun Route.employeeCrud() {
          * Suspend or reinstate employee
          *
          * Summary: Suspend or reinstate employee
-         * Description: Suspends an employee, or reinstates a suspended one. A suspended employee keeps their stored permissions but is treated as having none, and cannot be booked by clients, until reinstated. Only the business owner can suspend employees, and the business owner cannot be suspended. Requesting the state the employee is already in changes nothing and returns the employee as is
+         * Description: Suspends an employee, or reinstates a suspended one. A suspended employee keeps their stored permissions but is treated as having none, and cannot be booked by clients, until reinstated. Only the business owner can suspend employees, and the business owner cannot be suspended. Requesting the state the employee is already in changes nothing and returns the employee as is. Suspended employees don't count toward the business's employee limit, so reinstating one is refused while the business is full
          * Tag: employee
          * Security: jwt
          * Body: application/x-protobuf [com.bookk.business.microservice.route.api.EmployeeSuspensionRequest]
          * Response: 200 application/x-protobuf [com.bookk.business.domain.api.employee.entity.Employee] Employee with updated suspension state
          * Response: 404 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Employee is not found or the caller is not the business owner
-         * Response: 422 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Set employee suspension errors<br>BUSINESS_OWNER_SUSPENSION_NOT_ALLOWED (200032) Business owner cannot be suspended
+         * Response: 422 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Set employee suspension errors<br>BUSINESS_OWNER_SUSPENSION_NOT_ALLOWED (200032) Business owner cannot be suspended<br>BUSINESS_EMPLOYEES_LIMIT_REACHED (200044) Reinstating would exceed the business's limit of active employees
          * See: docs/operations/business/set-employee-suspension.md
          */
         put<Api.Employee.Id.Suspension> {

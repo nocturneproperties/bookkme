@@ -1,5 +1,53 @@
 # Release notes
 
+## 0.20.0
+
+Changes since `monolith/0.19.0`. Sends email through the Hostinger Mail API instead of Postmark, deletes sent copies after 5 years, checks bookings against the employee's schedule and accepts bookings across midnight, lets one person own several businesses, limits how much a business or person can create, removes the one-time client-name indexing job that 0.19.0 ran, and adds a Grafana dashboard for the website and alerts for certificate renewal.
+
+### Clients
+
+- Code emails, account notices and their push notifications now call the service BookkMe instead of Bookk, in every language.
+- Data exports now download as `bookkme-personal-data.json` and `bookkme-business-data.json` (`Content-Disposition` of `GET /api/user/export/download` and `GET /api/business/{businessId}/export/download`).
+- `EMAIL_UNDELIVERABLE` (910005) now comes only for an address the mail API refuses outright; a bounce after sending is no longer reported, so the code is simply never received.
+- Booking a request (`POST /api/appointments/request`), approving it (`POST /api/appointments`), booking instantly (`POST /api/appointments/instant`) and moving an appointment (`PUT /api/appointments/{id}`) now also reject a slot outside the employee's own working days, hours or days off with the new `EMPLOYEE_DATE_NOT_ALLOWED` (300027) or `EMPLOYEE_TIME_NOT_ALLOWED` (300028); show only slots inside both schedules.
+- `DATE_NOT_ALLOWED` (300003) and `TIME_NOT_ALLOWED` (300002) are renamed `BUSINESS_DATE_NOT_ALLOWED` and `BUSINESS_TIME_NOT_ALLOWED` with the same values and now mean only the business schedule; the business schedule is checked first.
+- A working range whose end is before its start (20:00 to 00:00, 22:00 to 02:00) now runs past midnight, and ranges that meet at midnight join, so a booking that starts one day and ends the next is accepted.
+- Saving a business (`PUT /api/business/{id}`) or an employee answers 422 `BUSINESS_EMPTY_WORK_HOUR_RANGE` (200042) or `BUSINESS_EMPLOYEE_EMPTY_WORK_HOUR_RANGE` (200043) for a working range that starts and ends at the same time; such a range already stored covers no time.
+- Approving a request can now answer 422 `BUSINESS_EMPLOYEE_SUSPENDED` (200033) or 404 `BUSINESS_EMPLOYEE_NOT_EXISTS` (200024) when its employee was suspended or removed.
+- New employees, the owner of a new business included, start with the business's working days and hours; saving the business schedule later doesn't change any employee, so an employee left without working days can't be booked.
+- Moving an appointment while keeping its employee still works when that employee is suspended (their schedule applies) or removed (only the business schedule applies).
+- Creating an employee invitation (`POST /api/business/{businessId}/employee_invitation`), joining a business (`POST /api/business/employee_invitation/redeem`) or reinstating a suspended employee (`PUT /api/business/{businessId}/employee/{id}/suspension`) answers 422 `BUSINESS_EMPLOYEES_LIMIT_REACHED` (200044) once the business has 100 active employees; suspended ones don't count.
+- A user can now own several businesses: `POST /api/business` no longer answers `BUSINESS_ALREADY_EXIST` (200001), which is removed, and answers 422 `BUSINESS_OWNED_BUSINESSES_LIMIT_REACHED` (200045) once the user owns 20; joining a business as an employee has no such limit.
+- The personal data export lists every business the user owns in `businesses.ownedBusinesses` instead of one `businesses.ownedBusiness`.
+- Creating a client (`POST /api/business/{businessId}/clients`) answers 422 `BUSINESS_CLIENTS_LIMIT_REACHED` (200046) at 20,000 clients, and an import (`POST /api/business/{businessId}/clients/import`) creates clients up to the limit and rejects the rest with that code; clients booking through the app are never refused.
+- Creating a service answers 422 `BUSINESS_SERVICES_LIMIT_REACHED` (200047) at 300 services, and a service group `BUSINESS_SERVICE_GROUPS_LIMIT_REACHED` (200048) at 50 groups.
+- Booking a request (`POST /api/appointments/request`) answers 422 `PENDING_REQUESTS_LIMIT_REACHED` (300029) while the user already has 10 requests waiting at that business; `GET /api/appointments/settings/{businessId}` returns the limit as `maxPendingRequestsPerClient`.
+- New `POST /api/appointments/request/{id}/withdraw` lets the person who made a pending request take it back (204); someone else's or an unknown request answers 404, an answered one 422 `REQUEST_ALREADY_APPROVED` or `REQUEST_ALREADY_DECLINED`.
+- Asking for a passkey challenge (`GET /api/auth/passkey/add/challenge`) or adding a passkey (`POST /api/auth/passkey/add/finish`) answers 422 `PASSKEYS_LIMIT_REACHED` (13) once the account has 10 passkeys; `add/finish` answers 204, not 201 as documented before, and 404 when the signed-in account no longer exists.
+
+### Services
+
+- Emails (codes and notifications) go out through the Hostinger Mail API from one mailbox's own address; Postmark and its settings are removed.
+- `APPLICATION_POSTMARK_SERVER_TOKEN` and `APPLICATION_EMAIL_FROM` are replaced by `APPLICATION_HOSTINGER_MAIL_TOKEN` (`development_token` still logs instead of sending), `APPLICATION_HOSTINGER_MAILBOX_ID` and `APPLICATION_EMAIL_SENDER_NAME`; auth and a standalone notifications service fail to start emailing without them.
+- New job `auth-deleteExpiredSentEmails` deletes, once a week, the copies Hostinger keeps in the sending mailbox's Sent folder once they are 5 years old.
+- The job `appointments-indexClientNames` is removed; appointments stored before 0.19.0 that it hasn't indexed are found by service name only.
+- Migrations business `V21` and appointments `V13` add empty limit columns (`business.max_employees`, `max_clients`, `max_services`, `max_service_groups`, `appointment_settings.max_pending_requests_per_client`) and the table `business.user_limits` (`max_businesses`, the businesses one person may own), and replace the unique index on `business.user_id` with a plain one; set one to raise or lower that limit for a single business or person, see Creation limits in `README.md`.
+- Business migration `V20` gives every employee with no working days the working days and hours of a business that has any; such employees were bookable at any business hour until now.
+
+### Monitoring
+
+- New Grafana dashboard **Website**: traffic, status, response time and bandwidth from nginx, top pages, referrers, countries and 404s from its logs, and the site container's memory and CPU.
+- nginx logs website requests as `site_access` JSON lines without the user agent or query string; the API domain's logging is unchanged.
+- New alerts `SiteDown` (no site container for 5 minutes) and `SiteErrors` (more than 10% 5xx in 10 minutes) in `prometheus/site_alerts.yml`; Prometheus scrapes Alloy as job `alloy`.
+- New Loki alerts on acme-sh's log: `CertificateRenewalFailed` (a nightly renewal or its copy into nginx failed), `SiteCertificateMissing` (the website serves the self-signed placeholder) and `CertificateRenewalNotRunning` (no nightly check in 26 hours).
+
+### Upgrade
+
+- Deploy only after 0.19.0 has run in prod and its indexing pass finished: `SELECT COUNT(*) FROM appointments.appointment WHERE client_name_encrypted IS NOT NULL AND client_name_index IS NULL` should leave only appointments whose client key was lost.
+- Prod: run `make vault-update` (drops `vault_postmark_server_token`), then set `vault_hostinger_mail_token` and `vault_hostinger_mailbox_id` with `make vault-edit`; the deploy refuses either one unset. Add the sending mailbox domain's Hostinger SPF and DKIM records in Cloudflare first.
+- Keep nothing you want to keep in the sending mailbox's Sent folder: the app deletes everything there older than 5 years.
+- Prod: run `make infra tags=nginx,monitoring` for the website dashboard (`prometheus_cfg-v3`, `prometheus_site_alerts_cfg-v1`, `alloy_cfg-v3`, `grafana_dashboard_website-v1`, `loki_certificate_rules_cfg-v1`); nginx reloads without a restart.
+
 ## 0.19.0
 
 Changes since `monolith/0.18.0`. Finishes the 0.18.0 encryption rollout (plaintext personal data dropped, owners required, whole-name appointment search, safe reads and writes of data whose key was lost) and adds security alerts for breach detection.

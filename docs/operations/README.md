@@ -35,6 +35,7 @@ flow covers end-of-day completion and unresolved outcomes after the edit window.
 | `POST /api/appointments/enabled/{businessId}` | [Enable appointments for business](appointments/enable-appointments-for-business.md) |
 | `POST /api/appointments/request` | [Create appointment request](appointments/create-appointment-request.md) |
 | `POST /api/appointments/request/{id}/decline` | [Decline appointment request](appointments/decline-appointment-request.md) |
+| `POST /api/appointments/request/{id}/withdraw` | [Withdraw appointment request](appointments/withdraw-appointment-request.md) |
 | `PUT /api/appointments/{id}` | [Update appointment (reschedule)](appointments/update-appointment.md) |
 | `POST /api/appointments` | [Create appointment from a pending request](appointments/create-appointment-from-request.md) |
 | `POST /api/appointments/instant` | [Create instant appointment](appointments/create-appointment-instant.md) |

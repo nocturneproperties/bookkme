@@ -82,6 +82,17 @@ monolith:
     compose: [monolith-compose.yml]
   image: ghcr.io/nocturneproperties/bookkme-server
 
+site:
+  stack:
+    name: site
+    source: prod/site
+    compose: [site-compose.yml]
+  image: ghcr.io/nocturneproperties/bookkme-site
+  domain_name: "{{ vault_stack_env.EMAIL_DOMAIN_NAME | default('', true) }}"
+
+nginx_stack_env:
+  SITE_DOMAIN_NAME: "{{ site.domain_name }}"
+
 monolith_env:
   APPLICATION_DOMAIN_NAME: "{{ vault_stack_env.DOMAIN_NAME }}"
   APPLICATION_SERVICE_NAME: monolith
@@ -99,8 +110,9 @@ monolith_env:
   APPLICATION_BUSINESS_SERVICE_HOSTNAME: monolith.service
   APPLICATION_APPOINTMENTS_SERVICE_HOSTNAME: monolith.service
   APPLICATION_NOTIFICATIONS_SERVICE_HOSTNAME: monolith.service
-  APPLICATION_POSTMARK_SERVER_TOKEN: "{{ vault_postmark_server_token }}"
-  APPLICATION_EMAIL_FROM: "notifications@{{ vault_stack_env.EMAIL_DOMAIN_NAME }}"
+  APPLICATION_HOSTINGER_MAIL_TOKEN: "{{ vault_hostinger_mail_token }}"
+  APPLICATION_HOSTINGER_MAILBOX_ID: "{{ vault_hostinger_mailbox_id }}"
+  APPLICATION_EMAIL_SENDER_NAME: BookkMe
   APPLICATION_EMAIL_CODE_SECRET: "{{ vault_email_code_secret }}"
   APPLICATION_SUBJECT_MASTER_KEY: "{{ vault_subject_master_key }}"
   APPLICATION_BLIND_INDEX_KEY: "{{ vault_blind_index_key }}"

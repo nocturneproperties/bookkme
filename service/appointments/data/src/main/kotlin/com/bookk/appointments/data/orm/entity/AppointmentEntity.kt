@@ -169,10 +169,6 @@ internal class AppointmentEntity(id: EntityID<Uuid>) : UuidEntity(id) {
             it.writeClient(encrypted)
         }
 
-        fun findByIdAndUpdateClientNameIndex(id: Uuid, nameIndex: String) = findByIdAndUpdate(id) {
-            it.clientNameIndex = nameIndex
-        }
-
         private fun AppointmentEntity.writeSnapshot(encrypted: EncryptedSnapshot) {
             writeClient(encrypted.client)
             employeeNameEncrypted = encrypted.employeeName

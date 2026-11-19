@@ -1,6 +1,5 @@
 package com.bookk.appointments.domain.api.entity
 
-import com.bookk.core.containedIn
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import kotlinx.serialization.Serializable
@@ -21,8 +20,11 @@ data class AppointmentSettings(
     @ProtoNumber(7) val appointmentNote: String,
     @ProtoNumber(8) val permissions: ResourcePermission,
     @ProtoNumber(9) val automaticCompletion: Boolean,
+    @ProtoNumber(10) val maxPendingRequestsPerClient: Int = DEFAULT_MAX_PENDING_REQUESTS_PER_CLIENT,
 ) {
     companion object {
+        const val DEFAULT_MAX_PENDING_REQUESTS_PER_CLIENT = 10
+
         fun stub(businessId: Uuid = Uuid.random()) = AppointmentSettings(businessId = businessId, TimeZone.of("UTC"))
     }
 
@@ -38,20 +40,15 @@ data class AppointmentSettings(
         automaticCompletion = true,
     )
 
-    fun isInWorkday(date: Instant): Boolean {
-        val localDate = date.toLocalDateTime(timeZone)
-        if (!schedule[localDate.dayOfWeek].isActive) return false
-        return schedule.dayOffs.none { localDate.date in it.start..it.end }
+    fun requireBookable(date: Instant, dateEnd: Instant, employeeSchedule: Schedule?) {
+        if (!schedule.worksOn(date)) throw BookingScheduleError.BusinessDateNotAllowed()
+        if (!schedule.covers(date, dateEnd, timeZone)) throw BookingScheduleError.BusinessTimeNotAllowed()
+        if (employeeSchedule == null) return
+        if (!employeeSchedule.worksOn(date)) throw BookingScheduleError.EmployeeDateNotAllowed()
+        if (!employeeSchedule.covers(date, dateEnd, timeZone)) throw BookingScheduleError.EmployeeTimeNotAllowed()
     }
 
-    fun isInWorktime(date: Instant, dateEnd: Instant): Boolean {
-        val start = date.toLocalDateTime(timeZone)
-        val startTime = start.time.toMillisecondOfDay()
-        val endTime = dateEnd.toLocalDateTime(timeZone).time.toMillisecondOfDay()
-        val dayOfWeek = start.dayOfWeek
-        val schedule = schedule[dayOfWeek]
-        return schedule.workingTime.any { time ->
-            (startTime..endTime).containedIn(time.from.toMillisecondOfDay()..time.to.toMillisecondOfDay())
-        }
+    private fun Schedule.worksOn(date: Instant): Boolean {
+        return isWorkday(date.toLocalDateTime(timeZone).date) || isWorkingAt(date, timeZone)
     }
 }

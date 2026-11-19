@@ -9,7 +9,7 @@ import kotlin.uuid.Uuid
 
 @Serializable
 data class BusinessUserDataExport(
-    @ProtoNumber(1) val ownedBusiness: OwnedBusinessExport?,
+    @ProtoNumber(5) val ownedBusinesses: List<OwnedBusinessExport>,
     @ProtoNumber(2) val employments: List<EmploymentExport>,
     @ProtoNumber(3) val clientRecords: List<ClientRecordExport>,
     @ProtoNumber(4) val dashboardBusinessId: Uuid?,
@@ -161,10 +161,12 @@ data class BusinessUserDataExport(
 
     companion object {
         fun stub(
-            ownedBusiness: OwnedBusinessExport? = null,
+            ownedBusinesses: List<OwnedBusinessExport> = emptyList(),
             employments: List<EmploymentExport> = emptyList(),
             clientRecords: List<ClientRecordExport> = emptyList(),
             dashboardBusinessId: Uuid? = null,
-        ) = BusinessUserDataExport(ownedBusiness, employments, clientRecords, dashboardBusinessId)
+        ): BusinessUserDataExport {
+            return BusinessUserDataExport(ownedBusinesses, employments, clientRecords, dashboardBusinessId)
+        }
     }
 }

@@ -16,7 +16,11 @@ unique per business across every client, detached or integrated, enforced
 only by the unique index `client_business_id_email_unique`; several clients
 may share a phone. The insert that violates the index is mapped
 by `.onConstraintFailure` to `BUSINESS_CLIENT_EXISTS`, so there is no
-lookup before it. Many contacts at once go through [Import
+lookup before it. The business's client limit (`max_clients`, 20,000 unless an
+operator stored another value) is checked under an exclusive business lock, so
+two concurrent creations can't both take the last slot. Clients created by an
+app user's own booking are never refused, so they can take a business past the
+limit. Many contacts at once go through [Import
 clients](import-clients.md).
 
 ```mermaid
@@ -24,7 +28,9 @@ flowchart TD
     Start([POST /api/business/businessId/clients]) --> Auth{JWT valid?}
     Auth -- No --> R401([401 Unauthorized])
     Auth -- Yes --> Tx[[Begin transaction]]
-    Tx --> Suspended{BusinessPermissionDataSource.getPermission - caller is a suspended employee of the business?}
+    Tx --> Lock[BusinessDataSource.lockBusiness businessId EXCLUSIVE - first statement, gives LockedBusiness.limits]
+    Lock -- not found --> R404nf([404 Error.NotFound])
+    Lock -- locked --> Suspended{BusinessPermissionDataSource.getPermission - caller is a suspended employee of the business?}
     Suspended -- Yes --> R403s([403 BUSINESS_EMPLOYEE_ACCESS_SUSPENDED 200034])
     Suspended -- No --> Perm{caller CLIENTS.update?}
     Perm -- No --> R404a([404 Error.OperationNotAllowed])
@@ -34,7 +40,9 @@ flowchart TD
     FormatCheck -- No --> R422a
     FormatCheck -- Yes --> ContactCheck{phone or email present?}
     ContactCheck -- No --> R422c([422 BUSINESS_CLIENT_MISSING_CONTACT_INFO 200025])
-    ContactCheck -- Yes --> CreateDetached[ClientDataSource.createDetachedClient - body userId ignored]
+    ContactCheck -- Yes --> Count{ClientDataSource.countClients businessId >= limits.maxClients?}
+    Count -- Yes --> R422l([422 BUSINESS_CLIENTS_LIMIT_REACHED 200046])
+    Count -- No --> CreateDetached[ClientDataSource.createDetachedClient - body userId ignored]
     CreateDetached -- email unique index violated --> R422b([422 BUSINESS_CLIENT_EXISTS 200004])
     CreateDetached --> R200([200 Created ClientRemote])
 ```

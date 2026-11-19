@@ -8,6 +8,7 @@ import com.bookk.appointments.domain.api.entity.Appointment
 import com.bookk.appointments.domain.api.entity.AppointmentSettings
 import com.bookk.appointments.domain.api.entity.AppointmentStatus
 import com.bookk.appointments.domain.api.entity.BookingQuoteError
+import com.bookk.appointments.domain.api.entity.BookingScheduleError
 import com.bookk.appointments.domain.api.entity.ClientSnapshot
 import com.bookk.appointments.domain.api.entity.EmployeeSnapshot
 import com.bookk.appointments.domain.api.entity.InstantAppointmentDraft
@@ -36,10 +37,12 @@ import com.bookk.core.test.whenn
 import com.bookk.server.appointments.client.api.event.AppointmentEvent
 import com.bookk.server.business.client.api.BusinessClient
 import com.bookk.server.business.client.api.QuoteClaims
+import io.mockk.Runs
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.coVerifyOrder
 import io.mockk.every
+import io.mockk.just
 import io.mockk.mockk
 import library.permissions.EmployeeAccessSuspended
 import library.permissions.ResourcePermission
@@ -112,8 +115,7 @@ internal class CreateInstantAppointmentImplTest {
             coEvery { deletedUserDataSource.isDeletedForShare(any()) } returns false
             coEvery { deletedClientDataSource.isDeletedForShare(any(), any()) } returns false
             coEvery { settingsDataSource.getForUpdate(businessId) } returns settings
-            coEvery { settings.isInWorkday(any()) } returns true
-            coEvery { settings.isInWorktime(any(), any()) } returns true
+            every { settings.requireBookable(any(), any(), any()) } just Runs
             coEvery { appointmentDataSource.hasOverlapsWith(any<Appointment>()) } returns false
             coEvery { appointmentDataSource.create(any<Appointment>()) } coAnswers {
                 stored += firstArg<Appointment>()
@@ -491,13 +493,14 @@ internal class CreateInstantAppointmentImplTest {
     fun `should refuse a day the business doesn't work`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        coEvery { fixture.settings.isInWorkday(fixture.draft.date) } returns false
+        every { fixture.settings.requireBookable(fixture.draft.date, any(), any()) } throws
+            BookingScheduleError.BusinessDateNotAllowed()
 
         whenn()
         val result = fixture.sut(fixture.callerId, fixture.draft)
 
         then()
-        assertTrue(result.exceptionOrNull() is CreateInstantAppointment.Error.RequestForThisDateNotAllowed)
+        assertTrue(result.exceptionOrNull() is BookingScheduleError.BusinessDateNotAllowed)
         assertTrue(fixture.stored.isEmpty())
     }
 
@@ -505,13 +508,46 @@ internal class CreateInstantAppointmentImplTest {
     fun `should refuse a slot outside working hours`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        coEvery { fixture.settings.isInWorktime(fixture.draft.date, any()) } returns false
+        every { fixture.settings.requireBookable(fixture.draft.date, any(), any()) } throws
+            BookingScheduleError.BusinessTimeNotAllowed()
 
         whenn()
         val result = fixture.sut(fixture.callerId, fixture.draft)
 
         then()
-        assertTrue(result.exceptionOrNull() is CreateInstantAppointment.Error.RequestForThisTimeNotAllowed)
+        assertTrue(result.exceptionOrNull() is BookingScheduleError.BusinessTimeNotAllowed)
+        assertTrue(fixture.stored.isEmpty())
+    }
+
+    @Test
+    fun `should refuse a day the booked employee doesn't work`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val employeeSchedule = fixture.context.employee.schedule
+        every { fixture.settings.requireBookable(fixture.draft.date, any(), employeeSchedule) } throws
+            BookingScheduleError.EmployeeDateNotAllowed()
+
+        whenn()
+        val result = fixture.sut(fixture.callerId, fixture.draft)
+
+        then()
+        assertTrue(result.exceptionOrNull() is BookingScheduleError.EmployeeDateNotAllowed)
+        assertTrue(fixture.stored.isEmpty())
+    }
+
+    @Test
+    fun `should refuse a slot outside the booked employee's working hours`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val employeeSchedule = fixture.context.employee.schedule
+        every { fixture.settings.requireBookable(fixture.draft.date, any(), employeeSchedule) } throws
+            BookingScheduleError.EmployeeTimeNotAllowed()
+
+        whenn()
+        val result = fixture.sut(fixture.callerId, fixture.draft)
+
+        then()
+        assertTrue(result.exceptionOrNull() is BookingScheduleError.EmployeeTimeNotAllowed)
         assertTrue(fixture.stored.isEmpty())
     }
 

@@ -6,12 +6,14 @@ import com.bookk.business.domain.api.service.operation.CreateService
 import com.bookk.business.domain.api.service.operation.CreateService.Error
 import com.bookk.business.domain.datasource.BusinessDataSource
 import com.bookk.business.domain.datasource.BusinessPermissionDataSource
+import com.bookk.business.domain.datasource.RowLock
 import com.bookk.business.domain.datasource.ServiceDataSource
 import com.bookk.core.domain.datasource.transaction.TransactionManager
 import com.bookk.core.domain.entity.onConstraintFailure
 import library.permissions.PermissionAction
 import library.permissions.assert
 import kotlin.uuid.Uuid
+import com.bookk.core.domain.entity.Error as CoreError
 
 internal class CreateServiceImpl(
     private val dataSource: ServiceDataSource,
@@ -22,10 +24,14 @@ internal class CreateServiceImpl(
     override suspend fun invoke(requestUserId: Uuid, service: Service): Result<Service> {
         if (service.name.isBlank()) return Result.failure(Error.ValidationError())
         return transactionManager.transaction {
-            val businessCurrency = businessDataSource.lockSupportedCurrencyOrNull(service.businessId)
+            val locked = businessDataSource.lockBusiness(service.businessId, RowLock.EXCLUSIVE)
+                ?: throw CoreError.NotFound()
             businessPermissionDataSource.getPermission(requestUserId, service.businessId, BusinessResource.SERVICES)
                 .assert(PermissionAction.UPDATE)
-            val currency = businessCurrency ?: throw Error.BusinessCurrencyInvalid()
+            if (dataSource.countServices(service.businessId) >= locked.limits.maxServices) {
+                throw Error.ServicesLimitReached()
+            }
+            val currency = locked.supportedCurrencyOrNull() ?: throw Error.BusinessCurrencyInvalid()
             val price = service.price.inCurrencyOrNull(currency) ?: throw Error.PricePrecisionInvalid()
             val group =
                 dataSource.getServiceGroup(service.group.id, service.businessId) ?: throw Error.ServiceGroupNotFound()

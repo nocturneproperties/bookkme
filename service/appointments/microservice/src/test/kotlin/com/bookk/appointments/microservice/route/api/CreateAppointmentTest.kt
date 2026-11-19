@@ -4,11 +4,14 @@ import com.bookk.appointments.domain.api.entity.Appointment
 import com.bookk.appointments.domain.api.entity.AppointmentErrorCodes
 import com.bookk.appointments.domain.api.entity.AppointmentRequestStatusError
 import com.bookk.appointments.domain.api.entity.AppointmentStatus
+import com.bookk.appointments.domain.api.entity.BookingScheduleError
 import com.bookk.appointments.domain.api.entity.ClientSnapshot
 import com.bookk.appointments.domain.api.entity.EmployeeSnapshot
 import com.bookk.appointments.domain.api.entity.ServiceSnapshot
 import com.bookk.appointments.domain.api.operation.CreateAppointment
 import com.bookk.appointments.microservice.route.AppointmentsRouting
+import com.bookk.business.domain.api.appointment.operation.GetAppointmentRescheduleContext
+import com.bookk.business.domain.api.error.BusinessErrorCodes
 import com.bookk.core.domain.entity.SimpleServerError
 import com.bookk.core.service.test.createTestClient
 import com.bookk.core.service.test.routeTest
@@ -140,7 +143,7 @@ internal class CreateAppointmentTest {
     }
 
     @Test
-    fun `should return unprocessable entity when time not allowed`() = routeTest {
+    fun `should return unprocessable entity when the time is outside the business working hours`() = routeTest {
         given()
         val useCase: CreateAppointment = mockk()
         val requestId = Uuid.random()
@@ -151,7 +154,7 @@ internal class CreateAppointmentTest {
                 userId,
                 requestId,
             )
-        } returns Result.failure(CreateAppointment.Error.RequestForThisTimeNotAllowed())
+        } returns Result.failure(BookingScheduleError.BusinessTimeNotAllowed())
 
         setupApplication(
             extension = {
@@ -180,11 +183,11 @@ internal class CreateAppointmentTest {
         then()
         assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
         val body = response.body<SimpleServerError>()
-        assertEquals(AppointmentErrorCodes.TIME_NOT_ALLOWED, body.errorCode)
+        assertEquals(AppointmentErrorCodes.BUSINESS_TIME_NOT_ALLOWED, body.errorCode)
     }
 
     @Test
-    fun `should return unprocessable entity when date not allowed`() = routeTest {
+    fun `should return unprocessable entity when the time is outside the employee working hours`() = routeTest {
         given()
         val useCase: CreateAppointment = mockk()
         val requestId = Uuid.random()
@@ -195,7 +198,7 @@ internal class CreateAppointmentTest {
                 userId,
                 requestId,
             )
-        } returns Result.failure(CreateAppointment.Error.RequestForThisDateNotAllowed())
+        } returns Result.failure(BookingScheduleError.EmployeeTimeNotAllowed())
 
         setupApplication(
             extension = {
@@ -224,7 +227,95 @@ internal class CreateAppointmentTest {
         then()
         assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
         val body = response.body<SimpleServerError>()
-        assertEquals(AppointmentErrorCodes.DATE_NOT_ALLOWED, body.errorCode)
+        assertEquals(AppointmentErrorCodes.EMPLOYEE_TIME_NOT_ALLOWED, body.errorCode)
+    }
+
+    @Test
+    fun `should return unprocessable entity when the business does not work on the date`() = routeTest {
+        given()
+        val useCase: CreateAppointment = mockk()
+        val requestId = Uuid.random()
+        val userId = Uuid.random()
+
+        coEvery {
+            useCase.invoke(
+                userId,
+                requestId,
+            )
+        } returns Result.failure(BookingScheduleError.BusinessDateNotAllowed())
+
+        setupApplication(
+            extension = {
+                install(Authentication) {
+                    provider {
+                        authenticate { context ->
+                            context.principal(AppPrincipal(Uuid.random(), userId, Uuid.random()))
+                        }
+                    }
+                }
+            },
+            diModule = module {
+                single { useCase }
+            },
+            routeUnderTest = {
+                appointment()
+            },
+        )
+
+        whenn()
+        val client = createTestClient()
+        val response = client.post(AppointmentsRouting.Api.Appointment()) {
+            setBody(AppointmentRequestId(requestId))
+        }
+
+        then()
+        assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
+        val body = response.body<SimpleServerError>()
+        assertEquals(AppointmentErrorCodes.BUSINESS_DATE_NOT_ALLOWED, body.errorCode)
+    }
+
+    @Test
+    fun `should return unprocessable entity when the employee does not work on the date`() = routeTest {
+        given()
+        val useCase: CreateAppointment = mockk()
+        val requestId = Uuid.random()
+        val userId = Uuid.random()
+
+        coEvery {
+            useCase.invoke(
+                userId,
+                requestId,
+            )
+        } returns Result.failure(BookingScheduleError.EmployeeDateNotAllowed())
+
+        setupApplication(
+            extension = {
+                install(Authentication) {
+                    provider {
+                        authenticate { context ->
+                            context.principal(AppPrincipal(Uuid.random(), userId, Uuid.random()))
+                        }
+                    }
+                }
+            },
+            diModule = module {
+                single { useCase }
+            },
+            routeUnderTest = {
+                appointment()
+            },
+        )
+
+        whenn()
+        val client = createTestClient()
+        val response = client.post(AppointmentsRouting.Api.Appointment()) {
+            setBody(AppointmentRequestId(requestId))
+        }
+
+        then()
+        assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
+        val body = response.body<SimpleServerError>()
+        assertEquals(AppointmentErrorCodes.EMPLOYEE_DATE_NOT_ALLOWED, body.errorCode)
     }
 
     @Test
@@ -322,5 +413,73 @@ internal class CreateAppointmentTest {
         then()
         assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
         assertEquals(AppointmentErrorCodes.REQUEST_ALREADY_APPROVED, response.body<SimpleServerError>().errorCode)
+    }
+
+    @Test
+    fun `should return unprocessable entity when the requested employee is suspended`() = routeTest {
+        given()
+        val useCase: CreateAppointment = mockk()
+        val requestId = Uuid.random()
+        val userId = Uuid.random()
+        coEvery { useCase.invoke(userId, requestId) } returns
+            Result.failure(GetAppointmentRescheduleContext.Error.EmployeeSuspended())
+
+        setupApplication(
+            extension = {
+                install(Authentication) {
+                    provider {
+                        authenticate { context ->
+                            context.principal(AppPrincipal(Uuid.random(), userId, Uuid.random()))
+                        }
+                    }
+                }
+            },
+            diModule = module { single { useCase } },
+            routeUnderTest = { appointment() },
+        )
+
+        whenn()
+        val client = createTestClient()
+        val response = client.post(AppointmentsRouting.Api.Appointment()) {
+            setBody(AppointmentRequestId(requestId))
+        }
+
+        then()
+        assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
+        assertEquals(BusinessErrorCodes.BUSINESS_EMPLOYEE_SUSPENDED, response.body<SimpleServerError>().errorCode)
+    }
+
+    @Test
+    fun `should return not found when the requested employee no longer exists`() = routeTest {
+        given()
+        val useCase: CreateAppointment = mockk()
+        val requestId = Uuid.random()
+        val userId = Uuid.random()
+        coEvery { useCase.invoke(userId, requestId) } returns
+            Result.failure(GetAppointmentRescheduleContext.Error.EmployeeNotFound())
+
+        setupApplication(
+            extension = {
+                install(Authentication) {
+                    provider {
+                        authenticate { context ->
+                            context.principal(AppPrincipal(Uuid.random(), userId, Uuid.random()))
+                        }
+                    }
+                }
+            },
+            diModule = module { single { useCase } },
+            routeUnderTest = { appointment() },
+        )
+
+        whenn()
+        val client = createTestClient()
+        val response = client.post(AppointmentsRouting.Api.Appointment()) {
+            setBody(AppointmentRequestId(requestId))
+        }
+
+        then()
+        assertEquals(HttpStatusCode.NotFound, response.status)
+        assertEquals(BusinessErrorCodes.BUSINESS_EMPLOYEE_NOT_EXISTS, response.body<SimpleServerError>().errorCode)
     }
 }

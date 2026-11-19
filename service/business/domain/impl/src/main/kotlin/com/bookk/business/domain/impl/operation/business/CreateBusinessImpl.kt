@@ -7,9 +7,9 @@ import com.bookk.business.domain.api.business.operation.CreateBusiness
 import com.bookk.business.domain.api.employee.entity.Employee
 import com.bookk.business.domain.datasource.BusinessDataSource
 import com.bookk.business.domain.datasource.EmployeeDataSource
+import com.bookk.business.domain.datasource.UserLimitsDataSource
 import com.bookk.core.domain.datasource.transaction.TransactionManager
 import com.bookk.server.user.client.UserClient
-import library.schedule.Schedule
 import library.validation.CurrencyValidator
 import library.validation.NameValidator
 import kotlin.time.Clock
@@ -18,6 +18,7 @@ import kotlin.uuid.Uuid
 internal class CreateBusinessImpl(
     private val businessDataSource: BusinessDataSource,
     private val employeeDataSource: EmployeeDataSource,
+    private val userLimitsDataSource: UserLimitsDataSource,
     private val userClient: UserClient,
     private val transactionManager: TransactionManager,
 ) : CreateBusiness {
@@ -28,10 +29,15 @@ internal class CreateBusinessImpl(
         if (!NameValidator.isValid(request.name)) {
             throw CreateBusiness.Error.BusinessValidationError()
         }
-        if (!CurrencyValidator.isValid(request.currencyCode)) throw CreateBusiness.Error.InvalidCurrency()
-        if (businessDataSource.isBusinessExist(userId)) throw CreateBusiness.Error.BusinessExist()
-        val business = businessDataSource.createBusiness(userId, request.name, request.currencyCode, request.timeZone)
+        if (!CurrencyValidator.isValid(request.currencyCode)) {
+            throw CreateBusiness.Error.InvalidCurrency()
+        }
+        val limits = userLimitsDataSource.lockForUser(userId)
+        if (businessDataSource.countBusinessesOwnedBy(userId) >= limits.maxBusinesses) {
+            throw CreateBusiness.Error.OwnedBusinessesLimitReached()
+        }
         val owner = userClient.getUserById(userId).getOrThrow()
+        val business = businessDataSource.createBusiness(userId, request.name, request.currencyCode, request.timeZone)
         val ownerEmployee = employeeDataSource.createEmployee(
             Employee(
                 id = Uuid.random(),
@@ -42,7 +48,7 @@ internal class CreateBusinessImpl(
                 email = owner.email,
                 userId = userId,
                 services = emptyList(),
-                schedule = Schedule.empty(),
+                schedule = business.schedule.workingWeek(),
                 createdAt = Clock.System.now(),
                 permissions = BusinessPermissions.FULL,
                 suspendedAt = null,

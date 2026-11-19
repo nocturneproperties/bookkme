@@ -13,7 +13,6 @@ internal fun NotificationParameters.emailContent(language: Language): EmailConte
         textBody = "${notification.body}\n\n$footer",
         htmlBody = "<p>${notification.body.escapedHtml()}</p>" +
             "<p style=\"color:#6b7280;font-size:12px\">${footer.escapedHtml()}</p>",
-        tag = "notification-${type.name.lowercase()}",
     )
 }
 

@@ -10,6 +10,7 @@ interface PassKeyDataSource {
     suspend fun createPasskeyCredential(credential: PasskeyCredential)
     suspend fun getCredentialBy(userHandle: Uuid, credentialId: ByteArray): PasskeyCredential?
     suspend fun getCredentialBy(authId: Uuid): List<PasskeyCredential>
+    suspend fun countPasskeys(authId: Uuid): Long
     suspend fun getHandleByUsername(username: Uuid): Uuid?
     suspend fun getUsernameByHandle(userHandle: Uuid): String?
     suspend fun getCredentialsByUsername(username: Uuid): Set<PasskeyCredential>

@@ -88,6 +88,17 @@ details and before the booking reached appointments. A client deletion
 running at the same moment either finishes first or waits for the booking
 and then erases it by `client_id`.
 
+A user holds at most a fixed number of pending requests at one business
+(`AppointmentSettings.maxPendingRequestsPerClient`: 10, or the value an
+operator stored in `appointment_settings.max_pending_requests_per_client`).
+The count runs after the settings row lock, so concurrent requests by the same
+user can't both take the last slot. Only requests waiting for approval count;
+a business that approves automatically books straight away and isn't limited.
+The limit is checked after the date, schedule and overlap checks, so a request
+that is wrong anyway reports that error. The client frees a place by
+withdrawing a request ([Withdraw appointment
+request](withdraw-appointment-request.md)).
+
 ```mermaid
 flowchart TD
     Start([POST /api/appointments/request]) --> Auth{JWT valid?}
@@ -128,20 +139,26 @@ flowchart TD
     ClientDeleted -- not deleted --> Settings[AppointmentSettingsDataSource.getForUpdate businessId]
     Settings -- not found --> R404a([404 Error.NotFound])
     Settings -- found --> AutoApproval{settings.automaticApproval?}
-    AutoApproval -- Yes --> Delegate[Delegate to CreateAppointment userId request]
+    AutoApproval -- Yes --> Delegate[CreateAppointment.createBypassingPermissions request context.employee.schedule]
     Delegate --> DelegateFlow[[See create-appointment-from-request.md verify and persist flow]]
     DelegateFlow --> Commit
     AutoApproval -- No --> PastCheck{request.date < now?}
     PastCheck -- Yes --> R422c([422 DATE_IN_PAST 300012])
-    PastCheck -- No --> WorkdayCheck{date within business workday?}
-    WorkdayCheck -- No --> R422d([422 DATE_NOT_ALLOWED 300003])
-    WorkdayCheck -- Yes --> WorktimeCheck{slot within worktime?}
-    WorktimeCheck -- No --> R422e([422 TIME_NOT_ALLOWED 300002])
-    WorktimeCheck -- Yes --> OverlapRequests{AppointmentRequestDataSource.hasOverlapsWith<br/>overlaps a PENDING request of the client?}
+    PastCheck -- No --> BizDay{settings.requireBookable - business works on date, or inside its range running past midnight?}
+    BizDay -- No --> R422bd([422 BUSINESS_DATE_NOT_ALLOWED 300003])
+    BizDay -- Yes --> BizTime{business ranges cover date to dateEnd, past midnight joined?}
+    BizTime -- No --> R422bt([422 BUSINESS_TIME_NOT_ALLOWED 300002])
+    BizTime -- Yes --> EmpDay{context.employee.schedule works on date, or inside its range running past midnight?}
+    EmpDay -- No --> R422ed([422 EMPLOYEE_DATE_NOT_ALLOWED 300027])
+    EmpDay -- Yes --> EmpTime{context.employee.schedule ranges cover date to dateEnd?}
+    EmpTime -- No --> R422et([422 EMPLOYEE_TIME_NOT_ALLOWED 300028])
+    EmpTime -- Yes --> OverlapRequests{AppointmentRequestDataSource.hasOverlapsWith<br/>overlaps a PENDING request of the client?}
     OverlapRequests -- Yes --> R422f([422 REQUEST_EXISTS 300001])
     OverlapRequests -- No --> OverlapAppointments{AppointmentDataSource.hasOverlapsWith<br/>overlaps a SCHEDULED appointment of the client?}
     OverlapAppointments -- Yes --> R422f
-    OverlapAppointments -- No --> Create[AppointmentRequestDataSource.create request]
+    OverlapAppointments -- No --> Pending{AppointmentRequestDataSource.countPendingByUser userId businessId >= settings.maxPendingRequestsPerClient?}
+    Pending -- Yes --> R422p([422 PENDING_REQUESTS_LIMIT_REACHED 300029])
+    Pending -- No --> Create[AppointmentRequestDataSource.create request]
     Create --> Snapshot[AppointmentSubscriptionDataSource.getBusinessSnapshot businessId]
     Snapshot -- missing --> R404d([404 Error.NotFound - logged as data inconsistency])
     Snapshot -- found --> Visit[eventProducer.send AppointmentEvent.ClientVisitBooked businessId client.id dateEnd]

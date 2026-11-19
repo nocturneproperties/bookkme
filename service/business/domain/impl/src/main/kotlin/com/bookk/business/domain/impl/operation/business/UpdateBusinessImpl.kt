@@ -40,6 +40,7 @@ internal class UpdateBusinessImpl(
             if (schedule.days.values.any { it.isActive && it.workingTime.isEmpty() }) {
                 throw UpdateBusiness.Error.ActiveDayWithoutWorkHours()
             }
+            if (schedule.hasEmptyWorkHour()) throw UpdateBusiness.Error.EmptyWorkHourRange()
             if (schedule.dayOffs.any { it.start > it.end }) {
                 throw UpdateBusiness.Error.InvalidDayOffRange()
             }

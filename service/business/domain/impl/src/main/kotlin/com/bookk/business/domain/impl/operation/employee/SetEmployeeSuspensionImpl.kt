@@ -4,6 +4,7 @@ import com.bookk.business.domain.api.employee.entity.Employee
 import com.bookk.business.domain.api.employee.operation.SetEmployeeSuspension
 import com.bookk.business.domain.datasource.BusinessDataSource
 import com.bookk.business.domain.datasource.EmployeeDataSource
+import com.bookk.business.domain.datasource.RowLock
 import com.bookk.core.data.eventstreaming.StandardEventProducer
 import com.bookk.core.data.eventstreaming.send
 import com.bookk.core.domain.datasource.transaction.TransactionManager
@@ -24,12 +25,16 @@ internal class SetEmployeeSuspensionImpl(
         employeeId: Uuid,
         suspended: Boolean,
     ): Result<Employee> = transactionManager.transaction {
+        val locked = businessDataSource.lockBusiness(businessId, RowLock.EXCLUSIVE) ?: throw Error.NotFound()
         if (!businessDataSource.isOwner(requestUserId, businessId)) throw Error.OperationNotAllowed()
         val employee = employeeDataSource.getEmployee(businessId, employeeId) ?: throw Error.NotFound()
         if (businessDataSource.isOwner(employee.userId, businessId)) {
             throw SetEmployeeSuspension.Error.OwnerSuspensionNotAllowed()
         }
         if (employee.isSuspended == suspended) return@transaction employee
+        if (!suspended && employeeDataSource.countActiveEmployees(businessId) >= locked.limits.maxEmployees) {
+            throw SetEmployeeSuspension.Error.EmployeesLimitReached()
+        }
         val updated = employeeDataSource.setSuspendedAt(employee.id, if (suspended) Clock.System.now() else null)
         eventProducer.send(
             BusinessEvent.EmployeePermissionsChanged(

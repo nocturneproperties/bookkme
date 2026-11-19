@@ -38,7 +38,7 @@ groups:
           severity: warning
         annotations:
           summary: "{{ $value | humanize }} addresses hit the hourly email code limit in an hour"
-          description: "Each address may get 5 codes an hour; this counts every address that asked for a sixth, once per hour. A person who lost an email does that rarely; five in an hour points to someone sending codes to many addresses (spam through Postmark, or probing which addresses have accounts). Check nginx's 429s on /api/auth/email and /api/auth/passkey/sign_up/challenge and Postmark's activity."
+          description: "Each address may get 5 codes an hour; this counts every address that asked for a sixth, once per hour. A person who lost an email does that rarely; five in an hour points to someone sending codes to many addresses (spam through the sending mailbox, or probing which addresses have accounts). Check nginx's 429s on /api/auth/email and /api/auth/passkey/sign_up/challenge and the sending mailbox's Sent folder."
 
       - alert: EmailCodeGuessing
         expr: security:email_wrong_codes:increase1h > 30 and security:email_wrong_codes:increase1h > 5 * (security:email_wrong_codes:increase1h offset 1w or vector(0))

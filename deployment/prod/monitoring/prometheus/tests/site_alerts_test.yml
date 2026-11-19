@@ -1,0 +1,65 @@
+rule_files:
+  - ../site_alerts.yml
+
+evaluation_interval: 1m
+
+tests:
+  - name: a running site container keeps SiteDown quiet
+    interval: 15s
+    input_series:
+      - series: 'container_last_seen{container_label_com_docker_swarm_service_name="site_site", id="/a"}'
+        values: '0+15x80'
+    promql_expr_test:
+      - expr: ALERTS{alertname="SiteDown", alertstate="firing"}
+        eval_time: 15m
+        exp_samples: []
+
+  - name: a site container last seen 5 minutes ago fires SiteDown
+    interval: 15s
+    input_series:
+      - series: 'container_last_seen{container_label_com_docker_swarm_service_name="site_site", id="/a"}'
+        values: '0+15x20 _x60'
+    promql_expr_test:
+      - expr: ALERTS{alertname="SiteDown", alertstate="firing"}
+        eval_time: 15m
+        exp_samples:
+          - labels: 'ALERTS{alertname="SiteDown", alertstate="firing", severity="critical"}'
+            value: 1
+
+  - name: many 5xx answers fire SiteErrors
+    interval: 1m
+    input_series:
+      - series: 'site_requests_total{status_class="2xx", kind="page", client="desktop"}'
+        values: '0+5x20'
+      - series: 'site_requests_total{status_class="5xx", kind="page", client="desktop"}'
+        values: '0+2x20'
+    promql_expr_test:
+      - expr: ALERTS{alertname="SiteErrors", alertstate="firing"}
+        eval_time: 15m
+        exp_samples:
+          - labels: 'ALERTS{alertname="SiteErrors", alertstate="firing", severity="warning"}'
+            value: 1
+
+  - name: a few 5xx answers stay quiet
+    interval: 1m
+    input_series:
+      - series: 'site_requests_total{status_class="2xx", kind="page", client="desktop"}'
+        values: '0+1x20'
+      - series: 'site_requests_total{status_class="5xx", kind="page", client="desktop"}'
+        values: '0+0x10 1+0x10'
+    promql_expr_test:
+      - expr: ALERTS{alertname="SiteErrors", alertstate="firing"}
+        eval_time: 15m
+        exp_samples: []
+
+  - name: a small share of 5xx in heavy traffic stays quiet
+    interval: 1m
+    input_series:
+      - series: 'site_requests_total{status_class="2xx", kind="asset", client="bot"}'
+        values: '0+100x20'
+      - series: 'site_requests_total{status_class="5xx", kind="page", client="desktop"}'
+        values: '0+2x20'
+    promql_expr_test:
+      - expr: ALERTS{alertname="SiteErrors", alertstate="firing"}
+        eval_time: 15m
+        exp_samples: []

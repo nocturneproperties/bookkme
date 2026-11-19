@@ -75,8 +75,8 @@ internal class NotificationsModuleTest {
     }
 
     private val developmentEmailEnvironment = subjectKeyTestEnvironment + mapOf(
-        "APPLICATION_POSTMARK_SERVER_TOKEN" to "development_token",
-        "APPLICATION_EMAIL_FROM" to "no-reply@example.com",
+        "APPLICATION_HOSTINGER_MAIL_TOKEN" to "development_token",
+        "APPLICATION_EMAIL_SENDER_NAME" to "BookkMe",
     )
 
     @Test

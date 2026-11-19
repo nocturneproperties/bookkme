@@ -29,11 +29,11 @@ fun Route.businessCrud() {
          * Create business
          *
          * Summary: Create business
-         * Description: Create new business with specific name
+         * Description: Create new business with specific name. A user can own several businesses, up to their limit (20 by default)
          * Tag: business
          * Security: jwt
          * Body: application/x-protobuf [com.bookk.business.domain.api.business.entity.BusinessCreateRequest]
-         * Response: 422 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Create business errors<br>BUSINESS_ALREADY_EXIST (200001) Business already exist<br>BUSINESS_NAME_VALIDATION_ERROR (200002) Business name invalid<br>BUSINESS_INVALID_CURRENCY (200035) Currency code is not a supported ISO 4217 currency
+         * Response: 422 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Create business errors<br>BUSINESS_NAME_VALIDATION_ERROR (200002) Business name invalid<br>BUSINESS_INVALID_CURRENCY (200035) Currency code is not a supported ISO 4217 currency<br>BUSINESS_OWNED_BUSINESSES_LIMIT_REACHED (200045) You already own the maximum number of businesses
          * See: docs/operations/business/create-business.md
          */
         post<Api.Business> {
@@ -54,7 +54,7 @@ fun Route.businessCrud() {
          * Response: 204 application/x-protobuf No content
          * Response: 400 application/x-protobuf Path id does not match body id, or the working schedule does not cover all 7 days
          * Response: 404 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] User is not allowed to update the business
-         * Response: 422 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Update business errors<br>BUSINESS_ACTIVE_DAY_WITHOUT_WORK_HOURS (200019) Active day must have at least one work hour<br>BUSINESS_INVALID_DAY_OFF_RANGE (200020) Day off range start date must not be after end date<br>BUSINESS_INVALID_CURRENCY (200035) Currency code is not a supported ISO 4217 currency<br>BUSINESS_CURRENCY_LOCKED (200036) Currency cannot be changed once the business has services<br>BUSINESS_CLIENT_DATA_RETENTION_OUT_OF_RANGE (200041) Client data retention must be between 12 and 120 months
+         * Response: 422 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Update business errors<br>BUSINESS_ACTIVE_DAY_WITHOUT_WORK_HOURS (200019) Active day must have at least one work hour<br>BUSINESS_EMPTY_WORK_HOUR_RANGE (200042) Working range must not start and end at the same time<br>BUSINESS_INVALID_DAY_OFF_RANGE (200020) Day off range start date must not be after end date<br>BUSINESS_INVALID_CURRENCY (200035) Currency code is not a supported ISO 4217 currency<br>BUSINESS_CURRENCY_LOCKED (200036) Currency cannot be changed once the business has services<br>BUSINESS_CLIENT_DATA_RETENTION_OUT_OF_RANGE (200041) Client data retention must be between 12 and 120 months
          * Response: 403 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Caller is a suspended employee of this business<br>BUSINESS_EMPLOYEE_ACCESS_SUSPENDED (200034) Your access to this business is suspended
          * See: docs/operations/business/update-business.md
          */
