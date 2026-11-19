@@ -1,0 +1,30 @@
+groups:
+  - name: certificate_alerts
+    interval: 1m
+    rules:
+      - alert: CertificateRenewalFailed
+        expr: |
+          sum by (certificate) (count_over_time({stack="nginx", service="acme-sh"} |= `Error renewing ` | regexp `Error renewing (?P<certificate>[^ ]+)\.` | label_format certificate=`{{ trimSuffix "_ecc" .certificate }}` [1h])) > 0
+        labels:
+          severity: warning
+        annotations:
+          summary: "Renewing the certificate for {{ $labels.certificate }} failed"
+          description: "acme.sh's nightly run could not renew the certificate for {{ $labels.certificate }} or copy it into nginx. It retries every night from 30 days before expiry, so this repeats daily until fixed. Usual causes: the Cloudflare DNS token lost access to the zone, or Let's Encrypt refused the order. Grafana, Logs, stack nginx, service acme-sh, shows the error lines just before this one."
+
+      - alert: SiteCertificateMissing
+        expr: |
+          sum(count_over_time({stack="nginx", service="acme-sh"} |= `nginx keeps serving its self-signed placeholder` [1h])) > 0
+        labels:
+          severity: warning
+        annotations:
+          summary: "The website has no certificate, nginx serves a self-signed placeholder"
+          description: "acme-sh started but could not issue or deploy the website's certificate, so its domain serves the 30-day self-signed placeholder from wait_for_cert.sh, which Cloudflare refuses in Full (strict) mode. Check that the Cloudflare DNS token has access to the website's zone (Website in deployment/ansible/README.md), then restart acme-sh with 'docker service update --force nginx_acme-sh'."
+
+      - alert: CertificateRenewalNotRunning
+        expr: |
+          absent_over_time({stack="nginx", service="acme-sh"} |= `===End cron===` [26h])
+        labels:
+          severity: warning
+        annotations:
+          summary: "acme.sh has not finished a nightly renewal check in 26 hours"
+          description: "acme.sh checks both certificates every night at 23:48 UTC and logs '===End cron===' when done. Without it nothing renews the certificates: the acme-sh service is down, its cron stopped, or Alloy is not shipping the manager's logs. See 'docker service ps nginx_acme-sh' and the service's logs."
