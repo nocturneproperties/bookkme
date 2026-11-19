@@ -1,0 +1,14 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Feature request or idea
+    url: https://github.com/nocturneproperties/bookkme/discussions/categories/ideas
+    about: Suggest features and improvements in Discussions. Feature requests opened as issues are closed.
+  - name: Question or self-hosting help
+    url: https://github.com/nocturneproperties/bookkme/discussions/categories/q-a
+    about: Ask how something works or get help running BookkMe.
+  - name: Security vulnerability
+    url: https://github.com/nocturneproperties/bookkme/security/advisories/new
+    about: Report a vulnerability privately. Never open a public issue for a security problem.
+  - name: Personal data request (access, correction, erasure)
+    url: https://bookkme.com/privacy
+    about: Requests about your personal data go to the contact in the privacy policy, not to GitHub.
