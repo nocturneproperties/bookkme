@@ -44,7 +44,7 @@ This repository holds the BookkMe backend. You can run it yourself to take booki
 - Passwordless sign-in with passkeys, with the email verified by a one-time code
 - Sign-in from a Telegram Mini App, which creates the account on first use (see [Telegram sign-in](#telegram-sign-in))
 - Booking, rescheduling and cancelling appointments
-- Push and email notifications, with per-channel settings
+- Push, email and Telegram notifications, with per-channel settings
 - Notifications in the language of the client's device
 
 **For operators**
@@ -75,7 +75,7 @@ The script starts MariaDB, Valkey and nginx, builds the server image and starts 
 - the API answers on `http://localhost:8085/api/`
 - Swagger UI with every route is at `http://localhost:8085/api/monolith/internal/swagger`
 
-The development setup does not send email. It writes every message to the server log instead, verification codes included, so you can sign up without a mail provider. Push notifications need your own Firebase key in `deployment/dev/security/firebase-private-key.json`.
+The development setup does not send email. It writes every message to the server log instead, verification codes included, so you can sign up without a mail provider. Push notifications need your own Firebase key in `deployment/dev/security/firebase-private-key.json`. Telegram notifications need your bot's token as `APPLICATION_TELEGRAM_BOT_TOKEN=<token>` in `deployment/dev/.env`, which git ignores.
 
 To stop everything:
 
@@ -132,6 +132,7 @@ The server is configured through environment variables. `deployment/dev/service/
 | `APPLICATION_SUBJECT_MASTER_KEY` | Base64 of exactly 32 random bytes; wraps every person's encryption key. Keep it outside the database and never lose it: without it no encrypted field or export can be read |
 | `APPLICATION_BLIND_INDEX_KEY` | Base64 of at least 32 random bytes, for the keyed hashes that look up encrypted emails and phones and Telegram accounts |
 | `APPLICATION_TELEGRAM_BOT_ID` | Optional. The numeric id of the Telegram bot whose Mini App signs users in (the part of its token before the colon). Leave it unset to turn Telegram sign-in off |
+| `APPLICATION_TELEGRAM_BOT_TOKEN` | Optional, a secret. The token of that same bot, used only to send Telegram notifications. Leave it unset and nothing is sent to Telegram. Set it whenever Telegram sign-in is on, or accounts created through Telegram get no warning before a dormant account is deleted |
 
 Two secrets are read from files, as Docker secrets:
 
@@ -142,9 +143,11 @@ Two secrets are read from files, as Docker secrets:
 
 ### Telegram sign-in
 
-A Telegram Mini App can sign its users in with `POST /api/auth/telegram/sign_in`, sending the Mini App's `initData` as it received it. The server checks Telegram's signature with Telegram's public key and your bot id, so it never needs the bot token, and accepts the data for one hour after Telegram issued it. Set `APPLICATION_TELEGRAM_BOT_ID` to turn it on.
+A Telegram Mini App can sign its users in with `POST /api/auth/telegram/sign_in`, sending the Mini App's `initData` as it received it. The server checks Telegram's signature with Telegram's public key and your bot id, so sign-in never needs the bot token, and accepts the data for one hour after Telegram issued it. Set `APPLICATION_TELEGRAM_BOT_ID` to turn it on.
 
-The first sign-in of a Telegram user creates an account with their Telegram first and last name, after they accept the privacy policy and terms like any new user. Telegram doesn't share an email address, so the account gets the placeholder `<telegram user id>@telegramundeliverable.org`. The server never sends email to it: no notification emails, codes or account warnings, including the warnings before a dormant account is deleted. The user can switch to a real address through the usual email change, and can add a passkey, which they need before they can delete their account or export their data. Telegram sign-in itself keeps the Telegram user id only as a keyed hash; the account's profile and its notification settings keep it encrypted under the user's own key, as the chat a Telegram bot would write to, so deleting the account makes it unreadable. Nothing else from Telegram is stored except the name.
+The first sign-in of a Telegram user creates an account with their Telegram first and last name, after they accept the privacy policy and terms like any new user. Telegram doesn't share an email address, so the account gets the placeholder `<telegram user id>@telegramundeliverable.org`. The server never sends email to it: no notification emails or codes. The user can switch to a real address through the usual email change, and can add a passkey, which they need before they can delete their account or export their data. Telegram sign-in itself keeps the Telegram user id only as a keyed hash; the account's profile and its notification settings keep it encrypted under the user's own key, as the chat the bot writes notifications to, so deleting the account makes it unreadable. Nothing else from Telegram is stored except the name.
+
+With `APPLICATION_TELEGRAM_BOT_TOKEN` set, the bot sends notifications to these users' private chats as plain text, in the language of the device they last signed in on. Telegram appears in their notification settings, off at first. A bot can only write to someone who allowed it, so the app asks for that permission (the Mini App's `requestWriteAccess()`) before turning the channel on. Account notifications, such as the warnings before a dormant account is deleted and a finished data export, go to Telegram even with the channel off while the account has no real email address. If the user blocks the bot, the server turns their Telegram channel off. Telegram receives the text of each notification it delivers, such as a business name and appointment time, so list it among your providers.
 
 ### Creation limits
 
@@ -174,7 +177,7 @@ BookkMe is made of five services:
 | `user` | Profiles, legal document acceptance, data export |
 | `business` | Businesses, services, staff and invitations, permissions, clients, price quotes |
 | `appointments` | Booking requests, approvals, appointments, schedules and history |
-| `notifications` | Push and email notifications, device tokens, notification settings |
+| `notifications` | Push, email and Telegram notifications, device tokens, notification settings |
 
 The same code runs in two ways:
 
@@ -202,7 +205,7 @@ Each service takes the variables from [Configuration](#configuration), with its 
 | `APPLICATION_KAFKA_CLUSTER_ID` | Kafka cluster id |
 | `APPLICATION_<SERVICE>_SERVICE_HOSTNAME` | Where to reach the other services it calls |
 
-Mount `signing_key_encryption_key` into `auth` and `business`, which sign tokens, and `firebase_key` into `notifications`. `auth` and `notifications` also need the email settings, and `auth` needs `APPLICATION_BLIND_INDEX_KEY` (the same value as the other services) for Telegram sign-in.
+Mount `signing_key_encryption_key` into `auth` and `business`, which sign tokens, and `firebase_key` into `notifications`. `auth` and `notifications` also need the email settings, `notifications` needs `APPLICATION_TELEGRAM_BOT_TOKEN` for Telegram notifications, and `auth` needs `APPLICATION_BLIND_INDEX_KEY` (the same value as the other services) for Telegram sign-in.
 
 ### Images
 
@@ -214,7 +217,7 @@ Mount `signing_key_encryption_key` into `auth` and `business`, which sign tokens
 
 Each service owns its data and never reads another service's database. They work together in two ways:
 
-- **Events** for anything that happened. A service announces a change, such as `appointment.request_created`, `business.client_deleted` or `auth.user_deleted`, and every service that cares reacts to it in its own time. Notifications, for example, reacts to booking requests, approvals and cancellations by sending pushes and emails, and every service deletes its own data when it receives `auth.user_deleted`.
+- **Events** for anything that happened. A service announces a change, such as `appointment.request_created`, `business.client_deleted` or `auth.user_deleted`, and every service that cares reacts to it in its own time. Notifications, for example, reacts to booking requests, approvals and cancellations by sending pushes, emails and Telegram messages, and every service deletes its own data when it receives `auth.user_deleted`.
 - **Internal HTTP calls** for data a service needs right away, such as the booking flow asking `business` for a service's price and duration.
 
 Events are reliable:
@@ -232,7 +235,7 @@ The single server uses exactly the same producers, outbox and consumers, with an
 **Sign-in**
 
 - **No passwords.** Accounts sign in with passkeys (WebAuthn), so there is no password to steal, reuse or phish.
-- **Telegram sign-in checked against Telegram's signature.** Only Mini App data signed by Telegram for your bot and less than an hour old signs a user in. The server holds no bot token that could be used to forge it.
+- **Telegram sign-in checked against Telegram's signature.** Only Mini App data signed by Telegram for your bot and less than an hour old signs a user in. Checking it needs no bot token; the token is only used to send notifications and never appears in the logs.
 - **Verified email.** An account is created only after its owner enters a 6-digit code sent to the address, and the address changes only through a code sent to the new one. Accounts created through Telegram have a placeholder address that is never emailed. Codes expire after 10 minutes, allow a limited number of attempts and resends, and are stored only as keyed hashes.
 - **Short-lived tokens.** Access tokens live 5 minutes. Refresh tokens belong to one device and are replaced on every use; an old refresh token that comes back signs its device out and raises a metric for alerts.
 - **Rotating signing keys.** Token signing keys rotate daily and are published as a JWKS, so old keys stop being trusted on their own. The private keys are stored encrypted. Every token type has its own audience, so one kind of token cannot be used as another.
@@ -270,14 +273,14 @@ BookkMe is built to help whoever runs it meet the GDPR. It handles personal data
 
 - **Right of access and portability.** Users can export all their personal data from every service, after confirming with their passkey.
 - **Right to erasure.** Deleting an account erases the user's data in every service, cancels their upcoming appointments and removes their personal details from the appointment history. A business can delete any of its clients in the same way.
-- **Storage limitation.** An account unused for 3 years is deleted after three email warnings (an account created through Telegram with no real address gets no email warning). Each business sets how long it keeps inactive clients (12 to 120 months, 36 by default), and older ones are deleted automatically. Booking requests are deleted 60 days after their time slot, and failed events after 30 days.
+- **Storage limitation.** An account unused for 3 years is deleted after three warnings by email (on Telegram for an account created through Telegram with no real address). Each business sets how long it keeps inactive clients (12 to 120 months, 36 by default), and older ones are deleted automatically. Booking requests are deleted 60 days after their time slot, and failed events after 30 days.
 - **Encryption per person.** Each person's data is encrypted with a key of their own: profiles, client and staff details, appointment snapshots and notes, stored events and data exports. Erasing a person deletes their key, so every copy of their data left in the database or in a backup can no longer be read once the backups of that key have expired. The keys live in their own schemas, which never enter the binary log, so they can be backed up on a shorter schedule than the data (we keep them 7 days). Back them up: without its key, a person's data cannot be recovered.
 - **Erasure survives backups.** Every erasure is recorded, and restoring an older backup runs the erasures made since then again and deletes the keys erased since then, so a deleted person does not come back.
 - **Recorded acceptance.** The server records which version of the privacy policy and terms each user accepted.
 - **Data minimisation.** Staff see only what their permissions allow, and notification emails go only to verified addresses, never to the placeholder of an account created through Telegram.
 - **Policy templates.** `docs/legal/template` contains a draft privacy policy and terms of service for a business running its own copy, in English, Polish and Ukrainian.
 
-The software alone does not make a deployment compliant. When you self-host BookkMe, your business is the data controller: you decide the legal basis, publish your own privacy policy and terms (the templates are drafts that need review for your country), sign data processing agreements with your providers (such as your hosting, email and push notification providers), and answer requests from the people whose data you hold. [`docs/legal/README.md`](docs/legal/README.md) lists what to complete before publishing.
+The software alone does not make a deployment compliant. When you self-host BookkMe, your business is the data controller: you decide the legal basis, publish your own privacy policy and terms (the templates are drafts that need review for your country), sign data processing agreements with your providers (such as your hosting, email, push notification and Telegram providers), and answer requests from the people whose data you hold. [`docs/legal/README.md`](docs/legal/README.md) lists what to complete before publishing.
 
 ---
 

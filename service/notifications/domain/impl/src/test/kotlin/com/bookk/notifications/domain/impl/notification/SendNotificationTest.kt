@@ -9,10 +9,12 @@ import com.bookk.notifications.domain.api.entity.CommunicationChannel
 import com.bookk.notifications.domain.api.entity.NotificationChannelSettings
 import com.bookk.notifications.domain.api.entity.NotificationSettings
 import com.bookk.notifications.domain.datasource.NotificationSettingsDataSource
+import com.bookk.notifications.domain.datasource.NotificationTargetDataSource
 import com.bookk.notifications.domain.impl.channel.NotificationSender
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
+import library.email.PlaceholderEmail
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -22,6 +24,7 @@ internal class SendNotificationTest {
 
     private class SutFixture {
         val notificationDataSource = mockk<NotificationSettingsDataSource>()
+        val targetDataSource = mockk<NotificationTargetDataSource>()
         val emailSender = mockk<NotificationSender>()
         val telegramSender = mockk<NotificationSender>()
         val pushSender = mockk<NotificationSender>()
@@ -31,7 +34,7 @@ internal class SendNotificationTest {
             CommunicationChannel.PUSH_NOTIFICATIONS to pushSender,
         )
         val transactionManager = mockedTransactionManager()
-        val sut = SendNotification(notificationDataSource, senderMap, transactionManager)
+        val sut = SendNotification(notificationDataSource, targetDataSource, senderMap, transactionManager)
     }
 
     private fun notificationParams() = NotificationParameters(
@@ -177,6 +180,7 @@ internal class SendNotificationTest {
         )
         with(fixture) {
             coEvery { notificationDataSource.getByUserId(userId) } returns settings
+            coEvery { targetDataSource.getEmail(userId) } returns "user@example.com"
             coEvery { emailSender.send(userId, notification) } returns Result.success(Unit)
         }
 
@@ -204,6 +208,7 @@ internal class SendNotificationTest {
         )
         with(fixture) {
             coEvery { notificationDataSource.getByUserId(userId) } returns settings
+            coEvery { targetDataSource.getEmail(userId) } returns "user@example.com"
             coEvery { emailSender.send(userId, notification) } returns Result.success(Unit)
             coEvery { pushSender.send(userId, notification) } returns Result.success(Unit)
         }
@@ -229,6 +234,7 @@ internal class SendNotificationTest {
         )
         with(fixture) {
             coEvery { notificationDataSource.getByUserId(userId) } returns settings
+            coEvery { targetDataSource.getEmail(userId) } returns "user@example.com"
             coEvery { emailSender.send(userId, notification) } returns Result.success(Unit)
         }
 
@@ -237,6 +243,154 @@ internal class SendNotificationTest {
 
         then()
         coVerify(exactly = 1) { fixture.emailSender.send(userId, notification) }
+    }
+
+    @Test
+    fun `should send account notifications through Telegram when the email is a placeholder`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val notification = notificationParams().copyWithType(NotificationType.ACCOUNT)
+        val settings = NotificationSettings.stub(
+            userId = userId,
+            channels = listOf(
+                NotificationChannelSettings.stub(channel = CommunicationChannel.EMAIL, enabled = false),
+                NotificationChannelSettings.stub(channel = CommunicationChannel.TELEGRAM, enabled = false),
+            ),
+        )
+        with(fixture) {
+            coEvery { notificationDataSource.getByUserId(userId) } returns settings
+            coEvery { targetDataSource.getEmail(userId) } returns PlaceholderEmail.forTelegramUser(123456789)
+            coEvery { emailSender.send(userId, notification) } returns Result.success(Unit)
+            coEvery { telegramSender.send(userId, notification) } returns Result.success(Unit)
+        }
+
+        whenn()
+        val result = fixture.sut.invoke(userId, notification)
+
+        then()
+        assertTrue(result.isSuccess)
+        coVerify(exactly = 1) { fixture.telegramSender.send(userId, notification) }
+    }
+
+    @Test
+    fun `should send account notifications through Telegram when no email is stored`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val notification = notificationParams().copyWithType(NotificationType.ACCOUNT)
+        val settings = NotificationSettings.stub(userId = userId, channels = emptyList())
+        with(fixture) {
+            coEvery { notificationDataSource.getByUserId(userId) } returns settings
+            coEvery { targetDataSource.getEmail(userId) } returns null
+            coEvery { emailSender.send(userId, notification) } returns Result.success(Unit)
+            coEvery { telegramSender.send(userId, notification) } returns Result.success(Unit)
+        }
+
+        whenn()
+        fixture.sut.invoke(userId, notification)
+
+        then()
+        coVerify(exactly = 1) { fixture.telegramSender.send(userId, notification) }
+    }
+
+    @Test
+    fun `should send account notifications through Telegram once when its channel is also on`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val notification = notificationParams().copyWithType(NotificationType.ACCOUNT)
+        val settings = NotificationSettings.stub(
+            userId = userId,
+            channels = listOf(
+                NotificationChannelSettings.stub(channel = CommunicationChannel.TELEGRAM, enabled = true),
+            ),
+        )
+        with(fixture) {
+            coEvery { notificationDataSource.getByUserId(userId) } returns settings
+            coEvery { targetDataSource.getEmail(userId) } returns PlaceholderEmail.forTelegramUser(123456789)
+            coEvery { emailSender.send(userId, notification) } returns Result.success(Unit)
+            coEvery { telegramSender.send(userId, notification) } returns Result.success(Unit)
+        }
+
+        whenn()
+        fixture.sut.invoke(userId, notification)
+
+        then()
+        coVerify(exactly = 1) { fixture.telegramSender.send(userId, notification) }
+    }
+
+    @Test
+    fun `should not send account notifications through Telegram that is off for a real email`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val notification = notificationParams().copyWithType(NotificationType.ACCOUNT)
+        val settings = NotificationSettings.stub(
+            userId = userId,
+            channels = listOf(
+                NotificationChannelSettings.stub(channel = CommunicationChannel.EMAIL, enabled = false),
+                NotificationChannelSettings.stub(channel = CommunicationChannel.TELEGRAM, enabled = false),
+            ),
+        )
+        with(fixture) {
+            coEvery { notificationDataSource.getByUserId(userId) } returns settings
+            coEvery { targetDataSource.getEmail(userId) } returns "user@example.com"
+            coEvery { emailSender.send(userId, notification) } returns Result.success(Unit)
+        }
+
+        whenn()
+        fixture.sut.invoke(userId, notification)
+
+        then()
+        coVerify(exactly = 1) { fixture.emailSender.send(userId, notification) }
+        coVerify(exactly = 0) { fixture.telegramSender.send(any(), any()) }
+    }
+
+    @Test
+    fun `should not send appointment notifications through Telegram that is off`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val notification = notificationParams()
+        val settings = NotificationSettings.stub(
+            userId = userId,
+            channels = listOf(
+                NotificationChannelSettings.stub(channel = CommunicationChannel.TELEGRAM, enabled = false),
+            ),
+        )
+        coEvery { fixture.notificationDataSource.getByUserId(userId) } returns settings
+
+        whenn()
+        fixture.sut.invoke(userId, notification)
+
+        then()
+        coVerify(exactly = 0) { fixture.telegramSender.send(any(), any()) }
+        coVerify(exactly = 0) { fixture.targetDataSource.getEmail(any()) }
+    }
+
+    @Test
+    fun `should read the email of an account notification inside the settings transaction`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val notification = notificationParams().copyWithType(NotificationType.ACCOUNT)
+        var readInTransaction = false
+        with(fixture) {
+            coEvery { notificationDataSource.getByUserId(userId) } returns
+                NotificationSettings.stub(userId = userId, channels = emptyList())
+            coEvery { targetDataSource.getEmail(userId) } coAnswers {
+                readInTransaction = transactionManager.isInTransaction()
+                "user@example.com"
+            }
+            coEvery { emailSender.send(userId, notification) } returns Result.success(Unit)
+        }
+
+        whenn()
+        fixture.sut.invoke(userId, notification)
+
+        then()
+        assertTrue(readInTransaction)
     }
 
     @Test

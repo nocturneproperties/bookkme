@@ -33,7 +33,7 @@ data class NotificationSettings(
                 id = Uuid.random(),
                 channel = CommunicationChannel.TELEGRAM,
                 enabled = false,
-                availableToClients = false,
+                availableToClients = true,
             ),
         ),
     )
