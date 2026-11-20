@@ -1,5 +1,22 @@
 # Release notes
 
+## 0.21.0
+
+Changes since `monolith/0.20.0`. Adds sign-in from a Telegram Mini App, which creates an account with a placeholder email on first use.
+
+### Clients
+
+- New `POST /api/auth/telegram/sign_in` takes the Mini App's raw `initData`, a device and, for a new user, `acceptedDocuments`, and returns tokens; send the documents after a 422 `LEGAL_DOCUMENTS_NOT_ACCEPTED` (100004).
+- It answers 422 `TELEGRAM_DATA_INVALID` (14) for data not signed by Telegram for this bot, `TELEGRAM_DATA_EXPIRED` (15) once `initData` is over an hour old (reopen the Mini App), and 503 `TELEGRAM_SIGN_IN_UNAVAILABLE` (16) when the server has no bot configured.
+- An account created this way has the email `<telegram user id>@telegramundeliverable.org`; codes to that domain answer `EMAIL_UNDELIVERABLE` (910005), so prompt the user to change to a real address and to add a passkey before deleting the account or exporting data.
+
+### Services
+
+- New optional `APPLICATION_TELEGRAM_BOT_ID` (the bot's numeric id, never the token) turns Telegram sign-in on; in prod set `telegram_bot_id` in the Ansible inventory.
+- A standalone `auth` service now needs `APPLICATION_BLIND_INDEX_KEY`, with the same value as the other services; the monolith already has it.
+- Migration authorization `V6` adds the table `telegram_identity`, holding only a keyed hash of the Telegram user id per account.
+- No email is ever sent to `@telegramundeliverable.org`, so these accounts get no notification emails and no dormancy warnings before deletion.
+
 ## 0.20.0
 
 Changes since `monolith/0.19.0`. Sends email through the Hostinger Mail API instead of Postmark, deletes sent copies after 5 years, checks bookings against the employee's schedule and accepts bookings across midnight, lets one person own several businesses, limits how much a business or person can create, removes the one-time client-name indexing job that 0.19.0 ran, and adds a Grafana dashboard for the website and alerts for certificate renewal.

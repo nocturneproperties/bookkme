@@ -1,0 +1,17 @@
+package com.bookk.auth.domain.api.telegram.entity
+
+data class TelegramUser(
+    val id: Long,
+    val firstName: String,
+    val lastName: String?,
+) {
+    companion object {
+        fun stub(
+            id: Long = 123456789,
+            firstName: String = "Ann",
+            lastName: String? = "Lee",
+        ): TelegramUser {
+            return TelegramUser(id, firstName, lastName)
+        }
+    }
+}

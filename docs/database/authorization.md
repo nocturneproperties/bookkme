@@ -9,6 +9,7 @@ Owns login/session/device and WebAuthn passkey state, keyed off `authentication.
 erDiagram
     AUTHENTICATION ||--o{ AUTH_DEVICE : "has"
     AUTHENTICATION ||--o{ PASSKEY_CREDENTIALS : "has"
+    AUTHENTICATION ||--o| TELEGRAM_IDENTITY : "signs in with"
 
     AUTHENTICATION {
         uuid id PK
@@ -58,6 +59,13 @@ erDiagram
         timestamp last_used_at
     }
 
+    TELEGRAM_IDENTITY {
+        uuid id PK
+        uuid auth_id FK,UK "ON DELETE CASCADE"
+        char telegram_id_index UK "HMAC blind index of the Telegram user id (APPLICATION_BLIND_INDEX_KEY); the id itself is not stored"
+        timestamp created_at
+    }
+
     EXHAUSTED_EVENT {
         uuid id PK
         string original_topic
@@ -85,6 +93,8 @@ erDiagram
         bool reapply_requested "set only by a backup restore, cleared by auth-reapplyErasures"
     }
 ```
+
+`TELEGRAM_IDENTITY` links an account created or used through Telegram Mini App sign-in (`POST /api/auth/telegram/sign_in`) to its Telegram user, found by the blind index of the Telegram user id so the schema holds no plaintext identifier. It goes with the account (`ON DELETE CASCADE`), so an erased Telegram user who signs in again gets a new account. Hidden from NocoDB, like the rest of `authorization`.
 
 `EXHAUSTED_EVENT` is not part of the authorization domain model — it's the shared DLT landing table (`library/outbox`, one instance per service schema) that `KafkaEventConsumer`/`EmbeddedEventConsumer` write to when an event exhausts its retry budget, so a failed event survives a process restart or crash instead of being lost. Every start, and every row an operator sets `replay_requested` on, is replayed through the consumer group's DLT topic by `ExhaustedEventReplayer`, which also exports the parked rows as the `events_exhausted` metric. See [Exhausted events](../exhausted-events.md).
 

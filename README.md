@@ -12,6 +12,7 @@ This repository holds the BookkMe backend. You can run it yourself to take booki
 - [Try it locally](#try-it-locally)
 - [Self-hosting for your business](#self-hosting-for-your-business)
 - [Configuration](#configuration)
+  - [Telegram sign-in](#telegram-sign-in)
   - [Creation limits](#creation-limits)
 - [Running as microservices](#running-as-microservices)
 - [How the services communicate](#how-the-services-communicate)
@@ -41,6 +42,7 @@ This repository holds the BookkMe backend. You can run it yourself to take booki
 **For clients**
 
 - Passwordless sign-in with passkeys, with the email verified by a one-time code
+- Sign-in from a Telegram Mini App, which creates the account on first use (see [Telegram sign-in](#telegram-sign-in))
 - Booking, rescheduling and cancelling appointments
 - Push and email notifications, with per-channel settings
 - Notifications in the language of the client's device
@@ -128,7 +130,8 @@ The server is configured through environment variables. `deployment/dev/service/
 | `APPLICATION_EMAIL_SENDER_NAME` | Sender name shown next to the mailbox address, such as your business name |
 | `APPLICATION_EMAIL_CODE_SECRET` | Random secret of at least 32 bytes for verification codes |
 | `APPLICATION_SUBJECT_MASTER_KEY` | Base64 of exactly 32 random bytes; wraps every person's encryption key. Keep it outside the database and never lose it: without it no encrypted field or export can be read |
-| `APPLICATION_BLIND_INDEX_KEY` | Base64 of at least 32 random bytes, for the keyed hashes that look up encrypted emails and phones |
+| `APPLICATION_BLIND_INDEX_KEY` | Base64 of at least 32 random bytes, for the keyed hashes that look up encrypted emails and phones and Telegram accounts |
+| `APPLICATION_TELEGRAM_BOT_ID` | Optional. The numeric id of the Telegram bot whose Mini App signs users in (the part of its token before the colon). Leave it unset to turn Telegram sign-in off |
 
 Two secrets are read from files, as Docker secrets:
 
@@ -136,6 +139,12 @@ Two secrets are read from files, as Docker secrets:
 |---|---|
 | `signing_key_encryption_key` | Encrypts the keys the server signs access tokens with |
 | `firebase_key` | Firebase service account key, for push notifications |
+
+### Telegram sign-in
+
+A Telegram Mini App can sign its users in with `POST /api/auth/telegram/sign_in`, sending the Mini App's `initData` as it received it. The server checks Telegram's signature with Telegram's public key and your bot id, so it never needs the bot token, and accepts the data for one hour after Telegram issued it. Set `APPLICATION_TELEGRAM_BOT_ID` to turn it on.
+
+The first sign-in of a Telegram user creates an account with their Telegram first and last name, after they accept the privacy policy and terms like any new user. Telegram doesn't share an email address, so the account gets the placeholder `<telegram user id>@telegramundeliverable.org`. The server never sends email to it: no notification emails, codes or account warnings, including the warnings before a dormant account is deleted. The user can switch to a real address through the usual email change, and can add a passkey, which they need before they can delete their account or export their data. The server stores the Telegram user id only as a keyed hash, and nothing else from Telegram except the name.
 
 ### Creation limits
 
@@ -161,7 +170,7 @@ BookkMe is made of five services:
 
 | Service | Responsibility |
 |---|---|
-| `auth` | Accounts, sign-up and email changes with email verification, passkey sign-in, access tokens, devices |
+| `auth` | Accounts, sign-up and email changes with email verification, passkey and Telegram sign-in, access tokens, devices |
 | `user` | Profiles, legal document acceptance, data export |
 | `business` | Businesses, services, staff and invitations, permissions, clients, price quotes |
 | `appointments` | Booking requests, approvals, appointments, schedules and history |
@@ -193,7 +202,7 @@ Each service takes the variables from [Configuration](#configuration), with its 
 | `APPLICATION_KAFKA_CLUSTER_ID` | Kafka cluster id |
 | `APPLICATION_<SERVICE>_SERVICE_HOSTNAME` | Where to reach the other services it calls |
 
-Mount `signing_key_encryption_key` into `auth` and `business`, which sign tokens, and `firebase_key` into `notifications`. `auth` and `notifications` also need the email settings.
+Mount `signing_key_encryption_key` into `auth` and `business`, which sign tokens, and `firebase_key` into `notifications`. `auth` and `notifications` also need the email settings, and `auth` needs `APPLICATION_BLIND_INDEX_KEY` (the same value as the other services) for Telegram sign-in.
 
 ### Images
 
@@ -223,7 +232,8 @@ The single server uses exactly the same producers, outbox and consumers, with an
 **Sign-in**
 
 - **No passwords.** Accounts sign in with passkeys (WebAuthn), so there is no password to steal, reuse or phish.
-- **Verified email.** An account is created only after its owner enters a 6-digit code sent to the address, and the address changes only through a code sent to the new one. Codes expire after 10 minutes, allow a limited number of attempts and resends, and are stored only as keyed hashes.
+- **Telegram sign-in checked against Telegram's signature.** Only Mini App data signed by Telegram for your bot and less than an hour old signs a user in. The server holds no bot token that could be used to forge it.
+- **Verified email.** An account is created only after its owner enters a 6-digit code sent to the address, and the address changes only through a code sent to the new one. Accounts created through Telegram have a placeholder address that is never emailed. Codes expire after 10 minutes, allow a limited number of attempts and resends, and are stored only as keyed hashes.
 - **Short-lived tokens.** Access tokens live 5 minutes. Refresh tokens belong to one device and are replaced on every use; an old refresh token that comes back signs its device out and raises a metric for alerts.
 - **Rotating signing keys.** Token signing keys rotate daily and are published as a JWKS, so old keys stop being trusted on their own. The private keys are stored encrypted. Every token type has its own audience, so one kind of token cannot be used as another.
 - **Confirmation for sensitive actions.** Deleting an account, deleting a client and exporting personal data each need a fresh passkey confirmation, not only a signed-in session.
@@ -260,11 +270,11 @@ BookkMe is built to help whoever runs it meet the GDPR. It handles personal data
 
 - **Right of access and portability.** Users can export all their personal data from every service, after confirming with their passkey.
 - **Right to erasure.** Deleting an account erases the user's data in every service, cancels their upcoming appointments and removes their personal details from the appointment history. A business can delete any of its clients in the same way.
-- **Storage limitation.** An account unused for 3 years is deleted after three email warnings. Each business sets how long it keeps inactive clients (12 to 120 months, 36 by default), and older ones are deleted automatically. Booking requests are deleted 60 days after their time slot, and failed events after 30 days.
+- **Storage limitation.** An account unused for 3 years is deleted after three email warnings (an account created through Telegram with no real address gets no email warning). Each business sets how long it keeps inactive clients (12 to 120 months, 36 by default), and older ones are deleted automatically. Booking requests are deleted 60 days after their time slot, and failed events after 30 days.
 - **Encryption per person.** Each person's data is encrypted with a key of their own: profiles, client and staff details, appointment snapshots and notes, stored events and data exports. Erasing a person deletes their key, so every copy of their data left in the database or in a backup can no longer be read once the backups of that key have expired. The keys live in their own schemas, which never enter the binary log, so they can be backed up on a shorter schedule than the data (we keep them 7 days). Back them up: without its key, a person's data cannot be recovered.
 - **Erasure survives backups.** Every erasure is recorded, and restoring an older backup runs the erasures made since then again and deletes the keys erased since then, so a deleted person does not come back.
 - **Recorded acceptance.** The server records which version of the privacy policy and terms each user accepted.
-- **Data minimisation.** Staff see only what their permissions allow, and notification emails go only to verified addresses.
+- **Data minimisation.** Staff see only what their permissions allow, and notification emails go only to verified addresses, never to the placeholder of an account created through Telegram.
 - **Policy templates.** `docs/legal/template` contains a draft privacy policy and terms of service for a business running its own copy, in English, Polish and Ukrainian.
 
 The software alone does not make a deployment compliant. When you self-host BookkMe, your business is the data controller: you decide the legal basis, publish your own privacy policy and terms (the templates are drafts that need review for your country), sign data processing agreements with your providers (such as your hosting, email and push notification providers), and answer requests from the people whose data you hold. [`docs/legal/README.md`](docs/legal/README.md) lists what to complete before publishing.

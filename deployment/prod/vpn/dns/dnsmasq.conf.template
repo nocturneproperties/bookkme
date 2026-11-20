@@ -9,6 +9,7 @@ host-record=${DOMAIN_NAME}, ${VPN_HOST_ADDRESS}
 cname=grafana.${DOMAIN_NAME}, ${DOMAIN_NAME}
 cname=prometheus.${DOMAIN_NAME}, ${DOMAIN_NAME}
 cname=local.${DOMAIN_NAME}, ${DOMAIN_NAME}
+cname=local-8080.${DOMAIN_NAME}, ${DOMAIN_NAME}
 cname=www.${DOMAIN_NAME}, ${DOMAIN_NAME}
 cname=orchestrator.${DOMAIN_NAME}, ${DOMAIN_NAME}
 cname=kafka.${DOMAIN_NAME}, ${DOMAIN_NAME}

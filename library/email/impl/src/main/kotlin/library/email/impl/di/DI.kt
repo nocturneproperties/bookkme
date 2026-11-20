@@ -15,6 +15,7 @@ import library.email.impl.HostingerDeleteExpiredSentEmails
 import library.email.impl.HostingerEmailSender
 import library.email.impl.LoggingEmailSender
 import library.email.impl.NoSentEmailsToDelete
+import library.email.impl.PlaceholderRefusingEmailSender
 import library.email.impl.hostingerMailHttpClient
 import org.koin.core.qualifier.Qualifier
 import org.koin.core.qualifier.named
@@ -34,7 +35,7 @@ fun emailModule(qualifier: Qualifier, environment: (String) -> String? = System:
         scoped<EmailSender> {
             val apiToken = environment.require(HOSTINGER_MAIL_TOKEN)
             val senderName = environment.require(EMAIL_SENDER_NAME)
-            if (apiToken == LoggingEmailSender.DEVELOPMENT_API_TOKEN) {
+            val sender = if (apiToken == LoggingEmailSender.DEVELOPMENT_API_TOKEN) {
                 LoggingEmailSender(senderName)
             } else {
                 HostingerEmailSender(
@@ -44,6 +45,7 @@ fun emailModule(qualifier: Qualifier, environment: (String) -> String? = System:
                     senderName = senderName,
                 )
             }
+            PlaceholderRefusingEmailSender(sender)
         }
         scoped<DeleteExpiredSentEmails> {
             val apiToken = environment.require(HOSTINGER_MAIL_TOKEN)

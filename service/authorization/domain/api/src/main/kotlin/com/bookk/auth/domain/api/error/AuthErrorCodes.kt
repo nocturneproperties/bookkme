@@ -16,4 +16,7 @@ object AuthErrorCodes {
     const val PASSKEY_NOT_OWNED = BASE + 11
     const val ACTION_CONFIRMATION_INVALID = BASE + 12
     const val PASSKEYS_LIMIT_REACHED = BASE + 13
+    const val TELEGRAM_DATA_INVALID = BASE + 14
+    const val TELEGRAM_DATA_EXPIRED = BASE + 15
+    const val TELEGRAM_SIGN_IN_UNAVAILABLE = BASE + 16
 }

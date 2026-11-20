@@ -1,10 +1,12 @@
 plugins {
     alias(libs.plugins.bookk.domain.impl)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 dependencies {
     implementation(libs.passkey)
     implementation(libs.micrometer.core)
+    implementation(libs.kotlin.serialization.json)
     implementation(projects.core)
     implementation(projects.core.domain)
     implementation(projects.core.domain.datasource)

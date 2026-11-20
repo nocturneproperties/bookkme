@@ -18,6 +18,7 @@ import library.email.EmailContent
 import library.email.EmailMessage
 import library.email.EmailSendError
 import library.email.EmailSender
+import library.email.PlaceholderEmail
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -228,6 +229,22 @@ internal class EmailCodeIssuerImplTest {
         then()
         assertTrue(refused.exceptionOrNull() is EmailSendError.Undeliverable) { refused.toString() }
         assertTrue(result.isSuccess) { result.toString() }
+    }
+
+    @Test
+    fun `should refuse a placeholder address as undeliverable without sending or holding up a retry`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val placeholder = PlaceholderEmail.forTelegramUser(123456789)
+
+        whenn()
+        val first = fixture.issue(placeholder)
+        val second = fixture.issue(placeholder)
+
+        then()
+        assertTrue(first.exceptionOrNull() is EmailSendError.Undeliverable) { first.toString() }
+        assertTrue(second.exceptionOrNull() is EmailSendError.Undeliverable) { second.toString() }
+        coVerify(exactly = 0) { fixture.sender.send(any()) }
     }
 
     @Test

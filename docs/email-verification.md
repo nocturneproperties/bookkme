@@ -3,7 +3,10 @@
 Every email address BookkMe stores was proven by a 6-digit code sent to it.
 Sign-up redeems a code before the account exists, and the address changes
 afterwards only through a code sent to the new one, so nothing downstream
-checks whether an address is verified. A business client is linked to an
+checks whether an address is verified. The one exception is an account
+created by Telegram Mini App sign-in, whose address is the placeholder
+`<telegram user id>@telegramundeliverable.org` (`PlaceholderEmail`): nothing is
+ever sent to it, and the user can replace it through an email change. A business client is linked to an
 account by that email alone (`docs/agents/domain-rules.md`). Scope and
 decisions: issues #146 and #147.
 
