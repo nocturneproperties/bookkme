@@ -46,6 +46,7 @@ bin/
 ### Application ###
 deployment/prod/keys
 deployment/dev/db/encryption.key
+deployment/dev/.env
 deployment/prod/microservice/db/*.key
 local.properties
 !deployment/dev/security/*

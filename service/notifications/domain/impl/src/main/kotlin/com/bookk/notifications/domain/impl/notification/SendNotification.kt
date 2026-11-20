@@ -6,37 +6,58 @@ import com.bookk.core.domain.entity.runSuspendCatching
 import com.bookk.notifications.domain.api.entity.CommunicationChannel
 import com.bookk.notifications.domain.api.entity.NotificationSettings
 import com.bookk.notifications.domain.datasource.NotificationSettingsDataSource
+import com.bookk.notifications.domain.datasource.NotificationTargetDataSource
 import com.bookk.notifications.domain.impl.channel.NotificationSender
+import library.email.PlaceholderEmail
 import kotlin.uuid.Uuid
 
 internal class SendNotification(
-    val notificationDataSource: NotificationSettingsDataSource,
-    val senderMap: Map<CommunicationChannel, NotificationSender>,
+    private val settingsDataSource: NotificationSettingsDataSource,
+    private val targetDataSource: NotificationTargetDataSource,
+    private val senders: Map<CommunicationChannel, NotificationSender>,
     private val transactionManager: TransactionManager,
 ) {
     suspend operator fun invoke(to: Uuid, notification: NotificationParameters): Result<Unit> = runSuspendCatching {
-        val settings = transactionManager.transactionOrThrow { notificationDataSource.getByUserId(to) }
-            ?: throw IllegalArgumentException("Settings not found")
-        if (!settings.isTypeAllowed(notification.type)) return@runSuspendCatching
-        val enabledChannels = settings.channels.filter { it.enabled }.map { it.channel }
-        (enabledChannels + notification.type.mandatoryChannels).distinct().forEach { channel ->
-            senderMap[channel]?.send(to, notification)
+        val channels = transactionManager.transactionOrThrow { channelsFor(to, notification.type) }
+        channels.forEach { channel -> senders[channel]?.send(to, notification) }
+    }
+
+    private suspend fun channelsFor(userId: Uuid, type: NotificationType): Set<CommunicationChannel> {
+        val settings = requireNotNull(settingsDataSource.getByUserId(userId)) { "Settings not found" }
+        if (!settings.allows(type)) return emptySet()
+        return settings.enabledChannels() + mandatoryChannels(userId, type)
+    }
+
+    private suspend fun mandatoryChannels(userId: Uuid, type: NotificationType): Set<CommunicationChannel> {
+        return when (type) {
+            NotificationType.ACCOUNT -> accountChannels(userId)
+            NotificationType.APPOINTMENT, NotificationType.EMPLOYEE -> emptySet()
         }
     }
 
-    private val NotificationType.mandatoryChannels: List<CommunicationChannel>
-        get() = when (this) {
-            NotificationType.ACCOUNT -> listOf(CommunicationChannel.EMAIL)
-            NotificationType.APPOINTMENT, NotificationType.EMPLOYEE -> emptyList()
+    private suspend fun accountChannels(userId: Uuid): Set<CommunicationChannel> {
+        if (hasDeliverableEmail(userId)) return setOf(CommunicationChannel.EMAIL)
+        return setOf(CommunicationChannel.EMAIL, CommunicationChannel.TELEGRAM)
+    }
+
+    private suspend fun hasDeliverableEmail(userId: Uuid): Boolean {
+        val email = targetDataSource.getEmail(userId) ?: return false
+        return !PlaceholderEmail.isPlaceholder(email)
+    }
+
+    private fun NotificationSettings.enabledChannels(): Set<CommunicationChannel> {
+        return channels.filter { it.enabled }.mapTo(mutableSetOf()) { it.channel }
+    }
+
+    private fun NotificationSettings.allows(type: NotificationType): Boolean {
+        return when (type) {
+            NotificationType.APPOINTMENT -> appointmentEnabled
+
+            // Employee invitations are account-level and actionable, so they are not user-suppressible.
+            // They still only go out through the channels the user has enabled.
+            NotificationType.EMPLOYEE -> true
+
+            NotificationType.ACCOUNT -> true
         }
-
-    private fun NotificationSettings.isTypeAllowed(type: NotificationType): Boolean = when (type) {
-        NotificationType.APPOINTMENT -> appointmentEnabled
-
-        // Employee invitations are account-level and actionable, so they are not user-suppressible.
-        // They still only go out through the channels the user has enabled.
-        NotificationType.EMPLOYEE -> true
-
-        NotificationType.ACCOUNT -> true
     }
 }

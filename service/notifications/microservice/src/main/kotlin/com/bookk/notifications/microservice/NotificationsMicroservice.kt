@@ -22,7 +22,7 @@ import org.koin.dsl.module
 
 fun notificationsModule(environment: (String) -> String? = System::getenv) = module {
     includes(
-        notificationsDomainModule(),
+        notificationsDomainModule(environment),
         notificationsDataModule(environment),
         emailModule(NotificationsScope, environment),
         eventStreamingTransportModule(NotificationsScope, NOTIFICATIONS_SERVICE_NAME),
@@ -32,7 +32,7 @@ fun notificationsModule(environment: (String) -> String? = System::getenv) = mod
 
 fun notificationsEmbeddedModule(environment: (String) -> String? = System::getenv) = module {
     includes(
-        notificationsDomainModule(),
+        notificationsDomainModule(environment),
         notificationsDataModule(environment),
         emailModule(NotificationsScope, environment),
         embeddedEventStreamingTransportModule(NotificationsScope, NOTIFICATIONS_SERVICE_NAME),

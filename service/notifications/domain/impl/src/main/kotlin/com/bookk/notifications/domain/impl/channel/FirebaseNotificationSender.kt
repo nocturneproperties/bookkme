@@ -1,6 +1,10 @@
 package com.bookk.notifications.domain.impl.channel
 
 import com.bookk.core.domain.datasource.transaction.TransactionManager
+import com.bookk.core.domain.datasource.transaction.transactionOrThrow
+import com.bookk.core.domain.entity.runSuspendCatching
+import com.bookk.core.domain.entity.throwIfAnyFailed
+import com.bookk.notifications.domain.api.entity.Device
 import com.bookk.notifications.domain.datasource.DeviceDataSource
 import com.bookk.notifications.domain.impl.notification.NotificationParameters
 import com.google.firebase.messaging.FirebaseMessaging
@@ -19,34 +23,35 @@ internal class FirebaseNotificationSender(
 
     private val logger = LoggerFactory.getLogger(FirebaseNotificationSender::class.java)
 
-    override suspend fun send(toUserId: Uuid, params: NotificationParameters) = transactionManager.transaction {
-        val devices = deviceDataSource.getByUserId(toUserId)
-        val devicesWithTokens = devices.filter { it.notificationToken != null }
+    override suspend fun send(toUserId: Uuid, params: NotificationParameters): Result<Unit> = runSuspendCatching {
+        val devices = transactionManager.transactionOrThrow { deviceDataSource.getByUserId(toUserId) }
+        devices
+            .filter { it.notificationToken != null }
+            .map { device -> runSuspendCatching { push(device, params) } }
+            .throwIfAnyFailed()
+    }
 
-        devicesWithTokens.forEach { device ->
-            val token = requireNotNull(device.notificationToken)
-            val content = params.push(device.language)
-            val message = Message.builder()
-                .setFid(token)
-                .setNotification(
-                    Notification.builder()
-                        .setTitle(content.title)
-                        .setBody(content.body)
-                        .build(),
-                )
-                .build()
+    private suspend fun push(device: Device, params: NotificationParameters) {
+        val content = params.push(device.language)
+        val message = Message.builder()
+            .setFid(requireNotNull(device.notificationToken))
+            .setNotification(
+                Notification.builder()
+                    .setTitle(content.title)
+                    .setBody(content.body)
+                    .build(),
+            )
+            .build()
 
-            runCatching {
-                firebaseMessaging.send(message)
-            }.onFailure { error ->
-                when {
-                    error is FirebaseMessagingException && error.messagingErrorCode == UNREGISTERED -> {
+        runCatching { firebaseMessaging.send(message) }
+            .onFailure { error ->
+                if (error is FirebaseMessagingException && error.messagingErrorCode == UNREGISTERED) {
+                    transactionManager.transactionOrThrow {
                         deviceDataSource.updateToken(device.authId, device.deviceUuid, null)
                     }
-
-                    else -> logger.error("Failed to send message to device: ${device.deviceUuid}", error)
+                } else {
+                    logger.error("Failed to send message to device: ${device.deviceUuid}", error)
                 }
             }
-        }
     }
 }

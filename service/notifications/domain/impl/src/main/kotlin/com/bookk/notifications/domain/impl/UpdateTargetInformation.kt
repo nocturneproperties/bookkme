@@ -2,6 +2,8 @@ package com.bookk.notifications.domain.impl
 
 import com.bookk.core.domain.datasource.transaction.TransactionManager
 import com.bookk.notifications.domain.api.GetNotificationSettings
+import com.bookk.notifications.domain.api.entity.CommunicationChannel
+import com.bookk.notifications.domain.datasource.NotificationSettingsDataSource
 import com.bookk.notifications.domain.datasource.NotificationTargetDataSource
 import library.encryption.SubjectKeys
 import kotlin.time.Instant
@@ -10,6 +12,7 @@ import kotlin.uuid.Uuid
 internal class UpdateTargetInformation(
     private val getNotificationSettings: GetNotificationSettings,
     private val targetDataSource: NotificationTargetDataSource,
+    private val notificationSettingsDataSource: NotificationSettingsDataSource,
     private val subjectKeys: SubjectKeys,
     private val transactionManager: TransactionManager,
 ) {
@@ -37,10 +40,17 @@ internal class UpdateTargetInformation(
     }
 
     private suspend fun saveTelegram(userId: Uuid, telegramUserId: String) {
-        if (targetDataSource.updateTelegram(userId, telegramUserId)) return
-        if (!targetDataSource.hasTelegram(userId)) {
+        if (!targetDataSource.updateTelegram(userId, telegramUserId) && !targetDataSource.hasTelegram(userId)) {
             targetDataSource.insertTelegram(userId, telegramUserId)
         }
+        offerTelegram(userId)
+    }
+
+    private suspend fun offerTelegram(userId: Uuid) {
+        val settings = notificationSettingsDataSource.getByUserId(userId) ?: return
+        val telegram = settings.channels.firstOrNull { it.channel == CommunicationChannel.TELEGRAM } ?: return
+        if (telegram.availableToClients) return
+        notificationSettingsDataSource.upsert(telegram.copy(availableToClients = true))
     }
 
     internal sealed interface Target {

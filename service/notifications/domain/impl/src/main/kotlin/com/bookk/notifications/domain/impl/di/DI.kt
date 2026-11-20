@@ -23,9 +23,12 @@ import com.bookk.notifications.domain.impl.channel.EmailNotificationSender
 import com.bookk.notifications.domain.impl.channel.FirebaseNotificationSender
 import com.bookk.notifications.domain.impl.channel.NotificationSender
 import com.bookk.notifications.domain.impl.channel.TelegramNotificationSender
+import com.bookk.notifications.domain.impl.channel.telegram.TelegramMessenger
+import com.bookk.notifications.domain.impl.channel.telegram.telegramMessenger
 import com.bookk.notifications.domain.impl.event.NotificationEventHandler
 import com.bookk.notifications.domain.impl.notification.SendNotification
 import com.google.firebase.messaging.FirebaseMessaging
+import io.ktor.client.engine.cio.CIO
 import org.koin.core.module.dsl.scopedOf
 import org.koin.core.qualifier.Qualifier
 import org.koin.core.qualifier.named
@@ -34,7 +37,7 @@ import org.koin.dsl.module
 
 val NotificationsScope: Qualifier = named(NOTIFICATIONS_SCHEMA)
 
-fun notificationsDomainModule() = module {
+fun notificationsDomainModule(environment: (String) -> String? = System::getenv) = module {
     scope(NotificationsScope) {
         scopedOf(::NotificationEventHandler) bind EventHandler::class
         scopedOf(::CreateDeviceEntryImpl) bind CreateDeviceEntry::class
@@ -58,5 +61,6 @@ fun notificationsDomainModule() = module {
             )
         }
         scoped { FirebaseMessaging.getInstance() }
+        scoped<TelegramMessenger> { telegramMessenger(environment, CIO.create()) }
     }
 }

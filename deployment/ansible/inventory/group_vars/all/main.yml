@@ -116,4 +116,5 @@ monolith_env:
   APPLICATION_EMAIL_CODE_SECRET: "{{ vault_email_code_secret }}"
   APPLICATION_SUBJECT_MASTER_KEY: "{{ vault_subject_master_key }}"
   APPLICATION_BLIND_INDEX_KEY: "{{ vault_blind_index_key }}"
-  APPLICATION_TELEGRAM_BOT_ID: "{{ telegram_bot_id | default('') }}"
+  APPLICATION_TELEGRAM_BOT_ID: "{{ vault_telegram_bot_id | default('') }}"
+  APPLICATION_TELEGRAM_BOT_TOKEN: "{{ vault_telegram_bot_token | default('') }}"

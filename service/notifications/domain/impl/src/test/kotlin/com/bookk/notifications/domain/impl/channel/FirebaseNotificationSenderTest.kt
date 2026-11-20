@@ -22,6 +22,7 @@ import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import kotlin.uuid.Uuid
@@ -92,6 +93,60 @@ internal class FirebaseNotificationSenderTest {
         verify(exactly = 1) { pushRenderer(Language.EN) }
         verify(exactly = 1) { pushRenderer(Language.UK) }
         verify(exactly = 2) { fixture.firebaseMessaging.send(any()) }
+    }
+
+    @Test
+    fun `should read devices inside a transaction and push outside it`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val device = Device.stub(userId = userId, notificationToken = "fcm-token-abc")
+        var readInTransaction = false
+        var sentInTransaction = true
+        with(fixture) {
+            transactionManager.mockTransaction()
+            coEvery { deviceDataSource.getByUserId(userId) } coAnswers {
+                readInTransaction = transactionManager.isInTransaction()
+                listOf(device)
+            }
+            coEvery { firebaseMessaging.send(any()) } coAnswers {
+                sentInTransaction = transactionManager.isInTransaction()
+                "message-id"
+            }
+        }
+
+        whenn()
+        fixture.sut.send(userId, notificationParams())
+
+        then()
+        assertTrue(readInTransaction)
+        assertFalse(sentInTransaction)
+    }
+
+    @Test
+    fun `should clear an unregistered token inside a transaction`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val device = Device.stub(userId = userId, notificationToken = "stale-token")
+        val exception = mockk<FirebaseMessagingException>()
+        var clearedInTransaction = false
+        with(fixture) {
+            transactionManager.mockTransaction()
+            coEvery { deviceDataSource.getByUserId(userId) } returns listOf(device)
+            coEvery { deviceDataSource.updateToken(device.authId, device.deviceUuid, null) } coAnswers {
+                clearedInTransaction = transactionManager.isInTransaction()
+                device.copy(notificationToken = null)
+            }
+            every { firebaseMessaging.send(any()) } throws exception
+            every { exception.messagingErrorCode } returns MessagingErrorCode.UNREGISTERED
+        }
+
+        whenn()
+        fixture.sut.send(userId, notificationParams())
+
+        then()
+        assertTrue(clearedInTransaction)
     }
 
     @Test

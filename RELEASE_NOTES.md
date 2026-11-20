@@ -2,7 +2,7 @@
 
 ## 0.21.0
 
-Changes since `monolith/0.20.0`. Adds sign-in from a Telegram Mini App, which creates an account with a placeholder email on first use and keeps the user's Telegram id as their Telegram notification target.
+Changes since `monolith/0.20.0`. Adds sign-in from a Telegram Mini App, which creates an account with a placeholder email on first use, and sends notifications to those users through the Telegram bot.
 
 ### Clients
 
@@ -10,14 +10,19 @@ Changes since `monolith/0.20.0`. Adds sign-in from a Telegram Mini App, which cr
 - It answers 422 `TELEGRAM_DATA_INVALID` (14) for data not signed by Telegram for this bot, `TELEGRAM_DATA_EXPIRED` (15) once `initData` is over an hour old (reopen the Mini App), and 503 `TELEGRAM_SIGN_IN_UNAVAILABLE` (16) when the server has no bot configured.
 - `GET /api/user/me` returns the new `telegramUserId` (field 6), set only for an account created through Telegram sign-in, and the personal data export includes it.
 - An account created this way has the email `<telegram user id>@telegramundeliverable.org`; codes to that domain answer `EMAIL_UNDELIVERABLE` (910005), so prompt the user to change to a real address and to add a passkey before deleting the account or exporting data.
+- `GET`/`PUT /api/notification/settings` now list the `TELEGRAM` channel, off at first, for accounts created through Telegram; call the Mini App's `requestWriteAccess()` before turning it on, since the bot can only write to users who allowed it.
+- Telegram is turned off again when the user blocks the bot, and account notifications (dormancy warnings, finished exports) go to Telegram even when it is off while the account has no real email.
+- `PUT /api/notification/settings` now takes only `appointmentEnabled` and each channel's `enabled`, matched by `channel`; ids and `availableToClients` in the request are ignored.
 
 ### Services
 
-- New optional `APPLICATION_TELEGRAM_BOT_ID` (the bot's numeric id, never the token) turns Telegram sign-in on; in prod set `telegram_bot_id` in the Ansible inventory.
+- New optional `APPLICATION_TELEGRAM_BOT_ID` (the bot's numeric id) turns Telegram sign-in on; in prod run `make vault-update` (adds an empty `vault_telegram_bot_id`) and set it with `make vault-edit`.
+- New optional secret `APPLICATION_TELEGRAM_BOT_TOKEN` (same bot) sends Telegram notifications; in prod set `vault_telegram_bot_token` the same way; `make deploy` refuses to run with the bot id set but no matching token.
+- Push notifications are now sent after the device lookup's transaction instead of inside it, so a retried transaction no longer sends the same push twice.
 - A standalone `auth` service now needs `APPLICATION_BLIND_INDEX_KEY`, with the same value as the other services; the monolith already has it.
 - Migration authorization `V6` adds the table `telegram_identity`, holding only a keyed hash of the Telegram user id per account.
 - Migration user `V8` adds `profile.telegram_user_id_encrypted`; the user service stores the Telegram user id encrypted and sends it in `user.updated` (new field 9), and notifications saves it as the user's Telegram target.
-- No email is ever sent to `@telegramundeliverable.org`, so these accounts get no notification emails and no dormancy warnings before deletion.
+- No email is ever sent to `@telegramundeliverable.org`; these accounts get their notifications, dormancy warnings included, through Telegram.
 
 ### Upgrade
 

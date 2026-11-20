@@ -8,7 +8,9 @@ email](../user/change-user-email-internal.md). Keeps the user's email
 delivery target in sync with their profile email and, when the event
 carries a `telegramUserId` (an account created through Telegram sign-in),
 saves it as the user's Telegram target, creating default notification
-settings first when the user has none. Both targets are written in one
+settings first when the user has none, and offers the Telegram channel to
+the app (`availableToClients = true`, still off) so the user can turn it
+on. Both targets are written in one
 transaction. The Telegram user id never changes, so its target has no
 `updatedAt` ordering: an existing row is overwritten with the same id. An update that arrives
 after the account was deleted (`SubjectKeys.isShredded`) creates neither
@@ -25,7 +27,13 @@ address and the language of the device the user signed in to last
 (`DeviceDataSource.getLastUsedLanguage`, English without one) in a
 transaction, then sends through `EmailSender` outside it. A user with no
 address gets no email, and a failed send is logged without failing the
-event or the other channels.
+event or the other channels. `TelegramNotificationSender` works the same
+way: it reads the chat id (the Telegram user id) and the language in a
+transaction, then sends the notification's plain text through the Bot API's
+`sendMessage` outside it. When Telegram answers 403 (the user blocked the
+bot or never allowed it to write), it turns the user's Telegram channel off
+in a new transaction. Without `APPLICATION_TELEGRAM_BOT_TOKEN` nothing is
+sent.
 
 ```mermaid
 flowchart TD
@@ -44,9 +52,12 @@ flowchart TD
     Insert --> HasTelegramId{event.telegramUserId set?}
     HasTelegramId -- No --> Ack([Marked processed])
     HasTelegramId -- Yes --> UpdateTelegram{NotificationTargetDataSource.updateTelegram userId telegramUserId - encrypted, row matched?}
-    UpdateTelegram -- Yes --> Ack
+    UpdateTelegram -- Yes --> Offered
     UpdateTelegram -- No --> HasTelegram{NotificationTargetDataSource.hasTelegram userId - row exists?}
     HasTelegram -- No --> InsertTelegram[NotificationTargetDataSource.insertTelegram userId telegramUserId - encrypted under the user's key]
-    HasTelegram -- Yes, inserted concurrently --> Ack
-    InsertTelegram --> Ack
+    HasTelegram -- Yes, inserted concurrently --> Offered
+    InsertTelegram --> Offered{"NotificationSettingsDataSource.getByUserId userId - TELEGRAM channel already availableToClients?"}
+    Offered -- Yes --> Ack
+    Offered -- No --> Offer[NotificationSettingsDataSource.upsert TELEGRAM channel availableToClients true, enabled unchanged]
+    Offer --> Ack
 ```
