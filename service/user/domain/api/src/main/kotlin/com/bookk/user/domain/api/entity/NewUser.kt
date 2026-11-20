@@ -9,4 +9,5 @@ data class NewUser(
     @ProtoNumber(3) val lastName: String,
     @ProtoNumber(4) val email: String,
     @ProtoNumber(6) val acceptedDocuments: AcceptedLegalDocuments,
+    @ProtoNumber(7) val telegramUserId: Long?,
 )

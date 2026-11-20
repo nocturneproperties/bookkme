@@ -52,7 +52,7 @@ internal class UpdateTargetInformationTest {
         }
 
         whenn()
-        val result = fixture.sut.invoke(userId, Target.Email("user@example.com"), updatedAt)
+        val result = fixture.sut.invoke(userId, listOf(Target.Email("user@example.com")), updatedAt)
 
         then()
         assertTrue(result.isSuccess)
@@ -72,7 +72,7 @@ internal class UpdateTargetInformationTest {
         }
 
         whenn()
-        val result = fixture.sut.invoke(userId, Target.Email("user@example.com"), updatedAt)
+        val result = fixture.sut.invoke(userId, listOf(Target.Email("user@example.com")), updatedAt)
 
         then()
         assertTrue(result.isSuccess)
@@ -90,7 +90,7 @@ internal class UpdateTargetInformationTest {
         }
 
         whenn()
-        val result = fixture.sut.invoke(userId, Target.Email("stale@example.com"), updatedAt)
+        val result = fixture.sut.invoke(userId, listOf(Target.Email("stale@example.com")), updatedAt)
 
         then()
         assertTrue(result.isSuccess)
@@ -103,11 +103,11 @@ internal class UpdateTargetInformationTest {
         val fixture = SutFixture()
         with(fixture) {
             settingsFound()
-            coEvery { targetDataSource.updateTelegram(userId, "@user_tag") } returns true
+            coEvery { targetDataSource.updateTelegram(userId, "123456789") } returns true
         }
 
         whenn()
-        val result = fixture.sut.invoke(userId, Target.Telegram("@user_tag"), updatedAt)
+        val result = fixture.sut.invoke(userId, listOf(Target.Telegram(123456789)), updatedAt)
 
         then()
         assertTrue(result.isSuccess)
@@ -121,17 +121,17 @@ internal class UpdateTargetInformationTest {
         val fixture = SutFixture()
         with(fixture) {
             settingsFound()
-            coEvery { targetDataSource.updateTelegram(userId, "@user_tag") } returns false
+            coEvery { targetDataSource.updateTelegram(userId, "123456789") } returns false
             coEvery { targetDataSource.hasTelegram(userId) } returns false
-            coEvery { targetDataSource.insertTelegram(userId, "@user_tag") } just Runs
+            coEvery { targetDataSource.insertTelegram(userId, "123456789") } just Runs
         }
 
         whenn()
-        val result = fixture.sut.invoke(userId, Target.Telegram("@user_tag"), updatedAt)
+        val result = fixture.sut.invoke(userId, listOf(Target.Telegram(123456789)), updatedAt)
 
         then()
         assertTrue(result.isSuccess)
-        coVerify(exactly = 1) { fixture.targetDataSource.insertTelegram(userId, "@user_tag") }
+        coVerify(exactly = 1) { fixture.targetDataSource.insertTelegram(userId, "123456789") }
     }
 
     @Test
@@ -140,16 +140,42 @@ internal class UpdateTargetInformationTest {
         val fixture = SutFixture()
         with(fixture) {
             settingsFound()
-            coEvery { targetDataSource.updateTelegram(userId, "@user_tag") } returns false
+            coEvery { targetDataSource.updateTelegram(userId, "123456789") } returns false
             coEvery { targetDataSource.hasTelegram(userId) } returns true
         }
 
         whenn()
-        val result = fixture.sut.invoke(userId, Target.Telegram("@user_tag"), updatedAt)
+        val result = fixture.sut.invoke(userId, listOf(Target.Telegram(123456789)), updatedAt)
 
         then()
         assertTrue(result.isSuccess)
         coVerify(exactly = 0) { fixture.targetDataSource.insertTelegram(any(), any()) }
+    }
+
+    @Test
+    fun `should save the email and Telegram targets in one transaction`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        with(fixture) {
+            settingsFound()
+            coEvery { targetDataSource.updateEmail(userId, "user@example.com", updatedAt) } returns true
+            coEvery { targetDataSource.updateTelegram(userId, "123456789") } returns false
+            coEvery { targetDataSource.hasTelegram(userId) } returns false
+            coEvery { targetDataSource.insertTelegram(userId, "123456789") } just Runs
+        }
+
+        whenn()
+        val result = fixture.sut.invoke(
+            userId,
+            listOf(Target.Email("user@example.com"), Target.Telegram(123456789)),
+            updatedAt,
+        )
+
+        then()
+        assertTrue(result.isSuccess) { result.toString() }
+        coVerify(exactly = 1) { fixture.transactionManager.transaction<Unit>(any()) }
+        coVerify(exactly = 1) { fixture.targetDataSource.updateEmail(userId, "user@example.com", updatedAt) }
+        coVerify(exactly = 1) { fixture.targetDataSource.insertTelegram(userId, "123456789") }
     }
 
     @Test
@@ -162,7 +188,7 @@ internal class UpdateTargetInformationTest {
         }
 
         whenn()
-        val result = fixture.sut.invoke(userId, Target.Email("late@example.com"), updatedAt)
+        val result = fixture.sut.invoke(userId, listOf(Target.Email("late@example.com")), updatedAt)
 
         then()
         assertTrue(result.isSuccess) { result.toString() }
@@ -181,7 +207,7 @@ internal class UpdateTargetInformationTest {
         }
 
         whenn()
-        fixture.sut.invoke(userId, Target.Email("user@example.com"), updatedAt)
+        fixture.sut.invoke(userId, listOf(Target.Email("user@example.com")), updatedAt)
 
         then()
         coVerifyOrder {
@@ -200,7 +226,7 @@ internal class UpdateTargetInformationTest {
         }
 
         whenn()
-        val result = fixture.sut.invoke(userId, Target.Email("e@example.com"), updatedAt)
+        val result = fixture.sut.invoke(userId, listOf(Target.Email("e@example.com")), updatedAt)
 
         then()
         assertTrue(result.isFailure)
@@ -217,7 +243,7 @@ internal class UpdateTargetInformationTest {
         }
 
         whenn()
-        val result = fixture.sut.invoke(userId, Target.Email("e@example.com"), updatedAt)
+        val result = fixture.sut.invoke(userId, listOf(Target.Email("e@example.com")), updatedAt)
 
         then()
         assertTrue(result.isFailure)
@@ -233,7 +259,7 @@ internal class UpdateTargetInformationTest {
         }
 
         whenn()
-        val result = fixture.sut.invoke(userId, Target.Telegram("@tag"), updatedAt)
+        val result = fixture.sut.invoke(userId, listOf(Target.Telegram(123456789)), updatedAt)
 
         then()
         assertTrue(result.isFailure)

@@ -103,6 +103,7 @@ internal class SignInWithTelegramImpl(
             lastName = telegramUser.lastName.orEmpty(),
             email = PlaceholderEmail.forTelegramUser(telegramUser.id),
             acceptedDocuments = request.acceptedDocuments ?: throw CreateUser.Error.LegalDocumentsNotAccepted(),
+            telegramUserId = telegramUser.id,
         )
     }
 }

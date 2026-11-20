@@ -109,6 +109,57 @@ internal class NotificationEventHandlerTest {
         assertEquals(NotificationType.EMPLOYEE, params.captured.type)
     }
 
+    private fun userUpdated(telegramUserId: Long?): UserEvent.Updated {
+        return UserEvent.Updated(
+            userId = Uuid.random(),
+            name = "Ann",
+            lastName = "Lee",
+            email = "ann@example.com",
+            phone = null,
+            updatedAt = Instant.fromEpochMilliseconds(1_700_000_000_000),
+            telegramUserId = telegramUserId,
+        )
+    }
+
+    @Test
+    fun `should update the email and Telegram targets of a user who signed up with Telegram`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val event = userUpdated(telegramUserId = 123456789)
+        val targets = slot<List<UpdateTargetInformation.Target>>()
+        coEvery {
+            fixture.updateTargetInformation(event.userId, capture(targets), event.updatedAt)
+        } returns Result.success(Unit)
+        fixture.start(this)
+
+        whenn()
+        fixture.dispatch(UserEvent.Updated.TOPIC, event)
+
+        then()
+        val (email, telegram) = targets.captured
+        assertEquals("ann@example.com", (email as UpdateTargetInformation.Target.Email).newEmail)
+        assertEquals(123456789L, (telegram as UpdateTargetInformation.Target.Telegram).telegramUserId)
+    }
+
+    @Test
+    fun `should update only the email target of a user without a Telegram user id`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val event = userUpdated(telegramUserId = null)
+        val targets = slot<List<UpdateTargetInformation.Target>>()
+        coEvery {
+            fixture.updateTargetInformation(event.userId, capture(targets), event.updatedAt)
+        } returns Result.success(Unit)
+        fixture.start(this)
+
+        whenn()
+        fixture.dispatch(UserEvent.Updated.TOPIC, event)
+
+        then()
+        val email = targets.captured.single() as UpdateTargetInformation.Target.Email
+        assertEquals("ann@example.com", email.newEmail)
+    }
+
     private val from = Instant.fromEpochMilliseconds(1_700_000_000_000)
     private val to = Instant.fromEpochMilliseconds(1_700_003_600_000)
 

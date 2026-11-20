@@ -122,6 +122,7 @@ internal class NotificationEventHandlerEventTest {
                     email = "jane@example.com",
                     phone = null,
                     updatedAt = updatedAt,
+                    telegramUserId = null,
                 ),
             )
             arrived.await(20, TimeUnit.SECONDS)
@@ -132,8 +133,8 @@ internal class NotificationEventHandlerEventTest {
         coVerify(exactly = 1) {
             fixture.updateTargetInformation(
                 userId,
-                match<UpdateTargetInformation.Target> {
-                    it is UpdateTargetInformation.Target.Email && it.newEmail == "jane@example.com"
+                match<List<UpdateTargetInformation.Target>> {
+                    (it.single() as UpdateTargetInformation.Target.Email).newEmail == "jane@example.com"
                 },
                 updatedAt,
             )

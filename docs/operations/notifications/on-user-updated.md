@@ -5,8 +5,12 @@ Kafka topic `UserEvent.Updated` → `NotificationEventHandler` → `UpdateTarget
 Produced by [Create user (internal)](../user/create-user-internal.md) at
 sign-up, [Update user](../user/update-user.md) and [Store a verified
 email](../user/change-user-email-internal.md). Keeps the user's email
-delivery target in sync with their profile email, creating default
-notification settings first when the user has none. An update that arrives
+delivery target in sync with their profile email and, when the event
+carries a `telegramUserId` (an account created through Telegram sign-in),
+saves it as the user's Telegram target, creating default notification
+settings first when the user has none. Both targets are written in one
+transaction. The Telegram user id never changes, so its target has no
+`updatedAt` ordering: an existing row is overwritten with the same id. An update that arrives
 after the account was deleted (`SubjectKeys.isShredded`) creates neither
 settings nor a target and is still marked processed. That check is the
 transaction's first statement and holds a shared lock on the user's key
@@ -33,9 +37,16 @@ flowchart TD
     GetSettings -- none --> Create[NotificationSettingsDataSource.upsert default settings - EMAIL offered, off]
     Create --> UpdateEmail
     GetSettings -- found --> UpdateEmail{NotificationTargetDataSource.updateEmail userId email updatedAt - encrypted, row matched?}
-    UpdateEmail -- Yes --> Ack([Marked processed])
+    UpdateEmail -- Yes --> HasTelegramId
     UpdateEmail -- No, stale or missing --> HasEmail{NotificationTargetDataSource.hasEmail userId - row exists?}
     HasEmail -- No --> Insert[NotificationTargetDataSource.insertEmail userId email updatedAt - encrypted under the user's key]
-    HasEmail -- Yes, stale or inserted concurrently --> Ack
-    Insert --> Ack
+    HasEmail -- Yes, stale or inserted concurrently --> HasTelegramId
+    Insert --> HasTelegramId{event.telegramUserId set?}
+    HasTelegramId -- No --> Ack([Marked processed])
+    HasTelegramId -- Yes --> UpdateTelegram{NotificationTargetDataSource.updateTelegram userId telegramUserId - encrypted, row matched?}
+    UpdateTelegram -- Yes --> Ack
+    UpdateTelegram -- No --> HasTelegram{NotificationTargetDataSource.hasTelegram userId - row exists?}
+    HasTelegram -- No --> InsertTelegram[NotificationTargetDataSource.insertTelegram userId telegramUserId - encrypted under the user's key]
+    HasTelegram -- Yes, inserted concurrently --> Ack
+    InsertTelegram --> Ack
 ```

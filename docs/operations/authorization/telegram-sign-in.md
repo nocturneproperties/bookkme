@@ -8,6 +8,9 @@ data is checked against Telegram's Ed25519 signature for this server's bot
 after `auth_date`. The account is found by the blind index of the Telegram user
 id; an unknown Telegram user gets a new account whose email is the placeholder
 `<telegram user id>@telegramundeliverable.org`, which no email is ever sent to.
+The Telegram user id also goes to the user service, which stores it encrypted
+with the profile and publishes it in `UserEvent.Updated`, so notifications
+saves it as the user's Telegram target.
 
 ```mermaid
 flowchart TD
@@ -26,7 +29,7 @@ flowchart TD
     GenToken --> R200a([200 AuthTokens])
     Lookup -- no account --> Docs{acceptedDocuments sent?}
     Docs -- no --> R422f([422 LEGAL_DOCUMENTS_NOT_ACCEPTED 100004])
-    Docs -- yes --> CreateUser[UserClient.createUser first_name, last_name or empty, telegramUserId at telegramundeliverable.org, acceptedDocuments]
+    Docs -- yes --> CreateUser[UserClient.createUser first_name, last_name or empty, telegramUserId at telegramundeliverable.org, acceptedDocuments, telegramUserId]
     CreateUser -- version not published --> R422c([422 LEGAL_DOCUMENT_VERSION_UNKNOWN 100003])
     CreateUser -- version in effect not accepted --> R422d([422 LEGAL_DOCUMENTS_NOT_ACCEPTED 100004])
     CreateUser -- ok userId --> Tx[[Begin transaction]]

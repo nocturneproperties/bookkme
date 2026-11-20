@@ -10,4 +10,5 @@ class CreateUserRequest(
     @ProtoNumber(2) val lastName: String,
     @ProtoNumber(3) val email: String,
     @ProtoNumber(4) val acceptedDocuments: AcceptedLegalDocuments,
+    @ProtoNumber(5) val telegramUserId: Long?,
 )

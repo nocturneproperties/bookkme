@@ -152,6 +152,7 @@ internal class SignInWithTelegramImplTest {
             with(created.captured) { listOf(name, lastName, email) },
         )
         assertEquals(fixture.request.acceptedDocuments, created.captured.acceptedDocuments)
+        assertEquals(123456789L, created.captured.telegramUserId)
         assertEquals(userId, account.captured.userId)
         coVerify(exactly = 1) { fixture.telegramIdentityDataSource.link(account.captured.id, 123456789) }
         coVerify(exactly = 1) { fixture.eventProducer.send(any(AuthEvent.DeviceCreated::class), any()) }

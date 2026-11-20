@@ -28,7 +28,7 @@ internal class UserClientImplTest {
     }
 
     @Test
-    fun `should create the user with the documents it accepted`() = runUnitTest {
+    fun `should create the user with the documents it accepted and the Telegram user id`() = runUnitTest {
         given()
         val fixture = SutFixture()
         val userId = Uuid.random()
@@ -37,11 +37,11 @@ internal class UserClientImplTest {
         coEvery { fixture.createUser.invoke(capture(sent)) } returns Result.success(UserId(userId))
 
         whenn()
-        val result = fixture.sut.createUser(CreateUserRequest("Ann", "Lee", "ann@example.com", accepted))
+        val result = fixture.sut.createUser(CreateUserRequest("Ann", "Lee", "ann@example.com", accepted, 42))
 
         then()
         assertEquals(userId, result.getOrNull())
-        assertEquals(NewUser("Ann", "Lee", "ann@example.com", accepted), sent.captured)
+        assertEquals(NewUser("Ann", "Lee", "ann@example.com", accepted, 42), sent.captured)
     }
 
     @Test

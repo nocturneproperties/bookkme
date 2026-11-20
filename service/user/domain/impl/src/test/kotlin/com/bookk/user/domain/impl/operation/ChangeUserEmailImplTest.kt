@@ -63,6 +63,7 @@ internal class ChangeUserEmailImplTest {
             lastName = "Smith",
             email = NEW_EMAIL,
             phone = "+10000000000",
+            telegramUserId = 123456789,
         )
         coEvery { fixture.userDataSource.changeEmail(userId, NEW_EMAIL, any()) } returns changed
 
@@ -77,7 +78,8 @@ internal class ChangeUserEmailImplTest {
                         it.name == "Jane" &&
                         it.lastName == "Smith" &&
                         it.email == NEW_EMAIL &&
-                        it.phone == "+10000000000"
+                        it.phone == "+10000000000" &&
+                        it.telegramUserId == 123456789L
                 },
                 any(),
             )

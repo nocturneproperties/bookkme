@@ -33,6 +33,7 @@ import io.mockk.slot
 import library.email.EmailCodeError
 import library.email.test.EmailTestMailbox
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import kotlin.uuid.Uuid
@@ -140,6 +141,7 @@ internal class FinishRegistrationImplTest {
         assertTrue(result.isSuccess) { result.toString() }
         assertEquals(accepted, sent.captured.acceptedDocuments)
         assertEquals(listOf("John", "Doe", VERIFIED_EMAIL), with(sent.captured) { listOf(name, lastName, email) })
+        assertNull(sent.captured.telegramUserId)
     }
 
     @Test

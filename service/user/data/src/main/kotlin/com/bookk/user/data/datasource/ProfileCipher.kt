@@ -27,6 +27,7 @@ internal class ProfileCipher(
             lastName = encryptor.encryptText(user.lastName),
             email = encryptor.encryptText(user.email),
             phone = user.phone?.let(encryptor::encryptText),
+            telegramUserId = user.telegramUserId?.let { encryptor.encryptText(it.toString()) },
         )
     }
 
@@ -38,7 +39,12 @@ internal class ProfileCipher(
             name = encryptor.changed(stored.name, current.name, edited.name),
             lastName = encryptor.changed(stored.lastName, current.lastName, edited.lastName),
             email = encryptor.changed(stored.email, current.email, edited.email),
-            phone = if (edited.phone == current.phone) stored.phone else edited.phone?.let(encryptor::encryptText),
+            phone = encryptor.changedOptional(stored.phone, current.phone, edited.phone),
+            telegramUserId = encryptor.changedOptional(
+                stored.telegramUserId,
+                current.telegramUserId?.toString(),
+                edited.telegramUserId?.toString(),
+            ),
         )
     }
 
@@ -48,7 +54,8 @@ internal class ProfileCipher(
         val lastName = decryptor.decryptText(userId, profile.lastName)
         val email = decryptor.decryptText(userId, profile.email)
         val phone = profile.phone?.let { decryptor.decryptText(userId, it) }
-        val fields = listOfNotNull(name, lastName, email, phone)
+        val telegramUserId = profile.telegramUserId?.let { decryptor.decryptText(userId, it) }
+        val fields = listOfNotNull(name, lastName, email, phone, telegramUserId)
         if (fields.any { it is Decrypted.Missing }) missingKeys.report(SOURCE)
         val user = User(
             id = userId,
@@ -56,6 +63,7 @@ internal class ProfileCipher(
             lastName = lastName.valueOrNull().orEmpty(),
             email = email.valueOrNull().orEmpty(),
             phone = phone?.valueOrNull(),
+            telegramUserId = telegramUserId?.valueOrNull()?.toLong(),
         )
         return ReadProfile(user = user, stored = profile, isReadable = fields.all { it is Decrypted.Plain })
     }
@@ -70,6 +78,10 @@ internal class ProfileCipher(
 
     private fun Encryptor.changed(stored: ByteArray, current: String, edited: String): ByteArray {
         return if (edited == current) stored else encryptText(edited)
+    }
+
+    private fun Encryptor.changedOptional(stored: ByteArray?, current: String?, edited: String?): ByteArray? {
+        return if (edited == current) stored else edited?.let(::encryptText)
     }
 
     private companion object {
