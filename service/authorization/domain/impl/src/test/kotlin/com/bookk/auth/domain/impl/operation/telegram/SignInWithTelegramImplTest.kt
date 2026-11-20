@@ -180,7 +180,7 @@ internal class SignInWithTelegramImplTest {
     }
 
     @Test
-    fun `should ask the user service to create the account with no accepted documents when none are sent`() =
+    fun `should fail with LegalDocumentsNotAccepted without creating a user when no documents are sent`() =
         runUnitTest {
             given()
             val fixture = SutFixture()
@@ -188,8 +188,6 @@ internal class SignInWithTelegramImplTest {
             with(fixture) {
                 every { verifier.verify(request.initData) } returns telegramUser
                 coEvery { telegramIdentityDataSource.getAccountByTelegramUser(telegramUser.id) } returns null
-                coEvery { userClient.createUser(any()) } returns
-                    Result.failure(CreateUser.Error.LegalDocumentsNotAccepted())
             }
 
             whenn()
@@ -197,13 +195,27 @@ internal class SignInWithTelegramImplTest {
 
             then()
             assertTrue(result.exceptionOrNull() is CreateUser.Error.LegalDocumentsNotAccepted) { result.toString() }
-            coVerify(exactly = 1) {
-                fixture.userClient.createUser(
-                    match {
-                        it.acceptedDocuments == AcceptedLegalDocuments(privacyPolicy = null, termsOfService = null)
-                    },
-                )
+            coVerify(exactly = 0) { fixture.userClient.createUser(any()) }
+            coVerify(exactly = 0) { fixture.accountDataSource.createAuthorization(any()) }
+            coVerify(exactly = 0) { fixture.eventProducer.send(any(AuthEvent.UserDeleted::class), any()) }
+        }
+
+    @Test
+    fun `should fail with LegalDocumentsNotAccepted when the user service rejects the sent documents`() =
+        runUnitTest {
+            given()
+            val fixture = SutFixture()
+            with(fixture) {
+                newAccount(Uuid.random())
+                coEvery { userClient.createUser(any()) } returns
+                    Result.failure(CreateUser.Error.LegalDocumentsNotAccepted())
             }
+
+            whenn()
+            val result = fixture.sut.invoke(fixture.request, Language.EN)
+
+            then()
+            assertTrue(result.exceptionOrNull() is CreateUser.Error.LegalDocumentsNotAccepted) { result.toString() }
             coVerify(exactly = 0) { fixture.accountDataSource.createAuthorization(any()) }
             coVerify(exactly = 0) { fixture.eventProducer.send(any(AuthEvent.UserDeleted::class), any()) }
         }

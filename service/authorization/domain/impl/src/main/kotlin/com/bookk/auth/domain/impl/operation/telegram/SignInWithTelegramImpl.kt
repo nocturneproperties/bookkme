@@ -22,7 +22,7 @@ import com.bookk.core.domain.entity.runSuspendCatching
 import com.bookk.server.auth.client.AuthEvent
 import com.bookk.server.user.client.UserClient
 import com.bookk.server.user.client.api.CreateUserRequest
-import com.bookk.user.domain.api.entity.AcceptedLegalDocuments
+import com.bookk.user.domain.api.operation.CreateUser
 import library.email.PlaceholderEmail
 import kotlin.uuid.Uuid
 
@@ -102,11 +102,7 @@ internal class SignInWithTelegramImpl(
             name = telegramUser.firstName,
             lastName = telegramUser.lastName.orEmpty(),
             email = PlaceholderEmail.forTelegramUser(telegramUser.id),
-            acceptedDocuments = request.acceptedDocuments ?: NO_ACCEPTED_DOCUMENTS,
+            acceptedDocuments = request.acceptedDocuments ?: throw CreateUser.Error.LegalDocumentsNotAccepted(),
         )
-    }
-
-    private companion object {
-        val NO_ACCEPTED_DOCUMENTS = AcceptedLegalDocuments(privacyPolicy = null, termsOfService = null)
     }
 }

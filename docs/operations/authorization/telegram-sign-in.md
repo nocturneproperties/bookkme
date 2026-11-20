@@ -24,7 +24,9 @@ flowchart TD
     DeviceCreatedEvt --> GenToken[GenerateAuthToken InitialAuthentication authId deviceUuid]
     LangEvt --> GenToken
     GenToken --> R200a([200 AuthTokens])
-    Lookup -- no account --> CreateUser[UserClient.createUser first_name, last_name or empty, telegramUserId at telegramundeliverable.org, acceptedDocuments or none]
+    Lookup -- no account --> Docs{acceptedDocuments sent?}
+    Docs -- no --> R422f([422 LEGAL_DOCUMENTS_NOT_ACCEPTED 100004])
+    Docs -- yes --> CreateUser[UserClient.createUser first_name, last_name or empty, telegramUserId at telegramundeliverable.org, acceptedDocuments]
     CreateUser -- version not published --> R422c([422 LEGAL_DOCUMENT_VERSION_UNKNOWN 100003])
     CreateUser -- version in effect not accepted --> R422d([422 LEGAL_DOCUMENTS_NOT_ACCEPTED 100004])
     CreateUser -- ok userId --> Tx[[Begin transaction]]

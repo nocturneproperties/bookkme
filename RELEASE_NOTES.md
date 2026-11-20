@@ -17,6 +17,10 @@ Changes since `monolith/0.20.0`. Adds sign-in from a Telegram Mini App, which cr
 - Migration authorization `V6` adds the table `telegram_identity`, holding only a keyed hash of the Telegram user id per account.
 - No email is ever sent to `@telegramundeliverable.org`, so these accounts get no notification emails and no dormancy warnings before deletion.
 
+### Upgrade
+
+- The VPN-only `local.` host now sends `/api/` to port 80 of the VPN client's own machine and everything else to its port 8080; run `make infra tags=nginx` (nginx reloads without a restart).
+
 ## 0.20.0
 
 Changes since `monolith/0.19.0`. Sends email through the Hostinger Mail API instead of Postmark, deletes sent copies after 5 years, checks bookings against the employee's schedule and accepts bookings across midnight, lets one person own several businesses, limits how much a business or person can create, removes the one-time client-name indexing job that 0.19.0 ran, and adds a Grafana dashboard for the website and alerts for certificate renewal.
