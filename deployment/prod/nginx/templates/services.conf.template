@@ -216,8 +216,12 @@ server {
   allow ${VPN_SUBNET};
   deny all;
 
-  location / {
+  location /api/ {
       proxy_pass http://$remote_addr$request_uri;
+  }
+
+  location / {
+      proxy_pass http://$remote_addr:8080$request_uri;
   }
 }
 

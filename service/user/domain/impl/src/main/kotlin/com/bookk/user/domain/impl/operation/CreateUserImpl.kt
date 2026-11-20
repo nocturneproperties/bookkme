@@ -33,6 +33,7 @@ internal class CreateUserImpl(
                 lastName = newUser.lastName,
                 email = newUser.email,
                 phone = null,
+                telegramUserId = newUser.telegramUserId,
             ),
         )
         acceptances.forEach { legalDocumentDataSource.recordAcceptance(created.id, it) }

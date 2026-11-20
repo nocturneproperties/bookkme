@@ -23,8 +23,12 @@ fun ScopeDSL.subjectKeys(keySchema: String, environment: (String) -> String? = S
         val masterKey = environment.parse(MASTER_KEY) { MasterKey.fromBase64(MASTER_KEY_VERSION, it) }
         SubjectKeysImpl(get(), masterKey, SecureRandom(), Clock.System)
     }
-    scoped<BlindIndex> { environment.parse(BLIND_INDEX_KEY, HmacBlindIndex::fromBase64) }
+    blindIndex(environment)
     scoped<MissingKeys> { MeteredMissingKeys(get()) }
+}
+
+fun ScopeDSL.blindIndex(environment: (String) -> String? = System::getenv) {
+    scoped<BlindIndex> { environment.parse(BLIND_INDEX_KEY, HmacBlindIndex::fromBase64) }
 }
 
 private fun <T> ((String) -> String?).parse(variable: String, parse: (String) -> T): T {

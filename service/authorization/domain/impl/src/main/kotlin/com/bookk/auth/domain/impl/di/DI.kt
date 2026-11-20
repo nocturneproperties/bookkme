@@ -22,6 +22,7 @@ import com.bookk.auth.domain.api.registration.operation.FinishRegistration
 import com.bookk.auth.domain.api.registration.operation.StartPasskeyRegistration
 import com.bookk.auth.domain.api.registration.operation.StartRegistration
 import com.bookk.auth.domain.api.signout.operation.SignOut
+import com.bookk.auth.domain.api.telegram.operation.SignInWithTelegram
 import com.bookk.auth.domain.api.token.operation.GenerateAuthToken
 import com.bookk.auth.domain.api.token.operation.RefreshToken
 import com.bookk.auth.domain.impl.operation.AccountEraser
@@ -46,8 +47,11 @@ import com.bookk.auth.domain.impl.operation.registration.FinishPasskeyRegistrati
 import com.bookk.auth.domain.impl.operation.registration.FinishRegistrationImpl
 import com.bookk.auth.domain.impl.operation.registration.StartPasskeyRegistrationImpl
 import com.bookk.auth.domain.impl.operation.registration.StartRegistrationImpl
+import com.bookk.auth.domain.impl.operation.telegram.SignInWithTelegramImpl
 import com.bookk.auth.domain.impl.operation.token.GenerateAuthTokenImpl
 import com.bookk.auth.domain.impl.operation.token.RefreshTokenImpl
+import com.bookk.auth.domain.impl.telegram.Ed25519TelegramInitDataVerifier
+import com.bookk.auth.domain.impl.telegram.TelegramInitDataVerifier
 import com.bookk.server.auth.client.export.ExportAccountData
 import com.bookk.server.user.client.di.userClientModule
 import org.koin.core.module.dsl.scopedOf
@@ -55,10 +59,13 @@ import org.koin.core.qualifier.Qualifier
 import org.koin.core.qualifier.named
 import org.koin.dsl.bind
 import org.koin.dsl.module
+import kotlin.time.Clock
 
 val AuthScope: Qualifier = named(AUTH_SCHEMA)
 
-fun authDomainModule() = module {
+private const val TELEGRAM_BOT_ID = "APPLICATION_TELEGRAM_BOT_ID"
+
+fun authDomainModule(environment: (String) -> String? = System::getenv) = module {
     includes(userClientModule(AuthScope, AUTH_SERVICE_NAME))
     scope(AuthScope) {
         scopedOf(::GenerateAuthTokenImpl) bind GenerateAuthToken::class
@@ -85,5 +92,14 @@ fun authDomainModule() = module {
         scopedOf(::FinishPasskeyRegistrationImpl) bind FinishPasskeyRegistration::class
         scopedOf(::AttachNewPasskeyToAccountImpl) bind AttachNewPasskeyToAccount::class
         scopedOf(::DeleteInactiveDevicesImpl) bind DeleteInactiveDevices::class
+        scoped<TelegramInitDataVerifier> {
+            Ed25519TelegramInitDataVerifier(botId = environment.telegramBotId(), clock = Clock.System)
+        }
+        scopedOf(::SignInWithTelegramImpl) bind SignInWithTelegram::class
     }
+}
+
+private fun ((String) -> String?).telegramBotId(): Long? {
+    val value = this(TELEGRAM_BOT_ID)?.takeIf { it.isNotBlank() } ?: return null
+    return value.trim().toLongOrNull() ?: throw IllegalStateException("$TELEGRAM_BOT_ID is not a numeric bot id")
 }

@@ -2,7 +2,7 @@
 
 Kafka topic `AuthEvent.UserDeleted` → `NotificationEventHandler` → `DeleteUserNotificationData`
 
-Produced by [Delete account](../authorization/delete-account.md), the [`auth-handleDormantAccounts` job](../scheduled-jobs.md) and, after a backup restore, the [`auth-reapplyErasures` job](../scheduled-jobs.md). Removes
+Produced by [Delete account](../authorization/delete-account.md), the [`auth-handleDormantAccounts` job](../scheduled-jobs.md), the compensation of a failed [Verify sign-up](../authorization/sign-up.md) or [Sign in with Telegram](../authorization/telegram-sign-in.md) and, after a backup restore, the [`auth-reapplyErasures` job](../scheduled-jobs.md). Removes
 notification preferences and delivery targets (email/Telegram); device
 rows themselves are removed separately, per device, by [React to device
 deletion](on-device-deleted.md).

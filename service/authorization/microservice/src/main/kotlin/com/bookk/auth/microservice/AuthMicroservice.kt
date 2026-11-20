@@ -36,8 +36,8 @@ import kotlin.time.Duration.Companion.minutes
 
 fun authModule(environment: (String) -> String? = System::getenv) = module {
     includes(
-        authDomainModule(),
-        authDataModule(),
+        authDomainModule(environment),
+        authDataModule(environment),
         signingModule(AuthScope),
         actionConfirmationModule(AuthScope),
         emailModule(AuthScope, environment),
@@ -50,8 +50,8 @@ fun authModule(environment: (String) -> String? = System::getenv) = module {
 
 fun authEmbeddedModule(environment: (String) -> String? = System::getenv) = module {
     includes(
-        authDomainModule(),
-        authDataModule(),
+        authDomainModule(environment),
+        authDataModule(environment),
         signingModule(AuthScope),
         actionConfirmationModule(AuthScope),
         emailModule(AuthScope, environment),

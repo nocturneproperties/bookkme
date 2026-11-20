@@ -9,7 +9,9 @@ import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import library.encryption.BlindIndex
 import library.encryption.MissingKeys
 import library.encryption.SubjectKeys
+import library.encryption.impl.di.blindIndex
 import library.encryption.impl.di.subjectKeys
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.koin.core.qualifier.named
@@ -97,6 +99,21 @@ internal class SubjectKeysModuleTest {
 
         then()
         assertTrue(resolved.mentions(BLIND_INDEX_KEY)) { resolved.toString() }
+    }
+
+    @Test
+    fun `should provide the blind index alone without the master key`() = runUnitTest {
+        given()
+        val koin = koinApplication {
+            modules(module { scope(SCOPE) { blindIndex(mapOf(BLIND_INDEX_KEY to randomBase64Key())::get) } })
+        }.koin
+        val scope = koin.createScope("index", SCOPE)
+
+        whenn()
+        val index = scope.get<BlindIndex>()
+
+        then()
+        assertEquals(index.of("42"), index.of("42"))
     }
 
     private companion object {

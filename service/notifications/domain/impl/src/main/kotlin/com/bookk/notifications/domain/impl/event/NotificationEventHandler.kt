@@ -56,7 +56,7 @@ internal class NotificationEventHandler(
                 sendNotification(event.ownerUserId, event.notification)
             }
             .registerResultReceiver(UserEvent.Updated.TOPIC) { event: UserEvent.Updated ->
-                updateTargetInformation(event.userId, Target.Email(event.email), event.updatedAt)
+                updateTargetInformation(event.userId, event.targets(), event.updatedAt)
             }
             .registerResultReceiver(AppointmentEvent.RequestCreated.TOPIC) { event: AppointmentEvent.RequestCreated ->
                 sendNotification(event.employeeUserId, event.notification)
@@ -81,6 +81,10 @@ internal class NotificationEventHandler(
                 sendNotification(event.inviterUserId, event.notification)
             }
             .start(scope)
+    }
+
+    private fun UserEvent.Updated.targets(): List<Target> {
+        return listOfNotNull(Target.Email(email), telegramUserId?.let(Target::Telegram))
     }
 
     private suspend fun notifyClient(clientUserId: Uuid?, notification: NotificationParameters): Result<Unit> =

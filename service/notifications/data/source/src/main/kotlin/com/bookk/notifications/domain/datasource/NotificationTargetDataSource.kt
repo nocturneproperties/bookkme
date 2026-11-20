@@ -10,7 +10,7 @@ interface NotificationTargetDataSource {
     suspend fun hasTelegram(userId: Uuid): Boolean
     suspend fun insertEmail(userId: Uuid, email: String, updatedAt: Instant)
     suspend fun updateEmail(userId: Uuid, email: String, updatedAt: Instant): Boolean
-    suspend fun insertTelegram(userId: Uuid, telegramTag: String)
-    suspend fun updateTelegram(userId: Uuid, telegramTag: String): Boolean
+    suspend fun insertTelegram(userId: Uuid, telegramUserId: String)
+    suspend fun updateTelegram(userId: Uuid, telegramUserId: String): Boolean
     suspend fun deleteByUserId(userId: Uuid)
 }

@@ -15,14 +15,17 @@ internal class UserEventTest {
 
     private val userId = Uuid.random()
 
-    private fun updated(id: Uuid = userId, name: String = "Name") = UserEvent.Updated(
-        userId = id,
-        name = name,
-        lastName = "Last name",
-        email = "user@example.com",
-        phone = null,
-        updatedAt = Instant.fromEpochMilliseconds(1000),
-    )
+    private fun updated(id: Uuid = userId, name: String = "Name"): UserEvent.Updated {
+        return UserEvent.Updated(
+            userId = id,
+            name = name,
+            lastName = "Last name",
+            email = "user@example.com",
+            phone = null,
+            updatedAt = Instant.fromEpochMilliseconds(1000),
+            telegramUserId = null,
+        )
+    }
 
     @Test
     fun `should key the updated event by user id`() = runUnitTest {

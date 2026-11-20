@@ -29,6 +29,7 @@ internal class UserClientImpl(
             lastName = request.lastName,
             email = request.email,
             acceptedDocuments = request.acceptedDocuments,
+            telegramUserId = request.telegramUserId,
         ),
     ).map { it.id }
 

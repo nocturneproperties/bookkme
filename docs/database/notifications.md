@@ -49,7 +49,7 @@ erDiagram
     NOTIFICATION_TELEGRAM_TARGETS {
         uuid id PK
         uuid user_id UK "logical FK -> user.profile.id"
-        bytes telegram_tag_encrypted
+        bytes telegram_tag_encrypted "the Telegram user id, the chat a bot writes to"
         timestamp createdAt
         timestamp updatedAt
     }

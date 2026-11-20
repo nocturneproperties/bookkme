@@ -56,6 +56,7 @@ internal class SwaggerTest {
                 "post /api/auth/passkey/sign_up/challenge",
                 "post /api/auth/sign_up",
                 "post /api/auth/sign_in",
+                "post /api/auth/telegram/sign_in",
                 "post /api/auth/passkey/add/finish",
                 "post /api/auth/passkey/confirm_action",
                 "delete /api/auth/account",

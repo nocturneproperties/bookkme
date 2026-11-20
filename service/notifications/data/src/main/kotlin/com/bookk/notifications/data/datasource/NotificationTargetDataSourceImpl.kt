@@ -73,16 +73,16 @@ internal class NotificationTargetDataSourceImpl(
         } > 0
     }
 
-    override suspend fun insertTelegram(userId: Uuid, telegramTag: String) = dbQuery<Unit> {
-        val ciphertext = targetCipher.encrypt(userId, telegramTag) ?: return@dbQuery
+    override suspend fun insertTelegram(userId: Uuid, telegramUserId: String) = dbQuery<Unit> {
+        val ciphertext = targetCipher.encrypt(userId, telegramUserId) ?: return@dbQuery
         NotificationTelegramTargetTable.insert {
             it[NotificationTelegramTargetTable.userId] = userId
             it[NotificationTelegramTargetTable.telegramTagEncrypted] = ciphertext
         }
     }
 
-    override suspend fun updateTelegram(userId: Uuid, telegramTag: String): Boolean = dbQuery {
-        val ciphertext = targetCipher.encrypt(userId, telegramTag) ?: return@dbQuery false
+    override suspend fun updateTelegram(userId: Uuid, telegramUserId: String): Boolean = dbQuery {
+        val ciphertext = targetCipher.encrypt(userId, telegramUserId) ?: return@dbQuery false
         NotificationTelegramTargetTable.update(
             where = { NotificationTelegramTargetTable.userId eq userId },
         ) {

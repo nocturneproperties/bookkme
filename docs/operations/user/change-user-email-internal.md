@@ -5,7 +5,9 @@
 Called by auth once the user confirmed the code sent to their new address
 ([Confirm an email change](../authorization/confirm-email-change.md)). It is
 the only write of `profile.email` after sign-up, and sign-up itself only
-accepts a verified address, so every stored email has been verified. The
+accepts a verified address, so every stored email has been verified, except
+the never-mailed placeholder of an account created by Telegram sign-in
+([Sign in with Telegram](../authorization/telegram-sign-in.md)). The
 cached profile is evicted.
 
 ```mermaid

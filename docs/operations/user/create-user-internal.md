@@ -15,7 +15,10 @@ no published version needs nothing. Both checks run before the profile is
 inserted, and the profile, its acceptances and a `UserEvent.Updated`
 carrying the new profile are written in one transaction, so other
 services learn the verified sign-up email without waiting for a profile
-edit.
+edit. A user signing in with Telegram for the first time also sends their
+Telegram user id (`telegramUserId`, null for an email sign-up), which is
+stored encrypted with the profile and carried in every `UserEvent.Updated`
+of that user from then on.
 
 ```mermaid
 flowchart TD
@@ -28,11 +31,11 @@ flowchart TD
     InEffect -- a version in effect not sent --> R422b([422 LEGAL_DOCUMENTS_NOT_ACCEPTED 100004])
     InEffect -- all accepted --> Insert[UserDataSource.insertNewUser - id generated]
     Insert --> Record[LegalDocumentDataSource.recordAcceptance userId document version now - INSERT IGNORE, per sent document]
-    Record --> Event[eventProducer.send UserEvent.Updated userId name lastName email phone now]
+    Record --> Event[eventProducer.send UserEvent.Updated userId name lastName email phone telegramUserId now]
     Event --> Commit[[Commit transaction]]
     Commit --> R200([200 UserId])
 ```
 
 **Consumed by:** `UserEvent.Updated` → [business: sync denormalized client/
 employee copies](../business/on-user-updated.md) and [notifications: sync
-the email delivery target](../notifications/on-user-updated.md).
+the email and Telegram delivery targets](../notifications/on-user-updated.md).

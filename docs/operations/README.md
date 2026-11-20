@@ -64,6 +64,7 @@ Reactions to cross-service events:
 | `POST /api/auth/email` | [Request an email change code](authorization/start-email-change.md) |
 | `POST /api/auth/email/confirm` | [Confirm an email change](authorization/confirm-email-change.md) |
 | `POST /api/auth/sign_in` | [Verify sign-in](authorization/sign-in.md) |
+| `POST /api/auth/telegram/sign_in` | [Sign in with Telegram](authorization/telegram-sign-in.md) |
 | `POST /api/auth/refresh` | [Refresh access token](authorization/refresh-token.md) |
 | `DELETE /api/auth/session` | [Sign out](authorization/sign-out.md) |
 | `DELETE /api/auth/account` | [Delete account](authorization/delete-account.md) |
@@ -164,10 +165,10 @@ the operation committed, and reaches its consumers at least once. See
 
 | Event | Producer | Consumer(s) |
 |---|---|---|
-| `AuthEvent.UserDeleted` | [Delete account](authorization/delete-account.md), [sign-up compensation](authorization/sign-up.md), [`auth-handleDormantAccounts` job](scheduled-jobs.md), [`auth-reapplyErasures` job](scheduled-jobs.md) | [appointments](appointments/on-user-deleted.md), [business](business/on-user-deleted.md), [notifications](notifications/on-user-deleted.md), [user](user/on-user-deleted.md) |
+| `AuthEvent.UserDeleted` | [Delete account](authorization/delete-account.md), [sign-up compensation](authorization/sign-up.md), [Telegram sign-up compensation](authorization/telegram-sign-in.md), [`auth-handleDormantAccounts` job](scheduled-jobs.md), [`auth-reapplyErasures` job](scheduled-jobs.md) | [appointments](appointments/on-user-deleted.md), [business](business/on-user-deleted.md), [notifications](notifications/on-user-deleted.md), [user](user/on-user-deleted.md) |
 | `AuthEvent.DeviceDeleted` | [Delete account](authorization/delete-account.md), [`auth-deleteInactiveDevices`, `auth-handleDormantAccounts` and `auth-reapplyErasures` jobs](scheduled-jobs.md) | [notifications](notifications/on-device-deleted.md) |
-| `AuthEvent.DeviceCreated` | [Verify sign-up](authorization/sign-up.md), [Verify sign-in](authorization/sign-in.md) | [notifications](notifications/on-device-created.md) |
-| `AuthEvent.DeviceLanguageUpdated` | [Verify sign-in](authorization/sign-in.md) | [notifications](notifications/on-device-language-updated.md) |
+| `AuthEvent.DeviceCreated` | [Verify sign-up](authorization/sign-up.md), [Verify sign-in](authorization/sign-in.md), [Sign in with Telegram](authorization/telegram-sign-in.md) | [notifications](notifications/on-device-created.md) |
+| `AuthEvent.DeviceLanguageUpdated` | [Verify sign-in](authorization/sign-in.md), [Sign in with Telegram](authorization/telegram-sign-in.md) | [notifications](notifications/on-device-language-updated.md) |
 | `AuthEvent.AccountDormancyWarning` | [`auth-handleDormantAccounts` job](scheduled-jobs.md) | [notifications](notifications/on-account-dormancy-warning.md) |
 | `BusinessEvent.Updated` | [Update business](business/update-business.md) | [appointments](appointments/on-business-updated.md) |
 | `BusinessEvent.Deleted` | [React to user deletion (business)](business/on-user-deleted.md) | [appointments](appointments/on-business-deleted.md) |

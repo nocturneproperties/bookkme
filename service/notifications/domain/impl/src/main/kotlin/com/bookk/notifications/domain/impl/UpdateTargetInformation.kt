@@ -15,15 +15,17 @@ internal class UpdateTargetInformation(
 ) {
     suspend operator fun invoke(
         userId: Uuid,
-        target: Target,
+        targets: List<Target>,
         updatedAt: Instant,
     ): Result<Unit> = transactionManager.transaction {
         if (subjectKeys.isShredded(userId)) return@transaction
         getNotificationSettings.invoke(userId).getOrThrow()
 
-        when (target) {
-            is Target.Email -> saveEmail(userId, target.newEmail, updatedAt)
-            is Target.Telegram -> saveTelegram(userId, target.newTag)
+        targets.forEach { target ->
+            when (target) {
+                is Target.Email -> saveEmail(userId, target.newEmail, updatedAt)
+                is Target.Telegram -> saveTelegram(userId, target.telegramUserId.toString())
+            }
         }
     }
 
@@ -34,15 +36,15 @@ internal class UpdateTargetInformation(
         }
     }
 
-    private suspend fun saveTelegram(userId: Uuid, telegramTag: String) {
-        if (targetDataSource.updateTelegram(userId, telegramTag)) return
+    private suspend fun saveTelegram(userId: Uuid, telegramUserId: String) {
+        if (targetDataSource.updateTelegram(userId, telegramUserId)) return
         if (!targetDataSource.hasTelegram(userId)) {
-            targetDataSource.insertTelegram(userId, telegramTag)
+            targetDataSource.insertTelegram(userId, telegramUserId)
         }
     }
 
     internal sealed interface Target {
         class Email(val newEmail: String) : Target
-        class Telegram(val newTag: String) : Target
+        class Telegram(val telegramUserId: Long) : Target
     }
 }

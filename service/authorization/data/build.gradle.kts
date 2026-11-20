@@ -12,9 +12,11 @@ dependencies {
     api(projects.service.authorization.domain.api)
     implementation(projects.service.authorization.data.source)
     implementation(libs.passkey)
+    implementation(projects.library.encryption.impl)
 
     testImplementation(testFixtures(projects.core))
     testImplementation(testFixtures(projects.core.data))
     testImplementation(libs.testcontainers.junit)
     testImplementation(testFixtures(projects.core.data.cache.impl))
+    testImplementation(testFixtures(projects.library.encryption.api))
 }

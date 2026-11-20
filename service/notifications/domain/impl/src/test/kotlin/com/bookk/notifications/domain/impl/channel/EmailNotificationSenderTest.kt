@@ -21,6 +21,7 @@ import io.mockk.slot
 import library.email.EmailMessage
 import library.email.EmailSendError
 import library.email.EmailSender
+import library.email.PlaceholderEmail
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -91,6 +92,24 @@ internal class EmailNotificationSenderTest {
         val fixture = SutFixture()
         val userId = Uuid.random()
         coEvery { fixture.targetDataSource.getEmail(userId) } returns null
+
+        whenn()
+        val result = fixture.sut.send(userId, notificationParams())
+
+        then()
+        assertTrue(result.isSuccess)
+        coVerify(exactly = 0) { fixture.emailSender.send(any()) }
+    }
+
+    @Test
+    fun `should send nothing to a placeholder address of an account without email`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        with(fixture) {
+            coEvery { targetDataSource.getEmail(userId) } returns PlaceholderEmail.forTelegramUser(123456789)
+            coEvery { deviceDataSource.getLastUsedLanguage(userId) } returns Language.EN
+        }
 
         whenn()
         val result = fixture.sut.send(userId, notificationParams())

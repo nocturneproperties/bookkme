@@ -106,6 +106,7 @@ internal class BusinessEventHandlerImplEventTest {
                     email = "jane@example.com",
                     phone = "+10000000000",
                     updatedAt = updatedAt,
+                    telegramUserId = null,
                 ),
             )
             arrived.await(20, TimeUnit.SECONDS)
@@ -143,6 +144,7 @@ internal class BusinessEventHandlerImplEventTest {
                     email = "jane@example.com",
                     phone = null,
                     updatedAt = updatedAt,
+                    telegramUserId = null,
                 ),
             )
             arrived.await(20, TimeUnit.SECONDS)
