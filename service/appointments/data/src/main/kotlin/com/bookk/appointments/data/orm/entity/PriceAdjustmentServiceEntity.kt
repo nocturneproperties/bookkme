@@ -1,6 +1,7 @@
 package com.bookk.appointments.data.orm.entity
 
 import com.bookk.appointments.data.orm.table.PriceAdjustmentServicesTable
+import com.bookk.appointments.domain.api.entity.AdditionalService
 import com.bookk.appointments.domain.api.entity.ServiceSnapshot
 import com.bookk.core.data.DecoratorUuidEntityClass
 import org.jetbrains.exposed.v1.core.dao.id.EntityID
@@ -22,20 +23,25 @@ internal class PriceAdjustmentServiceEntity(id: EntityID<Uuid>) : UuidEntity(id)
     var priceUnscaled by PriceAdjustmentServicesTable.priceUnscaled
     var priceScale by PriceAdjustmentServicesTable.priceScale
     var durationMinutes by PriceAdjustmentServicesTable.durationMinutes
+    var count by PriceAdjustmentServicesTable.count
 
-    fun domain(): ServiceSnapshot = ServiceSnapshot(
-        id = serviceId,
-        name = serviceName,
-        groupId = serviceGroupId,
-        price = Money.of(
-            CurrencyUnit.of(priceCurrency),
-            BigDecimal(BigInteger.valueOf(priceUnscaled), priceScale),
-        ),
-        duration = durationMinutes.minutes,
-    )
+    fun domain(): AdditionalService {
+        val service = ServiceSnapshot(
+            id = serviceId,
+            name = serviceName,
+            groupId = serviceGroupId,
+            price = Money.of(
+                CurrencyUnit.of(priceCurrency),
+                BigDecimal(BigInteger.valueOf(priceUnscaled), priceScale),
+            ),
+            duration = durationMinutes.minutes,
+        )
+        return AdditionalService(service = service, count = count)
+    }
 
     companion object : DecoratorUuidEntityClass<PriceAdjustmentServiceEntity>(PriceAdjustmentServicesTable) {
-        fun new(ownerId: EntityID<Uuid>, service: ServiceSnapshot): PriceAdjustmentServiceEntity = new {
+        fun new(ownerId: EntityID<Uuid>, additional: AdditionalService): PriceAdjustmentServiceEntity = new {
+            val service = additional.service
             priceAdjustmentId = ownerId
             serviceId = service.id
             serviceName = service.name
@@ -44,6 +50,7 @@ internal class PriceAdjustmentServiceEntity(id: EntityID<Uuid>) : UuidEntity(id)
             priceUnscaled = service.price.amount.unscaledValue().longValueExact()
             priceScale = service.price.amount.scale()
             durationMinutes = service.duration.inWholeMinutes
+            count = additional.count
         }
     }
 }

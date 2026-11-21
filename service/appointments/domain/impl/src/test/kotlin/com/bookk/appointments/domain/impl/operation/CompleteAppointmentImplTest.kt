@@ -1,5 +1,6 @@
 package com.bookk.appointments.domain.impl.operation
 
+import com.bookk.appointments.domain.api.entity.AdditionalService
 import com.bookk.appointments.domain.api.entity.Appointment
 import com.bookk.appointments.domain.api.entity.AppointmentCompletedBy
 import com.bookk.appointments.domain.api.entity.AppointmentStatus
@@ -7,6 +8,7 @@ import com.bookk.appointments.domain.api.entity.AppointmentStatusError
 import com.bookk.appointments.domain.api.entity.EmployeeSnapshot
 import com.bookk.appointments.domain.api.entity.PriceAdjustment
 import com.bookk.appointments.domain.api.entity.PriceAdjustmentDraft
+import com.bookk.appointments.domain.api.entity.RequestedService
 import com.bookk.appointments.domain.api.entity.ServiceSnapshot
 import com.bookk.appointments.domain.api.operation.CompleteAppointment
 import com.bookk.appointments.domain.datasource.AppointmentDataSource
@@ -270,31 +272,49 @@ internal class CompleteAppointmentImplTest {
     }
 
     @Test
-    fun `should snapshot additional services resolved from the business`() = runUnitTest {
+    fun `should snapshot each additional service once with its requested count in request order`() = runUnitTest {
         given()
         val fixture = SutFixture()
         val userId = Uuid.random()
         val appointment = Appointment.stub(date = recentlyStarted)
-        val service = Service.stub(businessId = appointment.businessId, price = Money.parse("USD 30"))
-        val draft = PriceAdjustmentDraft.stub(additionalServiceIds = listOf(service.id, service.id))
-        val snapshot =
-            ServiceSnapshot(
-                id = service.id,
-                name = service.name,
-                groupId = service.group.id,
-                price = service.price,
-                duration = service.duration,
-            )
-        val expectedAdjustment =
-            PriceAdjustment(additionalServices = listOf(snapshot, snapshot), price = draft.price, reason = draft.reason)
+        val manicure = Service.stub(businessId = appointment.businessId, price = Money.parse("USD 30"))
+        val polish = Service.stub(businessId = appointment.businessId, price = Money.parse("USD 10"))
+        val draft = PriceAdjustmentDraft.stub(
+            additionalServices = listOf(
+                RequestedService.stub(serviceId = manicure.id, count = 2),
+                RequestedService.stub(serviceId = polish.id, count = 1),
+            ),
+        )
+        val manicureSnapshot = ServiceSnapshot(
+            id = manicure.id,
+            name = manicure.name,
+            groupId = manicure.group.id,
+            price = manicure.price,
+            duration = manicure.duration,
+        )
+        val polishSnapshot = ServiceSnapshot(
+            id = polish.id,
+            name = polish.name,
+            groupId = polish.group.id,
+            price = polish.price,
+            duration = polish.duration,
+        )
+        val expectedAdjustment = PriceAdjustment(
+            additionalServices = listOf(
+                AdditionalService(service = manicureSnapshot, count = 2),
+                AdditionalService(service = polishSnapshot, count = 1),
+            ),
+            price = draft.price,
+            reason = draft.reason,
+        )
         val completed = appointment.copy(
             status = AppointmentStatus.COMPLETED,
             completedBy = AppointmentCompletedBy.USER,
         )
         with(fixture) {
             givenLockedAppointment(userId, appointment)
-            coEvery { businessClient.getServicesByIds(appointment.businessId, draft.additionalServiceIds) } returns
-                Result.success(listOf(service, service))
+            coEvery { businessClient.getServicesByIds(appointment.businessId, listOf(manicure.id, polish.id)) } returns
+                Result.success(listOf(manicure, polish))
             coEvery { appointmentDataSource.markCompletedByUser(appointment.id) } returns completed
             coEvery { appointmentDataSource.adjustPrice(appointment.id, any()) } returns
                 completed.copy(priceAdjustment = expectedAdjustment)
@@ -306,6 +326,90 @@ internal class CompleteAppointmentImplTest {
         then()
         assertTrue(result.isSuccess)
         coVerify(exactly = 1) { fixture.appointmentDataSource.adjustPrice(appointment.id, expectedAdjustment) }
+    }
+
+    @Test
+    fun `should return failure when an additional service is listed twice`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val serviceId = Uuid.random()
+        val draft = PriceAdjustmentDraft.stub(
+            additionalServices = listOf(RequestedService.stub(serviceId), RequestedService.stub(serviceId)),
+        )
+
+        whenn()
+        val result = fixture.sut.invoke(Uuid.random(), Uuid.random(), draft)
+
+        then()
+        assertTrue(result.exceptionOrNull() is CompleteAppointment.Error.AdditionalServicesInvalid)
+        coVerify(exactly = 0) { fixture.appointmentDataSource.getForUpdate(any()) }
+    }
+
+    @Test
+    fun `should return failure when an additional service count is not positive`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val draft = PriceAdjustmentDraft.stub(additionalServices = listOf(RequestedService.stub(count = 0)))
+
+        whenn()
+        val result = fixture.sut.invoke(Uuid.random(), Uuid.random(), draft)
+
+        then()
+        assertTrue(result.exceptionOrNull() is CompleteAppointment.Error.AdditionalServicesInvalid)
+        coVerify(exactly = 0) { fixture.appointmentDataSource.getForUpdate(any()) }
+    }
+
+    @Test
+    fun `should return failure when additional services exceed the maximum total count`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val draft = PriceAdjustmentDraft.stub(
+            additionalServices = listOf(
+                RequestedService.stub(count = PriceAdjustmentDraft.MAX_ADDITIONAL_SERVICES),
+                RequestedService.stub(count = Int.MAX_VALUE),
+            ),
+        )
+
+        whenn()
+        val result = fixture.sut.invoke(Uuid.random(), Uuid.random(), draft)
+
+        then()
+        assertTrue(result.exceptionOrNull() is CompleteAppointment.Error.AdditionalServicesInvalid)
+        coVerify(exactly = 0) { fixture.appointmentDataSource.getForUpdate(any()) }
+    }
+
+    @Test
+    fun `should accept additional services at the maximum total count`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val appointment = Appointment.stub(date = recentlyStarted)
+        val service = Service.stub(businessId = appointment.businessId)
+        val draft = PriceAdjustmentDraft.stub(
+            additionalServices = listOf(
+                RequestedService.stub(serviceId = service.id, count = PriceAdjustmentDraft.MAX_ADDITIONAL_SERVICES),
+            ),
+        )
+        val completed = appointment.copy(status = AppointmentStatus.COMPLETED)
+        with(fixture) {
+            givenLockedAppointment(userId, appointment)
+            coEvery { businessClient.getServicesByIds(appointment.businessId, listOf(service.id)) } returns
+                Result.success(listOf(service))
+            coEvery { appointmentDataSource.markCompletedByUser(appointment.id) } returns completed
+            coEvery { appointmentDataSource.adjustPrice(appointment.id, any()) } returns completed
+        }
+
+        whenn()
+        val result = fixture.sut.invoke(userId, appointment.id, draft)
+
+        then()
+        assertTrue(result.isSuccess)
+        coVerify(exactly = 1) {
+            fixture.appointmentDataSource.adjustPrice(
+                appointment.id,
+                match { it.additionalServices.single().count == PriceAdjustmentDraft.MAX_ADDITIONAL_SERVICES },
+            )
+        }
     }
 
     @Test
@@ -373,7 +477,7 @@ internal class CompleteAppointmentImplTest {
         val result = fixture.sut.invoke(
             userId,
             appointment.id,
-            PriceAdjustmentDraft.stub(additionalServiceIds = listOf(Uuid.random())),
+            PriceAdjustmentDraft.stub(additionalServices = listOf(RequestedService.stub())),
         )
 
         then()
@@ -466,13 +570,13 @@ internal class CompleteAppointmentImplTest {
         val fixture = SutFixture()
         val userId = Uuid.random()
         val appointment = Appointment.stub(date = recentlyStarted)
-        val draft = PriceAdjustmentDraft.stub(additionalServiceIds = listOf(Uuid.random()))
+        val draft = PriceAdjustmentDraft.stub(additionalServices = listOf(RequestedService.stub()))
         val serviceNotFound = Error.NotFound()
         with(fixture) {
             givenLockedAppointment(userId, appointment)
             coEvery { appointmentDataSource.markCompletedByUser(appointment.id) } returns
                 appointment.copy(status = AppointmentStatus.COMPLETED)
-            coEvery { businessClient.getServicesByIds(appointment.businessId, draft.additionalServiceIds) } returns
+            coEvery { businessClient.getServicesByIds(appointment.businessId, any()) } returns
                 Result.failure(serviceNotFound)
         }
 
@@ -496,7 +600,7 @@ internal class CompleteAppointmentImplTest {
         val result = fixture.sut.invoke(
             userId,
             appointment.id,
-            PriceAdjustmentDraft.stub(additionalServiceIds = listOf(Uuid.random())),
+            PriceAdjustmentDraft.stub(additionalServices = listOf(RequestedService.stub())),
         )
 
         then()

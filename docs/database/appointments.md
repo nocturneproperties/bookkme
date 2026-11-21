@@ -92,7 +92,7 @@ erDiagram
 
     APPOINTMENT_PRICE_ADJUSTMENT_SERVICES {
         uuid id PK
-        uuid price_adjustment_id FK
+        uuid price_adjustment_id FK "unique with service_id"
         uuid service_id "logical FK -> business.service.id"
         string service_name
         uuid service_group_id "logical FK -> business.service_group.id"
@@ -100,6 +100,7 @@ erDiagram
         long price_unscaled
         int price_scale
         long duration_minutes
+        int count "how many times the service was added, default 1"
         timestamp createdAt
         timestamp updatedAt
     }
