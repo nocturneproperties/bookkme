@@ -1,13 +1,16 @@
 package com.bookk.appointments.domain.impl.operation
 
+import com.bookk.appointments.domain.api.entity.AdditionalService
 import com.bookk.appointments.domain.api.entity.Appointment
 import com.bookk.appointments.domain.api.entity.AppointmentStatus
 import com.bookk.appointments.domain.api.entity.PriceAdjustment
 import com.bookk.appointments.domain.api.entity.PriceAdjustmentDraft
+import com.bookk.appointments.domain.api.entity.RequestedService
 import com.bookk.appointments.domain.api.entity.ServiceSnapshot
 import com.bookk.appointments.domain.api.operation.CompleteAppointment
 import com.bookk.appointments.domain.datasource.AppointmentDataSource
 import com.bookk.appointments.domain.datasource.AppointmentPermissionDataSource
+import com.bookk.business.domain.api.service.entity.Service
 import com.bookk.core.domain.datasource.transaction.TransactionManager
 import com.bookk.core.domain.entity.runSuspendCatching
 import com.bookk.server.business.client.api.BusinessClient
@@ -54,6 +57,16 @@ internal class CompleteAppointmentImpl(
         if (reason.orEmpty().length > PriceAdjustmentDraft.REASON_MAX_LENGTH) {
             throw CompleteAppointment.Error.ReasonTooLong()
         }
+        if (!additionalServices.isValidSelection()) throw CompleteAppointment.Error.AdditionalServicesInvalid()
+    }
+
+    private fun List<RequestedService>.isValidSelection(): Boolean {
+        val serviceIds = map { it.serviceId }
+        val totalCount = sumOf { it.count.toLong() }
+        val hasOnlyPositiveCounts = all { it.count > 0 }
+        val hasDistinctServices = serviceIds.distinct().size == serviceIds.size
+        return hasOnlyPositiveCounts && hasDistinctServices &&
+            totalCount <= PriceAdjustmentDraft.MAX_ADDITIONAL_SERVICES
     }
 
     private suspend fun resolveAdjustment(appointment: Appointment, draft: PriceAdjustmentDraft): PriceAdjustment {
@@ -61,16 +74,25 @@ internal class CompleteAppointmentImpl(
             throw CompleteAppointment.Error.CurrencyMismatch()
         }
         return PriceAdjustment(
-            additionalServices = resolveAdditionalServices(appointment.businessId, draft.additionalServiceIds),
+            additionalServices = resolveAdditionalServices(appointment.businessId, draft.additionalServices),
             price = draft.price,
             reason = draft.reason?.takeIf { it.isNotBlank() },
         )
     }
 
-    private suspend fun resolveAdditionalServices(businessId: Uuid, serviceIds: List<Uuid>): List<ServiceSnapshot> {
-        if (serviceIds.isEmpty()) return emptyList()
-        return businessClient.getServicesByIds(businessId, serviceIds).getOrThrow().map {
-            ServiceSnapshot(id = it.id, name = it.name, groupId = it.group.id, price = it.price, duration = it.duration)
-        }
+    private suspend fun resolveAdditionalServices(
+        businessId: Uuid,
+        requested: List<RequestedService>,
+    ): List<AdditionalService> {
+        if (requested.isEmpty()) return emptyList()
+        val snapshotsById = businessClient
+            .getServicesByIds(businessId, requested.map { it.serviceId })
+            .getOrThrow()
+            .associate { it.id to it.snapshot() }
+        return requested.map { AdditionalService(service = snapshotsById.getValue(it.serviceId), count = it.count) }
+    }
+
+    private fun Service.snapshot(): ServiceSnapshot {
+        return ServiceSnapshot(id = id, name = name, groupId = group.id, price = price, duration = duration)
     }
 }

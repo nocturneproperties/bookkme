@@ -8,6 +8,7 @@ import com.bookk.appointments.data.orm.table.PriceAdjustmentServicesTable
 import com.bookk.appointments.data.orm.table.PriceAdjustmentTable
 import com.bookk.appointments.data.orm.table.SettingsTable
 import com.bookk.appointments.data.orm.table.WorkingHoursTable
+import com.bookk.appointments.domain.api.entity.AdditionalService
 import com.bookk.appointments.domain.api.entity.Appointment
 import com.bookk.appointments.domain.api.entity.AppointmentCompletedBy
 import com.bookk.appointments.domain.api.entity.AppointmentRequest
@@ -24,6 +25,7 @@ import com.bookk.core.test.runUnitTest
 import com.bookk.core.test.then
 import com.bookk.core.test.whenn
 import kotlinx.datetime.TimeZone
+import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
 import org.joda.money.Money
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -1097,7 +1099,12 @@ internal class AppointmentDataSourceImplTest {
         fixture.setup()
         val created = suspendTransaction { fixture.sut.create(fixture.buildRequest()) }
         val adjustment = PriceAdjustment.stub(
-            additionalServices = listOf(ServiceSnapshot.stub().copy(price = Money.parse("USD 12.50"))),
+            additionalServices = listOf(
+                AdditionalService.stub(
+                    service = ServiceSnapshot.stub().copy(price = Money.parse("USD 12.50")),
+                    count = 3,
+                ),
+            ),
             price = Money.parse("USD 99.99"),
             reason = "Extra wash",
         )
@@ -1107,6 +1114,22 @@ internal class AppointmentDataSourceImplTest {
 
         then()
         assertEquals(adjustment, adjusted.priceAdjustment)
+        assertEquals(adjustment, suspendTransaction { fixture.sut.get(created.id) }.priceAdjustment)
+    }
+
+    @Test
+    fun `should store an additional service added several times as one row with its count`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val created = suspendTransaction { fixture.sut.create(fixture.buildRequest()) }
+        val adjustment = PriceAdjustment.stub(additionalServices = listOf(AdditionalService.stub(count = 50)))
+
+        whenn()
+        suspendTransaction { fixture.sut.adjustPrice(created.id, adjustment) }
+
+        then()
+        assertEquals(1L, suspendTransaction { PriceAdjustmentServicesTable.selectAll().count() })
         assertEquals(adjustment, suspendTransaction { fixture.sut.get(created.id) }.priceAdjustment)
     }
 
@@ -1134,7 +1157,7 @@ internal class AppointmentDataSourceImplTest {
         suspendTransaction {
             fixture.sut.adjustPrice(
                 created.id,
-                PriceAdjustment.stub(additionalServices = listOf(ServiceSnapshot.stub(), ServiceSnapshot.stub())),
+                PriceAdjustment.stub(additionalServices = listOf(AdditionalService.stub(), AdditionalService.stub())),
             )
         }
         val replacement = PriceAdjustment.stub(price = Money.parse("USD 10"), reason = "Corrected")

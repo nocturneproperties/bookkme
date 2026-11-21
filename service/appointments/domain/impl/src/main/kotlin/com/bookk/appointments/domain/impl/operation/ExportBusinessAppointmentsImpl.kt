@@ -58,7 +58,9 @@ internal class ExportBusinessAppointmentsImpl(
         priceAdjustment = priceAdjustment?.let { adjustment ->
             PriceAdjustmentExport(
                 price = adjustment.price.toString(),
-                additionalServices = adjustment.additionalServices.map { it.toExport() },
+                additionalServices = adjustment.additionalServices.flatMap {
+                    List(it.count) { _ -> it.service.toExport() }
+                },
                 reason = adjustment.reason?.ifBlank { null },
             )
         },

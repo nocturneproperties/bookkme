@@ -39,11 +39,16 @@ as no adjustment). Its `priceAdjustment` (`PriceAdjustmentDraft`) carries:
 - `price` — **mandatory**, the final amount charged. It replaces the sum of the
   booked and additional services rather than adding to it. It must be ≥ 0 and
   in the appointment's currency.
-- `additionalServiceIds` — optional catalog service ids added at checkout,
-  repeated for multiples. Only the ids come from the client: name, price,
-  duration and group are resolved from the business service through
+- `additionalServices` — optional catalog services added at checkout, each a
+  `RequestedService` (`serviceId`, `count`) like the services of an instant
+  appointment. Ids must be distinct, counts positive and their total at most
+  100. Only the ids and counts come from the client: name, price, duration and
+  group are resolved from the business service through
   `BusinessClient.getServicesByIds` (`POST
-  /api/internal/business/{id}/services`) and stored as snapshots.
+  /api/internal/business/{id}/services`) and stored as one snapshot row per
+  service with its `count`, in request order. The response's
+  `PriceAdjustment.additionalServices` lists `AdditionalService` entries
+  (`service` snapshot and `count`).
 - `reason` — optional, at most 2048 characters; blank is stored as absent.
 
 The adjustment is stored only when the appointment ends up `COMPLETED`. It is
@@ -60,7 +65,9 @@ flowchart TD
     Negative -- Yes --> R422n([422 PRICE_ADJUSTMENT_NEGATIVE_PRICE 300021])
     Negative -- No --> Reason{reason longer than 2048?}
     Reason -- Yes --> R422r([422 PRICE_ADJUSTMENT_REASON_TOO_LONG 300023])
-    Reason -- No --> Tx
+    Reason -- No --> Selection{additionalServices has a repeated id, a count below 1 or a total above 100?}
+    Selection -- Yes --> R422v([422 SERVICE_SELECTION_INVALID 300024])
+    Selection -- No --> Tx
     HasDraft -- No --> Tx[[Begin transaction]]
     Tx --> Get[AppointmentDataSource.getForUpdate id - row lock]
     Get -- missing --> R404a([404 Error.NotFound])
@@ -79,9 +86,9 @@ flowchart TD
     Draft -- No --> Write
     Draft -- Yes --> Currency{price currency == appointment totalAmount currency?}
     Currency -- No --> R422m([422 PRICE_ADJUSTMENT_CURRENCY_MISMATCH 300022])
-    Currency -- Yes --> Extra{additionalServiceIds empty?}
+    Currency -- Yes --> Extra{additionalServices empty?}
     Extra -- Yes --> Write
-    Extra -- No --> Resolve[BusinessClient.getServicesByIds appointment.businessId ids - snapshot as ServiceSnapshot]
+    Extra -- No --> Resolve[BusinessClient.getServicesByIds appointment.businessId ids - one AdditionalService snapshot with its count per id]
     Resolve -- missing or foreign service --> R422s([422 BUSINESS_QUOTE_SERVICE_NOT_FOUND 200013])
     Resolve -- resolved --> Write
     Write{status was SCHEDULED or NO_SHOW?}
@@ -89,7 +96,7 @@ flowchart TD
     Write -- No, already COMPLETED --> Adjust
     Mark --> Adjust{adjustment resolved?}
     Adjust -- No --> R200([200 Completed Appointment])
-    Adjust -- Yes --> Store[AppointmentDataSource.adjustPrice id adjustment - deletes previous appointment_price_adjustment row, inserts new one with its services]
+    Adjust -- Yes --> Store[AppointmentDataSource.adjustPrice id adjustment - deletes previous appointment_price_adjustment row, inserts new one with one appointment_price_adjustment_services row per service and its count]
     Store --> R200a([200 Completed Appointment with priceAdjustment])
 ```
 

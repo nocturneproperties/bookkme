@@ -1,5 +1,6 @@
 package com.bookk.appointments.domain.impl.operation
 
+import com.bookk.appointments.domain.api.entity.AdditionalService
 import com.bookk.appointments.domain.api.entity.Appointment
 import com.bookk.appointments.domain.api.entity.AppointmentCompletedBy
 import com.bookk.appointments.domain.api.entity.AppointmentRequest
@@ -82,7 +83,7 @@ internal class ExportUserAppointmentsImplTest {
             cancellationReason = "client is ill",
             completedBy = AppointmentCompletedBy.USER,
             priceAdjustment = PriceAdjustment(
-                additionalServices = listOf(service),
+                additionalServices = listOf(AdditionalService(service = service, count = 2)),
                 price = Money.parse("UAH 500.00"),
                 reason = "extra styling",
             ),
@@ -154,7 +155,7 @@ internal class ExportUserAppointmentsImplTest {
                 cancellationReason = "client is ill",
                 priceAdjustment = PriceAdjustmentExport(
                     "UAH 500.00",
-                    listOf(ServiceExport("Haircut", "UAH 450.00", durationMinutes = 45)),
+                    List(2) { ServiceExport("Haircut", "UAH 450.00", durationMinutes = 45) },
                     reason = "extra styling",
                 ),
                 completedBy = "USER",
@@ -182,7 +183,7 @@ internal class ExportUserAppointmentsImplTest {
         assertNull(exported.client)
         assertNull(exported.cancellationReason)
         assertEquals(
-            PriceAdjustmentExport("UAH 500.00", listOf(ServiceExport("Haircut", "UAH 450.00", 45)), reason = null),
+            PriceAdjustmentExport("UAH 500.00", List(2) { ServiceExport("Haircut", "UAH 450.00", 45) }, reason = null),
             exported.priceAdjustment,
         )
         assertEquals(listOf(ServiceExport("Haircut", "UAH 450.00", 45)), exported.services)

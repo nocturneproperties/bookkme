@@ -13,6 +13,9 @@ Changes since `monolith/0.20.0`. Adds sign-in from a Telegram Mini App, which cr
 - `GET`/`PUT /api/notification/settings` now list the `TELEGRAM` channel, off at first, for accounts created through Telegram; call the Mini App's `requestWriteAccess()` before turning it on, since the bot can only write to users who allowed it.
 - Telegram is turned off again when the user blocks the bot, and account notifications (dormancy warnings, finished exports) go to Telegram even when it is off while the account has no real email.
 - `PUT /api/notification/settings` now takes only `appointmentEnabled` and each channel's `enabled`, matched by `channel`; ids and `availableToClients` in the request are ignored.
+- `POST /api/appointments/{id}/complete` now takes `priceAdjustment.additionalServices` (field 4) as `{serviceId, count}` entries, like the instant appointment request; the old `additionalServiceIds` (field 1) is removed and ignored, so clients must switch.
+- Repeated ids, counts below 1 or more than 100 additional services in total answer 422 `SERVICE_SELECTION_INVALID` (300024).
+- `PriceAdjustment.additionalServices` in every appointment response is now field 4, a list of `{service, count}` with each service once; the old repeated snapshot list (field 1) is removed.
 
 ### Services
 
@@ -21,6 +24,7 @@ Changes since `monolith/0.20.0`. Adds sign-in from a Telegram Mini App, which cr
 - Push notifications are now sent after the device lookup's transaction instead of inside it, so a retried transaction no longer sends the same push twice.
 - A standalone `auth` service now needs `APPLICATION_BLIND_INDEX_KEY`, with the same value as the other services; the monolith already has it.
 - Migration authorization `V6` adds the table `telegram_identity`, holding only a keyed hash of the Telegram user id per account.
+- Migration appointments `V14` adds `appointment_price_adjustment_services.count`, merges rows repeating a service in one adjustment into one row with that count, and adds a unique index on `(price_adjustment_id, service_id)`; data exports still list such a service once per count.
 - Migration user `V8` adds `profile.telegram_user_id_encrypted`; the user service stores the Telegram user id encrypted and sends it in `user.updated` (new field 9), and notifications saves it as the user's Telegram target.
 - No email is ever sent to `@telegramundeliverable.org`; these accounts get their notifications, dormancy warnings included, through Telegram.
 

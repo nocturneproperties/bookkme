@@ -32,5 +32,12 @@ interface CompleteAppointment {
             code = AppointmentErrorCodes.PRICE_ADJUSTMENT_REASON_TOO_LONG,
             message = "Price adjustment reason is too long",
         )
+
+        class AdditionalServicesInvalid : Error, BusinessError(
+            statusCode = HttpStatusCode.UnprocessableEntity.value,
+            code = AppointmentErrorCodes.SERVICE_SELECTION_INVALID,
+            message = "Additional services must be distinct services with positive counts, " +
+                "at most ${PriceAdjustmentDraft.MAX_ADDITIONAL_SERVICES} in total",
+        )
     }
 }
