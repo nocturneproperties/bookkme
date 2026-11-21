@@ -223,12 +223,6 @@ internal class ClientDataSourceImpl(private val contactCipher: ContactCipher) : 
         dbQuery { ClientTable.deleteWhere { ClientTable.id inList ids } }
     }
 
-    override suspend fun getBusinessIdsByUserId(userId: Uuid): List<Uuid> = dbQuery {
-        ClientTable.select(ClientTable.businessId)
-            .where { ClientTable.userId eq userId }
-            .map { it[ClientTable.businessId].value }
-    }
-
     override suspend fun recordVisit(businessId: Uuid, clientId: Uuid, visitEnd: Instant) = dbQuery<Unit> {
         ClientTable.update(
             where = {

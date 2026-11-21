@@ -54,7 +54,7 @@ flowchart TD
     Snapshot -- missing --> Log[Log error, nobody notified] --> Cancel
     Snapshot -- found --> Cancel
     Cancel["AppointmentDataSource.cancelAll upcoming ids 'Client was removed by the business' - one UPDATE to CANCELLED"]
-    Cancel --> Anon["AppointmentDataSource.anonymizeClient businessId clientId - client name, phone, email, note and their encrypted columns and client_user_id null, read as Deleted Client, cancellation and price adjustment reasons kept"]
+    Cancel --> Anon["AppointmentDataSource.anonymizeClient businessId clientId - client name, phone, email, note, client note and their encrypted columns and client_user_id null, read as Deleted Client, cancellation and price adjustment reasons kept"]
     Anon --> DelReq["AppointmentRequestDataSource.deleteForClient businessId clientId"]
     DelReq --> Known{business snapshot found?}
     Known -- No --> Shred

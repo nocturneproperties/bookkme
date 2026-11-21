@@ -25,6 +25,7 @@ object AppointmentTable : BaseUUIDTable("appointment") {
     val clientPhoneEncrypted = binary("client_phone_encrypted", 128).nullable()
     val clientEmailEncrypted = binary("client_email_encrypted", 2080).nullable()
     val noteEncrypted = binary("note_encrypted", 8224).nullable()
+    val clientNoteEncrypted = binary("client_note_encrypted", 8224).nullable()
     val clientNameIndex = char("client_name_index", BLIND_INDEX_LENGTH).nullable()
 
     init {

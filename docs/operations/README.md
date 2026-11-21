@@ -43,6 +43,8 @@ flow covers end-of-day completion and unresolved outcomes after the edit window.
 | `POST /api/appointments/{id}/no-show` | [Mark appointment as no-show](appointments/mark-appointment-no-show.md) |
 | `POST /api/appointments/{id}/complete` | [Complete appointment](appointments/complete-appointment.md) |
 | `PUT /api/appointments/settings/{businessId}` | [Edit appointment settings](appointments/edit-appointment-settings.md) |
+| `POST /api/appointments/businesses/{businessId}` | [Save business](appointments/save-business.md) |
+| `DELETE /api/appointments/businesses/{businessId}` | [Remove saved business](appointments/remove-saved-business.md) |
 
 Reactions to cross-service events:
 

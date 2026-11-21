@@ -7,6 +7,7 @@ import com.bookk.appointments.domain.datasource.AppointmentPermissionDataSource
 import com.bookk.appointments.domain.datasource.AppointmentRequestDataSource
 import com.bookk.appointments.domain.datasource.AppointmentSubscriptionDataSource
 import com.bookk.appointments.domain.datasource.DeletedUserDataSource
+import com.bookk.appointments.domain.datasource.SavedBusinessDataSource
 import com.bookk.core.data.eventstreaming.StandardEventProducer
 import com.bookk.core.domain.datasource.transaction.TransactionManager
 import com.bookk.core.domain.datasource.transaction.mockTransaction
@@ -38,6 +39,7 @@ internal class DeleteUserAppointmentDataImplTest {
         val requestDataSource = mockk<AppointmentRequestDataSource>()
         val appointmentPermissionDataSource = mockk<AppointmentPermissionDataSource>()
         val subscriptionDataSource = mockk<AppointmentSubscriptionDataSource>()
+        val savedBusinessDataSource = mockk<SavedBusinessDataSource>()
         val eventProducer = mockk<StandardEventProducer>()
         val transactionManager = mockk<TransactionManager>()
         val writesInTransaction = mutableListOf<Boolean>()
@@ -50,6 +52,7 @@ internal class DeleteUserAppointmentDataImplTest {
             requestDataSource,
             appointmentPermissionDataSource,
             subscriptionDataSource,
+            savedBusinessDataSource,
             eventProducer,
             subjectKeys,
             transactionManager,
@@ -79,6 +82,7 @@ internal class DeleteUserAppointmentDataImplTest {
             coEvery { requestDataSource.deleteForUser(userId) } coAnswers { recordWrite() }
             coEvery { appointmentPermissionDataSource.deleteForUser(userId) } coAnswers { recordWrite() }
             coEvery { subscriptionDataSource.detachBusinesses(ownedBusinessIds) } coAnswers { recordWrite() }
+            coEvery { savedBusinessDataSource.deleteForUser(userId) } coAnswers { recordWrite() }
             coEvery { eventProducer.send(any<AppointmentEvent>(), any()) } coAnswers {
                 sentEvents += firstArg<AppointmentEvent>()
                 sentInTransaction += transactionManager.isInTransaction()
@@ -123,6 +127,7 @@ internal class DeleteUserAppointmentDataImplTest {
         coVerify(exactly = 1) { fixture.appointmentDataSource.unlinkInitiator(userId) }
         coVerify(exactly = 1) { fixture.requestDataSource.deleteForUser(userId) }
         coVerify(exactly = 1) { fixture.appointmentPermissionDataSource.deleteForUser(userId) }
+        coVerify(exactly = 1) { fixture.savedBusinessDataSource.deleteForUser(userId) }
         assertTrue(fixture.writesInTransaction.isNotEmpty())
         assertTrue(fixture.writesInTransaction.all { it })
     }
@@ -148,6 +153,7 @@ internal class DeleteUserAppointmentDataImplTest {
             fixture.subscriptionDataSource.getClientIdsForUpdate(ownedBusinessIds)
             fixture.appointmentDataSource.getAllByIds(any())
             fixture.appointmentDataSource.anonymizeClientUser(userId)
+            fixture.savedBusinessDataSource.deleteForUser(userId)
             fixture.subscriptionDataSource.detachBusinesses(ownedBusinessIds)
         }
     }

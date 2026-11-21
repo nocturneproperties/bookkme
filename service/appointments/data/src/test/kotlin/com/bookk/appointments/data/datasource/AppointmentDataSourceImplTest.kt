@@ -78,6 +78,15 @@ internal class AppointmentDataSourceImplTest {
             date: Instant = Instant.fromEpochMilliseconds(0),
             employee: EmployeeSnapshot = EmployeeSnapshot.stub(),
         ) = AppointmentRequest.stub(initiatorUserId = userId, businessId = businessId, date = date, employee = employee)
+
+        suspend fun createForClientUser(
+            clientUserId: Uuid,
+            date: Instant,
+            businessId: Uuid = this.businessId,
+        ): Appointment {
+            val request = buildRequest(date = date).copy(businessId = businessId)
+            return suspendTransaction { sut.create(request.copy(client = request.client.copy(userId = clientUserId))) }
+        }
     }
 
     @Test
@@ -2021,5 +2030,85 @@ internal class AppointmentDataSourceImplTest {
         then()
         assertEquals(recorded.copy(note = "Corrected note"), updated)
         assertEquals(updated, suspendTransaction { fixture.sut.get(created.id) })
+    }
+
+    @Test
+    fun `should give the client's nearest scheduled appointments that have not ended, soonest first`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val otherBusinessId = fixture.attachBusiness(automaticCompletion = true)
+        val clientUserId = Uuid.random()
+        val now = Clock.System.now()
+        val latest = fixture.createForClientUser(clientUserId, now + 72.hours)
+        val ongoing = fixture.createForClientUser(clientUserId, now - 10.minutes)
+        val nearest = fixture.createForClientUser(clientUserId, now + 1.hours, otherBusinessId)
+
+        whenn()
+        val found = suspendTransaction { fixture.sut.getUpcomingOfClientUser(clientUserId, now, limit = 2) }
+
+        then()
+        assertEquals(listOf(ongoing.id, nearest.id), found.map { it.id })
+        assertFalse(latest.id in found.map { it.id })
+    }
+
+    @Test
+    fun `should not give the client's ended, cancelled or completed appointments as upcoming`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val clientUserId = Uuid.random()
+        val now = Clock.System.now()
+        fixture.createForClientUser(clientUserId, now - 2.hours)
+        val cancelled = fixture.createForClientUser(clientUserId, now + 1.hours)
+        val completed = fixture.createForClientUser(clientUserId, now + 2.hours)
+        suspendTransaction {
+            fixture.sut.cancel(cancelled.id, "Business closed")
+            fixture.sut.markCompletedByUser(completed.id)
+        }
+
+        whenn()
+        val found = suspendTransaction { fixture.sut.getUpcomingOfClientUser(clientUserId, now, limit = 2) }
+
+        then()
+        assertTrue(found.isEmpty())
+    }
+
+    @Test
+    fun `should not give other clients' appointments or ones the user only booked as upcoming`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val userId = Uuid.random()
+        val now = Clock.System.now()
+        fixture.createForClientUser(Uuid.random(), now + 1.hours)
+        val bookedForSomeoneElse = fixture.buildRequest(userId = userId, date = now + 2.hours)
+        suspendTransaction {
+            fixture.sut.create(
+                bookedForSomeoneElse.copy(client = bookedForSomeoneElse.client.copy(userId = Uuid.random())),
+            )
+        }
+
+        whenn()
+        val found = suspendTransaction { fixture.sut.getUpcomingOfClientUser(userId, now, limit = 2) }
+
+        then()
+        assertTrue(found.isEmpty())
+    }
+
+    @Test
+    fun `should load upcoming appointments with their services`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val clientUserId = Uuid.random()
+        val now = Clock.System.now()
+        val created = fixture.createForClientUser(clientUserId, now + 1.hours)
+
+        whenn()
+        val found = suspendTransaction { fixture.sut.getUpcomingOfClientUser(clientUserId, now, limit = 2) }
+
+        then()
+        assertEquals(listOf(created), found)
     }
 }

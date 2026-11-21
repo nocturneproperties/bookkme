@@ -85,6 +85,7 @@ internal class ExportBusinessAppointmentsImplTest {
             services = listOf(fixture.service),
             status = AppointmentStatus.COMPLETED,
             note = "allergic to latex",
+            clientNote = "please call on arrival",
             cancellationReason = "",
             completedBy = AppointmentCompletedBy.USER,
             priceAdjustment = PriceAdjustment(
@@ -119,6 +120,7 @@ internal class ExportBusinessAppointmentsImplTest {
                     cancellationReason = null,
                     priceAdjustment = PriceAdjustmentExport("UAH 500.00", emptyList(), "extra styling"),
                     completedBy = "USER",
+                    clientNote = "please call on arrival",
                 ),
             ),
             export.appointments,

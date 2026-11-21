@@ -1,6 +1,7 @@
-package com.bookk.business.domain.impl.operation.client
+package com.bookk.appointments.domain.impl.operation
 
-import com.bookk.business.domain.datasource.ClientDataSource
+import com.bookk.appointments.domain.api.entity.SavedBusiness
+import com.bookk.appointments.domain.datasource.SavedBusinessDataSource
 import com.bookk.core.domain.datasource.transaction.TransactionManager
 import com.bookk.core.domain.datasource.transaction.mockTransaction
 import com.bookk.core.test.given
@@ -14,48 +15,46 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import kotlin.uuid.Uuid
 
-internal class GetClientBusinessIdsImplTest {
+internal class GetSavedBusinessesImplTest {
 
     private class SutFixture {
-        val clientDataSource = mockk<ClientDataSource>()
+        val savedBusinessDataSource = mockk<SavedBusinessDataSource>()
         val transactionManager = mockk<TransactionManager>()
-        val sut = GetClientBusinessIdsImpl(clientDataSource, transactionManager)
+        val sut = GetSavedBusinessesImpl(savedBusinessDataSource, transactionManager)
     }
 
     @Test
-    fun `should return business ids the user is a client of`() = runUnitTest {
+    fun `should return the caller's saved businesses`() = runUnitTest {
         given()
         val fixture = SutFixture()
         val userId = Uuid.random()
-        val businessIds = listOf(Uuid.random(), Uuid.random())
+        val saved = listOf(SavedBusiness.stub(), SavedBusiness.stub(enabled = false))
         with(fixture) {
             transactionManager.mockTransaction()
-            coEvery { clientDataSource.getBusinessIdsByUserId(userId) } returns businessIds
+            coEvery { savedBusinessDataSource.getAll(userId) } returns saved
         }
 
         whenn()
-        val result = fixture.sut.invoke(userId)
+        val result = fixture.sut(userId)
 
         then()
-        assertTrue(result.isSuccess)
-        assertEquals(businessIds, result.getOrNull())
+        assertEquals(saved, result.getOrThrow())
     }
 
     @Test
-    fun `should return empty list when the user has no client relations`() = runUnitTest {
+    fun `should return an empty list for a caller without saved businesses`() = runUnitTest {
         given()
         val fixture = SutFixture()
         val userId = Uuid.random()
         with(fixture) {
             transactionManager.mockTransaction()
-            coEvery { clientDataSource.getBusinessIdsByUserId(userId) } returns emptyList()
+            coEvery { savedBusinessDataSource.getAll(userId) } returns emptyList()
         }
 
         whenn()
-        val result = fixture.sut.invoke(userId)
+        val result = fixture.sut(userId)
 
         then()
-        assertTrue(result.isSuccess)
-        assertTrue(result.getOrNull()!!.isEmpty())
+        assertTrue(result.getOrThrow().isEmpty())
     }
 }

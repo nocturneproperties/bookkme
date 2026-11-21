@@ -2,7 +2,7 @@
 
 ## 0.21.0
 
-Changes since `monolith/0.20.0`. Adds sign-in from a Telegram Mini App, which creates an account with a placeholder email on first use, and sends notifications to those users through the Telegram bot.
+Changes since `monolith/0.20.0`. Adds sign-in from a Telegram Mini App, which creates an account with a placeholder email on first use, sends notifications to those users through the Telegram bot, and gives clients their upcoming bookings across businesses and a list of saved businesses.
 
 ### Clients
 
@@ -16,6 +16,12 @@ Changes since `monolith/0.20.0`. Adds sign-in from a Telegram Mini App, which cr
 - `POST /api/appointments/{id}/complete` now takes `priceAdjustment.additionalServices` (field 4) as `{serviceId, count}` entries, like the instant appointment request; the old `additionalServiceIds` (field 1) is removed and ignored, so clients must switch.
 - Repeated ids, counts below 1 or more than 100 additional services in total answer 422 `SERVICE_SELECTION_INVALID` (300024).
 - `PriceAdjustment.additionalServices` in every appointment response is now field 4, a list of `{service, count}` with each service once; the old repeated snapshot list (field 1) is removed.
+- New `GET /api/appointments/upcoming` returns the caller's 2 nearest scheduled appointments that haven't ended and 2 nearest pending requests that haven't started, across all businesses, with each appointment's `note` left empty.
+- `Appointment` has a new `clientNote` (field 13): the request's note, copied when the request is approved; staff can't edit it, and appointments approved before 0.21.0 have it empty.
+- New `GET /api/appointments/businesses` lists the caller's saved businesses with `enabled`, `savedAt` and `lastVisitAt` (start of the last completed appointment, absent if none); read names from the business service by id.
+- New `POST` and `DELETE /api/appointments/businesses/{businessId}` save and remove a business; saving answers 422 `APPOINTMENTS_NOT_ENABLED` (300030) for a business without appointments and `SAVED_BUSINESSES_LIMIT_REACHED` (300031) past 100 saved businesses.
+- `GET /api/appointments/enabled` is removed; use `GET /api/appointments/businesses`.
+- The personal data export lists saved businesses and, for the user's own appointments, the client note (`clientNote`); the business export includes each appointment's client note.
 
 ### Services
 
@@ -27,6 +33,8 @@ Changes since `monolith/0.20.0`. Adds sign-in from a Telegram Mini App, which cr
 - Migration appointments `V14` adds `appointment_price_adjustment_services.count`, merges rows repeating a service in one adjustment into one row with that count, and adds a unique index on `(price_adjustment_id, service_id)`; data exports still list such a service once per count.
 - Migration user `V8` adds `profile.telegram_user_id_encrypted`; the user service stores the Telegram user id encrypted and sends it in `user.updated` (new field 9), and notifications saves it as the user's Telegram target.
 - No email is ever sent to `@telegramundeliverable.org`; these accounts get their notifications, dormancy warnings included, through Telegram.
+- Migration appointments `V15` adds `appointment.client_note_encrypted` and the table `saved_business`, which is erased with the account and with its business.
+- The business service's internal `GET /api/internal/client/{userId}/businesses` is removed; when running separate services, update business and appointments together.
 
 ### Upgrade
 

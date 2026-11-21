@@ -49,6 +49,7 @@ data class AppointmentsBusinessDataExport(
         @ProtoNumber(9) val cancellationReason: String?,
         @ProtoNumber(10) val priceAdjustment: PriceAdjustmentExport?,
         @ProtoNumber(11) val completedBy: String?,
+        @ProtoNumber(12) val clientNote: String?,
     )
 
     @Serializable

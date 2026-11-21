@@ -86,6 +86,7 @@ internal class AppointmentRequestEntity(id: EntityID<Uuid>) : UuidEntity(id) {
                     phone = clientPhoneEncrypted,
                     email = clientEmailEncrypted,
                     note = checkNotNull(noteEncrypted) { "Snapshot of client $clientId has no encrypted note" },
+                    clientNote = null,
                     nameIndex = null,
                 )
             },

@@ -50,6 +50,7 @@ internal class ExportBusinessAppointmentsClientImplTest {
                     cancellationReason = null,
                     priceAdjustment = null,
                     completedBy = null,
+                    clientNote = "please call on arrival",
                 ),
             ),
         )

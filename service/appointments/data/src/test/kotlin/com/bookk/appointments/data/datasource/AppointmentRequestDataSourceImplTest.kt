@@ -713,4 +713,69 @@ internal class AppointmentRequestDataSourceImplTest {
         then()
         assertNotNull(suspendTransaction { fixture.sut.get(recent.id) })
     }
+
+    @Test
+    fun `should give the user's nearest pending requests that have not started across businesses, soonest first`() =
+        runUnitTest {
+            given()
+            val fixture = SutFixture()
+            fixture.setup()
+            val otherBusiness = BusinessSnapshot.stub()
+            suspendTransaction { fixture.subscriptionSut.attachBusiness(otherBusiness) }
+            val userId = Uuid.random()
+            val now = Clock.System.now()
+            val latest = suspendTransaction { fixture.sut.create(fixture.buildRequest(userId, now + 72.hours)) }
+            val later = suspendTransaction { fixture.sut.create(fixture.buildRequest(userId, now + 2.hours)) }
+            val nearestRequest = fixture.buildRequest(userId, now + 1.hours).copy(businessId = otherBusiness.id)
+            val nearest = suspendTransaction { fixture.sut.create(nearestRequest) }
+
+            whenn()
+            val found = suspendTransaction { fixture.sut.getUpcomingPendingOfUser(userId, now, limit = 2) }
+
+            then()
+            assertEquals(listOf(nearest.id, later.id), found.map { it.id })
+            assertFalse(latest.id in found.map { it.id })
+        }
+
+    @Test
+    fun `should not give started, answered or other users' requests as upcoming`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val userId = Uuid.random()
+        val now = Clock.System.now()
+        suspendTransaction { fixture.sut.create(fixture.buildRequest(userId, now - 2.hours)) }
+        suspendTransaction { fixture.sut.create(fixture.buildRequest(userId, now - 10.minutes)) }
+        val approved = suspendTransaction { fixture.sut.create(fixture.buildRequest(userId, now + 1.hours)) }
+        val declined = suspendTransaction { fixture.sut.create(fixture.buildRequest(userId, now + 2.hours)) }
+        val withdrawn = suspendTransaction { fixture.sut.create(fixture.buildRequest(userId, now + 3.hours)) }
+        suspendTransaction {
+            fixture.sut.approve(approved)
+            fixture.sut.decline(declined.id, "Fully booked")
+            fixture.sut.withdraw(withdrawn.id)
+            fixture.sut.create(fixture.buildRequest(date = now + 4.hours))
+        }
+
+        whenn()
+        val found = suspendTransaction { fixture.sut.getUpcomingPendingOfUser(userId, now, limit = 2) }
+
+        then()
+        assertTrue(found.isEmpty())
+    }
+
+    @Test
+    fun `should load upcoming requests with their services and client`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val userId = Uuid.random()
+        val now = Clock.System.now()
+        val created = suspendTransaction { fixture.sut.create(fixture.buildRequest(userId, now + 1.hours)) }
+
+        whenn()
+        val found = suspendTransaction { fixture.sut.getUpcomingPendingOfUser(userId, now, limit = 2) }
+
+        then()
+        assertEquals(listOf(created), found)
+    }
 }

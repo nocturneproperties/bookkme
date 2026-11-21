@@ -31,6 +31,7 @@ import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
+import org.jetbrains.exposed.v1.jdbc.update
 import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
@@ -72,9 +73,10 @@ internal class AppointmentDataSourceImplEncryptionTest {
             employee: EmployeeSnapshot = EmployeeSnapshot.stub(),
             note: String = "Bring the red dress",
             date: Instant = Instant.fromEpochMilliseconds(0),
+            clientNote: String = "Please ring twice",
         ): Appointment {
             return Appointment.stub(businessId = businessId, date = date)
-                .copy(client = client, employee = employee, note = note)
+                .copy(client = client, employee = employee, note = note, clientNote = clientNote)
         }
 
         suspend fun create(appointment: Appointment): Appointment {
@@ -127,6 +129,7 @@ internal class AppointmentDataSourceImplEncryptionTest {
             assertEquals("+10000000000", fixture.decrypted(client.id, row[AppointmentTable.clientPhoneEncrypted]))
             assertEquals("alice@example.com", fixture.decrypted(client.id, row[AppointmentTable.clientEmailEncrypted]))
             assertEquals("Bring the red dress", fixture.decrypted(client.id, row[AppointmentTable.noteEncrypted]))
+            assertEquals("Please ring twice", fixture.decrypted(client.id, row[AppointmentTable.clientNoteEncrypted]))
             assertEquals("Bob Stylist", fixture.decrypted(employee.userId, row[AppointmentTable.employeeNameEncrypted]))
         }
 
@@ -177,6 +180,63 @@ internal class AppointmentDataSourceImplEncryptionTest {
         )
         assertEquals(request.note, created.note)
         assertEquals(request.client.toClientSnapshot(), created.client)
+    }
+
+    @Test
+    fun `should copy a request's note into the client's note of the appointment created from it`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val request = AppointmentRequest.stub(businessId = fixture.businessId).copy(note = "Please ring twice")
+
+        whenn()
+        val created = suspendTransaction { fixture.sut.create(request) }
+
+        then()
+        val row = fixture.storedRow(created.id)
+        assertEquals(
+            "Please ring twice",
+            fixture.decrypted(request.client.id, row[AppointmentTable.clientNoteEncrypted]),
+        )
+        assertEquals("Please ring twice", created.clientNote)
+        assertEquals("Please ring twice", suspendTransaction { fixture.sut.get(created.id) }.clientNote)
+    }
+
+    @Test
+    fun `should keep the stored client's note when the appointment's note changes`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val created = fixture.create(fixture.appointment())
+        val before = fixture.storedRow(created.id)
+
+        whenn()
+        val updated = suspendTransaction { fixture.sut.update(created.copy(note = "Short hair")) }
+
+        then()
+        assertKept(before, fixture.storedRow(created.id), AppointmentTable.clientNoteEncrypted)
+        assertEquals("Please ring twice", updated.clientNote)
+    }
+
+    @Test
+    fun `should read an appointment stored without a client's note as one with an empty note`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val created = fixture.create(fixture.appointment())
+        suspendTransaction {
+            AppointmentTable.update(where = { AppointmentTable.id eq created.id }) {
+                it[clientNoteEncrypted] = null
+            }
+        }
+
+        whenn()
+        val read = suspendTransaction { fixture.sut.get(created.id) }
+
+        then()
+        assertEquals("", read.clientNote)
+        assertEquals("Bring the red dress", read.note)
+        assertEquals(emptyList<String>(), fixture.missingKeys.reported)
     }
 
     @Test
@@ -246,6 +306,7 @@ internal class AppointmentDataSourceImplEncryptionTest {
         then()
         assertEquals(created.client.copy(fullName = "", phone = null, email = null), read.client)
         assertEquals("", read.note)
+        assertEquals("", read.clientNote)
         assertEquals(created.employee.copy(fullName = ""), read.employee)
         assertEquals(listOf("appointment", "appointment"), fixture.missingKeys.reported)
     }
@@ -344,10 +405,12 @@ internal class AppointmentDataSourceImplEncryptionTest {
         assertNull(row[AppointmentTable.clientPhoneEncrypted])
         assertNull(row[AppointmentTable.clientEmailEncrypted])
         assertNull(row[AppointmentTable.noteEncrypted])
+        assertNull(row[AppointmentTable.clientNoteEncrypted])
         assertNull(row[AppointmentTable.clientNameIndex])
         val read = suspendTransaction { fixture.sut.get(created.id) }
         assertEquals(ClientSnapshot(created.client.id, "Deleted Client", null, null, null), read.client)
         assertEquals("", read.note)
+        assertEquals("", read.clientNote)
     }
 
     @Test
@@ -364,6 +427,7 @@ internal class AppointmentDataSourceImplEncryptionTest {
         val row = fixture.storedRow(created.id)
         assertNull(row[AppointmentTable.clientNameEncrypted])
         assertNull(row[AppointmentTable.noteEncrypted])
+        assertNull(row[AppointmentTable.clientNoteEncrypted])
         assertNull(row[AppointmentTable.clientNameIndex])
         val read = suspendTransaction { fixture.sut.get(created.id) }
         assertEquals(ClientSnapshot(created.client.id, "Deleted Client", null, null, null), read.client)
@@ -524,6 +588,7 @@ internal class AppointmentDataSourceImplEncryptionTest {
         val row = fixture.storedRow(moved.id)
         assertEquals("Merged Name", fixture.decrypted(kept.id, row[AppointmentTable.clientNameEncrypted]))
         assertEquals("Merged note", fixture.decrypted(kept.id, row[AppointmentTable.noteEncrypted]))
+        assertEquals("Please ring twice", fixture.decrypted(kept.id, row[AppointmentTable.clientNoteEncrypted]))
         assertEquals(fixture.nameIndex("Merged Name"), row[AppointmentTable.clientNameIndex])
         val read = suspendTransaction { fixture.sut.get(moved.id) }
         assertEquals(merged.copy(id = kept.id), read.client)

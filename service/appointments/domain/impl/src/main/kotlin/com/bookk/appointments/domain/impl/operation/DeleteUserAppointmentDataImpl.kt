@@ -8,6 +8,7 @@ import com.bookk.appointments.domain.datasource.AppointmentPermissionDataSource
 import com.bookk.appointments.domain.datasource.AppointmentRequestDataSource
 import com.bookk.appointments.domain.datasource.AppointmentSubscriptionDataSource
 import com.bookk.appointments.domain.datasource.DeletedUserDataSource
+import com.bookk.appointments.domain.datasource.SavedBusinessDataSource
 import com.bookk.core.data.eventstreaming.StandardEventProducer
 import com.bookk.core.data.eventstreaming.send
 import com.bookk.core.domain.datasource.transaction.TransactionManager
@@ -26,6 +27,7 @@ internal class DeleteUserAppointmentDataImpl(
     private val requestDataSource: AppointmentRequestDataSource,
     private val appointmentPermissionDataSource: AppointmentPermissionDataSource,
     private val subscriptionDataSource: AppointmentSubscriptionDataSource,
+    private val savedBusinessDataSource: SavedBusinessDataSource,
     private val eventProducer: StandardEventProducer,
     private val subjectKeys: SubjectKeys,
     private val transactionManager: TransactionManager,
@@ -74,6 +76,7 @@ internal class DeleteUserAppointmentDataImpl(
         appointmentDataSource.unlinkInitiator(userId)
         requestDataSource.deleteForUser(userId)
         appointmentPermissionDataSource.deleteForUser(userId)
+        savedBusinessDataSource.deleteForUser(userId)
         subscriptionDataSource.detachBusinesses(erasure.ownedBusinessIds)
     }
 

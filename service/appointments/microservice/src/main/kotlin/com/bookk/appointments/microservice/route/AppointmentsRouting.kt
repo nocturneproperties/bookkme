@@ -28,8 +28,14 @@ object AppointmentsRouting {
             @Resource("/enabled/{businessId}")
             class Enabled(val parent: Appointment = Appointment(), val businessId: Uuid)
 
-            @Resource("/enabled")
-            class EnabledForClientBusinesses(val parent: Appointment = Appointment())
+            @Resource("/upcoming")
+            class Upcoming(val parent: Appointment = Appointment())
+
+            @Resource("/businesses")
+            class SavedBusinesses(val parent: Appointment = Appointment())
+
+            @Resource("/businesses/{businessId}")
+            class SavedBusiness(val parent: Appointment = Appointment(), val businessId: Uuid)
 
             @Resource("/{id}")
             class Id(val parent: Appointment = Appointment(), val id: Uuid)

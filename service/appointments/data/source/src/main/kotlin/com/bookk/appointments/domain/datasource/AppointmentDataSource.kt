@@ -15,6 +15,7 @@ interface AppointmentDataSource {
     suspend fun getForUpdate(id: Uuid): Appointment
     suspend fun getAll(businessId: Uuid): List<Appointment>
     suspend fun getAllByIds(ids: Collection<Uuid>): List<Appointment>
+    suspend fun getUpcomingOfClientUser(clientUserId: Uuid, endingAfter: Instant, limit: Int): List<Appointment>
     suspend fun getAllForDate(businessId: Uuid, range: ClosedRange<Instant>, employeeId: Uuid?): List<Appointment>
     suspend fun getAllPaginated(
         businessId: Uuid,

@@ -12,12 +12,14 @@ import com.bookk.core.data.cache.CacheClient
 import com.bookk.core.data.cache.setIfAbsent
 import com.bookk.core.domain.entity.Error
 import org.jetbrains.exposed.v1.core.Op
+import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.greater
 import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.core.less
 import org.jetbrains.exposed.v1.core.or
+import org.jetbrains.exposed.v1.dao.with
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.selectAll
@@ -57,6 +59,24 @@ internal class AppointmentRequestDataSourceImpl(
         AppointmentRequestEntity
             .find { pendingOfUser(userId, businessId) }
             .toList()
+            .decrypted()
+    }
+
+    override suspend fun getUpcomingPendingOfUser(
+        userId: Uuid,
+        startingAfter: Instant,
+        limit: Int,
+    ): List<AppointmentRequest> = dbQuery {
+        AppointmentRequestEntity
+            .find {
+                (AppointmentRequestTable.initiatorUserId eq userId)
+                    .and(AppointmentRequestTable.status eq AppointmentRequestStatus.PENDING)
+                    .and(AppointmentRequestTable.dateStart greater startingAfter)
+            }
+            .orderBy(AppointmentRequestTable.dateStart to SortOrder.ASC)
+            .limit(limit)
+            .toList()
+            .with(AppointmentRequestEntity::services)
             .decrypted()
     }
 

@@ -1,9 +1,7 @@
 package com.bookk.appointments.microservice.route.api
 
 import com.bookk.appointments.domain.api.entity.AppointmentErrorCodes
-import com.bookk.appointments.domain.api.entity.BusinessAppointmentsEnabled
 import com.bookk.appointments.domain.api.operation.EnableAppointmentsForBusiness
-import com.bookk.appointments.domain.api.operation.GetClientBusinessesAppointmentsStatus
 import com.bookk.appointments.domain.api.operation.IsAppointmentsEnabled
 import com.bookk.appointments.microservice.route.AppointmentsRouting.Api
 import com.bookk.business.domain.api.error.BusinessErrorCodes
@@ -101,44 +99,6 @@ internal class EnableAppointmentsTest {
         then()
         assertEquals(HttpStatusCode.OK, response.status)
         assertEquals(true, response.body<Boolean>())
-    }
-
-    @Test
-    fun `should return appointments enabled status for client businesses`() = routeTest {
-        given()
-        val useCase: GetClientBusinessesAppointmentsStatus = mockk()
-        val userId = Uuid.random()
-        val statuses = listOf(
-            BusinessAppointmentsEnabled.stub(enabled = true),
-            BusinessAppointmentsEnabled.stub(enabled = false),
-        )
-        coEvery { useCase.invoke(userId) } returns Result.success(statuses)
-
-        setupApplication(
-            extension = {
-                install(Authentication) {
-                    provider {
-                        authenticate { context ->
-                            context.principal(AppPrincipal(Uuid.random(), userId, Uuid.random()))
-                        }
-                    }
-                }
-            },
-            diModule = module {
-                single { useCase }
-            },
-            routeUnderTest = {
-                appointmentInit()
-            },
-        )
-
-        whenn()
-        val client = createTestClient()
-        val response = client.get(Api.Appointment.EnabledForClientBusinesses())
-
-        then()
-        assertEquals(HttpStatusCode.OK, response.status)
-        assertEquals(statuses, response.body<List<BusinessAppointmentsEnabled>>())
     }
 
     @Test
@@ -296,25 +256,6 @@ internal class EnableAppointmentsTest {
         whenn()
         val client = createTestClient()
         val response = client.get(Api.Appointment.Enabled(businessId = testBusinessId))
-
-        then()
-        assertEquals(HttpStatusCode.Unauthorized, response.status)
-    }
-
-    @Test
-    fun `should return unauthorized for client businesses appointments status without authentication`() = routeTest {
-        given()
-        val useCase: GetClientBusinessesAppointmentsStatus = mockk()
-
-        setupApplication(
-            extension = { install(Authentication) { bearer { authenticate { null } } } },
-            diModule = module { single { useCase } },
-            routeUnderTest = { appointmentInit() },
-        )
-
-        whenn()
-        val client = createTestClient()
-        val response = client.get(Api.Appointment.EnabledForClientBusinesses())
 
         then()
         assertEquals(HttpStatusCode.Unauthorized, response.status)
