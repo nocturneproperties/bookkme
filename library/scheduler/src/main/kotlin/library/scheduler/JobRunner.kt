@@ -10,6 +10,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import org.slf4j.Logger
+import kotlin.time.measureTime
 
 internal class JobRunner(
     private val jobs: List<ScheduledJob>,
@@ -24,9 +25,8 @@ internal class JobRunner(
                 delay(job.initialDelay)
                 while (isActive) {
                     try {
-                        logger.debug("Starting '${job.name}'")
-                        job.action()
-                        logger.debug("Scheduled job '${job.name}' completed")
+                        val duration = measureTime { job.action() }
+                        if (job.logSuccessfulRuns) logger.debug("Scheduled job '${job.name}' completed in $duration")
                     } catch (e: CancellationException) {
                         throw e
                     } catch (e: Exception) {

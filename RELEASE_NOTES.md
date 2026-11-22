@@ -46,6 +46,7 @@ Changes since `monolith/0.20.0`. Adds sign-in from a Telegram Mini App, which cr
 - The client web app gets its own `webapp` stack (`bookkme-webapp` image, deployed with `make deploy-webapp v=<version>`), served by nginx on `app.` of the website's domain (`app.bookkme.com`), which may call the API through CORS and use passkeys like the website.
 - The website's certificate now covers `*.` of its domain instead of only `www.` (acme-sh config `acme-certificates-v2`, which reissues it once).
 - New alert `WebAppDown` fires when no web app container has run for 5 minutes.
+- A scheduled job's successful run is now one DEBUG line, `Scheduled job '<name>' completed in <duration>`, instead of two; the every-minute `auth-reapplyErasures` and `business-reapplyErasures` log only failures.
 
 ### Upgrade
 

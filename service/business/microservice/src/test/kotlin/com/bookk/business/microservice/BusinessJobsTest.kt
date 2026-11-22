@@ -20,6 +20,7 @@ import io.mockk.mockk
 import library.export.BuildDataExports
 import library.export.DeleteExpiredDataExports
 import library.scheduler.SchedulerConfiguration
+import library.scheduler.test.jobsWithoutSuccessLogging
 import library.scheduler.test.registeredJobs
 import library.scheduler.test.runJob
 import library.signing.RotateSigningKeys
@@ -86,6 +87,18 @@ internal class BusinessJobsTest {
             ),
             fixture.scheduler.registeredJobs(),
         )
+    }
+
+    @Test
+    fun `should log successful runs of every job except reapplyErasures`() = routeTest {
+        given()
+        val fixture = SutFixture()
+
+        whenn()
+        fixture.registerJobs(this)
+
+        then()
+        assertEquals(setOf("business-reapplyErasures"), fixture.scheduler.jobsWithoutSuccessLogging())
     }
 
     @Test

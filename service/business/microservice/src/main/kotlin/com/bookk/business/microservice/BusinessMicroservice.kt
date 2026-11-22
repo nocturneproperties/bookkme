@@ -93,7 +93,7 @@ fun Application.registerBusinessJobs(scheduler: SchedulerConfiguration) {
     scheduler.job("$BUSINESS_SERVICE_NAME-deleteInactiveClients", interval = 1.days) {
         scope.get<DeleteInactiveClients>().invoke().getOrThrow()
     }
-    scheduler.job("$BUSINESS_SERVICE_NAME-reapplyErasures", interval = 1.minutes) {
+    scheduler.job("$BUSINESS_SERVICE_NAME-reapplyErasures", interval = 1.minutes, logSuccessfulRuns = false) {
         scope.get<ReapplyClientErasures>().invoke().getOrThrow()
     }
     scheduler.job("$BUSINESS_SERVICE_NAME-deleteExpiredErasureRecords", interval = 1.days) {

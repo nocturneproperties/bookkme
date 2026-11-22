@@ -16,6 +16,7 @@ import io.mockk.coVerify
 import io.mockk.mockk
 import library.email.DeleteExpiredSentEmails
 import library.scheduler.SchedulerConfiguration
+import library.scheduler.test.jobsWithoutSuccessLogging
 import library.scheduler.test.registeredJobs
 import library.scheduler.test.runJob
 import library.signing.RotateSigningKeys
@@ -69,6 +70,18 @@ internal class AuthJobsTest {
             ),
             fixture.scheduler.registeredJobs(),
         )
+    }
+
+    @Test
+    fun `should log successful runs of every job except reapplyErasures`() = routeTest {
+        given()
+        val fixture = SutFixture()
+
+        whenn()
+        fixture.registerJobs(this)
+
+        then()
+        assertEquals(setOf("auth-reapplyErasures"), fixture.scheduler.jobsWithoutSuccessLogging())
     }
 
     @Test
