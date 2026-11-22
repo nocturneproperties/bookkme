@@ -30,6 +30,7 @@ When a change affects the statements below, update both sets in all three langua
 | Requests deleted 60 days after their slot ends; erasure records and tombstones after 60 days | `docs/agents/personal-data.md` |
 | Client erasure clears contact details and note, while cancellation and price-adjustment reasons remain; only employees write those reasons, and the terms forbid personal details in them | `AppointmentDataSourceImpl.eraseClientDetails`, `CancelAppointmentImpl` |
 | Data export once a day, kept 72 hours | `library.export.DataExports` |
+| A business's booking link name is public; a replaced name keeps leading to the business for 90 days, at most 3 changes in 90 days, and all names go with the business | `BusinessLinkPolicy`, `business-deleteReleasedBusinessLinks`; only the BookkMe set describes it, since a self-hosted copy serves one business whose own name it is |
 | Logs 14 days, backups 30 days (BookkMe production) | `deployment/prod/monitoring/loki/loki.yml`, `deployment/prod/backup` |
 | Undelivered events kept 30 days | `ExhaustedEventReplayerImpl.DEFAULT_RETENTION` |
 | Profile changes propagate to client and employee records; duplicate client records merge by confirmed email | `SyncUserProfileImpl` |

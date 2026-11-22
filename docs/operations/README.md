@@ -82,6 +82,7 @@ Reactions to cross-service events:
 | `POST /api/business/{businessId}/export` | [Start business data export](business/start-business-data-export.md) |
 | `PUT /api/business/{id}` | [Update business](business/update-business.md) |
 | `PUT /api/business/{id}/dashboard` | [Set dashboard business](business/set-dashboard-business.md) |
+| `PUT /api/business/{id}/link` | [Set business link](business/set-business-link.md) |
 | `POST /api/business/{businessId}/clients` | [Create client](business/create-client.md) |
 | `POST /api/business/{businessId}/clients/import` | [Import clients](business/import-clients.md) |
 | `DELETE /api/business/{businessId}/clients/{id}` | [Delete client](business/delete-client.md) |

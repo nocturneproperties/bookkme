@@ -80,6 +80,7 @@ internal class SwaggerTest {
             setOf(
                 "post /api/business",
                 "put /api/business/{id}",
+                "put /api/business/{id}/link",
                 "post /api/business/{id}/export",
                 "post /api/business/{businessId}/clients/import",
                 "post /api/business/{businessId}/clients",

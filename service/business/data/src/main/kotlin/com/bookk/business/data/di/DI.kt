@@ -2,6 +2,7 @@ package com.bookk.business.data.di
 
 import com.bookk.business.data.datasource.BusinessDataExportDataSourceImpl
 import com.bookk.business.data.datasource.BusinessDataSourceImpl
+import com.bookk.business.data.datasource.BusinessLinkDataSourceImpl
 import com.bookk.business.data.datasource.BusinessPermissionDataSourceImpl
 import com.bookk.business.data.datasource.ClientDataSourceImpl
 import com.bookk.business.data.datasource.ContactCipher
@@ -15,6 +16,7 @@ import com.bookk.business.domain.api.BUSINESS_SCHEMA
 import com.bookk.business.domain.api.BUSINESS_SHORT_RETENTION_SCHEMA
 import com.bookk.business.domain.datasource.BusinessDataExportDataSource
 import com.bookk.business.domain.datasource.BusinessDataSource
+import com.bookk.business.domain.datasource.BusinessLinkDataSource
 import com.bookk.business.domain.datasource.BusinessPermissionDataSource
 import com.bookk.business.domain.datasource.ClientDataSource
 import com.bookk.business.domain.datasource.EmployeeDataSource
@@ -42,6 +44,7 @@ fun businessDataModule(environment: (String) -> String? = System::getenv) = modu
         exhaustedEventDataSource()
         scoped<BusinessDataSource> { BusinessDataSourceImpl() }
         scoped<BusinessPermissionDataSource> { BusinessPermissionDataSourceImpl() }
+        scoped<BusinessLinkDataSource> { BusinessLinkDataSourceImpl() }
         scopedOf(::ContactCipher)
         scoped<ClientDataSource> { ClientDataSourceImpl(get()) }
         scoped<ErasedClientDataSource> { ErasedClientDataSourceImpl() }

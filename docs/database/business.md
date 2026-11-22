@@ -7,6 +7,8 @@ Largest schema — a business, its staff, services and clients.
 ```mermaid
 erDiagram
     BUSINESS ||--o{ BUSINESS_DASHBOARD : "has"
+    BUSINESS ||--o{ BUSINESS_LINK : "is opened by (cascade delete)"
+    BUSINESS ||--o{ BUSINESS_LINK_CHANGE : "counts link changes (cascade delete)"
     BUSINESS ||--o{ BUSINESS_DAY_OFFS : "has"
     BUSINESS ||--o{ BUSINESS_PERMISSION_GRANTS : "grants"
     BUSINESS ||--o{ BUSINESS_WORKING_HOURS : "has"
@@ -54,6 +56,20 @@ erDiagram
         uuid business_id FK
         timestamp created_at
         timestamp updated_at
+    }
+
+    BUSINESS_LINK {
+        uuid id PK
+        uuid business_id FK "indexed with released_at"
+        string name UK "lowercase link name, bookkme.com/name"
+        timestamp released_at "null = the business's current link; set = replaced name held for 90 days; indexed"
+        timestamp created_at
+    }
+
+    BUSINESS_LINK_CHANGE {
+        uuid id PK
+        uuid business_id FK "indexed with changed_at"
+        timestamp changed_at "one row per replaced link, at most 3 within 90 days; deleted after 90 days; indexed"
     }
 
     USER_LIMITS {

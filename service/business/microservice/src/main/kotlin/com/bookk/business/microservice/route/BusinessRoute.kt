@@ -2,6 +2,7 @@ package com.bookk.business.microservice.route
 
 import com.bookk.business.microservice.route.api.businessCrud
 import com.bookk.business.microservice.route.api.businessDataExport
+import com.bookk.business.microservice.route.api.businessLink
 import com.bookk.business.microservice.route.api.clientCrud
 import com.bookk.business.microservice.route.api.employeeCrud
 import com.bookk.business.microservice.route.api.employeeInvitationCrud
@@ -22,6 +23,7 @@ import io.ktor.server.routing.Routing
 fun Routing.businessRoute() {
     healthCheck()
     businessCrud()
+    businessLink()
     businessDataExport()
     getBusinessDetails()
     getBusinessPermission()

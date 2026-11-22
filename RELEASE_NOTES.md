@@ -2,7 +2,7 @@
 
 ## 0.21.0
 
-Changes since `monolith/0.20.0`. Adds sign-in from a Telegram Mini App, which creates an account with a placeholder email on first use, sends notifications to those users through the Telegram bot, and gives clients their upcoming bookings across businesses and a list of saved businesses.
+Changes since `monolith/0.20.0`. Adds sign-in from a Telegram Mini App, which creates an account with a placeholder email on first use, sends notifications to those users through the Telegram bot, gives clients their upcoming bookings across businesses and a list of saved businesses, and lets owners pick a booking link name for their business.
 
 ### Clients
 
@@ -22,6 +22,9 @@ Changes since `monolith/0.20.0`. Adds sign-in from a Telegram Mini App, which cr
 - New `POST` and `DELETE /api/appointments/businesses/{businessId}` save and remove a business; saving answers 422 `APPOINTMENTS_NOT_ENABLED` (300030) for a business without appointments and `SAVED_BUSINESSES_LIMIT_REACHED` (300031) past 100 saved businesses.
 - `GET /api/appointments/enabled` is removed; use `GET /api/appointments/businesses`.
 - The personal data export lists saved businesses and, for the user's own appointments, the client note (`clientNote`); the business export includes each appointment's client note.
+- New `PUT /api/business/{id}/link` lets the owner set or change the business's link name (`bookkme.com/{name}`), answering 422 `BUSINESS_LINK_INVALID` (200049), `BUSINESS_LINK_RESERVED` (200050), `BUSINESS_LINK_TAKEN` (200051) or `BUSINESS_LINK_CHANGE_LIMIT_REACHED` (200052, after 3 changes within 90 days, switching back to an earlier name included).
+- New `GET /api/business/{id}/link` returns the current link to anyone who can view the business, 404 `BUSINESS_LINK_NOT_FOUND` (200053) when none is set.
+- New `GET /api/business/link/{name}` needs no sign-in and returns the business id and current name for a link name, including a name replaced within the last 90 days; open the booking page for that business, and expect 429 past 30 lookups a minute from one address.
 
 ### Services
 
@@ -35,10 +38,17 @@ Changes since `monolith/0.20.0`. Adds sign-in from a Telegram Mini App, which cr
 - No email is ever sent to `@telegramundeliverable.org`; these accounts get their notifications, dormancy warnings included, through Telegram.
 - Migration appointments `V15` adds `appointment.client_note_encrypted` and the table `saved_business`, which is erased with the account and with its business.
 - The business service's internal `GET /api/internal/client/{userId}/businesses` is removed; when running separate services, update business and appointments together.
+- Migration business `V22` adds the tables `business_link` and `business_link_change`, deleted with their business; the daily job `business-deleteReleasedBusinessLinks` frees replaced names after 90 days, and deleting a business frees its names at once.
+- The website's domain (`SITE_DOMAIN_NAME` and its `www.`) can now create and use passkeys for the API domain: nginx serves `/.well-known/webauthn` listing those origins, and the server accepts them from the new optional `APPLICATION_SITE_DOMAIN_NAME` (prod sets it from the vault's `EMAIL_DOMAIN_NAME`). The API's own origin now comes from `APPLICATION_DOMAIN_NAME` instead of a fixed `https://bookkme.app`, so a self-hosted server accepts passkeys on its own domain.
+- nginx gets a new `limit_req` zone `business_link_resolve` (30/min per address, burst 30) on `/api/business/link/`.
+- nginx now allows browser calls to every `/api/` route from the website's domain (`SITE_DOMAIN_NAME` and its `www.`) through CORS, answering preflight requests itself; other origins get no CORS headers.
 
 ### Upgrade
 
 - The VPN-only `local.` host now sends `/api/` to port 80 of the VPN client's own machine and everything else to its port 8080; run `make infra tags=nginx` (nginx reloads without a restart).
+- Run `make infra tags=nginx` for the new rate limit, CORS and `/.well-known/webauthn` (nginx reloads without a restart), in the same deploy as this version, so the website's passkey origins are accepted by both.
+- The BookkMe privacy policy, DPA Annex 1 and record of processing now describe booking link names and their 90-day hold; publish them with the next BookkMe document version.
+- The renamed secret `monolith-mariadb-users-init-v5` restarts the database once on deploy, before the app creates `business_link` and `business_link_change`; after the deploy, run `docker --context swarm-manager service update --force monolith_database` once (a few seconds without database) so NocoDB can read them.
 
 ## 0.20.0
 

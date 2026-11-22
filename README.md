@@ -37,6 +37,7 @@ This repository holds the BookkMe backend. You can run it yourself to take booki
 - Working hours, days off and schedules for every employee: a booking must fit both the business's hours and the employee's, a range ending before its start (such as 20:00 to 00:00) runs past midnight, a range can't start and end at the same time, and new employees (the owner included) start on the business's working days and hours
 - A client list with import, notes and automatic matching to client accounts
 - Booking requests you approve or decline, or instant booking when you prefer; clients can withdraw a request you haven't answered
+- A booking link with a name the owner picks, such as `bookkme.com/my-salon`; a replaced name keeps leading to the business for 90 days and no other business can take it meanwhile
 - Appointment history, completion and no-show tracking
 
 **For clients**
@@ -119,6 +120,7 @@ The server is configured through environment variables. `deployment/dev/service/
 | Variable | Purpose |
 |---|---|
 | `APPLICATION_DOMAIN_NAME` | Your public domain, used for passkeys and links |
+| `APPLICATION_SITE_DOMAIN_NAME` | Optional. A website on another domain whose pages may use the same passkeys (it and its `www.`); the domain in `APPLICATION_DOMAIN_NAME` must then serve `/.well-known/webauthn` listing those origins. Leave it unset if passkeys are used only in the apps and on your public domain |
 | `APPLICATION_SERVICE_NAME` | `monolith` |
 | `APPLICATION_SERVICE_HOSTNAME`, `APPLICATION_SERVICE_PORT` | Address the server binds to |
 | `APPLICATION_SERVICE_VERSION` | Version shown in the API description |
