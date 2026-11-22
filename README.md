@@ -120,7 +120,8 @@ The server is configured through environment variables. `deployment/dev/service/
 | Variable | Purpose |
 |---|---|
 | `APPLICATION_DOMAIN_NAME` | Your public domain, used for passkeys and links |
-| `APPLICATION_SITE_DOMAIN_NAME` | Optional. A website on another domain whose pages may use the same passkeys (it and its `www.`); the domain in `APPLICATION_DOMAIN_NAME` must then serve `/.well-known/webauthn` listing those origins. Leave it unset if passkeys are used only in the apps and on your public domain |
+| `APPLICATION_SITE_DOMAIN_NAME` | Optional. A website on another domain whose pages may use the same passkeys (it, its `www.` and the web app on its `app.`); the domain in `APPLICATION_DOMAIN_NAME` must then serve `/.well-known/webauthn` listing those origins. Leave it unset if passkeys are used only in the apps and on your public domain |
+| `APPLICATION_PASSKEY_EXTRA_ORIGINS` | Optional. More `https://` origins, separated by commas, whose pages may use the passkeys, such as a development host under your domain. Leave it unset in production |
 | `APPLICATION_SERVICE_NAME` | `monolith` |
 | `APPLICATION_SERVICE_HOSTNAME`, `APPLICATION_SERVICE_PORT` | Address the server binds to |
 | `APPLICATION_SERVICE_VERSION` | Version shown in the API description |

@@ -90,6 +90,13 @@ site:
   image: ghcr.io/nocturneproperties/bookkme-site
   domain_name: "{{ vault_stack_env.EMAIL_DOMAIN_NAME | default('', true) }}"
 
+webapp:
+  stack:
+    name: webapp
+    source: prod/webapp
+    compose: [webapp-compose.yml]
+  image: ghcr.io/nocturneproperties/bookkme-webapp
+
 nginx_stack_env:
   SITE_DOMAIN_NAME: "{{ site.domain_name }}"
 

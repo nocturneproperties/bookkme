@@ -20,7 +20,7 @@ configs:
     name: nginx-cert-wait-v3
     file: certificates/wait_for_cert.sh
   acme_certificates_script:
-    name: acme-certificates-v1
+    name: acme-certificates-v2
     file: certificates/acme_certificates.sh
 
 services:

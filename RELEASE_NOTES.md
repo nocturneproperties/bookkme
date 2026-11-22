@@ -42,11 +42,17 @@ Changes since `monolith/0.20.0`. Adds sign-in from a Telegram Mini App, which cr
 - The website's domain (`SITE_DOMAIN_NAME` and its `www.`) can now create and use passkeys for the API domain: nginx serves `/.well-known/webauthn` listing those origins, and the server accepts them from the new optional `APPLICATION_SITE_DOMAIN_NAME` (prod sets it from the vault's `EMAIL_DOMAIN_NAME`). The API's own origin now comes from `APPLICATION_DOMAIN_NAME` instead of a fixed `https://bookkme.app`, so a self-hosted server accepts passkeys on its own domain.
 - nginx gets a new `limit_req` zone `business_link_resolve` (30/min per address, burst 30) on `/api/business/link/`.
 - nginx now allows browser calls to every `/api/` route from the website's domain (`SITE_DOMAIN_NAME` and its `www.`) through CORS, answering preflight requests itself; other origins get no CORS headers.
+- The client web app gets its own `webapp` stack (`bookkme-webapp` image, deployed with `make deploy-webapp v=<version>`), served by nginx on `app.` of the website's domain (`app.bookkme.com`), which may call the API through CORS and use passkeys like the website.
+- The website's certificate now covers `*.` of its domain instead of only `www.` (acme-sh config `acme-certificates-v2`, which reissues it once).
+- New alert `WebAppDown` fires when no web app container has run for 5 minutes.
 
 ### Upgrade
 
 - The VPN-only `local.` host now sends `/api/` to port 80 of the VPN client's own machine and everything else to its port 8080; run `make infra tags=nginx` (nginx reloads without a restart).
+- The new VPN-only `local-app.` host does the same for a web app running on the VPN client's port 8081, in the same `make infra tags=nginx` run; the VPN's DNS resolves it after `make infra tags=vpn` (config `dns-config-v9`, a short DNS restart for VPN clients).
+- New optional `APPLICATION_PASSKEY_EXTRA_ORIGINS` lists more origins that may use passkeys; the dev environment sets `https://local-app.bookkme.app`, and prod leaves it unset.
 - Run `make infra tags=nginx` for the new rate limit, CORS and `/.well-known/webauthn` (nginx reloads without a restart), in the same deploy as this version, so the website's passkey origins are accepted by both.
+- For the web app, add a proxied (orange-cloud) Cloudflare `A` record for `app.bookkme.com` pointing at the manager, run `make infra tags=nginx,monitoring`, then `make deploy-webapp v=<version> first=1` once `bookkme-webapp:<version>` is published; the registry token needs read access to that package.
 - The BookkMe privacy policy, DPA Annex 1 and record of processing now describe booking link names and their 90-day hold; publish them with the next BookkMe document version.
 - The renamed secret `monolith-mariadb-users-init-v5` restarts the database once on deploy, before the app creates `business_link` and `business_link_change`; after the deploy, run `docker --context swarm-manager service update --force monolith_database` once (a few seconds without database) so NocoDB can read them.
 

@@ -11,7 +11,7 @@ configs:
     name: dns-entrypoint-v5
     file: dns/entrypoint.sh
   dns-config:
-    name: dns-config-v7
+    name: dns-config-v9
     file: dns/dnsmasq.conf.template
 
 services:

@@ -10,6 +10,15 @@ groups:
           summary: "The website has no running container"
           description: "No container of site_site has been seen for 5 minutes, so every page of the website answers 502. See 'docker service ps --no-trunc site_site', and redeploy with 'make deploy-site v=<version>'."
 
+      - alert: WebAppDown
+        expr: absent(container_last_seen{container_label_com_docker_swarm_service_name="webapp_webapp"} > time() - 30)
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "The web app has no running container"
+          description: "No container of webapp_webapp has been seen for 5 minutes, so every page of the web app answers 502. See 'docker service ps --no-trunc webapp_webapp', and redeploy with 'make deploy-webapp v=<version>'."
+
       - alert: SiteErrors
         expr: sum(increase(site_requests_total{status_class="5xx"}[10m])) > 5 and sum(increase(site_requests_total{status_class="5xx"}[10m])) / sum(increase(site_requests_total[10m])) > 0.1
         labels:
