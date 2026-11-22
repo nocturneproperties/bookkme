@@ -31,12 +31,6 @@ object BusinessRouting {
                 }
             }
 
-            @Resource("/client")
-            class Client(val parent: Internal = Internal()) {
-                @Resource("/{userId}/businesses")
-                class Businesses(val parent: Client = Client(), val userId: Uuid)
-            }
-
             @Resource("/export")
             class Export(val parent: Internal = Internal()) {
                 @Resource("/business/{userId}")
@@ -59,10 +53,16 @@ object BusinessRouting {
             @Resource("/mine")
             class Mine(val parent: Business = Business())
 
+            @Resource("/link/{name}")
+            class LinkName(val parent: Business = Business(), val name: String)
+
             @Resource("/{id}")
             class Id(val parent: Business = Business(), val id: Uuid) {
                 @Resource("/dashboard")
                 class Dashboard(val parent: Id)
+
+                @Resource("/link")
+                class Link(val parent: Id)
 
                 @Resource("/export")
                 class Export(val parent: Id) {

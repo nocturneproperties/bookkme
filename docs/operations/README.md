@@ -43,6 +43,8 @@ flow covers end-of-day completion and unresolved outcomes after the edit window.
 | `POST /api/appointments/{id}/no-show` | [Mark appointment as no-show](appointments/mark-appointment-no-show.md) |
 | `POST /api/appointments/{id}/complete` | [Complete appointment](appointments/complete-appointment.md) |
 | `PUT /api/appointments/settings/{businessId}` | [Edit appointment settings](appointments/edit-appointment-settings.md) |
+| `POST /api/appointments/businesses/{businessId}` | [Save business](appointments/save-business.md) |
+| `DELETE /api/appointments/businesses/{businessId}` | [Remove saved business](appointments/remove-saved-business.md) |
 
 Reactions to cross-service events:
 
@@ -80,6 +82,7 @@ Reactions to cross-service events:
 | `POST /api/business/{businessId}/export` | [Start business data export](business/start-business-data-export.md) |
 | `PUT /api/business/{id}` | [Update business](business/update-business.md) |
 | `PUT /api/business/{id}/dashboard` | [Set dashboard business](business/set-dashboard-business.md) |
+| `PUT /api/business/{id}/link` | [Set business link](business/set-business-link.md) |
 | `POST /api/business/{businessId}/clients` | [Create client](business/create-client.md) |
 | `POST /api/business/{businessId}/clients/import` | [Import clients](business/import-clients.md) |
 | `DELETE /api/business/{businessId}/clients/{id}` | [Delete client](business/delete-client.md) |

@@ -1,6 +1,7 @@
 package com.bookk.business.microservice
 
 import com.bookk.business.domain.api.business.operation.DeleteDayOffsInThePast
+import com.bookk.business.domain.api.business.operation.DeleteReleasedBusinessLinks
 import com.bookk.business.domain.api.client.operation.DeleteInactiveClients
 import com.bookk.business.domain.api.employee.operation.DeleteProcessedEmployeeInvitations
 import com.bookk.business.domain.api.employee.operation.ExpireEmployeeInvitations
@@ -41,6 +42,7 @@ internal class BusinessJobsTest {
         val deleteExpiredErasureRecords = mockk<DeleteExpiredErasureRecords>()
         val buildDataExports = mockk<BuildDataExports>()
         val deleteExpiredDataExports = mockk<DeleteExpiredDataExports>()
+        val deleteReleasedBusinessLinks = mockk<DeleteReleasedBusinessLinks>()
         val scheduler = SchedulerConfiguration()
 
         suspend fun registerJobs(builder: ApplicationTestBuilder) {
@@ -54,6 +56,7 @@ internal class BusinessJobsTest {
                 scoped { deleteExpiredErasureRecords }
                 scoped { buildDataExports }
                 scoped { deleteExpiredDataExports }
+                scoped { deleteReleasedBusinessLinks }
             }
             application.registerBusinessJobs(scheduler)
         }
@@ -79,6 +82,7 @@ internal class BusinessJobsTest {
                 "business-deleteExpiredErasureRecords" to 1.days,
                 "business-buildDataExports" to 1.minutes,
                 "business-deleteExpiredDataExports" to 1.hours,
+                "business-deleteReleasedBusinessLinks" to 1.days,
             ),
             fixture.scheduler.registeredJobs(),
         )
@@ -340,6 +344,35 @@ internal class BusinessJobsTest {
 
         whenn()
         val result = runCatching { fixture.scheduler.runJob("business-deleteExpiredDataExports") }
+
+        then()
+        assertSame(error, result.exceptionOrNull())
+    }
+
+    @Test
+    fun `should delete released business links`() = routeTest {
+        given()
+        val fixture = SutFixture()
+        coEvery { fixture.deleteReleasedBusinessLinks.invoke() } returns Result.success(Unit)
+        fixture.registerJobs(this)
+
+        whenn()
+        fixture.scheduler.runJob("business-deleteReleasedBusinessLinks")
+
+        then()
+        coVerify(exactly = 1) { fixture.deleteReleasedBusinessLinks.invoke() }
+    }
+
+    @Test
+    fun `should surface a failed released business link cleanup`() = routeTest {
+        given()
+        val fixture = SutFixture()
+        val error = RuntimeException("cleanup failed")
+        coEvery { fixture.deleteReleasedBusinessLinks.invoke() } returns Result.failure(error)
+        fixture.registerJobs(this)
+
+        whenn()
+        val result = runCatching { fixture.scheduler.runJob("business-deleteReleasedBusinessLinks") }
 
         then()
         assertSame(error, result.exceptionOrNull())

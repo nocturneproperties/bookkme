@@ -8,17 +8,20 @@ import com.bookk.business.domain.api.appointment.operation.GetStaffBookingContex
 import com.bookk.business.domain.api.business.operation.CreateBusiness
 import com.bookk.business.domain.api.business.operation.DeleteBusiness
 import com.bookk.business.domain.api.business.operation.DeleteDayOffsInThePast
+import com.bookk.business.domain.api.business.operation.DeleteReleasedBusinessLinks
 import com.bookk.business.domain.api.business.operation.GetBusinessById
 import com.bookk.business.domain.api.business.operation.GetBusinessDetails
+import com.bookk.business.domain.api.business.operation.GetBusinessLink
 import com.bookk.business.domain.api.business.operation.GetBusinessPermission
 import com.bookk.business.domain.api.business.operation.GetDashboardBusiness
 import com.bookk.business.domain.api.business.operation.GetUserBusinesses
+import com.bookk.business.domain.api.business.operation.ResolveBusinessLink
+import com.bookk.business.domain.api.business.operation.SetBusinessLink
 import com.bookk.business.domain.api.business.operation.SetDashboardBusiness
 import com.bookk.business.domain.api.business.operation.UpdateBusiness
 import com.bookk.business.domain.api.client.operation.CreateClient
 import com.bookk.business.domain.api.client.operation.DeleteClient
 import com.bookk.business.domain.api.client.operation.DeleteInactiveClients
-import com.bookk.business.domain.api.client.operation.GetClientBusinessIds
 import com.bookk.business.domain.api.client.operation.GetClients
 import com.bookk.business.domain.api.client.operation.ImportClients
 import com.bookk.business.domain.api.client.operation.RecordClientVisit
@@ -59,17 +62,20 @@ import com.bookk.business.domain.impl.operation.appointment.GetStaffBookingConte
 import com.bookk.business.domain.impl.operation.business.CreateBusinessImpl
 import com.bookk.business.domain.impl.operation.business.DeleteBusinessImpl
 import com.bookk.business.domain.impl.operation.business.DeleteDayOffsInThePastImpl
+import com.bookk.business.domain.impl.operation.business.DeleteReleasedBusinessLinksImpl
 import com.bookk.business.domain.impl.operation.business.GetBusinessByIdImpl
 import com.bookk.business.domain.impl.operation.business.GetBusinessDetailsImpl
+import com.bookk.business.domain.impl.operation.business.GetBusinessLinkImpl
 import com.bookk.business.domain.impl.operation.business.GetBusinessPermissionImpl
 import com.bookk.business.domain.impl.operation.business.GetDashboardBusinessImpl
 import com.bookk.business.domain.impl.operation.business.GetUserBusinessesImpl
+import com.bookk.business.domain.impl.operation.business.ResolveBusinessLinkImpl
+import com.bookk.business.domain.impl.operation.business.SetBusinessLinkImpl
 import com.bookk.business.domain.impl.operation.business.SetDashboardBusinessImpl
 import com.bookk.business.domain.impl.operation.business.UpdateBusinessImpl
 import com.bookk.business.domain.impl.operation.client.CreateClientImpl
 import com.bookk.business.domain.impl.operation.client.DeleteClientImpl
 import com.bookk.business.domain.impl.operation.client.DeleteInactiveClientsImpl
-import com.bookk.business.domain.impl.operation.client.GetClientBusinessIdsImpl
 import com.bookk.business.domain.impl.operation.client.GetClientsImpl
 import com.bookk.business.domain.impl.operation.client.ImportClientsImpl
 import com.bookk.business.domain.impl.operation.client.RecordClientVisitImpl
@@ -131,11 +137,14 @@ fun businessDomainModule() = module {
         scopedOf(::UpdateBusinessImpl) bind UpdateBusiness::class
         scopedOf(::GetUserBusinessesImpl) bind GetUserBusinesses::class
         scopedOf(::DeleteDayOffsInThePastImpl) bind DeleteDayOffsInThePast::class
+        scoped<SetBusinessLink> { SetBusinessLinkImpl(get(), get(), get(), Clock.System) }
+        scopedOf(::GetBusinessLinkImpl) bind GetBusinessLink::class
+        scoped<ResolveBusinessLink> { ResolveBusinessLinkImpl(get(), get(), Clock.System) }
+        scoped<DeleteReleasedBusinessLinks> { DeleteReleasedBusinessLinksImpl(get(), get(), Clock.System) }
         scopedOf(::BusinessEventHandlerImpl) bind EventHandler::class
         scopedOf(::CreateClientImpl) bind CreateClient::class
         scopedOf(::ImportClientsImpl) bind ImportClients::class
         scopedOf(::GetClientsImpl) bind GetClients::class
-        scopedOf(::GetClientBusinessIdsImpl) bind GetClientBusinessIds::class
         scopedOf(::GetOwnedBusinessMemberIdsImpl) bind GetOwnedBusinessMemberIds::class
         scopedOf(::DeleteClientImpl) bind DeleteClient::class
         scopedOf(::ExportUserBusinessDataImpl) bind ExportUserBusinessData::class

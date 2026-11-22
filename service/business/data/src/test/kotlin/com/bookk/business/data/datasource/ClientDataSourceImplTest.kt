@@ -756,56 +756,6 @@ internal class ClientDataSourceImplTest {
     }
 
     @Test
-    fun `should return business ids for a client user id across multiple businesses`() = runUnitTest {
-        given()
-        val fixture = SutFixture()
-        fixture.setup()
-        val otherBusinessId = suspendTransaction {
-            fixture.businessSut.createBusiness(Uuid.random(), "Other Business", "USD", TimeZone.UTC)
-        }.id
-        val userId = Uuid.random()
-        suspendTransaction {
-            fixture.sut.getOrCreateIntegratedClient(fixture.businessId, Client.Integrated.stub(userId = userId))
-        }
-        suspendTransaction {
-            fixture.sut.getOrCreateIntegratedClient(otherBusinessId, Client.Integrated.stub(userId = userId))
-        }
-
-        whenn()
-        val businessIds = suspendTransaction { fixture.sut.getBusinessIdsByUserId(userId) }
-
-        then()
-        assertEquals(setOf(fixture.businessId, otherBusinessId), businessIds.toSet())
-    }
-
-    @Test
-    fun `should return empty list of business ids for a user with no client relations`() = runUnitTest {
-        given()
-        val fixture = SutFixture()
-        fixture.setup()
-
-        whenn()
-        val businessIds = suspendTransaction { fixture.sut.getBusinessIdsByUserId(Uuid.random()) }
-
-        then()
-        assertTrue(businessIds.isEmpty())
-    }
-
-    @Test
-    fun `should not return business ids for detached clients`() = runUnitTest {
-        given()
-        val fixture = SutFixture()
-        fixture.setup()
-        suspendTransaction { fixture.sut.createDetachedClient(fixture.businessId, Client.Detached.stub()) }
-
-        whenn()
-        val businessIds = suspendTransaction { fixture.sut.getBusinessIdsByUserId(Uuid.random()) }
-
-        then()
-        assertTrue(businessIds.isEmpty())
-    }
-
-    @Test
     fun `should return the existing integrated client when one already exists for user id`() = runUnitTest {
         given()
         val fixture = SutFixture()

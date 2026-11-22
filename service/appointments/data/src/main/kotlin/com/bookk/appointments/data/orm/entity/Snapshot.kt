@@ -8,10 +8,11 @@ internal data class ClientDetails(
     val phone: String?,
     val email: String?,
     val note: String,
+    val clientNote: String,
 ) {
     companion object {
-        val ERASED = ClientDetails(fullName = "Deleted Client", phone = null, email = null, note = "")
-        val UNREADABLE = ClientDetails(fullName = "", phone = null, email = null, note = "")
+        val ERASED = ClientDetails(fullName = "Deleted Client", phone = null, email = null, note = "", clientNote = "")
+        val UNREADABLE = ClientDetails(fullName = "", phone = null, email = null, note = "", clientNote = "")
     }
 }
 
@@ -22,6 +23,7 @@ internal class EncryptedClientDetails(
     val phone: ByteArray?,
     val email: ByteArray?,
     val note: ByteArray,
+    val clientNote: ByteArray?,
     val nameIndex: String?,
 )
 

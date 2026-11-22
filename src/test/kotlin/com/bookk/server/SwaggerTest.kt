@@ -80,6 +80,7 @@ internal class SwaggerTest {
             setOf(
                 "post /api/business",
                 "put /api/business/{id}",
+                "put /api/business/{id}/link",
                 "post /api/business/{id}/export",
                 "post /api/business/{businessId}/clients/import",
                 "post /api/business/{businessId}/clients",
@@ -146,7 +147,7 @@ internal class SwaggerTest {
     private val listResponses = mapOf(
         Service.APPOINTMENTS to mapOf(
             "get /api/appointments/list/{businessId}" to "Appointment",
-            "get /api/appointments/enabled" to "BusinessAppointmentsEnabled",
+            "get /api/appointments/businesses" to "SavedBusiness",
             "get /api/appointments/request/{businessId}" to "AppointmentRequest",
             "get /api/appointments/request/{businessId}/mine" to "AppointmentRequest",
         ),
@@ -157,7 +158,6 @@ internal class SwaggerTest {
             "get /api/business/{businessId}/service_group" to "ServiceGroup",
             "get /api/business/{businessId}/clients" to "ClientRemote",
             "post /api/internal/business/{id}/services" to "Service",
-            "get /api/internal/client/{userId}/businesses" to "Uuid",
             "get /api/internal/owner/{userId}/members" to "Uuid",
         ),
         Service.USER to mapOf(

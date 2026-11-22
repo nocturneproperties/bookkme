@@ -32,7 +32,6 @@ interface ClientDataSource {
     suspend fun getClientsOfUserForUpdate(userId: Uuid): List<ErasedClient>
     suspend fun getClientIdsOfBusinessesForUpdate(businessIds: Collection<Uuid>): Set<Uuid>
     suspend fun deleteClients(ids: Collection<Uuid>)
-    suspend fun getBusinessIdsByUserId(userId: Uuid): List<Uuid>
     suspend fun recordVisit(businessId: Uuid, clientId: Uuid, visitEnd: Instant)
     suspend fun getInactiveClientIdsForUpdate(businessId: Uuid, inactiveSince: Instant): List<Uuid>
 }

@@ -65,6 +65,7 @@ internal class ExportBusinessAppointmentsImpl(
             )
         },
         completedBy = completedBy?.name,
+        clientNote = clientNote.ifBlank { null },
     )
 
     private fun AppointmentRequest.toExport() = RequestExport(

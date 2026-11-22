@@ -152,6 +152,22 @@ internal class UpdateAppointmentImplTest {
     }
 
     @Test
+    fun `should keep the client's note when staff edit the appointment's note`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val stored = Appointment.stub(date = futureDate, clientNote = "Please call on arrival")
+        fixture.givenValidUpdate(userId, stored)
+
+        whenn()
+        val result = fixture.sut(userId, keepingEverything(stored))
+
+        then()
+        assertEquals("Updated note", result.getOrThrow().note)
+        assertEquals("Please call on arrival", result.getOrThrow().clientNote)
+    }
+
+    @Test
     fun `should return the stored appointment rather than the request`() = runUnitTest {
         given()
         val fixture = SutFixture()

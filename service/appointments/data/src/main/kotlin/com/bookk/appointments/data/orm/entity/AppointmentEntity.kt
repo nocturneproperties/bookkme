@@ -42,6 +42,7 @@ internal class AppointmentEntity(id: EntityID<Uuid>) : UuidEntity(id) {
     var dateStart by AppointmentTable.dateStart
     var dateEnd by AppointmentTable.dateEnd
     var noteEncrypted by AppointmentTable.noteEncrypted
+    var clientNoteEncrypted by AppointmentTable.clientNoteEncrypted
     var clientNameIndex by AppointmentTable.clientNameIndex
     var status by AppointmentTable.status
     var cancellationReason by AppointmentTable.cancellationReason
@@ -84,6 +85,7 @@ internal class AppointmentEntity(id: EntityID<Uuid>) : UuidEntity(id) {
             cancellationReason = cancellationReason,
             completedBy = completedBy,
             priceAdjustment = priceAdjustments.singleOrNull()?.domain(),
+            clientNote = client.clientNote,
         )
     }
 
@@ -107,6 +109,7 @@ internal class AppointmentEntity(id: EntityID<Uuid>) : UuidEntity(id) {
                     phone = clientPhoneEncrypted,
                     email = clientEmailEncrypted,
                     note = checkNotNull(noteEncrypted) { "Snapshot of client $clientId has no encrypted note" },
+                    clientNote = clientNoteEncrypted,
                     nameIndex = clientNameIndex,
                 )
             },
@@ -179,6 +182,7 @@ internal class AppointmentEntity(id: EntityID<Uuid>) : UuidEntity(id) {
             clientPhoneEncrypted = encrypted?.phone
             clientEmailEncrypted = encrypted?.email
             noteEncrypted = encrypted?.note
+            clientNoteEncrypted = encrypted?.clientNote
             clientNameIndex = encrypted?.nameIndex
         }
     }

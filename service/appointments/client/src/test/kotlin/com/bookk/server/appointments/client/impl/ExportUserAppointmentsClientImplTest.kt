@@ -32,6 +32,7 @@ internal class ExportUserAppointmentsClientImplTest {
                         phone = null,
                         email = "olena@example.com",
                         note = "first visit",
+                        clientNote = "please call on arrival",
                     ),
                 ),
             ),

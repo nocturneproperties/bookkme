@@ -35,6 +35,11 @@ internal class SnapshotCipher(
         return encrypt(request.client.id, request.clientDetails(), request.employee)
     }
 
+    suspend fun encryptAppointmentOf(request: AppointmentRequest): EncryptedSnapshot {
+        val client = request.clientDetails().copy(clientNote = request.note)
+        return encrypt(request.client.id, client, request.employee)
+    }
+
     suspend fun encryptChanges(appointment: Appointment, read: ReadSnapshot): EncryptedSnapshot {
         return encryptChanges(appointment.client.id, appointment.clientDetails(), appointment.employee, read)
     }
@@ -113,6 +118,11 @@ internal class SnapshotCipher(
             phone = encryptor.changed(stored.phone, current.phone, edited.phone),
             email = encryptor.changed(stored.email, current.email, edited.email),
             note = if (edited.note == current.note) stored.note else encryptor.encryptText(edited.note),
+            clientNote = if (edited.clientNote == current.clientNote) {
+                stored.clientNote
+            } else {
+                encryptor.encryptClientNote(edited.clientNote)
+            },
             nameIndex = if (nameKept) stored.nameIndex else clientNameIndex(edited.fullName),
         )
     }
@@ -136,8 +146,13 @@ internal class SnapshotCipher(
             phone = client.phone?.let(::encryptText),
             email = client.email?.let(::encryptText),
             note = encryptText(client.note),
+            clientNote = encryptClientNote(client.clientNote),
             nameIndex = clientNameIndex(client.fullName),
         )
+    }
+
+    private fun Encryptor.encryptClientNote(clientNote: String): ByteArray? {
+        return clientNote.takeIf { it.isNotEmpty() }?.let(::encryptText)
     }
 
     private fun Encryptor.changed(stored: ByteArray?, current: String?, edited: String?): ByteArray? {
@@ -152,17 +167,19 @@ internal class SnapshotCipher(
         val phone = encrypted.phone?.let { decryptText(clientId, it) }
         val email = encrypted.email?.let { decryptText(clientId, it) }
         val note = decryptText(clientId, encrypted.note)
+        val clientNote = encrypted.clientNote?.let { decryptText(clientId, it) }
         val details = ClientDetails(
             fullName = fullName.valueOrNull().orEmpty(),
             phone = phone?.valueOrNull(),
             email = email?.valueOrNull(),
             note = note.valueOrNull().orEmpty(),
+            clientNote = clientNote?.valueOrNull().orEmpty(),
         )
         return DecryptedClient(
             details = details,
             isNameReadable = fullName is Decrypted.Plain,
             isErased = false,
-            hasMissingKey = listOfNotNull(fullName, phone, email, note).any { it is Decrypted.Missing },
+            hasMissingKey = listOfNotNull(fullName, phone, email, note, clientNote).any { it is Decrypted.Missing },
         )
     }
 
@@ -172,11 +189,11 @@ internal class SnapshotCipher(
     }
 
     private fun Appointment.clientDetails(): ClientDetails {
-        return ClientDetails(client.fullName, client.phone, client.email, note = note)
+        return ClientDetails(client.fullName, client.phone, client.email, note = note, clientNote = clientNote)
     }
 
     private fun AppointmentRequest.clientDetails(): ClientDetails {
-        return ClientDetails(client.fullName, client.phone, client.email, note = note)
+        return ClientDetails(client.fullName, client.phone, client.email, note = note, clientNote = "")
     }
 }
 

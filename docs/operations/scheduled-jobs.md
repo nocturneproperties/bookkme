@@ -119,6 +119,7 @@ Registered in `registerBusinessJobs` (`BusinessMicroservice.kt`).
 | `business-deleteExpiredErasureRecords` | 1 day | `DeleteExpiredErasureRecords` | Deletes `business.erased_client` rows older than 60 days. |
 | `business-buildDataExports` | 1 minute | `BuildDataExports` (`library/export`, with `BusinessDataExportAssembler`) | Builds the queued business data exports the same way as `user-buildDataExports`, from the business's own data and appointments' part, and sends `BusinessEvent.ExportReady` in the transaction that stores the document. See [Start business data export](business/start-business-data-export.md). |
 | `business-deleteExpiredDataExports` | 1 hour | `DeleteExpiredDataExports` (`library/export`) | Deletes `business.data_export` rows whose `expires_at` passed and shreds their documents' keys in the same transaction. |
+| `business-deleteReleasedBusinessLinks` | 1 day | `DeleteReleasedBusinessLinks` | `BusinessLinkDataSource.deleteLinksReleasedBefore(now - 90.days)` and `deleteLinkChangesBefore(now - 90.days)` — deletes the `business.business_link` names a business replaced more than 90 days ago and the `business_link_change` records older than that. Until then a name resolves to its old business and nobody else can claim it, though setting a link and the lookup already treat an older release as free, so a late or failed run only leaves rows behind ([Set business link](business/set-business-link.md)). |
 
 ## User service
 

@@ -95,6 +95,7 @@ nginx_stack_env:
 
 monolith_env:
   APPLICATION_DOMAIN_NAME: "{{ vault_stack_env.DOMAIN_NAME }}"
+  APPLICATION_SITE_DOMAIN_NAME: "{{ site.domain_name }}"
   APPLICATION_SERVICE_NAME: monolith
   APPLICATION_SERVICE_HOSTNAME: monolith.service
   APPLICATION_SERVICE_PORT: "80"

@@ -70,7 +70,7 @@ flowchart TD
     EmpTime -- No --> R422et([422 EMPLOYEE_TIME_NOT_ALLOWED 300028])
     EmpTime -- Yes --> Overlap{overlaps another appointment?}
     Overlap -- Yes --> R422d([422 APPOINTMENT_EXISTS 300004])
-    Overlap -- No --> Create[AppointmentDataSource.create from request]
+    Overlap -- No --> Create["AppointmentDataSource.create from request - the request's note becomes both note and clientNote, each encrypted under the client's key"]
     Create --> Approve[AppointmentRequestDataSource.approve request]
     Approve --> Snapshot[AppointmentSubscriptionDataSource.getBusinessSnapshot businessId]
     Snapshot -- missing --> R404d([404 Error.NotFound - logged as data inconsistency])

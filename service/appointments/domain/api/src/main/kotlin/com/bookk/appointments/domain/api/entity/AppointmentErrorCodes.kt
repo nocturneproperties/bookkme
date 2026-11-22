@@ -25,4 +25,6 @@ object AppointmentErrorCodes {
     const val EMPLOYEE_DATE_NOT_ALLOWED = BASE + 27
     const val EMPLOYEE_TIME_NOT_ALLOWED = BASE + 28
     const val PENDING_REQUESTS_LIMIT_REACHED = BASE + 29
+    const val APPOINTMENTS_NOT_ENABLED = BASE + 30
+    const val SAVED_BUSINESSES_LIMIT_REACHED = BASE + 31
 }

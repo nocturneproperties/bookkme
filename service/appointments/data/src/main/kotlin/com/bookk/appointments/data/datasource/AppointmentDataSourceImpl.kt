@@ -29,8 +29,6 @@ import org.jetbrains.exposed.v1.core.greater
 import org.jetbrains.exposed.v1.core.greaterEq
 import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.core.inSubQuery
-import org.jetbrains.exposed.v1.core.isNotNull
-import org.jetbrains.exposed.v1.core.isNull
 import org.jetbrains.exposed.v1.core.less
 import org.jetbrains.exposed.v1.core.lessEq
 import org.jetbrains.exposed.v1.core.like
@@ -77,6 +75,24 @@ internal class AppointmentDataSourceImpl(
                 .withDetails()
                 .decrypted()
         }
+    }
+
+    override suspend fun getUpcomingOfClientUser(
+        clientUserId: Uuid,
+        endingAfter: Instant,
+        limit: Int,
+    ): List<Appointment> = dbQuery {
+        AppointmentEntity
+            .find {
+                (AppointmentTable.clientUserId eq clientUserId)
+                    .and(AppointmentTable.status eq AppointmentStatus.SCHEDULED)
+                    .and(AppointmentTable.dateEnd greater endingAfter)
+            }
+            .orderBy(AppointmentTable.dateStart to SortOrder.ASC)
+            .limit(limit)
+            .toList()
+            .withDetails()
+            .decrypted()
     }
 
     override suspend fun getAllForDate(
@@ -168,7 +184,7 @@ internal class AppointmentDataSourceImpl(
     }
 
     override suspend fun create(request: AppointmentRequest): Appointment = dbQuery {
-        val encrypted = snapshotCipher.encrypt(request)
+        val encrypted = snapshotCipher.encryptAppointmentOf(request)
         val appointment = AppointmentEntity.new(request, encrypted)
         request.services.forEach {
             AppointmentServiceEntity.new(appointment.id, it)
@@ -388,6 +404,7 @@ internal class AppointmentDataSourceImpl(
         this[AppointmentTable.clientPhoneEncrypted] = null
         this[AppointmentTable.clientEmailEncrypted] = null
         this[AppointmentTable.noteEncrypted] = null
+        this[AppointmentTable.clientNoteEncrypted] = null
         this[AppointmentTable.clientNameIndex] = null
         this[AppointmentTable.clientUserId] = null
     }

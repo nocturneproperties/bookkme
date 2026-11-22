@@ -29,7 +29,8 @@ this user's appointment footprint in every role, in one transaction:
   initiator.
 - **Requests** where they are the client or were assigned are deleted;
   requests they only booked for someone else get the nil UUID as initiator.
-  Their permission grants are deleted.
+  Their permission grants are deleted, and so is their list of saved
+  businesses (`saved_business`).
 - **As the owner** (`business_has_appointments.owner_user_id`, indexed):
   every business they own is dropped with the other writes (the
   notifications above read their business snapshots before any write),
@@ -76,12 +77,13 @@ flowchart TD
     Each -- found --> Cancel
     Log --> Cancel
     Cancel["AppointmentDataSource.cancelAll - CANCELLED, reason 'User deleted their account' where the user is the client, 'Employee deleted their account' where the user is only the employee"]
-    Cancel --> AnonClient["AppointmentDataSource.anonymizeClientUser userId - client name, phone, email, note and their encrypted columns and client_user_id null, read as Deleted Client, cancellation and price adjustment reasons kept"]
+    Cancel --> AnonClient["AppointmentDataSource.anonymizeClientUser userId - client name, phone, email, note, client note and their encrypted columns and client_user_id null, read as Deleted Client, cancellation and price adjustment reasons kept"]
     AnonClient --> AnonEmployee["AppointmentDataSource.anonymizeEmployee userId - employee_user_id match, employee_name and employee_name_encrypted null, read as Deleted User, employee_user_id = nil UUID"]
     AnonEmployee --> Unlink["AppointmentDataSource.unlinkInitiator userId - initiator_user_id match set to the nil UUID"]
     Unlink --> DelReq["AppointmentRequestDataSource.deleteForUser userId - deletes rows where client_user_id or employee_user_id match, sets initiator_user_id to the nil UUID on requests they only booked"]
     DelReq --> DelPerm[AppointmentPermissionDataSource.deleteForUser userId]
-    DelPerm --> Owned["AppointmentSubscriptionDataSource.detachBusinesses owned business ids - DELETE business_has_appointments, everything under it by ON DELETE CASCADE"]
+    DelPerm --> DelSaved["SavedBusinessDataSource.deleteForUser userId - DELETE saved_business rows by user_id"]
+    DelSaved --> Owned["AppointmentSubscriptionDataSource.detachBusinesses owned business ids - DELETE business_has_appointments, everything under it by ON DELETE CASCADE"]
     Owned --> Notify{"For each cancelled appointment with a known business, not booked by the user with themselves - was the user its client?"}
     Notify -- yes --> Send["eventProducer.send AppointmentEvent.CancelledForDeletedClient employeeUserId from to timeZone businessName"]
     Notify -- "no, its employee" --> HasAccount{client.userId set?}

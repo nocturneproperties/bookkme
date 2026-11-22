@@ -37,6 +37,7 @@ This repository holds the BookkMe backend. You can run it yourself to take booki
 - Working hours, days off and schedules for every employee: a booking must fit both the business's hours and the employee's, a range ending before its start (such as 20:00 to 00:00) runs past midnight, a range can't start and end at the same time, and new employees (the owner included) start on the business's working days and hours
 - A client list with import, notes and automatic matching to client accounts
 - Booking requests you approve or decline, or instant booking when you prefer; clients can withdraw a request you haven't answered
+- A booking link with a name the owner picks, such as `bookkme.com/my-salon`; a replaced name keeps leading to the business for 90 days and no other business can take it meanwhile
 - Appointment history, completion and no-show tracking
 
 **For clients**
@@ -44,6 +45,7 @@ This repository holds the BookkMe backend. You can run it yourself to take booki
 - Passwordless sign-in with passkeys, with the email verified by a one-time code
 - Sign-in from a Telegram Mini App, which creates the account on first use (see [Telegram sign-in](#telegram-sign-in))
 - Booking, rescheduling and cancelling appointments
+- A home screen with the nearest upcoming bookings across every business, and saved businesses to book again with the date of the last visit
 - Push, email and Telegram notifications, with per-channel settings
 - Notifications in the language of the client's device
 
@@ -51,7 +53,7 @@ This repository holds the BookkMe backend. You can run it yourself to take booki
 
 - Runs as a single server process backed by MariaDB and Valkey (or Redis)
 - Database migrations run automatically at startup
-- Limits on how many staff, clients, services, businesses, pending booking requests and passkeys can be created, which you can raise for a single business or person (see [Creation limits](#creation-limits))
+- Limits on how many staff, clients, services, businesses, pending booking requests, saved businesses and passkeys can be created, which you can raise for a single business or person (see [Creation limits](#creation-limits))
 - Personal data encrypted with a key per person, so erasing someone also makes their data unreadable in backups
 - Personal-data tools for GDPR: data export, account and client erasure, dormant account clean-up and retention rules (see [Privacy and GDPR](#privacy-and-gdpr))
 - Draft privacy policy and terms of service templates for self-hosting businesses in English, Polish and Ukrainian (`docs/legal/template`)
@@ -118,6 +120,7 @@ The server is configured through environment variables. `deployment/dev/service/
 | Variable | Purpose |
 |---|---|
 | `APPLICATION_DOMAIN_NAME` | Your public domain, used for passkeys and links |
+| `APPLICATION_SITE_DOMAIN_NAME` | Optional. A website on another domain whose pages may use the same passkeys (it and its `www.`); the domain in `APPLICATION_DOMAIN_NAME` must then serve `/.well-known/webauthn` listing those origins. Leave it unset if passkeys are used only in the apps and on your public domain |
 | `APPLICATION_SERVICE_NAME` | `monolith` |
 | `APPLICATION_SERVICE_HOSTNAME`, `APPLICATION_SERVICE_PORT` | Address the server binds to |
 | `APPLICATION_SERVICE_VERSION` | Version shown in the API description |
@@ -161,6 +164,7 @@ The server caps how much one business or one person can create. A request over a
 | Service groups | 50 | each business | `business.business.max_service_groups` |
 | Businesses a person owns (working at others doesn't count) | 20 | each person | `business.user_limits.max_businesses` |
 | Pending booking requests one person has at a business | 10 | each business | `appointments.appointment_settings.max_pending_requests_per_client` |
+| Saved businesses | 100 | each account | fixed |
 | Passkeys | 10 | each account | fixed |
 
 Every column is empty by default, which means the default value. Set it to raise or lower the limit for one business or person, for example `UPDATE business.business SET max_clients = 50000 WHERE id = UNHEX(REPLACE('<business id>', '-', ''));`, and set it back to `NULL` to return to the default. A person gets their `business.user_limits` row the first time they create a business; for someone who has none yet, insert it (`INSERT INTO business.user_limits (user_id, max_businesses, created_at) VALUES (UNHEX(REPLACE('<user id>', '-', '')), 40, UTC_TIMESTAMP(6));`). Clients who book through the app are never refused, so a business can go past its client limit that way. Reinstating a suspended employee is refused while the business is full, and a client frees a place by withdrawing a pending request.
@@ -253,7 +257,7 @@ The single server uses exactly the same producers, outbox and consumers, with an
 - **Idempotency keys** on requests, so a retried request never takes effect twice.
 - **Single-use tokens** that are claimed atomically, so two concurrent requests cannot both use one.
 - **Rate limits** in the nginx configuration for sending and checking email codes and for passkey sign-in.
-- **Creation limits** on staff, clients, services, businesses, pending booking requests and passkeys, so one account can't fill the database (see [Creation limits](#creation-limits)).
+- **Creation limits** on staff, clients, services, businesses, pending booking requests, saved businesses and passkeys, so one account can't fill the database (see [Creation limits](#creation-limits)).
 
 **Infrastructure** (the production setup in `deployment/`)
 

@@ -19,12 +19,15 @@ import com.bookk.appointments.domain.api.operation.GetAppointment
 import com.bookk.appointments.domain.api.operation.GetAppointmentHistory
 import com.bookk.appointments.domain.api.operation.GetAppointmentRequests
 import com.bookk.appointments.domain.api.operation.GetAppointmentsForDate
-import com.bookk.appointments.domain.api.operation.GetClientBusinessesAppointmentsStatus
 import com.bookk.appointments.domain.api.operation.GetPendingAppointmentRequests
+import com.bookk.appointments.domain.api.operation.GetSavedBusinesses
 import com.bookk.appointments.domain.api.operation.GetSettings
+import com.bookk.appointments.domain.api.operation.GetUpcomingBookings
 import com.bookk.appointments.domain.api.operation.IsAppointmentsEnabled
 import com.bookk.appointments.domain.api.operation.MarkAppointmentNoShow
 import com.bookk.appointments.domain.api.operation.MarkAppointmentsCompleted
+import com.bookk.appointments.domain.api.operation.RemoveSavedBusiness
+import com.bookk.appointments.domain.api.operation.SaveBusiness
 import com.bookk.appointments.domain.api.operation.UpdateAppointment
 import com.bookk.appointments.domain.api.operation.WithdrawAppointmentRequest
 import com.bookk.appointments.domain.impl.event.AppointmentEventHandler
@@ -48,13 +51,16 @@ import com.bookk.appointments.domain.impl.operation.GetAppointmentHistoryImpl
 import com.bookk.appointments.domain.impl.operation.GetAppointmentImpl
 import com.bookk.appointments.domain.impl.operation.GetAppointmentRequestsImpl
 import com.bookk.appointments.domain.impl.operation.GetAppointmentsForDateImpl
-import com.bookk.appointments.domain.impl.operation.GetClientBusinessesAppointmentsStatusImpl
 import com.bookk.appointments.domain.impl.operation.GetPendingAppointmentRequestsImpl
+import com.bookk.appointments.domain.impl.operation.GetSavedBusinessesImpl
 import com.bookk.appointments.domain.impl.operation.GetSettingsImpl
+import com.bookk.appointments.domain.impl.operation.GetUpcomingBookingsImpl
 import com.bookk.appointments.domain.impl.operation.IsAppointmentsEnabledImpl
 import com.bookk.appointments.domain.impl.operation.LinkClientUser
 import com.bookk.appointments.domain.impl.operation.MarkAppointmentNoShowImpl
 import com.bookk.appointments.domain.impl.operation.MarkAppointmentsCompletedImpl
+import com.bookk.appointments.domain.impl.operation.RemoveSavedBusinessImpl
+import com.bookk.appointments.domain.impl.operation.SaveBusinessImpl
 import com.bookk.appointments.domain.impl.operation.SyncEmployeePermission
 import com.bookk.appointments.domain.impl.operation.UpdateAppointmentImpl
 import com.bookk.appointments.domain.impl.operation.UpdateBusinessInformation
@@ -95,7 +101,10 @@ fun appointmentsDomainModule() = module {
         scopedOf(::DeclineAppointmentRequestImpl) bind DeclineAppointmentRequest::class
         scopedOf(::WithdrawAppointmentRequestImpl) bind WithdrawAppointmentRequest::class
         scopedOf(::IsAppointmentsEnabledImpl) bind IsAppointmentsEnabled::class
-        scopedOf(::GetClientBusinessesAppointmentsStatusImpl) bind GetClientBusinessesAppointmentsStatus::class
+        scopedOf(::GetUpcomingBookingsImpl) bind GetUpcomingBookings::class
+        scopedOf(::GetSavedBusinessesImpl) bind GetSavedBusinesses::class
+        scopedOf(::SaveBusinessImpl) bind SaveBusiness::class
+        scopedOf(::RemoveSavedBusinessImpl) bind RemoveSavedBusiness::class
         scopedOf(::MarkAppointmentsCompletedImpl) bind MarkAppointmentsCompleted::class
         scopedOf(::DeleteOutdatedRequestsImpl) bind DeleteOutdatedRequests::class
         scopedOf(::DeleteExpiredRequestsImpl) bind DeleteExpiredRequests::class
