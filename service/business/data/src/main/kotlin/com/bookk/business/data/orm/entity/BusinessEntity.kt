@@ -13,6 +13,7 @@ import library.schedule.toWorkingDays
 import library.schedule.toWorkingDaysMask
 import org.jetbrains.exposed.v1.core.dao.id.EntityID
 import org.jetbrains.exposed.v1.dao.UuidEntity
+import org.jetbrains.exposed.v1.dao.with
 import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
@@ -113,4 +114,8 @@ internal class BusinessEntity(id: EntityID<Uuid>) : UuidEntity(id) {
             it.updatedAt = updatedAt
         }
     }
+}
+
+internal fun <L : Iterable<BusinessEntity>> L.withSchedule(): L {
+    return with(BusinessEntity::workingHours, BusinessEntity::dayOffs)
 }

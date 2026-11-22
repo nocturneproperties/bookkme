@@ -53,6 +53,9 @@ object BusinessRouting {
             @Resource("/mine")
             class Mine(val parent: Business = Business())
 
+            @Resource("/bulk")
+            class Bulk(val parent: Business = Business())
+
             @Resource("/link/{name}")
             class LinkName(val parent: Business = Business(), val name: String)
 

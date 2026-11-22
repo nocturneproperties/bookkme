@@ -6,6 +6,7 @@ import com.bookk.business.domain.api.business.entity.BusinessUpdateModel
 import com.bookk.business.domain.api.business.entity.UserBusinesses
 import com.bookk.business.domain.api.business.operation.CreateBusiness
 import com.bookk.business.domain.api.business.operation.GetBusinessById
+import com.bookk.business.domain.api.business.operation.GetBusinessesByIds
 import com.bookk.business.domain.api.business.operation.GetUserBusinesses
 import com.bookk.business.domain.api.business.operation.SetDashboardBusiness
 import com.bookk.business.domain.api.business.operation.UpdateBusiness
@@ -929,5 +930,114 @@ internal class BusinessCrudTest {
         then()
         assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
         assertEquals(BusinessErrorCodes.BUSINESS_CURRENCY_LOCKED, response.body<SimpleServerError>().errorCode)
+    }
+
+    @Test
+    fun `should return the businesses with the requested ids`() = routeTest {
+        given()
+        val useCase: GetBusinessesByIds = mockk()
+        val businesses = listOf(Business.stub(), Business.stub())
+        val ids = businesses.map { it.id }
+        coEvery { useCase.invoke(ids, userId) } returns Result.success(businesses)
+
+        setupApplication(
+            extension = {
+                install(Authentication) {
+                    provider {
+                        authenticate { it.principal(AppPrincipal(Uuid.random(), userId, Uuid.random())) }
+                    }
+                }
+            },
+            diModule = module { single { useCase } },
+            routeUnderTest = { businessCrud() },
+        )
+
+        whenn()
+        val client = createTestClient()
+        val response = client.post(BusinessRouting.Api.Business.Bulk()) { setBody(BusinessesByIdsRequest(ids)) }
+
+        then()
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertEquals(businesses, response.body<List<Business>>())
+    }
+
+    @Test
+    fun `should return no businesses when no ids are requested`() = routeTest {
+        given()
+        val useCase: GetBusinessesByIds = mockk()
+        coEvery { useCase.invoke(emptyList(), userId) } returns Result.success(emptyList())
+
+        setupApplication(
+            extension = {
+                install(Authentication) {
+                    provider {
+                        authenticate { it.principal(AppPrincipal(Uuid.random(), userId, Uuid.random())) }
+                    }
+                }
+            },
+            diModule = module { single { useCase } },
+            routeUnderTest = { businessCrud() },
+        )
+
+        whenn()
+        val client = createTestClient()
+        val response = client.post(BusinessRouting.Api.Business.Bulk()) {
+            setBody(BusinessesByIdsRequest(emptyList()))
+        }
+
+        then()
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertEquals(emptyList<Business>(), response.body<List<Business>>())
+    }
+
+    @Test
+    fun `should return unprocessable entity when more businesses than the maximum are requested`() = routeTest {
+        given()
+        val useCase: GetBusinessesByIds = mockk()
+        coEvery { useCase.invoke(any(), userId) } returns Result.failure(GetBusinessesByIds.Error.TooManyIds())
+
+        setupApplication(
+            extension = {
+                install(Authentication) {
+                    provider {
+                        authenticate { it.principal(AppPrincipal(Uuid.random(), userId, Uuid.random())) }
+                    }
+                }
+            },
+            diModule = module { single { useCase } },
+            routeUnderTest = { businessCrud() },
+        )
+
+        whenn()
+        val client = createTestClient()
+        val response = client.post(BusinessRouting.Api.Business.Bulk()) {
+            setBody(BusinessesByIdsRequest(List(GetBusinessesByIds.MAX_IDS + 1) { Uuid.random() }))
+        }
+
+        then()
+        assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
+        assertEquals(BusinessErrorCodes.BUSINESS_BULK_READ_TOO_LARGE, response.body<SimpleServerError>().errorCode)
+    }
+
+    @Test
+    fun `should return unauthorized when getting businesses by ids without authentication`() = routeTest {
+        given()
+        val useCase: GetBusinessesByIds = mockk()
+
+        setupApplication(
+            extension = { install(Authentication) { bearer { authenticate { null } } } },
+            diModule = module { single { useCase } },
+            routeUnderTest = { businessCrud() },
+        )
+
+        whenn()
+        val client = createTestClient()
+        val response = client.post(BusinessRouting.Api.Business.Bulk()) {
+            setBody(BusinessesByIdsRequest(listOf(businessId)))
+        }
+
+        then()
+        assertEquals(HttpStatusCode.Unauthorized, response.status)
+        coVerify(exactly = 0) { useCase.invoke(any(), any()) }
     }
 }

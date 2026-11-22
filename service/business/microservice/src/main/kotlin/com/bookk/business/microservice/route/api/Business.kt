@@ -4,6 +4,7 @@ import com.bookk.business.domain.api.business.entity.BusinessCreateRequest
 import com.bookk.business.domain.api.business.entity.BusinessUpdateModel
 import com.bookk.business.domain.api.business.operation.CreateBusiness
 import com.bookk.business.domain.api.business.operation.GetBusinessById
+import com.bookk.business.domain.api.business.operation.GetBusinessesByIds
 import com.bookk.business.domain.api.business.operation.GetUserBusinesses
 import com.bookk.business.domain.api.business.operation.SetDashboardBusiness
 import com.bookk.business.domain.api.business.operation.UpdateBusiness
@@ -22,6 +23,12 @@ import io.ktor.server.resources.put
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.application
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.protobuf.ProtoNumber
+import kotlin.uuid.Uuid
+
+@Serializable
+internal class BusinessesByIdsRequest(@ProtoNumber(1) val ids: List<Uuid> = emptyList())
 
 fun Route.businessCrud() {
     authenticate {
@@ -83,6 +90,24 @@ fun Route.businessCrud() {
             val principal = requireNotNull(call.principal<AppPrincipal>())
 
             call.respondWith(getUserBusinesses(userId = principal.userId))
+        }
+        /**
+         * Get businesses by ids
+         *
+         * Summary: Get businesses by ids
+         * Description: Get the info of up to 100 businesses at once, each with the caller's permissions, employee id and client id in it, like the single business read. Ids with no business are left out, a repeated id is returned once, and businesses keep the order of their ids in the request
+         * Tag: business
+         * Security: jwt
+         * Body: application/x-protobuf [com.bookk.business.microservice.route.api.BusinessesByIdsRequest]
+         * Response: 200 application/protobuf [com.bookk.business.domain.api.business.entity.Business]+ Businesses found
+         * Response: 422 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Get businesses by ids errors<br>BUSINESS_BULK_READ_TOO_LARGE (200054) At most 100 businesses can be read at once
+         */
+        post<Api.Business.Bulk> {
+            val principal = requireNotNull(call.principal<AppPrincipal>())
+            val body = call.receive<BusinessesByIdsRequest>()
+            val getBusinessesByIds by application.injectScoped<GetBusinessesByIds>(BusinessScope)
+
+            call.respondWith(getBusinessesByIds(ids = body.ids, requestingUserId = principal.userId))
         }
         /**
          * Get business by id

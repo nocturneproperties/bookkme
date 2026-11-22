@@ -79,6 +79,7 @@ internal class SwaggerTest {
             Routing::businessRoute,
             setOf(
                 "post /api/business",
+                "post /api/business/bulk",
                 "put /api/business/{id}",
                 "put /api/business/{id}/link",
                 "post /api/business/{id}/export",
@@ -152,6 +153,7 @@ internal class SwaggerTest {
             "get /api/appointments/request/{businessId}/mine" to "AppointmentRequest",
         ),
         Service.BUSINESS to mapOf(
+            "post /api/business/bulk" to "Business",
             "get /api/business/{businessId}/employee" to "Employee",
             "get /api/business/{businessId}/employee_invitation" to "EmployeeInvitation",
             "get /api/business/{businessId}/service" to "Service",
