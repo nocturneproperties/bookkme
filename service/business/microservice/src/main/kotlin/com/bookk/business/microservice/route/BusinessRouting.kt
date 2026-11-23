@@ -103,7 +103,7 @@ object BusinessRouting {
         class RedeemEmployeeInvitation(val parent: Api = Api())
 
         @Resource("/business/{businessId}/employee")
-        class Employee(val parent: Api = Api(), val businessId: Uuid) {
+        class Employee(val parent: Api = Api(), val businessId: Uuid, val active: Boolean? = null) {
             @Resource("/{id}")
             class Id(val parent: Employee, val id: Uuid) {
                 @Resource("/permissions")

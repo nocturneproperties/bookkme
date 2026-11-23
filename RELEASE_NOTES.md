@@ -26,6 +26,7 @@ Changes since `monolith/0.20.0`. Adds sign-in from a Telegram Mini App, which cr
 - New `GET /api/business/{id}/link` returns the current link to anyone who can view the business, 404 `BUSINESS_LINK_NOT_FOUND` (200053) when none is set.
 - New `GET /api/business/link/{name}` needs no sign-in and returns the business id and current name for a link name, including a name replaced within the last 90 days; open the booking page for that business, and expect 429 past 30 lookups a minute from one address.
 - New `POST /api/business/bulk` takes up to 100 business ids (`ids`, field 1) and returns those businesses like `GET /api/business/{id}`, in request order with unknown ids left out; read saved businesses' names with it instead of one call per id, and expect 422 `BUSINESS_BULK_READ_TOO_LARGE` (200054) past 100 ids.
+- `GET /api/business/{businessId}/employee` takes an optional `active` query parameter; `active=true` leaves suspended employees out, and without it every employee is returned as before.
 
 ### Services
 
