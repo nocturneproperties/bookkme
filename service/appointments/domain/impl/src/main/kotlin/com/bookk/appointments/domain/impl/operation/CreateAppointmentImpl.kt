@@ -39,6 +39,8 @@ internal class CreateAppointmentImpl(
     private val eventProducer: StandardEventProducer,
 ) : CreateAppointment {
 
+    private val employeeBookings = EmployeeBookings(appointmentDataSource)
+
     override suspend fun invoke(
         userId: Uuid,
         appointmentRequestId: Uuid,
@@ -107,9 +109,7 @@ internal class CreateAppointmentImpl(
     ) {
         if (appointment.date < Clock.System.now()) throw CreateAppointment.Error.DateInThePastNotAllowed()
         settings.requireBookable(appointment.date, appointment.dateEnd, employeeSchedule)
-        if (appointmentDataSource.hasOverlapsWith(appointment)) {
-            throw CreateAppointment.Error.AppointmentForThisTimeExists()
-        }
+        employeeBookings.requireFree(appointment, settings)
     }
 
     private suspend fun sendRequestApprovedNotification(request: AppointmentRequest) {

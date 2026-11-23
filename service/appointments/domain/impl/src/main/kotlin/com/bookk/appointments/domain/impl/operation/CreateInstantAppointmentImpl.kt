@@ -45,6 +45,7 @@ internal class CreateInstantAppointmentImpl(
 ) : CreateInstantAppointment {
 
     private val quoteVerifier = BookingQuoteVerifier(tokenValidatorFactory)
+    private val employeeBookings = EmployeeBookings(appointmentDataSource)
 
     override suspend fun invoke(
         userId: Uuid,
@@ -92,9 +93,7 @@ internal class CreateInstantAppointmentImpl(
         val settings = settingsDataSource.getForUpdate(appointment.businessId) ?: throw Error.NotFound()
         if (appointment.date < Clock.System.now()) throw CreateInstantAppointment.Error.DateInThePastNotAllowed()
         settings.requireBookable(appointment.date, appointment.dateEnd, employeeSchedule)
-        if (appointmentDataSource.hasOverlapsWith(appointment)) {
-            throw CreateInstantAppointment.Error.AppointmentForThisTimeExists()
-        }
+        employeeBookings.requireFree(appointment, settings)
     }
 
     private suspend fun assertMayBookInto(userId: Uuid, businessId: Uuid, employeeUserId: Uuid) {

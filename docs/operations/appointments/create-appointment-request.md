@@ -99,6 +99,8 @@ that is wrong anyway reports that error. The client frees a place by
 withdrawing a request ([Withdraw appointment
 request](withdraw-appointment-request.md)).
 
+The employee can hold only one appointment at a time. `EmployeeBookings.requireFree` reads the employee's `SCHEDULED` appointments in the business, whoever booked them, around the slot widened by `inBetweenBreakInMinutes` on both sides, and rejects the booking with 422 `EMPLOYEE_BUSY` (300032) when one other than the booking itself is found. It runs after the settings lock, which serializes every booking of the business, so two bookings can't both take the same employee's time. Pending requests don't block anyone: several clients may request the same time, and once staff approve one, approving another answers `EMPLOYEE_BUSY`. The client's own other bookings are not checked: a client may take two services with two employees at once. `POST /api/appointments/slots` offers only starts that pass the same check.
+
 ```mermaid
 flowchart TD
     Start([POST /api/appointments/request]) --> Auth{JWT valid?}
@@ -152,11 +154,9 @@ flowchart TD
     EmpDay -- No --> R422ed([422 EMPLOYEE_DATE_NOT_ALLOWED 300027])
     EmpDay -- Yes --> EmpTime{context.employee.schedule ranges cover date to dateEnd?}
     EmpTime -- No --> R422et([422 EMPLOYEE_TIME_NOT_ALLOWED 300028])
-    EmpTime -- Yes --> OverlapRequests{AppointmentRequestDataSource.hasOverlapsWith<br/>overlaps a PENDING request of the client?}
-    OverlapRequests -- Yes --> R422f([422 REQUEST_EXISTS 300001])
-    OverlapRequests -- No --> OverlapAppointments{AppointmentDataSource.hasOverlapsWith<br/>overlaps a SCHEDULED appointment of the client?}
-    OverlapAppointments -- Yes --> R422f
-    OverlapAppointments -- No --> Pending{AppointmentRequestDataSource.countPendingByUser userId businessId >= settings.maxPendingRequestsPerClient?}
+    EmpTime -- Yes --> EmployeeBusy{"EmployeeBookings.requireFree - AppointmentDataSource.getEmployeeBookings businessId employee.id date - break until dateEnd + break: any SCHEDULED appointment of the employee, whoever booked it, other than this booking?"}
+    EmployeeBusy -- Yes --> R422busy([422 EMPLOYEE_BUSY 300032])
+    EmployeeBusy -- No --> Pending{AppointmentRequestDataSource.countPendingByUser userId businessId >= settings.maxPendingRequestsPerClient?}
     Pending -- Yes --> R422p([422 PENDING_REQUESTS_LIMIT_REACHED 300029])
     Pending -- No --> Create[AppointmentRequestDataSource.create request]
     Create --> Snapshot[AppointmentSubscriptionDataSource.getBusinessSnapshot businessId]

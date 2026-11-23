@@ -19,7 +19,6 @@ interface AppointmentRequestDataSource {
     suspend fun decline(id: Uuid, reason: String): AppointmentRequest
     suspend fun withdraw(id: Uuid)
 
-    suspend fun hasOverlapsWith(request: AppointmentRequest): Boolean
     suspend fun cancelOutdated(before: Instant)
     suspend fun getClientIdsOfUserForUpdate(clientUserId: Uuid): Set<Uuid>
     suspend fun deleteForUser(userId: Uuid)

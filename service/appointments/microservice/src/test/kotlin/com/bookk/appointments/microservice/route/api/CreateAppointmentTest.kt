@@ -4,6 +4,7 @@ import com.bookk.appointments.domain.api.entity.Appointment
 import com.bookk.appointments.domain.api.entity.AppointmentErrorCodes
 import com.bookk.appointments.domain.api.entity.AppointmentRequestStatusError
 import com.bookk.appointments.domain.api.entity.AppointmentStatus
+import com.bookk.appointments.domain.api.entity.BookingConflictError
 import com.bookk.appointments.domain.api.entity.BookingScheduleError
 import com.bookk.appointments.domain.api.entity.ClientSnapshot
 import com.bookk.appointments.domain.api.entity.EmployeeSnapshot
@@ -96,50 +97,6 @@ internal class CreateAppointmentTest {
 
         then()
         assertEquals(HttpStatusCode.OK, response.status, "Response status: ${response.status}")
-    }
-
-    @Test
-    fun `should return unprocessable entity when appointment exists`() = routeTest {
-        given()
-        val useCase: CreateAppointment = mockk()
-        val requestId = Uuid.random()
-        val userId = Uuid.random()
-
-        coEvery {
-            useCase.invoke(
-                userId,
-                requestId,
-            )
-        } returns Result.failure(CreateAppointment.Error.AppointmentForThisTimeExists())
-
-        setupApplication(
-            extension = {
-                install(Authentication) {
-                    provider {
-                        authenticate { context ->
-                            context.principal(AppPrincipal(Uuid.random(), userId, Uuid.random()))
-                        }
-                    }
-                }
-            },
-            diModule = module {
-                single { useCase }
-            },
-            routeUnderTest = {
-                appointment()
-            },
-        )
-
-        whenn()
-        val client = createTestClient()
-        val response = client.post(AppointmentsRouting.Api.Appointment()) {
-            setBody(AppointmentRequestId(requestId))
-        }
-
-        then()
-        assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
-        val body = response.body<SimpleServerError>()
-        assertEquals(AppointmentErrorCodes.APPOINTMENT_EXISTS, body.errorCode)
     }
 
     @Test
@@ -481,5 +438,36 @@ internal class CreateAppointmentTest {
         then()
         assertEquals(HttpStatusCode.NotFound, response.status)
         assertEquals(BusinessErrorCodes.BUSINESS_EMPLOYEE_NOT_EXISTS, response.body<SimpleServerError>().errorCode)
+    }
+
+    @Test
+    fun `should return unprocessable entity when the employee already has a booking at that time`() = routeTest {
+        given()
+        val useCase: CreateAppointment = mockk()
+        val requestId = Uuid.random()
+        val userId = Uuid.random()
+        coEvery { useCase.invoke(userId, requestId) } returns Result.failure(BookingConflictError.EmployeeBusy())
+        setupApplication(
+            extension = {
+                install(Authentication) {
+                    provider {
+                        authenticate { context ->
+                            context.principal(AppPrincipal(Uuid.random(), userId, Uuid.random()))
+                        }
+                    }
+                }
+            },
+            diModule = module { single { useCase } },
+            routeUnderTest = { appointment() },
+        )
+
+        whenn()
+        val response = createTestClient().post(AppointmentsRouting.Api.Appointment()) {
+            setBody(AppointmentRequestId(requestId))
+        }
+
+        then()
+        assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
+        assertEquals(AppointmentErrorCodes.EMPLOYEE_BUSY, response.body<SimpleServerError>().errorCode)
     }
 }

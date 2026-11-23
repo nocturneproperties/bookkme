@@ -2,7 +2,7 @@
 
 ## 0.21.0
 
-Changes since `monolith/0.20.0`. Adds sign-in from a Telegram Mini App, which creates an account with a placeholder email on first use, sends notifications to those users through the Telegram bot, gives clients their upcoming bookings across businesses and a list of saved businesses, and lets owners pick a booking link name for their business.
+Changes since `monolith/0.20.0`. Adds sign-in from a Telegram Mini App, which creates an account with a placeholder email on first use, sends notifications to those users through the Telegram bot, gives clients their upcoming bookings across businesses, a list of saved businesses and an employee's free slots, stops two bookings from taking the same employee at once, and lets owners pick a booking link name for their business.
 
 ### Clients
 
@@ -28,6 +28,10 @@ Changes since `monolith/0.20.0`. Adds sign-in from a Telegram Mini App, which cr
 - New `POST /api/business/bulk` takes up to 100 business ids (`ids`, field 1) and returns those businesses like `GET /api/business/{id}`, in request order with unknown ids left out; read saved businesses' names with it instead of one call per id, and expect 422 `BUSINESS_BULK_READ_TOO_LARGE` (200054) past 100 ids.
 - `GET /api/business/{businessId}/employee` takes an optional `active` query parameter; `active=true` leaves suspended employees out, and without it every employee is returned as before.
 - New `GET /api/business/{businessId}/employee/bookable` lets any signed-in user list a business's employees who are not suspended, with only `id`, `businessId`, `name`, `lastName`, `services` and `schedule`; use it to pick the employee for a booking.
+- New `POST /api/appointments/slots` takes `businessId`, `employeeId`, `services` (`{serviceId, count}`), `from` and `to` (dates in the business time zone, at most 31 days) and returns each date's free `{start, end}` slots on a 15-minute grid; use it to offer start times before booking.
+- It answers 422 `SERVICE_SELECTION_INVALID` (300024) for an empty, repeated or over-100 service selection and the new `SLOT_RANGE_INVALID` (300033) for a range that ends before it starts or spans more than 31 days.
+- Booking an employee who already has a scheduled appointment at that time, including the business's break before and after it, now answers 422 `EMPLOYEE_BUSY` (300032) on `POST /api/appointments/request`, `POST /api/appointments`, `POST /api/appointments/instant` and `PUT /api/appointments/{id}`; pending requests never block, so once one of several requests for the same time is approved, approving another answers `EMPLOYEE_BUSY`.
+- These routes no longer answer `APPOINTMENT_EXISTS` (300004) or `REQUEST_EXISTS` (300001): a client's own overlapping bookings are allowed (two services with two employees at once), and staff can book several employees for the same time.
 
 ### Services
 
@@ -37,9 +41,9 @@ Changes since `monolith/0.20.0`. Adds sign-in from a Telegram Mini App, which cr
 - A standalone `auth` service now needs `APPLICATION_BLIND_INDEX_KEY`, with the same value as the other services; the monolith already has it.
 - Migration authorization `V6` adds the table `telegram_identity`, holding only a keyed hash of the Telegram user id per account.
 - Migration appointments `V14` adds `appointment_price_adjustment_services.count`, merges rows repeating a service in one adjustment into one row with that count, and adds a unique index on `(price_adjustment_id, service_id)`; data exports still list such a service once per count.
+- The same `V14` adds `appointment.client_note_encrypted`, the table `saved_business` (erased with the account and with its business) and an index on `appointment(employee_id, date_end)`; existing double bookings of an employee stay and can still be edited as long as their time and employee don't change.
 - Migration user `V8` adds `profile.telegram_user_id_encrypted`; the user service stores the Telegram user id encrypted and sends it in `user.updated` (new field 9), and notifications saves it as the user's Telegram target.
 - No email is ever sent to `@telegramundeliverable.org`; these accounts get their notifications, dormancy warnings included, through Telegram.
-- Migration appointments `V15` adds `appointment.client_note_encrypted` and the table `saved_business`, which is erased with the account and with its business.
 - The business service's internal `GET /api/internal/client/{userId}/businesses` is removed; when running separate services, update business and appointments together.
 - Migration business `V22` adds the tables `business_link` and `business_link_change`, deleted with their business; the daily job `business-deleteReleasedBusinessLinks` frees replaced names after 90 days, and deleting a business frees its names at once.
 - The website's domain (`SITE_DOMAIN_NAME` and its `www.`) can now create and use passkeys for the API domain: nginx serves `/.well-known/webauthn` listing those origins, and the server accepts them from the new optional `APPLICATION_SITE_DOMAIN_NAME` (prod sets it from the vault's `EMAIL_DOMAIN_NAME`). The API's own origin now comes from `APPLICATION_DOMAIN_NAME` instead of a fixed `https://bookkme.app`, so a self-hosted server accepts passkeys on its own domain.

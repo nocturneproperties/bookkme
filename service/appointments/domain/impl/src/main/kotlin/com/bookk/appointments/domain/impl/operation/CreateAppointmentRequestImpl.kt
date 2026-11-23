@@ -9,7 +9,6 @@ import com.bookk.appointments.domain.api.operation.CreateAppointment
 import com.bookk.appointments.domain.api.operation.CreateAppointmentRequest
 import com.bookk.appointments.domain.api.operation.CreateAppointmentRequest.Error.DateInThePastNotAllowed
 import com.bookk.appointments.domain.api.operation.CreateAppointmentRequest.Error.PendingRequestsLimitReached
-import com.bookk.appointments.domain.api.operation.CreateAppointmentRequest.Error.RequestForThisTimeExists
 import com.bookk.appointments.domain.datasource.AppointmentDataSource
 import com.bookk.appointments.domain.datasource.AppointmentRequestDataSource
 import com.bookk.appointments.domain.datasource.AppointmentSettingsDataSource
@@ -49,6 +48,7 @@ internal class CreateAppointmentRequestImpl(
 ) : CreateAppointmentRequest {
 
     private val quoteVerifier = BookingQuoteVerifier(tokenValidatorFactory)
+    private val employeeBookings = EmployeeBookings(appointmentDataSource)
 
     override suspend fun invoke(userId: Uuid, draft: AppointmentRequestDraft): Result<Unit> = runSuspendCatching {
         if (!requestDataSource.reserveOfferToken(draft.offerToken)) throw BookingQuoteError.TokenAlreadyUsed()
@@ -123,8 +123,7 @@ internal class CreateAppointmentRequestImpl(
     ) {
         if (request.date < Clock.System.now()) throw DateInThePastNotAllowed()
         settings.requireBookable(request.date, request.dateEnd, employeeSchedule)
-        if (requestDataSource.hasOverlapsWith(request)) throw RequestForThisTimeExists()
-        if (appointmentDataSource.hasOverlapsWith(request)) throw RequestForThisTimeExists()
+        employeeBookings.requireFree(request, settings)
     }
 
     private suspend fun sendRequestCreatedNotification(request: AppointmentRequest) {

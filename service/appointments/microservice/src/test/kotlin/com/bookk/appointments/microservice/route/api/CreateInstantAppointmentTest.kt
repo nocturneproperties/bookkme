@@ -2,6 +2,7 @@ package com.bookk.appointments.microservice.route.api
 
 import com.bookk.appointments.domain.api.entity.Appointment
 import com.bookk.appointments.domain.api.entity.AppointmentErrorCodes
+import com.bookk.appointments.domain.api.entity.BookingConflictError
 import com.bookk.appointments.domain.api.entity.BookingQuoteError
 import com.bookk.appointments.domain.api.entity.BookingScheduleError
 import com.bookk.appointments.domain.api.entity.InstantAppointmentDraft
@@ -88,18 +89,6 @@ internal class CreateInstantAppointmentTest {
         then()
         assertEquals(HttpStatusCode.OK, response.status)
         assertEquals(appointment.id, response.body<Appointment>().id)
-    }
-
-    @Test
-    fun `should return unprocessable entity when appointment exists`() = routeTest {
-        given()
-        val error = CreateInstantAppointment.Error.AppointmentForThisTimeExists()
-
-        whenn()
-        val response = respondsWithError(error)
-
-        then()
-        response.assertError(HttpStatusCode.UnprocessableEntity, AppointmentErrorCodes.APPOINTMENT_EXISTS)
     }
 
     @Test
@@ -323,5 +312,17 @@ internal class CreateInstantAppointmentTest {
 
         then()
         assertEquals(HttpStatusCode.Unauthorized, response.status)
+    }
+
+    @Test
+    fun `should return unprocessable entity when the employee already has a booking at that time`() = routeTest {
+        given()
+        val error = BookingConflictError.EmployeeBusy()
+
+        whenn()
+        val response = respondsWithError(error)
+
+        then()
+        response.assertError(HttpStatusCode.UnprocessableEntity, AppointmentErrorCodes.EMPLOYEE_BUSY)
     }
 }

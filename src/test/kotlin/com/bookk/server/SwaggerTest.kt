@@ -112,6 +112,7 @@ internal class SwaggerTest {
                 "put /api/appointments/settings/{businessId}",
                 "post /api/appointments/request",
                 "post /api/appointments/request/{id}/decline",
+                "post /api/appointments/slots",
             ),
         ),
         NOTIFICATIONS(
@@ -149,6 +150,7 @@ internal class SwaggerTest {
         Service.APPOINTMENTS to mapOf(
             "get /api/appointments/list/{businessId}" to "Appointment",
             "get /api/appointments/businesses" to "SavedBusiness",
+            "post /api/appointments/slots" to "DaySlots",
             "get /api/appointments/request/{businessId}" to "AppointmentRequest",
             "get /api/appointments/request/{businessId}/mine" to "AppointmentRequest",
         ),

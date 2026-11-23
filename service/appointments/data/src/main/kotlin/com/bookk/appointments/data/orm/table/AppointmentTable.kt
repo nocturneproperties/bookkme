@@ -30,6 +30,7 @@ object AppointmentTable : BaseUUIDTable("appointment") {
 
     init {
         index(false, initiatorUserId, businessId, dateStart)
+        index(false, employeeId, dateEnd)
         index("appointment_business_client_name_index", false, businessId, clientNameIndex)
     }
 }

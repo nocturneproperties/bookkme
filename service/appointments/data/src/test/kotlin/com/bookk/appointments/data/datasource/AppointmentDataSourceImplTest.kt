@@ -14,6 +14,7 @@ import com.bookk.appointments.domain.api.entity.AppointmentCompletedBy
 import com.bookk.appointments.domain.api.entity.AppointmentRequest
 import com.bookk.appointments.domain.api.entity.AppointmentSettings
 import com.bookk.appointments.domain.api.entity.AppointmentStatus
+import com.bookk.appointments.domain.api.entity.BookedRange
 import com.bookk.appointments.domain.api.entity.BusinessSnapshot
 import com.bookk.appointments.domain.api.entity.EmployeeSnapshot
 import com.bookk.appointments.domain.api.entity.PriceAdjustment
@@ -354,40 +355,6 @@ internal class AppointmentDataSourceImplTest {
 
         then()
         assertTrue(suspendTransaction { fixture.sut.getAll(fixture.businessId) }.isEmpty())
-    }
-
-    @Test
-    fun `should detect overlapping appointments for same user`() = runUnitTest {
-        given()
-        val fixture = SutFixture()
-        fixture.setup()
-        val userId = Uuid.random()
-        val baseDate = Clock.System.now()
-        suspendTransaction { fixture.sut.create(fixture.buildRequest(userId = userId, date = baseDate)) }
-
-        whenn()
-        val overlapping = fixture.buildRequest(userId = userId, date = baseDate + 15.minutes)
-        val hasOverlap = suspendTransaction { fixture.sut.hasOverlapsWith(overlapping) }
-
-        then()
-        assertTrue(hasOverlap)
-    }
-
-    @Test
-    fun `should not detect overlap when appointments are far apart`() = runUnitTest {
-        given()
-        val fixture = SutFixture()
-        fixture.setup()
-        val userId = Uuid.random()
-        val baseDate = Clock.System.now()
-        suspendTransaction { fixture.sut.create(fixture.buildRequest(userId = userId, date = baseDate)) }
-
-        whenn()
-        val nonOverlapping = fixture.buildRequest(userId = userId, date = baseDate + 2.hours)
-        val hasOverlap = suspendTransaction { fixture.sut.hasOverlapsWith(nonOverlapping) }
-
-        then()
-        assertFalse(hasOverlap)
     }
 
     @Test
@@ -2111,4 +2078,81 @@ internal class AppointmentDataSourceImplTest {
         then()
         assertEquals(listOf(created), found)
     }
+
+    @Test
+    fun `should give the employee's scheduled appointments overlapping the range, whoever booked them`() =
+        runUnitTest {
+            given()
+            val fixture = SutFixture()
+            fixture.setup()
+            val employee = EmployeeSnapshot.stub()
+            val start = Instant.parse("2030-06-03T10:00:00Z")
+            val first =
+                suspendTransaction { fixture.sut.create(fixture.buildRequest(date = start, employee = employee)) }
+            val second = suspendTransaction {
+                fixture.sut.create(fixture.buildRequest(date = start + 1.hours, employee = employee))
+            }
+
+            whenn()
+            val bookings = suspendTransaction {
+                fixture.sut.getEmployeeBookings(fixture.businessId, employee.id, start..<start + 2.hours)
+            }
+
+            then()
+            assertEquals(
+                listOf(
+                    BookedRange(first.id, start, start + 30.minutes),
+                    BookedRange(second.id, start + 1.hours, start + 90.minutes),
+                ),
+                bookings.sortedBy { it.start },
+            )
+        }
+
+    @Test
+    fun `should not give appointments only touching the range`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val employee = EmployeeSnapshot.stub()
+        val start = Instant.parse("2030-06-03T10:00:00Z")
+        suspendTransaction { fixture.sut.create(fixture.buildRequest(date = start, employee = employee)) }
+        suspendTransaction { fixture.sut.create(fixture.buildRequest(date = start + 2.hours, employee = employee)) }
+
+        whenn()
+        val bookings = suspendTransaction {
+            fixture.sut.getEmployeeBookings(fixture.businessId, employee.id, start + 30.minutes..<start + 2.hours)
+        }
+
+        then()
+        assertTrue(bookings.isEmpty())
+    }
+
+    @Test
+    fun `should not give other employees', other businesses' or inactive appointments as employee bookings`() =
+        runUnitTest {
+            given()
+            val fixture = SutFixture()
+            fixture.setup()
+            val employee = EmployeeSnapshot.stub()
+            val start = Instant.parse("2030-06-03T10:00:00Z")
+            val otherBusinessId = fixture.attachBusiness(automaticCompletion = true)
+            suspendTransaction { fixture.sut.create(fixture.buildRequest(date = start)) }
+            suspendTransaction {
+                fixture.sut.create(
+                    fixture.buildRequest(date = start, employee = employee).copy(businessId = otherBusinessId),
+                )
+            }
+            val cancelled = suspendTransaction {
+                fixture.sut.create(fixture.buildRequest(date = start, employee = employee))
+            }
+            suspendTransaction { fixture.sut.cancel(cancelled.id, "Client called") }
+
+            whenn()
+            val bookings = suspendTransaction {
+                fixture.sut.getEmployeeBookings(fixture.businessId, employee.id, start..<start + 1.hours)
+            }
+
+            then()
+            assertTrue(bookings.isEmpty())
+        }
 }

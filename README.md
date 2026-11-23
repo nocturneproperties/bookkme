@@ -44,7 +44,7 @@ This repository holds the BookkMe backend. You can run it yourself to take booki
 
 - Passwordless sign-in with passkeys, with the email verified by a one-time code
 - Sign-in from a Telegram Mini App, which creates the account on first use (see [Telegram sign-in](#telegram-sign-in))
-- Booking, rescheduling and cancelling appointments, with a choice of staff member showing each one's services and working hours
+- Booking, rescheduling and cancelling appointments, with a choice of staff member showing each one's services, working hours and free time slots; a staff member can't be booked twice for the same time
 - A home screen with the nearest upcoming bookings across every business, and saved businesses to book again with the date of the last visit
 - Push, email and Telegram notifications, with per-channel settings
 - Notifications in the language of the client's device

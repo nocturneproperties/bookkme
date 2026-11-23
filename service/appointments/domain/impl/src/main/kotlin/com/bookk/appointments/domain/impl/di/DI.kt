@@ -19,6 +19,7 @@ import com.bookk.appointments.domain.api.operation.GetAppointment
 import com.bookk.appointments.domain.api.operation.GetAppointmentHistory
 import com.bookk.appointments.domain.api.operation.GetAppointmentRequests
 import com.bookk.appointments.domain.api.operation.GetAppointmentsForDate
+import com.bookk.appointments.domain.api.operation.GetAvailableSlots
 import com.bookk.appointments.domain.api.operation.GetPendingAppointmentRequests
 import com.bookk.appointments.domain.api.operation.GetSavedBusinesses
 import com.bookk.appointments.domain.api.operation.GetSettings
@@ -51,6 +52,7 @@ import com.bookk.appointments.domain.impl.operation.GetAppointmentHistoryImpl
 import com.bookk.appointments.domain.impl.operation.GetAppointmentImpl
 import com.bookk.appointments.domain.impl.operation.GetAppointmentRequestsImpl
 import com.bookk.appointments.domain.impl.operation.GetAppointmentsForDateImpl
+import com.bookk.appointments.domain.impl.operation.GetAvailableSlotsImpl
 import com.bookk.appointments.domain.impl.operation.GetPendingAppointmentRequestsImpl
 import com.bookk.appointments.domain.impl.operation.GetSavedBusinessesImpl
 import com.bookk.appointments.domain.impl.operation.GetSettingsImpl
@@ -73,6 +75,7 @@ import org.koin.core.qualifier.Qualifier
 import org.koin.core.qualifier.named
 import org.koin.dsl.bind
 import org.koin.dsl.module
+import kotlin.time.Clock
 
 val AppointmentsScope: Qualifier = named(APPOINTMENTS_SCHEMA)
 
@@ -102,6 +105,7 @@ fun appointmentsDomainModule() = module {
         scopedOf(::WithdrawAppointmentRequestImpl) bind WithdrawAppointmentRequest::class
         scopedOf(::IsAppointmentsEnabledImpl) bind IsAppointmentsEnabled::class
         scopedOf(::GetUpcomingBookingsImpl) bind GetUpcomingBookings::class
+        scoped<GetAvailableSlots> { GetAvailableSlotsImpl(get(), get(), get(), get(), get(), Clock.System) }
         scopedOf(::GetSavedBusinessesImpl) bind GetSavedBusinesses::class
         scopedOf(::SaveBusinessImpl) bind SaveBusiness::class
         scopedOf(::RemoveSavedBusinessImpl) bind RemoveSavedBusiness::class

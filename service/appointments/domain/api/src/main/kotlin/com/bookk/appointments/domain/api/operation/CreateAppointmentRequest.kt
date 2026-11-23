@@ -10,14 +10,6 @@ interface CreateAppointmentRequest {
     suspend operator fun invoke(userId: Uuid, draft: AppointmentRequestDraft): Result<Unit>
 
     sealed interface Error {
-        class RequestForThisTimeExists :
-            BusinessError(
-                statusCode = HttpStatusCode.UnprocessableEntity.value,
-                code = AppointmentErrorCodes.REQUEST_EXISTS,
-                message = "Request for this time already exists",
-            ),
-            Error
-
         class DateInThePastNotAllowed :
             BusinessError(
                 statusCode = HttpStatusCode.UnprocessableEntity.value,
