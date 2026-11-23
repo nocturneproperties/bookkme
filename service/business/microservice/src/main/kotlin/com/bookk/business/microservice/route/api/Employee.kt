@@ -2,6 +2,7 @@ package com.bookk.business.microservice.route.api
 
 import com.bookk.business.domain.api.business.entity.BusinessResource
 import com.bookk.business.domain.api.employee.entity.EmployeeUpdateModel
+import com.bookk.business.domain.api.employee.operation.GetBookableEmployees
 import com.bookk.business.domain.api.employee.operation.GetEmployees
 import com.bookk.business.domain.api.employee.operation.SetEmployeePermissions
 import com.bookk.business.domain.api.employee.operation.SetEmployeeSuspension
@@ -65,6 +66,21 @@ fun Route.employeeCrud() {
             call.respondWith(
                 getEmployees(userId = principal.userId, businessId = it.businessId, activeOnly = it.active == true),
             )
+        }
+
+        /**
+         * Get bookable employees
+         *
+         * Summary: Get bookable employees
+         * Description: Returns the employees a client can book with in the business, every employee who is not suspended, with only their name, provided services and schedule; any signed in user may list them
+         * Tag: employee
+         * Security: jwt
+         * Response: 200 application/protobuf [com.bookk.business.domain.api.employee.entity.BookableEmployee]+ List of bookable employees
+         */
+        get<Api.Employee.Bookable> {
+            val getBookableEmployees by application.injectScoped<GetBookableEmployees>(BusinessScope)
+
+            call.respondWith(getBookableEmployees(it.parent.businessId))
         }
 
         /**
