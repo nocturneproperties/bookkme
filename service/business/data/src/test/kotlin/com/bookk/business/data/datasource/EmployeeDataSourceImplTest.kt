@@ -125,6 +125,60 @@ internal class EmployeeDataSourceImplTest {
     }
 
     @Test
+    fun `should list only the active employees of one business`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val otherBusinessId = suspendTransaction {
+            fixture.businessSut.createBusiness(Uuid.random(), "Other", "USD", TimeZone.UTC)
+        }.id
+        val active = suspendTransaction {
+            val active = fixture.sut.createEmployee(Employee.stub(businessId = fixture.businessId))
+            val suspended = fixture.sut.createEmployee(Employee.stub(businessId = fixture.businessId))
+            fixture.sut.setSuspendedAt(suspended.id, Instant.parse("2000-01-01T00:00:00Z"))
+            fixture.sut.createEmployee(Employee.stub(businessId = otherBusinessId))
+            active
+        }
+
+        whenn()
+        val employees = suspendTransaction { fixture.sut.getActiveEmployees(fixture.businessId) }
+
+        then()
+        assertEquals(listOf(active.id), employees.map { it.id })
+    }
+
+    @Test
+    fun `should list active employees with their services, schedule and permissions`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val service = fixture.createService()
+        val schedule = Schedule(
+            workingDays = listOf(DayOfWeek.MONDAY),
+            workingHours = mapOf(DayOfWeek.MONDAY to listOf(WorkHour(LocalTime(9, 0), LocalTime(17, 0)))),
+        )
+        val created = suspendTransaction {
+            fixture.sut.createEmployee(
+                Employee.stub(
+                    businessId = fixture.businessId,
+                    services = listOf(service),
+                    schedule = schedule,
+                    permissions = BusinessPermissions.VIEW_ONLY,
+                ),
+            )
+        }
+        val found = suspendTransaction { fixture.sut.getEmployee(fixture.businessId, created.id) }
+
+        whenn()
+        val employees = suspendTransaction { fixture.sut.getActiveEmployees(fixture.businessId) }
+
+        then()
+        assertEquals(listOf(found), employees)
+        assertEquals(listOf(service.id), employees.single().services.map { it.id })
+        assertEquals(BusinessPermissions.VIEW_ONLY, employees.single().permissions)
+    }
+
+    @Test
     fun `should create employee and retrieve by business`() = runUnitTest {
         given()
         val fixture = SutFixture()

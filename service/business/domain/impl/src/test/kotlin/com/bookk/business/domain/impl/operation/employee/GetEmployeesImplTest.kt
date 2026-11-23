@@ -51,11 +51,42 @@ internal class GetEmployeesImplTest {
         coEvery { fixture.employeeDataSource.getEmployees(businessId) } returns employees
 
         whenn()
-        val result = fixture.sut(userId, businessId)
+        val result = fixture.sut(userId, businessId, activeOnly = false)
 
         then()
         assertTrue(result.isSuccess)
         assertEquals(employees, result.getOrNull())
+    }
+
+    @Test
+    fun `should return only active employees when asked for active ones`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.transactionManager.mockTransaction()
+        val employees = listOf(Employee.stub(businessId = businessId))
+        coEvery { fixture.employeeDataSource.getActiveEmployees(businessId) } returns employees
+
+        whenn()
+        val result = fixture.sut(userId, businessId, activeOnly = true)
+
+        then()
+        assertEquals(employees, result.getOrNull())
+        coVerify(exactly = 0) { fixture.employeeDataSource.getEmployees(any()) }
+    }
+
+    @Test
+    fun `should return failure when caller asks for active employees but cannot view employees`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.transactionManager.mockTransaction()
+        fixture.grantPermission(ResourcePermission(view = false, update = true, delete = true))
+
+        whenn()
+        val result = fixture.sut(userId, businessId, activeOnly = true)
+
+        then()
+        assertTrue(result.exceptionOrNull() is Error.OperationNotAllowed)
+        coVerify(exactly = 0) { fixture.employeeDataSource.getActiveEmployees(any()) }
     }
 
     @Test
@@ -66,11 +97,12 @@ internal class GetEmployeesImplTest {
         fixture.grantPermission(ResourcePermission(view = false, update = true, delete = true))
 
         whenn()
-        val result = fixture.sut(userId, businessId)
+        val result = fixture.sut(userId, businessId, activeOnly = false)
 
         then()
         assertTrue(result.exceptionOrNull() is Error.OperationNotAllowed)
         coVerify(exactly = 0) { fixture.employeeDataSource.getEmployees(any()) }
+        coVerify(exactly = 0) { fixture.employeeDataSource.getActiveEmployees(any()) }
     }
 
     @Test
@@ -81,10 +113,11 @@ internal class GetEmployeesImplTest {
         fixture.grantPermission(ResourcePermission.NONE)
 
         whenn()
-        val result = fixture.sut(userId, businessId)
+        val result = fixture.sut(userId, businessId, activeOnly = false)
 
         then()
         assertTrue(result.exceptionOrNull() is Error.OperationNotAllowed)
         coVerify(exactly = 0) { fixture.employeeDataSource.getEmployees(any()) }
+        coVerify(exactly = 0) { fixture.employeeDataSource.getActiveEmployees(any()) }
     }
 }

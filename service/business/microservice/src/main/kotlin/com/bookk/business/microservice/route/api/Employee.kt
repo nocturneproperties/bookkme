@@ -52,7 +52,7 @@ fun Route.employeeCrud() {
          * Get employees
          *
          * Summary: Get employees
-         * Description: Returns all employees of the business, each with their own current view/update/delete grants for every business resource; only users who can view the employees resource may list them
+         * Description: Returns the employees of the business, each with their own current view/update/delete grants for every business resource; with the query parameter active=true only employees who are not suspended are returned; only users who can view the employees resource may list them
          * Tag: employee
          * Security: jwt
          * Response: 200 application/protobuf [com.bookk.business.domain.api.employee.entity.Employee]+ List of employees
@@ -62,7 +62,9 @@ fun Route.employeeCrud() {
             val principal = requireNotNull(call.principal<AppPrincipal>())
             val getEmployees by application.injectScoped<GetEmployees>(BusinessScope)
 
-            call.respondWith(getEmployees(userId = principal.userId, businessId = it.businessId))
+            call.respondWith(
+                getEmployees(userId = principal.userId, businessId = it.businessId, activeOnly = it.active == true),
+            )
         }
 
         /**

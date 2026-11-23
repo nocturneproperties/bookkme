@@ -18,12 +18,17 @@ internal class GetEmployeesImpl(
     override suspend fun invoke(
         userId: Uuid,
         businessId: Uuid,
+        activeOnly: Boolean,
     ): Result<List<Employee>> = transactionManager.transaction {
         businessPermissionDataSource.getPermission(
             userId,
             businessId,
             BusinessResource.EMPLOYEES,
         ).assert(PermissionAction.VIEW)
-        employeeDataSource.getEmployees(businessId)
+        if (activeOnly) {
+            employeeDataSource.getActiveEmployees(businessId)
+        } else {
+            employeeDataSource.getEmployees(businessId)
+        }
     }
 }
