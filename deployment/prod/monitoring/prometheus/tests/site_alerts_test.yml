@@ -26,6 +26,28 @@ tests:
           - labels: 'ALERTS{alertname="SiteDown", alertstate="firing", severity="critical"}'
             value: 1
 
+  - name: a running web app container keeps WebAppDown quiet
+    interval: 15s
+    input_series:
+      - series: 'container_last_seen{container_label_com_docker_swarm_service_name="webapp_webapp", id="/a"}'
+        values: '0+15x80'
+    promql_expr_test:
+      - expr: ALERTS{alertname="WebAppDown", alertstate="firing"}
+        eval_time: 15m
+        exp_samples: []
+
+  - name: a web app container last seen 5 minutes ago fires WebAppDown
+    interval: 15s
+    input_series:
+      - series: 'container_last_seen{container_label_com_docker_swarm_service_name="webapp_webapp", id="/a"}'
+        values: '0+15x20 _x60'
+    promql_expr_test:
+      - expr: ALERTS{alertname="WebAppDown", alertstate="firing"}
+        eval_time: 15m
+        exp_samples:
+          - labels: 'ALERTS{alertname="WebAppDown", alertstate="firing", severity="critical"}'
+            value: 1
+
   - name: many 5xx answers fire SiteErrors
     interval: 1m
     input_series:

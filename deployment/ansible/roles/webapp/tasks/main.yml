@@ -1,0 +1,32 @@
+- name: Validate the requested web app version
+  ansible.builtin.assert:
+    that:
+      - version is defined
+      - version | string | length > 0
+    fail_msg: "Pass -e version=<image tag of {{ webapp.image }}>"
+    quiet: true
+
+- name: "Deploy the web app {{ version }} with registry credentials"
+  block:
+    - name: Log the manager in to the image registry
+      community.docker.docker_login:
+        registry_url: "{{ registry }}"
+        username: "{{ registry_username }}"
+        password: "{{ registry_password }}"
+      no_log: true
+
+    - name: "Deploy the web app {{ version }}"
+      ansible.builtin.include_role:
+        name: stack
+      vars:
+        stack: "{{ webapp.stack }}"
+        stack_env: {}
+        stack_extra_env:
+          WEBAPP_IMAGE: "{{ webapp.image }}"
+          WEBAPP_VERSION: "{{ version | string }}"
+        stack_prune: true
+  always:
+    - name: Log the manager out of the image registry
+      community.docker.docker_login:
+        registry_url: "{{ registry }}"
+        state: absent

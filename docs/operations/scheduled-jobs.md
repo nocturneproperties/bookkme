@@ -24,6 +24,10 @@ name therefore starts with its service's name constant and a dash
   repeat.
 - A job that throws is caught and logged (`Scheduled job '<name>' failed`) by the runner; the
   loop is **not** broken — the job simply retries on its next tick after `interval`.
+- A successful run is logged as one DEBUG line, `Scheduled job '<name>' completed in <duration>`,
+  so production (INFO) shows only failures. A frequent job that almost always finds nothing to do
+  registers with `logSuccessfulRuns = false` and logs only its failures (`auth-reapplyErasures`,
+  `business-reapplyErasures`); `<Svc>JobsTest` checks which jobs do.
 - Job names must be unique per `Scheduler` installation (enforced at registration).
 - **No distributed lock.** If a microservice runs with more than one replica, every replica runs
   every job on its own schedule — jobs must be safe to run concurrently/redundantly (all current

@@ -6,5 +6,6 @@ internal data class ScheduledJob(
     val name: String,
     val interval: Duration,
     val initialDelay: Duration,
+    val logSuccessfulRuns: Boolean,
     val action: suspend () -> Unit,
 )

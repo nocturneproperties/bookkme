@@ -88,7 +88,7 @@ fun Application.registerAuthJobs(scheduler: SchedulerConfiguration) {
     scheduler.job("$AUTH_SERVICE_NAME-handleDormantAccounts", interval = 1.days) {
         scope.get<HandleDormantAccounts>().invoke().getOrThrow()
     }
-    scheduler.job("$AUTH_SERVICE_NAME-reapplyErasures", interval = 1.minutes) {
+    scheduler.job("$AUTH_SERVICE_NAME-reapplyErasures", interval = 1.minutes, logSuccessfulRuns = false) {
         scope.get<ReapplyAccountErasures>().invoke().getOrThrow()
     }
     scheduler.job("$AUTH_SERVICE_NAME-deleteExpiredErasureRecords", interval = 1.days) {

@@ -1,0 +1,5 @@
+- name: Deploy the web app
+  hosts: "{{ groups['managers'] | first }}"
+  gather_facts: false
+  roles:
+    - webapp

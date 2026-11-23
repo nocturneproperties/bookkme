@@ -33,7 +33,7 @@ configs:
     name: prometheus_security_alerts_cfg-v2
     file: prometheus/security_alerts.yml
   prometheus_site_alerts_cfg:
-    name: prometheus_site_alerts_cfg-v1
+    name: prometheus_site_alerts_cfg-v2
     file: prometheus/site_alerts.yml
   alertmanager_cfg:
     name: alertmanager_cfg-v2

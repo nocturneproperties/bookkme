@@ -51,6 +51,7 @@ map "$site_referrer_host $host" $site_referrer {
 map $http_origin $site_cors_origin {
     "https://${SITE_DOMAIN_NAME}" $http_origin;
     "https://www.${SITE_DOMAIN_NAME}" $http_origin;
+    "https://app.${SITE_DOMAIN_NAME}" $http_origin;
     default "";
 }
 map $site_cors_origin $site_cors_methods {
@@ -59,7 +60,7 @@ map $site_cors_origin $site_cors_methods {
 }
 map $site_cors_origin $site_cors_headers {
     "" "";
-    default "Authorization, Content-Type, Accept, Accept-Language, Idempotency-Key";
+    default "Authorization, Content-Type, Accept, Accept-Language, Idempotency-Key, User-Agent, X-Debug, X-App-Version, X-Platform";
 }
 map $site_cors_origin $site_cors_expose {
     "" "";
@@ -104,6 +105,12 @@ upstream notifications.service {
 upstream site.service {
     zone site.service 64k;
     server site.service:8080 resolve;
+    keepalive 16;
+    keepalive_timeout 30s;
+}
+upstream webapp.service {
+    zone webapp.service 64k;
+    server webapp.service:8081 resolve;
     keepalive 16;
     keepalive_timeout 30s;
 }
@@ -250,6 +257,40 @@ server {
 server {
   listen 443 ssl;
   http2 on;
+  server_name         local-app.${DOMAIN_NAME};
+  access_log  off;
+
+  ssl_certificate     /etc/nginx/ssl/${DOMAIN_NAME}/fullchain.pem;
+  ssl_certificate_key /etc/nginx/ssl/${DOMAIN_NAME}/key.pem;
+
+  ssl_protocols       TLSv1.2 TLSv1.3;
+  ssl_ciphers         ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384;
+  ssl_prefer_server_ciphers off;
+
+  ssl_session_cache   shared:SSL:10m;
+  ssl_session_timeout 1d;
+  ssl_session_tickets off;
+
+  allow ${VPN_SUBNET};
+  deny all;
+
+  proxy_hide_header Cross-Origin-Opener-Policy;
+  proxy_hide_header Cross-Origin-Embedder-Policy;
+  add_header Cross-Origin-Opener-Policy same-origin always;
+  add_header Cross-Origin-Embedder-Policy require-corp always;
+
+  location /api/ {
+      proxy_pass http://$remote_addr$request_uri;
+  }
+
+  location / {
+      proxy_pass http://$remote_addr:8081$request_uri;
+  }
+}
+
+server {
+  listen 443 ssl;
+  http2 on;
   server_name         grafana.${DOMAIN_NAME};
   access_log  /var/log/nginx/access.log admin_auth if=$admin_auth;
 
@@ -327,7 +368,7 @@ server {
   }
   location = /.well-known/webauthn {
      default_type application/json;
-     return 200 '{"origins":["https://${SITE_DOMAIN_NAME}","https://www.${SITE_DOMAIN_NAME}"]}';
+     return 200 '{"origins":["https://${SITE_DOMAIN_NAME}","https://www.${SITE_DOMAIN_NAME}","https://app.${SITE_DOMAIN_NAME}"]}';
   }
   proxy_http_version 1.1;
   proxy_set_header Connection "";
@@ -406,5 +447,35 @@ server {
 
   location / {
       proxy_pass http://site.service;
+  }
+}
+
+server {
+  listen 443 ssl;
+  http2 on;
+  server_name         app.${SITE_DOMAIN_NAME};
+  include             /etc/nginx/snippets/cloudflare-real-ip.conf;
+
+  ssl_certificate     /etc/nginx/ssl/${SITE_DOMAIN_NAME}/fullchain.pem;
+  ssl_certificate_key /etc/nginx/ssl/${SITE_DOMAIN_NAME}/key.pem;
+
+  ssl_protocols       TLSv1.2 TLSv1.3;
+  ssl_ciphers         ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384;
+  ssl_prefer_server_ciphers off;
+
+  ssl_session_cache   shared:SSL:10m;
+  ssl_session_timeout 1d;
+  ssl_session_tickets off;
+
+  proxy_http_version 1.1;
+  proxy_set_header Connection "";
+
+  proxy_hide_header Cross-Origin-Opener-Policy;
+  proxy_hide_header Cross-Origin-Embedder-Policy;
+  add_header Cross-Origin-Opener-Policy same-origin always;
+  add_header Cross-Origin-Embedder-Policy require-corp always;
+
+  location / {
+      proxy_pass http://webapp.service;
   }
 }

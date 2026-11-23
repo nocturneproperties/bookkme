@@ -5,7 +5,9 @@ import com.bookk.core.test.runUnitTest
 import com.bookk.core.test.then
 import com.bookk.core.test.whenn
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertThrows
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
@@ -23,6 +25,19 @@ internal class SchedulerConfigurationTest {
         then()
         assertEquals(1, configuration.jobs.size)
         assertEquals("test-job", configuration.jobs.first().name)
+        assertTrue(configuration.jobs.first().logSuccessfulRuns)
+    }
+
+    @Test
+    fun `should register a job without success logging`() = runUnitTest {
+        given()
+        val configuration = SchedulerConfiguration()
+
+        whenn()
+        configuration.job(name = "quiet-job", interval = 10.seconds, logSuccessfulRuns = false) {}
+
+        then()
+        assertFalse(configuration.jobs.single().logSuccessfulRuns)
     }
 
     @Test

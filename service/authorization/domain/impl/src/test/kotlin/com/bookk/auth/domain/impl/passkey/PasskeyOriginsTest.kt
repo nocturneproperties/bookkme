@@ -11,17 +11,17 @@ import org.junit.jupiter.api.Test
 internal class PasskeyOriginsTest {
 
     @Test
-    fun `should accept the api domain and the website's domain with and without www`() = runUnitTest {
+    fun `should accept the api domain, the website's domain with and without www and its web app`() = runUnitTest {
         given()
         val domainName = "bookkme.app"
         val siteDomainName = "bookkme.com"
 
         whenn()
-        val origins = passkeyOrigins(domainName, siteDomainName)
+        val origins = passkeyOrigins(domainName, siteDomainName, extraOrigins = "")
 
         then()
         assertEquals(
-            setOf("https://bookkme.app", "https://bookkme.com", "https://www.bookkme.com"),
+            setOf("https://bookkme.app", "https://bookkme.com", "https://www.bookkme.com", "https://app.bookkme.com"),
             origins.filter { it.startsWith("https://") }.toSet(),
         )
     }
@@ -32,7 +32,7 @@ internal class PasskeyOriginsTest {
         val domainName = "booking.example.org"
 
         whenn()
-        val origins = passkeyOrigins(domainName, siteDomainName = "")
+        val origins = passkeyOrigins(domainName, siteDomainName = "", extraOrigins = "")
 
         then()
         assertEquals(setOf("https://booking.example.org"), origins.filter { it.startsWith("https://") }.toSet())
@@ -44,10 +44,25 @@ internal class PasskeyOriginsTest {
         val domainName = "bookkme.app"
 
         whenn()
-        val origins = passkeyOrigins(domainName, siteDomainName = "")
+        val origins = passkeyOrigins(domainName, siteDomainName = "", extraOrigins = "")
 
         then()
         assertTrue("android:apk-key-hash:l63z2UoYmCmoJ2V8Z9CfAxPkbhd7IjZvUrihusXdt10" in origins)
         assertTrue("android:apk-key-hash:OCIXBZS_NbVj7Rr8TSctbrMGlxoMyZ0wl6ajVa7Yry4" in origins)
+    }
+
+    @Test
+    fun `should accept every extra origin listed with commas`() = runUnitTest {
+        given()
+        val extraOrigins = " https://local-app.bookkme.app, https://local.bookkme.app ,"
+
+        whenn()
+        val origins = passkeyOrigins(domainName = "bookkme.app", siteDomainName = "", extraOrigins = extraOrigins)
+
+        then()
+        assertEquals(
+            setOf("https://bookkme.app", "https://local-app.bookkme.app", "https://local.bookkme.app"),
+            origins.filter { it.startsWith("https://") }.toSet(),
+        )
     }
 }

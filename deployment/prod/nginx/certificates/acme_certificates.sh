@@ -18,7 +18,7 @@ acme.sh --server letsencrypt --register-account -m "$ACME_ACCOUNT_EMAIL"
 issue "$DOMAIN_NAME" "*.$DOMAIN_NAME"
 deploy "$DOMAIN_NAME"
 
-if ! { issue "$SITE_DOMAIN_NAME" "www.$SITE_DOMAIN_NAME" && deploy "$SITE_DOMAIN_NAME"; }; then
+if ! { issue "$SITE_DOMAIN_NAME" "*.$SITE_DOMAIN_NAME" && deploy "$SITE_DOMAIN_NAME"; }; then
   echo "No certificate for $SITE_DOMAIN_NAME, nginx keeps serving its self-signed placeholder" >&2
 fi
 

@@ -13,6 +13,7 @@ import com.bookk.business.domain.api.business.operation.GetBusinessById
 import com.bookk.business.domain.api.business.operation.GetBusinessDetails
 import com.bookk.business.domain.api.business.operation.GetBusinessLink
 import com.bookk.business.domain.api.business.operation.GetBusinessPermission
+import com.bookk.business.domain.api.business.operation.GetBusinessesByIds
 import com.bookk.business.domain.api.business.operation.GetDashboardBusiness
 import com.bookk.business.domain.api.business.operation.GetUserBusinesses
 import com.bookk.business.domain.api.business.operation.ResolveBusinessLink
@@ -67,6 +68,7 @@ import com.bookk.business.domain.impl.operation.business.GetBusinessByIdImpl
 import com.bookk.business.domain.impl.operation.business.GetBusinessDetailsImpl
 import com.bookk.business.domain.impl.operation.business.GetBusinessLinkImpl
 import com.bookk.business.domain.impl.operation.business.GetBusinessPermissionImpl
+import com.bookk.business.domain.impl.operation.business.GetBusinessesByIdsImpl
 import com.bookk.business.domain.impl.operation.business.GetDashboardBusinessImpl
 import com.bookk.business.domain.impl.operation.business.GetUserBusinessesImpl
 import com.bookk.business.domain.impl.operation.business.ResolveBusinessLinkImpl
@@ -128,6 +130,7 @@ fun businessDomainModule() = module {
     )
     scope(BusinessScope) {
         scopedOf(::GetBusinessByIdImpl) bind GetBusinessById::class
+        scopedOf(::GetBusinessesByIdsImpl) bind GetBusinessesByIds::class
         scopedOf(::GetBusinessDetailsImpl) bind GetBusinessDetails::class
         scopedOf(::CreateBusinessImpl) bind CreateBusiness::class
         scopedOf(::DeleteBusinessImpl) bind DeleteBusiness::class

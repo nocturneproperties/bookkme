@@ -11,6 +11,11 @@ private val ANDROID_APP_ORIGINS = setOf(
 )
 
 internal fun createRelyingParty(credentialRepository: CredentialRepository): RelyingParty {
+    val origins = passkeyOrigins(
+        domainName = AppLevelConstants.domainName,
+        siteDomainName = AppLevelConstants.siteDomainName,
+        extraOrigins = AppLevelConstants.passkeyExtraOrigins,
+    )
     val identity = RelyingPartyIdentity.builder()
         .id(AppLevelConstants.domainName)
         .name(AppLevelConstants.APP_NAME)
@@ -18,13 +23,16 @@ internal fun createRelyingParty(credentialRepository: CredentialRepository): Rel
     return RelyingParty.builder()
         .identity(identity)
         .credentialRepository(credentialRepository)
-        .origins(passkeyOrigins(AppLevelConstants.domainName, AppLevelConstants.siteDomainName))
+        .origins(origins)
         .build()
 }
 
-internal fun passkeyOrigins(domainName: String, siteDomainName: String): Set<String> {
+internal fun passkeyOrigins(domainName: String, siteDomainName: String, extraOrigins: String): Set<String> {
     val siteOrigins = siteDomainName.takeIf { it.isNotBlank() }
-        ?.let { setOf("https://$it", "https://www.$it") }
+        ?.let { setOf("https://$it", "https://www.$it", "https://app.$it") }
         .orEmpty()
-    return ANDROID_APP_ORIGINS + "https://$domainName" + siteOrigins
+    val listedOrigins = extraOrigins.split(",")
+        .map { it.trim() }
+        .filter { it.isNotEmpty() }
+    return ANDROID_APP_ORIGINS + "https://$domainName" + siteOrigins + listedOrigins
 }
