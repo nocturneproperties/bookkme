@@ -10,9 +10,9 @@ import com.bookk.appointments.data.orm.table.SettingsTable
 import com.bookk.appointments.domain.api.entity.Appointment
 import com.bookk.appointments.domain.api.entity.AppointmentCompletedBy
 import com.bookk.appointments.domain.api.entity.AppointmentPagination
-import com.bookk.appointments.domain.api.entity.AppointmentRepresentation
 import com.bookk.appointments.domain.api.entity.AppointmentRequest
 import com.bookk.appointments.domain.api.entity.AppointmentStatus
+import com.bookk.appointments.domain.api.entity.BookedRange
 import com.bookk.appointments.domain.api.entity.PriceAdjustment
 import com.bookk.appointments.domain.datasource.AppointmentDataSource
 import com.bookk.core.data.DataSource
@@ -33,7 +33,6 @@ import org.jetbrains.exposed.v1.core.less
 import org.jetbrains.exposed.v1.core.lessEq
 import org.jetbrains.exposed.v1.core.like
 import org.jetbrains.exposed.v1.core.lowerCase
-import org.jetbrains.exposed.v1.core.neq
 import org.jetbrains.exposed.v1.core.or
 import org.jetbrains.exposed.v1.core.statements.UpdateStatement
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
@@ -168,19 +167,26 @@ internal class AppointmentDataSourceImpl(
         )
     }
 
-    override suspend fun hasOverlapsWith(appointment: AppointmentRepresentation): Boolean = dbQuery {
-        AppointmentTable.select(AppointmentTable.id)
+    override suspend fun getEmployeeBookings(
+        businessId: Uuid,
+        employeeId: Uuid,
+        overlapping: OpenEndRange<Instant>,
+    ): List<BookedRange> = dbQuery {
+        AppointmentTable.select(AppointmentTable.id, AppointmentTable.dateStart, AppointmentTable.dateEnd)
             .where {
-                (AppointmentTable.businessId eq appointment.businessId)
-                    .and(AppointmentTable.initiatorUserId eq appointment.initiatorUserId)
-                    .and(AppointmentTable.dateStart.less(appointment.dateEnd))
-                    .and(AppointmentTable.dateEnd.greater(appointment.date))
-                    .and(AppointmentTable.id neq appointment.id)
+                (AppointmentTable.employeeId eq employeeId)
+                    .and(AppointmentTable.businessId eq businessId)
+                    .and(AppointmentTable.dateStart.less(overlapping.endExclusive))
+                    .and(AppointmentTable.dateEnd.greater(overlapping.start))
                     .and(AppointmentTable.status eq AppointmentStatus.SCHEDULED)
             }
-            .limit(1)
-            .empty()
-            .not()
+            .map {
+                BookedRange(
+                    id = it[AppointmentTable.id].value,
+                    start = it[AppointmentTable.dateStart],
+                    end = it[AppointmentTable.dateEnd],
+                )
+            }
     }
 
     override suspend fun create(request: AppointmentRequest): Appointment = dbQuery {

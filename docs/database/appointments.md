@@ -45,9 +45,9 @@ erDiagram
 
     APPOINTMENT {
         uuid id PK
-        uuid initiator_user_id "logical FK -> user.profile.id of whoever booked; non-unique index with business_id, date_start (overlap checks)"
+        uuid initiator_user_id "logical FK -> user.profile.id of whoever booked; non-unique index with business_id, date_start"
         uuid business_id FK
-        uuid employee_id "logical FK -> business.employee.id"
+        uuid employee_id "logical FK -> business.employee.id; non-unique index with date_end (employee busy time: booking checks and free slots)"
         uuid employee_user_id "indexed; logical FK -> user.profile.id (employee's own userId); what account deletion cancels and renames by"
         bytes employee_name_encrypted "nullable; under the employee_user_id key, NULL when erased"
         uuid client_id "logical FK -> business.client.id"
@@ -109,7 +109,7 @@ erDiagram
 
     APPOINTMENT_REQUEST {
         uuid id PK
-        uuid initiator_user_id "logical FK -> user.profile.id of whoever booked; non-unique index with business_id, date_start (overlap checks)"
+        uuid initiator_user_id "logical FK -> user.profile.id of whoever booked; non-unique index with business_id, date_start"
         uuid business_id FK
         uuid employee_id "logical FK -> business.employee.id"
         uuid employee_user_id "indexed; logical FK -> user.profile.id (employee's own userId); what account deletion cancels and renames by"

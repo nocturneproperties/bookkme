@@ -33,6 +33,9 @@ internal class UpdateAppointmentImpl(
     private val transactionManager: TransactionManager,
     private val eventProducer: StandardEventProducer,
 ) : UpdateAppointment {
+
+    private val employeeBookings = EmployeeBookings(appointmentDataSource)
+
     override suspend fun invoke(userId: Uuid, update: AppointmentUpdate): Result<Appointment> = runSuspendCatching {
         if (!update.hasValidServiceSelection()) throw UpdateAppointment.Error.InvalidServiceSelection()
         val existing = transactionManager.transactionOrThrow {
@@ -52,9 +55,7 @@ internal class UpdateAppointmentImpl(
             val reservesSlot = reschedules || locked.status == AppointmentStatus.SCHEDULED
             if (reservesSlot) {
                 settings.requireBookable(rescheduled.date, rescheduled.dateEnd, employeeSchedule)
-                if (appointmentDataSource.hasOverlapsWith(rescheduled)) {
-                    throw UpdateAppointment.Error.AppointmentForThisTimeExists()
-                }
+                if (rescheduled.occupiesOtherTimeThan(locked)) employeeBookings.requireFree(rescheduled, settings)
             }
             if (reschedules) appointmentDataSource.reopen(update.id)
             appointmentDataSource.update(rescheduled).also {
@@ -75,6 +76,11 @@ internal class UpdateAppointmentImpl(
         if (update.reschedules(appointment) && update.date < Clock.System.now()) {
             throw UpdateAppointment.Error.DateInThePastNotAllowed()
         }
+    }
+
+    private fun Appointment.occupiesOtherTimeThan(stored: Appointment): Boolean {
+        val movesEmployee = employee.id != stored.employee.id
+        return movesEmployee || date != stored.date || dateEnd != stored.dateEnd
     }
 
     private fun AppointmentUpdate.hasValidServiceSelection(): Boolean {

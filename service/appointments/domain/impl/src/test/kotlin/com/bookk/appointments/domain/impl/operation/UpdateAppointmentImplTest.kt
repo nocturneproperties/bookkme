@@ -6,6 +6,8 @@ import com.bookk.appointments.domain.api.entity.AppointmentSettings
 import com.bookk.appointments.domain.api.entity.AppointmentStatus
 import com.bookk.appointments.domain.api.entity.AppointmentStatusError
 import com.bookk.appointments.domain.api.entity.AppointmentUpdate
+import com.bookk.appointments.domain.api.entity.BookedRange
+import com.bookk.appointments.domain.api.entity.BookingConflictError
 import com.bookk.appointments.domain.api.entity.BookingScheduleError
 import com.bookk.appointments.domain.api.entity.EmployeeSnapshot
 import com.bookk.appointments.domain.api.entity.PriceAdjustment
@@ -48,18 +50,21 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.days
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
 internal class UpdateAppointmentImplTest {
 
     private class SutFixture {
-        val appointmentDataSource = mockk<AppointmentDataSource>()
+        val appointmentDataSource = mockk<AppointmentDataSource> {
+            coEvery { getEmployeeBookings(any(), any(), any()) } returns emptyList()
+        }
         val settingsDataSource = mockk<AppointmentSettingsDataSource>()
         val appointmentPermissionDataSource = mockk<AppointmentPermissionDataSource>()
         val businessClient = mockk<BusinessClient>()
         val transactionManager = mockk<TransactionManager>()
-        val settings = mockk<AppointmentSettings>()
+        val settings = mockk<AppointmentSettings> { every { inBetweenBreakInMinutes } returns 0 }
         val eventProducer = mockk<StandardEventProducer>()
         val sentEvents = mutableListOf<AppointmentEvent>()
         val sentInTransaction = mutableListOf<Boolean>()
@@ -88,7 +93,6 @@ internal class UpdateAppointmentImplTest {
                 Result.success(AppointmentRescheduleContext(employee = sameEmployee(stored), services = emptyList()))
             every { settings.requireBookable(any(), any(), any()) } just Runs
             coEvery { appointmentPermissionDataSource.getPermission(userId, stored.businessId) } returns permission
-            coEvery { appointmentDataSource.hasOverlapsWith(any<Appointment>()) } returns false
             coEvery { appointmentDataSource.reopen(stored.id) } just runs
             coEvery { appointmentDataSource.update(any<Appointment>()) } answers { firstArg() }
             coEvery { eventProducer.send(any<AppointmentEvent>(), any()) } coAnswers {
@@ -419,7 +423,7 @@ internal class UpdateAppointmentImplTest {
             fixture.settingsDataSource.getForUpdate(stored.businessId)
             fixture.appointmentDataSource.getForUpdate(stored.id)
             fixture.appointmentPermissionDataSource.getPermission(userId, stored.businessId)
-            fixture.appointmentDataSource.hasOverlapsWith(any<Appointment>())
+            fixture.appointmentDataSource.getEmployeeBookings(any(), any(), any())
             fixture.appointmentDataSource.update(any<Appointment>())
         }
     }
@@ -568,7 +572,7 @@ internal class UpdateAppointmentImplTest {
             ),
             result.getOrNull(),
         )
-        coVerify(exactly = 1) { fixture.appointmentDataSource.hasOverlapsWith(any()) }
+        coVerify(exactly = 1) { fixture.appointmentDataSource.getEmployeeBookings(any(), any(), any()) }
         coVerify(exactly = 1) { fixture.eventProducer.send(any(AppointmentEvent.ClientVisitBooked::class), any()) }
     }
 
@@ -595,7 +599,7 @@ internal class UpdateAppointmentImplTest {
             ),
             result.getOrNull(),
         )
-        coVerify(exactly = 1) { fixture.appointmentDataSource.hasOverlapsWith(any()) }
+        coVerify(exactly = 1) { fixture.appointmentDataSource.getEmployeeBookings(any(), any(), any()) }
         coVerify(exactly = 1) { fixture.eventProducer.send(any(AppointmentEvent.ClientVisitBooked::class), any()) }
     }
 
@@ -650,28 +654,6 @@ internal class UpdateAppointmentImplTest {
 
         then()
         assertTrue(result.exceptionOrNull() is BookingScheduleError.BusinessTimeNotAllowed)
-        coVerify(exactly = 0) { fixture.appointmentDataSource.update(any()) }
-    }
-
-    @Test
-    fun `should check overlaps against the rescheduled appointment`() = runUnitTest {
-        given()
-        val fixture = SutFixture()
-        val userId = Uuid.random()
-        val stored = Appointment.stub(date = futureDate)
-        with(fixture) {
-            givenValidUpdate(userId, stored)
-            coEvery {
-                appointmentDataSource.hasOverlapsWith(stored.copy(date = laterDate, note = "Updated note"))
-            } returns
-                true
-        }
-
-        whenn()
-        val result = fixture.sut(userId, keepingEverything(stored))
-
-        then()
-        assertTrue(result.exceptionOrNull() is UpdateAppointment.Error.AppointmentForThisTimeExists)
         coVerify(exactly = 0) { fixture.appointmentDataSource.update(any()) }
     }
 
@@ -781,7 +763,7 @@ internal class UpdateAppointmentImplTest {
 
         then()
         assertEquals(stored.copy(note = "Updated note"), result.getOrNull())
-        coVerify(exactly = 0) { fixture.appointmentDataSource.hasOverlapsWith(any()) }
+        coVerify(exactly = 0) { fixture.appointmentDataSource.getEmployeeBookings(any(), any(), any()) }
         coVerify(exactly = 0) { fixture.appointmentDataSource.reopen(any()) }
     }
 
@@ -803,7 +785,7 @@ internal class UpdateAppointmentImplTest {
 
         then()
         assertEquals(stored.copy(note = "Updated note"), result.getOrNull())
-        coVerify(exactly = 0) { fixture.appointmentDataSource.hasOverlapsWith(any()) }
+        coVerify(exactly = 0) { fixture.appointmentDataSource.getEmployeeBookings(any(), any(), any()) }
         coVerify(exactly = 0) { fixture.appointmentDataSource.reopen(any()) }
     }
 
@@ -829,7 +811,7 @@ internal class UpdateAppointmentImplTest {
         assertEquals(stored.services.size * 2, result.getOrNull()?.services?.size)
         coVerify(exactly = 0) { fixture.businessClient.getAppointmentRescheduleContext(any(), any(), any(), any()) }
         verify(exactly = 0) { fixture.settings.requireBookable(any(), any(), any()) }
-        coVerify(exactly = 0) { fixture.appointmentDataSource.hasOverlapsWith(any()) }
+        coVerify(exactly = 0) { fixture.appointmentDataSource.getEmployeeBookings(any(), any(), any()) }
     }
 
     @Test
@@ -839,7 +821,9 @@ internal class UpdateAppointmentImplTest {
         val userId = Uuid.random()
         val stored = Appointment.stub(date = futureDate)
         fixture.givenValidUpdate(userId, stored)
-        coEvery { fixture.appointmentDataSource.hasOverlapsWith(any<Appointment>()) } returns true
+        coEvery {
+            fixture.appointmentDataSource.getEmployeeBookings(stored.businessId, stored.employee.id, any())
+        } returns listOf(BookedRange.stub(start = stored.dateEnd, end = stored.dateEnd + 30.minutes))
         val update = keepingEverything(stored, date = stored.date).copy(
             services = stored.services.map { RequestedService(serviceId = it.id, count = 2) },
         )
@@ -848,7 +832,7 @@ internal class UpdateAppointmentImplTest {
         val result = fixture.sut(userId, update)
 
         then()
-        assertTrue(result.exceptionOrNull() is UpdateAppointment.Error.AppointmentForThisTimeExists)
+        assertTrue(result.exceptionOrNull() is BookingConflictError.EmployeeBusy)
     }
 
     @Test
@@ -979,5 +963,65 @@ internal class UpdateAppointmentImplTest {
             assertTrue(result.isSuccess)
             coVerify(exactly = 0) { fixture.businessClient.getAppointmentRescheduleContext(any(), any(), any(), any()) }
             verify(exactly = 1) { fixture.settings.requireBookable(stored.date, stored.dateEnd, null) }
+        }
+
+    @Test
+    fun `should not reschedule onto another booking of the employee`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val stored = Appointment.stub(date = futureDate)
+        with(fixture) {
+            givenValidUpdate(userId, stored)
+            coEvery { appointmentDataSource.getEmployeeBookings(stored.businessId, stored.employee.id, any()) } returns
+                listOf(BookedRange.stub(start = laterDate, end = laterDate + 30.minutes))
+        }
+
+        whenn()
+        val result = fixture.sut(userId, keepingEverything(stored))
+
+        then()
+        assertTrue(result.exceptionOrNull() is BookingConflictError.EmployeeBusy)
+        coVerify(exactly = 0) { fixture.appointmentDataSource.update(any()) }
+    }
+
+    @Test
+    fun `should not count the rescheduled appointment itself as the employee's other booking`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val stored = Appointment.stub(date = futureDate)
+        with(fixture) {
+            givenValidUpdate(userId, stored)
+            coEvery { appointmentDataSource.getEmployeeBookings(stored.businessId, stored.employee.id, any()) } returns
+                listOf(BookedRange.stub(id = stored.id, start = laterDate, end = laterDate + 30.minutes))
+        }
+
+        whenn()
+        val result = fixture.sut(userId, keepingEverything(stored))
+
+        then()
+        assertTrue(result.isSuccess)
+    }
+
+    @Test
+    fun `should edit the note of an appointment that keeps its slot next to another booking of the employee`() =
+        runUnitTest {
+            given()
+            val fixture = SutFixture()
+            val userId = Uuid.random()
+            val stored = Appointment.stub(date = futureDate)
+            with(fixture) {
+                givenValidUpdate(userId, stored)
+                coEvery { appointmentDataSource.getEmployeeBookings(any(), any(), any()) } returns
+                    listOf(BookedRange.stub(start = stored.dateEnd, end = stored.dateEnd + 30.minutes))
+            }
+
+            whenn()
+            val result = fixture.sut(userId, keepingEverything(stored, date = stored.date))
+
+            then()
+            assertEquals(stored.copy(note = "Updated note"), result.getOrNull())
+            coVerify(exactly = 0) { fixture.appointmentDataSource.getEmployeeBookings(any(), any(), any()) }
         }
 }

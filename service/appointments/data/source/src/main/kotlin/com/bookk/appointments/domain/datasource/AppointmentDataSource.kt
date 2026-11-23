@@ -2,8 +2,8 @@ package com.bookk.appointments.domain.datasource
 
 import com.bookk.appointments.domain.api.entity.Appointment
 import com.bookk.appointments.domain.api.entity.AppointmentPagination
-import com.bookk.appointments.domain.api.entity.AppointmentRepresentation
 import com.bookk.appointments.domain.api.entity.AppointmentRequest
+import com.bookk.appointments.domain.api.entity.BookedRange
 import com.bookk.appointments.domain.api.entity.PriceAdjustment
 import kotlin.time.Instant
 import kotlin.uuid.Uuid
@@ -25,7 +25,11 @@ interface AppointmentDataSource {
     ): AppointmentPagination
     suspend fun update(appointment: Appointment): Appointment
     suspend fun delete(id: Uuid)
-    suspend fun hasOverlapsWith(appointment: AppointmentRepresentation): Boolean
+    suspend fun getEmployeeBookings(
+        businessId: Uuid,
+        employeeId: Uuid,
+        overlapping: OpenEndRange<Instant>,
+    ): List<BookedRange>
     suspend fun cancel(id: Uuid, reason: String): Appointment
     suspend fun cancelAll(ids: Collection<Uuid>, reason: String)
     suspend fun markCompleted(now: Instant)

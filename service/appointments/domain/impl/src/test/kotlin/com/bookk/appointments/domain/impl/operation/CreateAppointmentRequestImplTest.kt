@@ -6,6 +6,8 @@ import com.auth0.jwt.interfaces.DecodedJWT
 import com.bookk.appointments.domain.api.entity.AppointmentRequest
 import com.bookk.appointments.domain.api.entity.AppointmentRequestDraft
 import com.bookk.appointments.domain.api.entity.AppointmentSettings
+import com.bookk.appointments.domain.api.entity.BookedRange
+import com.bookk.appointments.domain.api.entity.BookingConflictError
 import com.bookk.appointments.domain.api.entity.BookingQuoteError
 import com.bookk.appointments.domain.api.entity.BookingScheduleError
 import com.bookk.appointments.domain.api.entity.BusinessSnapshot
@@ -58,6 +60,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.hours
 import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
@@ -80,7 +83,9 @@ internal class CreateAppointmentRequestImplTest {
         val requestDataSource = mockk<AppointmentRequestDataSource> {
             coEvery { countPendingByUser(any(), any()) } returns 0
         }
-        val appointmentDataSource = mockk<AppointmentDataSource>()
+        val appointmentDataSource = mockk<AppointmentDataSource> {
+            coEvery { getEmployeeBookings(any(), any(), any()) } returns emptyList()
+        }
         val settingsDataSource = mockk<AppointmentSettingsDataSource>()
         val createAppointment = mockk<CreateAppointment>()
         val transactionManager = mockk<TransactionManager>()
@@ -188,7 +193,7 @@ internal class CreateAppointmentRequestImplTest {
         val businessId = Uuid.random()
         val context = bookingContext(businessId, Uuid.random(), Uuid.random(), Uuid.random())
         val draft = draftFor(context, businessId, futureDate)
-        val settings = mockk<AppointmentSettings>()
+        val settings = mockk<AppointmentSettings> { every { inBetweenBreakInMinutes } returns 0 }
         val businessSnapshot = BusinessSnapshot.stub()
         val createdSlot = slot<AppointmentRequest>()
 
@@ -200,8 +205,6 @@ internal class CreateAppointmentRequestImplTest {
             coEvery { settings.automaticApproval } returns false
             every { settings.maxPendingRequestsPerClient } returns 10
             every { settings.requireBookable(any(), any(), any()) } just Runs
-            coEvery { requestDataSource.hasOverlapsWith(any()) } returns false
-            coEvery { appointmentDataSource.hasOverlapsWith(any()) } returns false
             coEvery { requestDataSource.create(capture(createdSlot)) } answers { createdSlot.captured }
             coEvery { subscriptionDataSource.getBusinessSnapshot(any()) } returns businessSnapshot
             coEvery { eventProducer.send(any(), any()) } returns Unit
@@ -239,7 +242,7 @@ internal class CreateAppointmentRequestImplTest {
         val serviceX = Service.stub(businessId = businessId)
         val context = bookingContext(businessId, Uuid.random(), Uuid.random(), listOf(serviceX))
         val draft = draftFor(context, businessId, futureDate, counts = mapOf(serviceX.id to 5))
-        val settings = mockk<AppointmentSettings>()
+        val settings = mockk<AppointmentSettings> { every { inBetweenBreakInMinutes } returns 0 }
         val businessSnapshot = BusinessSnapshot.stub()
         val createdSlot = slot<AppointmentRequest>()
 
@@ -251,8 +254,6 @@ internal class CreateAppointmentRequestImplTest {
             coEvery { settings.automaticApproval } returns false
             every { settings.maxPendingRequestsPerClient } returns 10
             every { settings.requireBookable(any(), any(), any()) } just Runs
-            coEvery { requestDataSource.hasOverlapsWith(any()) } returns false
-            coEvery { appointmentDataSource.hasOverlapsWith(any()) } returns false
             coEvery { requestDataSource.create(capture(createdSlot)) } answers { createdSlot.captured }
             coEvery { subscriptionDataSource.getBusinessSnapshot(any()) } returns businessSnapshot
             coEvery { eventProducer.send(any(), any()) } returns Unit
@@ -326,7 +327,7 @@ internal class CreateAppointmentRequestImplTest {
         val businessId = Uuid.random()
         val context = bookingContext(businessId, Uuid.random(), Uuid.random(), Uuid.random())
         val draft = draftFor(context, businessId, futureDate)
-        val settings = mockk<AppointmentSettings>()
+        val settings = mockk<AppointmentSettings> { every { inBetweenBreakInMinutes } returns 0 }
 
         with(fixture) {
             coEvery {
@@ -356,7 +357,7 @@ internal class CreateAppointmentRequestImplTest {
         val businessId = Uuid.random()
         val context = bookingContext(businessId, Uuid.random(), Uuid.random(), Uuid.random())
         val draft = draftFor(context, businessId, futureDate)
-        val settings = mockk<AppointmentSettings>()
+        val settings = mockk<AppointmentSettings> { every { inBetweenBreakInMinutes } returns 0 }
 
         with(fixture) {
             coEvery {
@@ -388,7 +389,7 @@ internal class CreateAppointmentRequestImplTest {
         val pastDate = Instant.parse("2000-01-01T00:00:00Z")
         val context = bookingContext(businessId, Uuid.random(), Uuid.random(), Uuid.random())
         val draft = draftFor(context, businessId, pastDate)
-        val settings = mockk<AppointmentSettings>()
+        val settings = mockk<AppointmentSettings> { every { inBetweenBreakInMinutes } returns 0 }
 
         with(fixture) {
             coEvery {
@@ -417,7 +418,7 @@ internal class CreateAppointmentRequestImplTest {
         val businessId = Uuid.random()
         val context = bookingContext(businessId, Uuid.random(), Uuid.random(), Uuid.random())
         val draft = draftFor(context, businessId, futureDate)
-        val settings = mockk<AppointmentSettings>()
+        val settings = mockk<AppointmentSettings> { every { inBetweenBreakInMinutes } returns 0 }
 
         with(fixture) {
             coEvery {
@@ -446,7 +447,7 @@ internal class CreateAppointmentRequestImplTest {
         val businessId = Uuid.random()
         val context = bookingContext(businessId, Uuid.random(), Uuid.random(), Uuid.random())
         val draft = draftFor(context, businessId, futureDate)
-        val settings = mockk<AppointmentSettings>()
+        val settings = mockk<AppointmentSettings> { every { inBetweenBreakInMinutes } returns 0 }
 
         with(fixture) {
             coEvery {
@@ -476,7 +477,7 @@ internal class CreateAppointmentRequestImplTest {
         val businessId = Uuid.random()
         val context = bookingContext(businessId, Uuid.random(), Uuid.random(), Uuid.random())
         val draft = draftFor(context, businessId, futureDate)
-        val settings = mockk<AppointmentSettings>()
+        val settings = mockk<AppointmentSettings> { every { inBetweenBreakInMinutes } returns 0 }
         val businessSnapshot = BusinessSnapshot.stub()
 
         with(fixture) {
@@ -487,8 +488,6 @@ internal class CreateAppointmentRequestImplTest {
             coEvery { settings.automaticApproval } returns false
             every { settings.maxPendingRequestsPerClient } returns 10
             every { settings.requireBookable(any(), any(), any()) } just Runs
-            coEvery { requestDataSource.hasOverlapsWith(any()) } returns false
-            coEvery { appointmentDataSource.hasOverlapsWith(any()) } returns false
             coEvery { requestDataSource.create(any()) } answers { firstArg() }
             coEvery { subscriptionDataSource.getBusinessSnapshot(businessId) } returns businessSnapshot
             coEvery { eventProducer.send(any(), any()) } answers { throw RuntimeException("Producer fail") }
@@ -513,7 +512,7 @@ internal class CreateAppointmentRequestImplTest {
             val businessId = Uuid.random()
             val context = bookingContext(businessId, Uuid.random(), Uuid.random(), Uuid.random())
             val draft = draftFor(context, businessId, futureDate)
-            val settings = mockk<AppointmentSettings>()
+            val settings = mockk<AppointmentSettings> { every { inBetweenBreakInMinutes } returns 0 }
 
             with(fixture) {
                 coEvery {
@@ -528,8 +527,6 @@ internal class CreateAppointmentRequestImplTest {
                 every { settings.automaticApproval } returns false
                 every { settings.maxPendingRequestsPerClient } returns 3
                 every { settings.requireBookable(any(), any(), any()) } just Runs
-                coEvery { requestDataSource.hasOverlapsWith(any()) } returns false
-                coEvery { appointmentDataSource.hasOverlapsWith(any()) } returns false
                 coEvery { requestDataSource.countPendingByUser(userId, businessId) } returns 3
                 mockValidToken(draft, totalOf(expand(context, draft)), durationOf(expand(context, draft)))
                 transactionManager.mockTransaction()
@@ -551,7 +548,7 @@ internal class CreateAppointmentRequestImplTest {
         val businessId = Uuid.random()
         val context = bookingContext(businessId, Uuid.random(), Uuid.random(), Uuid.random())
         val draft = draftFor(context, businessId, Instant.parse("2000-01-01T00:00:00Z"))
-        val settings = mockk<AppointmentSettings>()
+        val settings = mockk<AppointmentSettings> { every { inBetweenBreakInMinutes } returns 0 }
 
         with(fixture) {
             coEvery {
@@ -581,7 +578,7 @@ internal class CreateAppointmentRequestImplTest {
             val businessId = Uuid.random()
             val context = bookingContext(businessId, Uuid.random(), Uuid.random(), Uuid.random())
             val draft = draftFor(context, businessId, futureDate)
-            val settings = mockk<AppointmentSettings>()
+            val settings = mockk<AppointmentSettings> { every { inBetweenBreakInMinutes } returns 0 }
 
             with(fixture) {
                 coEvery {
@@ -597,8 +594,6 @@ internal class CreateAppointmentRequestImplTest {
                 every { settings.maxPendingRequestsPerClient } returns 3
                 every { settings.requireBookable(any(), any(), any()) } just Runs
                 coEvery { requestDataSource.countPendingByUser(userId, businessId) } returns 2
-                coEvery { requestDataSource.hasOverlapsWith(any()) } returns false
-                coEvery { appointmentDataSource.hasOverlapsWith(any()) } returns false
                 coEvery { requestDataSource.create(any()) } answers { firstArg() }
                 coEvery { subscriptionDataSource.getBusinessSnapshot(any()) } returns BusinessSnapshot.stub()
                 coEvery { eventProducer.send(any(), any()) } returns Unit
@@ -651,37 +646,6 @@ internal class CreateAppointmentRequestImplTest {
     }
 
     @Test
-    fun `should return failure when request overlaps with existing appointment`() = runUnitTest {
-        given()
-        val fixture = SutFixture()
-        val userId = Uuid.random()
-        val businessId = Uuid.random()
-        val context = bookingContext(businessId, Uuid.random(), Uuid.random(), Uuid.random())
-        val draft = draftFor(context, businessId, futureDate)
-        val settings = mockk<AppointmentSettings>()
-
-        with(fixture) {
-            coEvery {
-                businessClient.getAppointmentBookingContext(businessId, draft.employeeId, userId, distinctIds(draft))
-            } returns Result.success(context)
-            coEvery { settingsDataSource.getForUpdate(businessId) } returns settings
-            coEvery { settings.automaticApproval } returns false
-            every { settings.maxPendingRequestsPerClient } returns 10
-            every { settings.requireBookable(any(), any(), any()) } just Runs
-            coEvery { requestDataSource.hasOverlapsWith(any()) } returns true
-            mockValidToken(draft, totalOf(expand(context, draft)), durationOf(expand(context, draft)))
-            transactionManager.mockTransaction()
-        }
-
-        whenn()
-        val result = fixture.sut.invoke(userId, draft)
-
-        then()
-        assertTrue(result.isFailure)
-        assertTrue(result.exceptionOrNull() is CreateAppointmentRequest.Error.RequestForThisTimeExists)
-    }
-
-    @Test
     fun `should send event if appointment created`() = runUnitTest {
         given()
         val fixture = SutFixture()
@@ -689,7 +653,7 @@ internal class CreateAppointmentRequestImplTest {
         val businessId = Uuid.random()
         val context = bookingContext(businessId, Uuid.random(), Uuid.random(), Uuid.random())
         val draft = draftFor(context, businessId, futureDate)
-        val settings = mockk<AppointmentSettings>()
+        val settings = mockk<AppointmentSettings> { every { inBetweenBreakInMinutes } returns 0 }
         val businessSnapshot = BusinessSnapshot.stub()
 
         with(fixture) {
@@ -700,8 +664,6 @@ internal class CreateAppointmentRequestImplTest {
             coEvery { settings.automaticApproval } returns false
             every { settings.maxPendingRequestsPerClient } returns 10
             every { settings.requireBookable(any(), any(), any()) } just Runs
-            coEvery { requestDataSource.hasOverlapsWith(any()) } returns false
-            coEvery { appointmentDataSource.hasOverlapsWith(any()) } returns false
             coEvery { requestDataSource.create(any()) } answers { firstArg() }
             coEvery { subscriptionDataSource.getBusinessSnapshot(businessId) } returns businessSnapshot
             coEvery { eventProducer.send(any(), any()) } returns Unit
@@ -880,7 +842,7 @@ internal class CreateAppointmentRequestImplTest {
         val businessId = Uuid.random()
         val context = bookingContext(businessId, Uuid.random(), Uuid.random(), Uuid.random())
         val draft = draftFor(context, businessId, futureDate)
-        val settings = mockk<AppointmentSettings>()
+        val settings = mockk<AppointmentSettings> { every { inBetweenBreakInMinutes } returns 0 }
         val businessSnapshot = BusinessSnapshot.stub()
 
         with(fixture) {
@@ -891,8 +853,6 @@ internal class CreateAppointmentRequestImplTest {
             coEvery { settings.automaticApproval } returns false
             every { settings.maxPendingRequestsPerClient } returns 10
             every { settings.requireBookable(any(), any(), any()) } just Runs
-            coEvery { requestDataSource.hasOverlapsWith(any()) } returns false
-            coEvery { appointmentDataSource.hasOverlapsWith(any()) } returns false
             coEvery { requestDataSource.create(any()) } answers { firstArg() }
             coEvery { subscriptionDataSource.getBusinessSnapshot(any()) } returns businessSnapshot
             coEvery { eventProducer.send(any(), any()) } returns Unit
@@ -917,7 +877,7 @@ internal class CreateAppointmentRequestImplTest {
         val businessId = Uuid.random()
         val context = bookingContext(businessId, Uuid.random(), Uuid.random(), Uuid.random())
         val draft = draftFor(context, businessId, futureDate)
-        val settings = mockk<AppointmentSettings>()
+        val settings = mockk<AppointmentSettings> { every { inBetweenBreakInMinutes } returns 0 }
         val businessSnapshot = BusinessSnapshot.stub().copy(timeZone = TimeZone.of("Europe/Kyiv"))
         val eventSlot = slot<AppointmentEvent.RequestCreated>()
 
@@ -929,8 +889,6 @@ internal class CreateAppointmentRequestImplTest {
             coEvery { settings.automaticApproval } returns false
             every { settings.maxPendingRequestsPerClient } returns 10
             every { settings.requireBookable(any(), any(), any()) } just Runs
-            coEvery { requestDataSource.hasOverlapsWith(any()) } returns false
-            coEvery { appointmentDataSource.hasOverlapsWith(any()) } returns false
             coEvery { requestDataSource.create(any()) } answers { firstArg() }
             coEvery { subscriptionDataSource.getBusinessSnapshot(any()) } returns businessSnapshot
             coEvery { eventProducer.send(capture(eventSlot), any()) } returns Unit
@@ -957,7 +915,7 @@ internal class CreateAppointmentRequestImplTest {
             .let { it.copy(client = ClientRemote.stub(id = it.client.id, userId = userId)) }
         val created = slot<AppointmentRequest>()
         val draft = draftFor(context, businessId, futureDate)
-        val settings = mockk<AppointmentSettings>()
+        val settings = mockk<AppointmentSettings> { every { inBetweenBreakInMinutes } returns 0 }
         val eventSlot = slot<AppointmentEvent.RequestCreated>()
 
         with(fixture) {
@@ -968,8 +926,6 @@ internal class CreateAppointmentRequestImplTest {
             coEvery { settings.automaticApproval } returns false
             every { settings.maxPendingRequestsPerClient } returns 10
             every { settings.requireBookable(any(), any(), any()) } just Runs
-            coEvery { requestDataSource.hasOverlapsWith(any()) } returns false
-            coEvery { appointmentDataSource.hasOverlapsWith(any()) } returns false
             coEvery { requestDataSource.create(capture(created)) } answers { firstArg() }
             coEvery { subscriptionDataSource.getBusinessSnapshot(any()) } returns BusinessSnapshot.stub()
             coEvery { eventProducer.send(capture(eventSlot), any()) } returns Unit
@@ -996,7 +952,7 @@ internal class CreateAppointmentRequestImplTest {
         val businessId = Uuid.random()
         val context = bookingContext(businessId, Uuid.random(), Uuid.random(), Uuid.random())
         val draft = draftFor(context, businessId, futureDate)
-        val settings = mockk<AppointmentSettings>()
+        val settings = mockk<AppointmentSettings> { every { inBetweenBreakInMinutes } returns 0 }
         val created = slot<AppointmentRequest>()
         val eventSlot = slot<AppointmentEvent.RequestCreated>()
 
@@ -1008,8 +964,6 @@ internal class CreateAppointmentRequestImplTest {
             coEvery { settings.automaticApproval } returns false
             every { settings.maxPendingRequestsPerClient } returns 10
             every { settings.requireBookable(any(), any(), any()) } just Runs
-            coEvery { requestDataSource.hasOverlapsWith(any()) } returns false
-            coEvery { appointmentDataSource.hasOverlapsWith(any()) } returns false
             coEvery { requestDataSource.create(capture(created)) } answers { firstArg() }
             coEvery { subscriptionDataSource.getBusinessSnapshot(any()) } returns BusinessSnapshot.stub()
             coEvery { eventProducer.send(capture(eventSlot), any()) } returns Unit
@@ -1038,7 +992,7 @@ internal class CreateAppointmentRequestImplTest {
             .let { it.copy(client = ClientRemote.stub(id = it.client.id, userId = clientUserId)) }
         val created = slot<AppointmentRequest>()
         val draft = draftFor(context, businessId, futureDate)
-        val settings = mockk<AppointmentSettings>()
+        val settings = mockk<AppointmentSettings> { every { inBetweenBreakInMinutes } returns 0 }
         val eventSlot = slot<AppointmentEvent.RequestCreated>()
 
         with(fixture) {
@@ -1049,8 +1003,6 @@ internal class CreateAppointmentRequestImplTest {
             coEvery { settings.automaticApproval } returns false
             every { settings.maxPendingRequestsPerClient } returns 10
             every { settings.requireBookable(any(), any(), any()) } just Runs
-            coEvery { requestDataSource.hasOverlapsWith(any()) } returns false
-            coEvery { appointmentDataSource.hasOverlapsWith(any()) } returns false
             coEvery { requestDataSource.create(capture(created)) } answers { firstArg() }
             coEvery { subscriptionDataSource.getBusinessSnapshot(any()) } returns BusinessSnapshot.stub()
             coEvery { eventProducer.send(capture(eventSlot), any()) } returns Unit
@@ -1080,7 +1032,7 @@ internal class CreateAppointmentRequestImplTest {
             .let { it.copy(client = ClientRemote.stub(id = it.client.id, userId = clientUserId)) }
         val created = slot<AppointmentRequest>()
         val draft = draftFor(context, businessId, futureDate)
-        val settings = mockk<AppointmentSettings>()
+        val settings = mockk<AppointmentSettings> { every { inBetweenBreakInMinutes } returns 0 }
         val eventSlot = slot<AppointmentEvent.RequestCreated>()
 
         with(fixture) {
@@ -1091,8 +1043,6 @@ internal class CreateAppointmentRequestImplTest {
             coEvery { settings.automaticApproval } returns false
             every { settings.maxPendingRequestsPerClient } returns 10
             every { settings.requireBookable(any(), any(), any()) } just Runs
-            coEvery { requestDataSource.hasOverlapsWith(any()) } returns false
-            coEvery { appointmentDataSource.hasOverlapsWith(any()) } returns false
             coEvery { requestDataSource.create(capture(created)) } answers { firstArg() }
             coEvery { subscriptionDataSource.getBusinessSnapshot(any()) } returns BusinessSnapshot.stub()
             coEvery { eventProducer.send(capture(eventSlot), any()) } returns Unit
@@ -1265,7 +1215,7 @@ internal class CreateAppointmentRequestImplTest {
             .let { it.copy(client = ClientRemote.stub(id = it.client.id, userId = clientUserId)) }
         val created = slot<AppointmentRequest>()
         val draft = draftFor(context, businessId, futureDate)
-        val settings = mockk<AppointmentSettings>()
+        val settings = mockk<AppointmentSettings> { every { inBetweenBreakInMinutes } returns 0 }
         val eventSlot = slot<AppointmentEvent.RequestCreated>()
 
         with(fixture) {
@@ -1276,8 +1226,6 @@ internal class CreateAppointmentRequestImplTest {
             coEvery { settings.automaticApproval } returns false
             every { settings.maxPendingRequestsPerClient } returns 10
             every { settings.requireBookable(any(), any(), any()) } just Runs
-            coEvery { requestDataSource.hasOverlapsWith(any()) } returns false
-            coEvery { appointmentDataSource.hasOverlapsWith(any()) } returns false
             coEvery { requestDataSource.create(capture(created)) } answers { firstArg() }
             coEvery { subscriptionDataSource.getBusinessSnapshot(any()) } returns BusinessSnapshot.stub()
             coEvery { eventProducer.send(capture(eventSlot), any()) } returns Unit
@@ -1307,7 +1255,7 @@ internal class CreateAppointmentRequestImplTest {
             .let { it.copy(client = ClientRemote.stub(id = it.client.id, userId = clientUserId)) }
         val created = slot<AppointmentRequest>()
         val draft = draftFor(context, businessId, futureDate)
-        val settings = mockk<AppointmentSettings>()
+        val settings = mockk<AppointmentSettings> { every { inBetweenBreakInMinutes } returns 0 }
         val eventSlot = slot<AppointmentEvent.RequestCreated>()
 
         with(fixture) {
@@ -1318,8 +1266,6 @@ internal class CreateAppointmentRequestImplTest {
             coEvery { settings.automaticApproval } returns false
             every { settings.maxPendingRequestsPerClient } returns 10
             every { settings.requireBookable(any(), any(), any()) } just Runs
-            coEvery { requestDataSource.hasOverlapsWith(any()) } returns false
-            coEvery { appointmentDataSource.hasOverlapsWith(any()) } returns false
             coEvery { requestDataSource.create(capture(created)) } answers { firstArg() }
             coEvery { subscriptionDataSource.getBusinessSnapshot(any()) } returns BusinessSnapshot.stub()
             coEvery { eventProducer.send(capture(eventSlot), any()) } returns Unit
@@ -1348,7 +1294,7 @@ internal class CreateAppointmentRequestImplTest {
         val businessId = Uuid.random()
         val context = bookingContext(businessId, Uuid.random(), Uuid.random(), Uuid.random())
         val draft = draftFor(context, businessId, futureDate)
-        val settings = mockk<AppointmentSettings>()
+        val settings = mockk<AppointmentSettings> { every { inBetweenBreakInMinutes } returns 0 }
         val businessSnapshot = BusinessSnapshot.stub()
         val created = slot<AppointmentRequest>()
 
@@ -1360,8 +1306,6 @@ internal class CreateAppointmentRequestImplTest {
             coEvery { settings.automaticApproval } returns false
             every { settings.maxPendingRequestsPerClient } returns 10
             every { settings.requireBookable(any(), any(), any()) } just Runs
-            coEvery { requestDataSource.hasOverlapsWith(any()) } returns false
-            coEvery { appointmentDataSource.hasOverlapsWith(any()) } returns false
             coEvery { requestDataSource.create(capture(created)) } answers { firstArg() }
             coEvery { subscriptionDataSource.getBusinessSnapshot(businessId) } returns businessSnapshot
             coEvery { eventProducer.send(any(), any()) } returns Unit
@@ -1399,7 +1343,7 @@ internal class CreateAppointmentRequestImplTest {
         val baseContext = bookingContext(businessId, Uuid.random(), Uuid.random(), Uuid.random())
         val context = baseContext.copy(employee = baseContext.employee.copy(schedule = employeeSchedule))
         val draft = draftFor(context, businessId, futureDate)
-        val settings = mockk<AppointmentSettings>()
+        val settings = mockk<AppointmentSettings> { every { inBetweenBreakInMinutes } returns 0 }
 
         with(fixture) {
             coEvery {
@@ -1431,7 +1375,7 @@ internal class CreateAppointmentRequestImplTest {
         val businessId = Uuid.random()
         val context = bookingContext(businessId, Uuid.random(), Uuid.random(), Uuid.random())
         val draft = draftFor(context, businessId, futureDate)
-        val settings = mockk<AppointmentSettings>()
+        val settings = mockk<AppointmentSettings> { every { inBetweenBreakInMinutes } returns 0 }
 
         with(fixture) {
             coEvery {
@@ -1468,7 +1412,7 @@ internal class CreateAppointmentRequestImplTest {
         val baseContext = bookingContext(businessId, Uuid.random(), Uuid.random(), Uuid.random())
         val context = baseContext.copy(employee = baseContext.employee.copy(schedule = employeeSchedule))
         val draft = draftFor(context, businessId, futureDate)
-        val settings = mockk<AppointmentSettings>()
+        val settings = mockk<AppointmentSettings> { every { inBetweenBreakInMinutes } returns 0 }
 
         with(fixture) {
             coEvery {
@@ -1488,5 +1432,37 @@ internal class CreateAppointmentRequestImplTest {
         then()
         assertTrue(result.isSuccess)
         coVerify(exactly = 1) { fixture.createAppointment.createBypassingPermissions(any(), employeeSchedule) }
+    }
+
+    @Test
+    fun `should return failure when the employee has a scheduled appointment at that time`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val businessId = Uuid.random()
+        val context = bookingContext(businessId, Uuid.random(), Uuid.random(), Uuid.random())
+        val draft = draftFor(context, businessId, futureDate)
+        val settings = mockk<AppointmentSettings> { every { inBetweenBreakInMinutes } returns 0 }
+        with(fixture) {
+            coEvery {
+                businessClient.getAppointmentBookingContext(businessId, draft.employeeId, userId, distinctIds(draft))
+            } returns Result.success(context)
+            coEvery { settingsDataSource.getForUpdate(businessId) } returns settings
+            coEvery { settings.automaticApproval } returns false
+            every { settings.maxPendingRequestsPerClient } returns 10
+            every { settings.requireBookable(any(), any(), any()) } just Runs
+            coEvery { appointmentDataSource.getEmployeeBookings(businessId, draft.employeeId, any()) } returns
+                listOf(BookedRange.stub(start = futureDate, end = futureDate + 1.hours))
+            mockValidToken(draft, totalOf(expand(context, draft)), durationOf(expand(context, draft)))
+            transactionManager.mockTransaction()
+        }
+
+        whenn()
+        val result = fixture.sut.invoke(userId, draft)
+
+        then()
+        assertTrue(result.exceptionOrNull() is BookingConflictError.EmployeeBusy)
+        coVerify(exactly = 0) { fixture.requestDataSource.create(any()) }
+        coVerify(exactly = 1) { fixture.requestDataSource.releaseOfferToken("token") }
     }
 }

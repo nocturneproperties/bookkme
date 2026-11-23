@@ -37,6 +37,9 @@ object AppointmentsRouting {
             @Resource("/businesses/{businessId}")
             class SavedBusiness(val parent: Appointment = Appointment(), val businessId: Uuid)
 
+            @Resource("/slots")
+            class Slots(val parent: Appointment = Appointment())
+
             @Resource("/{id}")
             class Id(val parent: Appointment = Appointment(), val id: Uuid)
 

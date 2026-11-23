@@ -7,6 +7,8 @@ import com.auth0.jwt.interfaces.DecodedJWT
 import com.bookk.appointments.domain.api.entity.Appointment
 import com.bookk.appointments.domain.api.entity.AppointmentSettings
 import com.bookk.appointments.domain.api.entity.AppointmentStatus
+import com.bookk.appointments.domain.api.entity.BookedRange
+import com.bookk.appointments.domain.api.entity.BookingConflictError
 import com.bookk.appointments.domain.api.entity.BookingQuoteError
 import com.bookk.appointments.domain.api.entity.BookingScheduleError
 import com.bookk.appointments.domain.api.entity.ClientSnapshot
@@ -63,7 +65,7 @@ internal class CreateInstantAppointmentImplTest {
         val appointmentPermissionDataSource = mockk<AppointmentPermissionDataSource>()
         val appointmentDataSource = mockk<AppointmentDataSource>()
         val settingsDataSource = mockk<AppointmentSettingsDataSource>()
-        val settings = mockk<AppointmentSettings>()
+        val settings = mockk<AppointmentSettings> { every { inBetweenBreakInMinutes } returns 0 }
         val transactionManager = mockk<TransactionManager>()
         val tokenValidatorFactory = mockk<TokenValidatorFactory>()
         val businessClient = mockk<BusinessClient>()
@@ -116,7 +118,7 @@ internal class CreateInstantAppointmentImplTest {
             coEvery { deletedClientDataSource.isDeletedForShare(any(), any()) } returns false
             coEvery { settingsDataSource.getForUpdate(businessId) } returns settings
             every { settings.requireBookable(any(), any(), any()) } just Runs
-            coEvery { appointmentDataSource.hasOverlapsWith(any<Appointment>()) } returns false
+            coEvery { appointmentDataSource.getEmployeeBookings(any(), any(), any()) } returns emptyList()
             coEvery { appointmentDataSource.create(any<Appointment>()) } coAnswers {
                 stored += firstArg<Appointment>()
                 storedInTransaction += transactionManager.isInTransaction()
@@ -442,7 +444,7 @@ internal class CreateInstantAppointmentImplTest {
             fixture.deletedUserDataSource.isDeletedForShare(fixture.clientUserId)
             fixture.deletedClientDataSource.isDeletedForShare(fixture.businessId, fixture.context.client.id)
             fixture.settingsDataSource.getForUpdate(fixture.businessId)
-            fixture.appointmentDataSource.hasOverlapsWith(any<Appointment>())
+            fixture.appointmentDataSource.getEmployeeBookings(any(), any(), any())
             fixture.appointmentDataSource.create(any<Appointment>())
         }
     }
@@ -451,13 +453,15 @@ internal class CreateInstantAppointmentImplTest {
     fun `should give the token back when the slot can't be booked`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        coEvery { fixture.appointmentDataSource.hasOverlapsWith(any<Appointment>()) } returns true
+        coEvery {
+            fixture.appointmentDataSource.getEmployeeBookings(fixture.businessId, fixture.context.employee.id, any())
+        } returns listOf(BookedRange.stub(start = fixture.draft.date, end = fixture.draft.date + 30.minutes))
 
         whenn()
         val result = fixture.sut(fixture.callerId, fixture.draft)
 
         then()
-        assertTrue(result.exceptionOrNull() is CreateInstantAppointment.Error.AppointmentForThisTimeExists)
+        assertTrue(result.exceptionOrNull() is BookingConflictError.EmployeeBusy)
         assertTrue(fixture.stored.isEmpty())
         coVerify(exactly = 1) { fixture.requestDataSource.releaseOfferToken(fixture.draft.offerToken) }
     }
@@ -579,5 +583,21 @@ internal class CreateInstantAppointmentImplTest {
         assertEquals(fixture.context.client.id, visit.clientId)
         assertEquals(appointment.dateEnd, visit.visitEnd)
         assertEquals(listOf(true), fixture.sentInTransaction)
+    }
+
+    @Test
+    fun `should not book when the employee has another booking at that time`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        coEvery {
+            fixture.appointmentDataSource.getEmployeeBookings(fixture.businessId, fixture.context.employee.id, any())
+        } returns listOf(BookedRange.stub(start = fixture.draft.date, end = fixture.draft.date + 30.minutes))
+
+        whenn()
+        val result = fixture.sut(fixture.callerId, fixture.draft)
+
+        then()
+        assertTrue(result.exceptionOrNull() is BookingConflictError.EmployeeBusy)
+        assertTrue(fixture.stored.isEmpty())
     }
 }

@@ -85,6 +85,8 @@ cancel, completion or no-show locks only the appointment, and approving a
 request locks the request, then the settings. Nothing is written until every
 validation has passed.
 
+The employee can hold only one appointment at a time. `EmployeeBookings.requireFree` reads the employee's `SCHEDULED` appointments in the business, whoever booked them, around the slot widened by `inBetweenBreakInMinutes` on both sides, and rejects the booking with 422 `EMPLOYEE_BUSY` (300032) when one other than the booking itself is found. It runs after the settings lock, which serializes every booking of the business, so two bookings can't both take the same employee's time. Pending requests don't block anyone: several clients may request the same time, and once staff approve one, approving another answers `EMPLOYEE_BUSY`. The client's own other bookings are not checked: a client may take two services with two employees at once. `POST /api/appointments/slots` offers only starts that pass the same check. The check runs only when the employee, start or end changes, so editing the note of an appointment next to another one still works.
+
 ```mermaid
 flowchart TD
     Start([PUT /api/appointments/id]) --> PathCheck{path id == body.id?}
@@ -131,14 +133,16 @@ flowchart TD
     BizDay -- Yes --> BizTime{business ranges cover date to dateEnd, past midnight joined?}
     BizTime -- No --> R422bt([422 BUSINESS_TIME_NOT_ALLOWED 300002])
     BizTime -- Yes --> EmpKnown{employee schedule resolved - the slot moves and the employee still exists?}
-    EmpKnown -- No --> Overlap{AppointmentDataSource.hasOverlapsWith rescheduled?}
+    EmpKnown -- No --> SlotMoved
     EmpKnown -- Yes --> EmpDay{employee.schedule works on date, or inside its range running past midnight?}
     EmpDay -- No --> R422ed([422 EMPLOYEE_DATE_NOT_ALLOWED 300027])
     EmpDay -- Yes --> EmpTime{employee.schedule ranges cover date to dateEnd?}
     EmpTime -- No --> R422et([422 EMPLOYEE_TIME_NOT_ALLOWED 300028])
-    EmpTime -- Yes --> Overlap{AppointmentDataSource.hasOverlapsWith rescheduled?}
-    Overlap -- Yes --> R422o([422 APPOINTMENT_EXISTS 300004])
-    Overlap -- No --> Reopen{update.reschedules locked?}
+    EmpTime -- Yes --> SlotMoved{employee, date or dateEnd differ from the locked appointment?}
+    SlotMoved -- No --> Reopen
+    SlotMoved -- Yes --> EmployeeBusy{"EmployeeBookings.requireFree - AppointmentDataSource.getEmployeeBookings businessId employee.id date - break until dateEnd + break: any SCHEDULED appointment of the employee, whoever booked it, other than this booking?"}
+    EmployeeBusy -- Yes --> R422busy([422 EMPLOYEE_BUSY 300032])
+    EmployeeBusy -- No --> Reopen{update.reschedules locked?}
     Reopen -- Yes --> Reopened[AppointmentDataSource.reopen id - SCHEDULED, completedBy null, checkout adjustment deleted]
     Reopened --> Write
     Reopen -- No --> Write[AppointmentDataSource.update rescheduled - replaces services, never status or checkout]

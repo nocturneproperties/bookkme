@@ -138,20 +138,6 @@ internal class AppointmentRequestDataSourceImpl(
         } ?: throw Error.NotFound()
     }
 
-    override suspend fun hasOverlapsWith(request: AppointmentRequest): Boolean = dbQuery {
-        AppointmentRequestTable.select(AppointmentRequestTable.id)
-            .where {
-                (AppointmentRequestTable.businessId eq request.businessId)
-                    .and(AppointmentRequestTable.initiatorUserId eq request.initiatorUserId)
-                    .and(AppointmentRequestTable.dateStart.less(request.dateEnd))
-                    .and(AppointmentRequestTable.dateEnd.greater(request.date))
-                    .and(AppointmentRequestTable.status eq AppointmentRequestStatus.PENDING)
-            }
-            .limit(1)
-            .empty()
-            .not()
-    }
-
     override suspend fun cancelOutdated(before: Instant) = dbQuery<Unit> {
         AppointmentRequestTable.update(
             where = {
