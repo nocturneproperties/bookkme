@@ -30,6 +30,7 @@ import com.bookk.business.domain.api.client.operation.UpdateClient
 import com.bookk.business.domain.api.employee.operation.CreateEmployeeInvitation
 import com.bookk.business.domain.api.employee.operation.DeleteProcessedEmployeeInvitations
 import com.bookk.business.domain.api.employee.operation.ExpireEmployeeInvitations
+import com.bookk.business.domain.api.employee.operation.GetBookableEmployees
 import com.bookk.business.domain.api.employee.operation.GetEmployeeInvitations
 import com.bookk.business.domain.api.employee.operation.GetEmployees
 import com.bookk.business.domain.api.employee.operation.GetOwnedBusinessMemberIds
@@ -85,6 +86,7 @@ import com.bookk.business.domain.impl.operation.client.UpdateClientImpl
 import com.bookk.business.domain.impl.operation.employee.CreateEmployeeInvitationImpl
 import com.bookk.business.domain.impl.operation.employee.DeleteProcessedEmployeeInvitationsImpl
 import com.bookk.business.domain.impl.operation.employee.ExpireEmployeeInvitationsImpl
+import com.bookk.business.domain.impl.operation.employee.GetBookableEmployeesImpl
 import com.bookk.business.domain.impl.operation.employee.GetEmployeeInvitationsImpl
 import com.bookk.business.domain.impl.operation.employee.GetEmployeesImpl
 import com.bookk.business.domain.impl.operation.employee.GetOwnedBusinessMemberIdsImpl
@@ -177,6 +179,7 @@ fun businessDomainModule() = module {
         scopedOf(::JoinBusinessImpl) bind JoinBusiness::class
         scopedOf(::GetEmployeeInvitationsImpl) bind GetEmployeeInvitations::class
         scopedOf(::GetEmployeesImpl) bind GetEmployees::class
+        scopedOf(::GetBookableEmployeesImpl) bind GetBookableEmployees::class
         scopedOf(::UpdateEmployeeImpl) bind UpdateEmployee::class
         scopedOf(::SetEmployeePermissionsImpl) bind SetEmployeePermissions::class
         scopedOf(::SetEmployeeSuspensionImpl) bind SetEmployeeSuspension::class

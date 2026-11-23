@@ -44,7 +44,7 @@ This repository holds the BookkMe backend. You can run it yourself to take booki
 
 - Passwordless sign-in with passkeys, with the email verified by a one-time code
 - Sign-in from a Telegram Mini App, which creates the account on first use (see [Telegram sign-in](#telegram-sign-in))
-- Booking, rescheduling and cancelling appointments
+- Booking, rescheduling and cancelling appointments, with a choice of staff member showing each one's services and working hours
 - A home screen with the nearest upcoming bookings across every business, and saved businesses to book again with the date of the last visit
 - Push, email and Telegram notifications, with per-channel settings
 - Notifications in the language of the client's device
@@ -282,7 +282,7 @@ BookkMe is built to help whoever runs it meet the GDPR. It handles personal data
 - **Encryption per person.** Each person's data is encrypted with a key of their own: profiles, client and staff details, appointment snapshots and notes, stored events and data exports. Erasing a person deletes their key, so every copy of their data left in the database or in a backup can no longer be read once the backups of that key have expired. The keys live in their own schemas, which never enter the binary log, so they can be backed up on a shorter schedule than the data (we keep them 7 days). Back them up: without its key, a person's data cannot be recovered.
 - **Erasure survives backups.** Every erasure is recorded, and restoring an older backup runs the erasures made since then again and deletes the keys erased since then, so a deleted person does not come back.
 - **Recorded acceptance.** The server records which version of the privacy policy and terms each user accepted.
-- **Data minimisation.** Staff see only what their permissions allow, and notification emails go only to verified addresses, never to the placeholder of an account created through Telegram.
+- **Data minimisation.** Staff see only what their permissions allow, clients see a staff member's name, services and working hours but never their contact details or permissions, and notification emails go only to verified addresses, never to the placeholder of an account created through Telegram.
 - **Policy templates.** `docs/legal/template` contains a draft privacy policy and terms of service for a business running its own copy, in English, Polish and Ukrainian.
 
 The software alone does not make a deployment compliant. When you self-host BookkMe, your business is the data controller: you decide the legal basis, publish your own privacy policy and terms (the templates are drafts that need review for your country), sign data processing agreements with your providers (such as your hosting, email, push notification and Telegram providers), and answer requests from the people whose data you hold. [`docs/legal/README.md`](docs/legal/README.md) lists what to complete before publishing.

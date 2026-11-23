@@ -155,6 +155,7 @@ internal class SwaggerTest {
         Service.BUSINESS to mapOf(
             "post /api/business/bulk" to "Business",
             "get /api/business/{businessId}/employee" to "Employee",
+            "get /api/business/{businessId}/employee/bookable" to "BookableEmployee",
             "get /api/business/{businessId}/employee_invitation" to "EmployeeInvitation",
             "get /api/business/{businessId}/service" to "Service",
             "get /api/business/{businessId}/service_group" to "ServiceGroup",
