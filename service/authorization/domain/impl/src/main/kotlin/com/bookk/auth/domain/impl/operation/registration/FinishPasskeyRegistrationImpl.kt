@@ -35,10 +35,10 @@ internal class FinishPasskeyRegistrationImpl(
     override suspend fun verifyRequest(
         request: FinishRegistrationRequest,
     ): Result<PasskeyCredential> = transactionManager.transaction {
-        val pkc = PublicKeyCredential.parseRegistrationResponseJson(request.publicKeyCredentialJson)
-        val challengeJson = passKeyDS.getCachedChallenge(request.requestId) ?: throw ChallengeWindowExpired()
+        val pkc = parseRegistration(request.publicKeyCredentialJson)
+        val challengeJson = passKeyDS.takeCachedChallenge(request.requestId) ?: throw ChallengeWindowExpired()
         val challenge = PublicKeyCredentialCreationOptions.fromJson(challengeJson)
-        validateRegistrationChallenge(request, challenge, pkc).asPasskeyCredential(pkc, challenge)
+        validateRegistrationChallenge(challenge, pkc).asPasskeyCredential(pkc, challenge)
     }.recoverSuspendCatching {
         when (it) {
             is RegistrationFailedException -> throw VerificationFailed()
@@ -51,12 +51,15 @@ internal class FinishPasskeyRegistrationImpl(
         passKeyDS.createPasskeyCredential(passkeyWithOwner)
     }
 
+    private fun parseRegistration(json: String): PKS {
+        return runCatching { PublicKeyCredential.parseRegistrationResponseJson(json) }
+            .getOrElse { throw VerificationFailed() }
+    }
+
     private suspend fun validateRegistrationChallenge(
-        request: FinishRegistrationRequest,
         challenge: PublicKeyCredentialCreationOptions,
         response: PKS,
     ): RegistrationResult {
-        passKeyDS.deleteCachedChallenge(request.requestId)
         cacheRepositoryData(response)
         return createRelyingParty(credentialRepo)
             .finishRegistration(

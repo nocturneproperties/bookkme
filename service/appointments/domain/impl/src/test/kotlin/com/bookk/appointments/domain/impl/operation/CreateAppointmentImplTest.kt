@@ -948,4 +948,75 @@ internal class CreateAppointmentImplTest {
         then()
         assertTrue(result.exceptionOrNull() is BookingConflictError.EmployeeBusy)
     }
+
+    @Test
+    fun `should not approve a request whose employee was removed from the business`() = runUnitTest {
+        given()
+        val userId = Uuid.random()
+        val request = AppointmentRequest.stub(date = futureDate)
+        val fixture = SutFixture()
+
+        with(fixture) {
+            coEvery { requestDataSource.get(request.id) } returns request
+            coEvery {
+                businessClient.getAppointmentRescheduleContext(
+                    request.businessId,
+                    request.employee.id,
+                    emptyList(),
+                    false,
+                )
+            } returns Result.failure(GetAppointmentRescheduleContext.Error.EmployeeNotFound())
+            coEvery { appointmentPermissionDataSource.getPermission(userId, request.businessId) } returns
+                ResourcePermission(view = false, update = true, delete = false)
+            transactionManager.mockTransaction()
+        }
+
+        whenn()
+        val result = fixture.sut.invoke(userId, request.id)
+
+        then()
+        assertTrue(result.exceptionOrNull() is GetAppointmentRescheduleContext.Error.EmployeeNotFound)
+        coVerify(exactly = 0) { fixture.requestDataSource.getForUpdate(any()) }
+        coVerify(exactly = 0) { fixture.appointmentDataSource.create(any<AppointmentRequest>()) }
+    }
+
+    @Test
+    fun `should roll the approval back when the business snapshot is missing`() = runUnitTest {
+        given()
+        val userId = Uuid.random()
+        val request = AppointmentRequest.stub(initiatorUserId = userId, date = futureDate)
+        val settings = mockk<AppointmentSettings> { every { inBetweenBreakInMinutes } returns 0 }
+        val fixture = SutFixture()
+        var rolledBack = false
+
+        with(fixture) {
+            coEvery { requestDataSource.get(request.id) } returns request
+            coEvery { requestDataSource.getForUpdate(request.id) } returns request
+            coEvery {
+                businessClient.getAppointmentRescheduleContext(
+                    request.businessId,
+                    request.employee.id,
+                    emptyList(),
+                    false,
+                )
+            } returns Result.success(rescheduleContext(request))
+            coEvery { settingsDataSource.getForUpdate(request.businessId) } returns settings
+            every { settings.requireBookable(request.date, request.dateEnd, any()) } just Runs
+            coEvery { appointmentPermissionDataSource.getPermission(userId, request.businessId) } returns
+                ResourcePermission(view = false, update = true, delete = false)
+            coEvery { appointmentDataSource.create(request) } returns Appointment.stub(businessId = request.businessId)
+            coEvery { requestDataSource.approve(request) } returns Unit
+            coEvery { subscriptionDataSource.getBusinessSnapshot(request.businessId) } returns null
+            coEvery { eventProducer.send(any(), any()) } returns Unit
+            transactionManager.mockTransaction(onRollback = { rolledBack = true })
+        }
+
+        whenn()
+        val result = fixture.sut.invoke(userId, request.id)
+
+        then()
+        assertTrue(result.exceptionOrNull() is Error.NotFound)
+        assertTrue(rolledBack)
+        coVerify(exactly = 0) { fixture.eventProducer.send(any(AppointmentEvent.RequestApproved::class), any()) }
+    }
 }

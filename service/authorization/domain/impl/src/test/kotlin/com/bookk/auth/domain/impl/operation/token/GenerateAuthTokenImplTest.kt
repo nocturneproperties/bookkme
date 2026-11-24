@@ -273,4 +273,47 @@ internal class GenerateAuthTokenImplTest {
         then()
         coVerify(exactly = 0) { fixture.accountDataSource.recordActivity(any(), any(), any()) }
     }
+
+    @Test
+    fun `should refuse a refresh token of a device that signed out`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val refreshToken = OpaqueRefreshToken.generate()
+        val signedOutDevice = device(refreshToken = null)
+        with(fixture) {
+            coEvery { deviceDataSource.getDeviceByRefreshTokenIdForUpdate(refreshToken.id) } returns signedOutDevice
+            transactionManager.mockTransaction()
+        }
+
+        whenn()
+        val result = fixture.sut.invoke(Source.RefreshToken(refreshToken.token))
+
+        then()
+        assertTrue(result.exceptionOrNull() is InvalidCredentials)
+        assertEquals(0.0, fixture.reusedTokens())
+        coVerify(exactly = 0) { fixture.tokenIssuer.issue(any(), any()) }
+        coVerify(exactly = 0) { fixture.deviceDataSource.rotateRefreshToken(any(), any(), any()) }
+        coVerify(exactly = 0) { fixture.accountDataSource.recordActivity(any(), any(), any()) }
+    }
+
+    @Test
+    fun `should refuse to sign in on a device the account does not have`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val authId = Uuid.random()
+        val deviceUuid = Uuid.random()
+        with(fixture) {
+            coEvery { deviceDataSource.getDeviceByAuthIdAndUUIDForUpdate(authId, deviceUuid) } returns null
+            transactionManager.mockTransaction()
+        }
+
+        whenn()
+        val result = fixture.sut.invoke(Source.InitialAuthentication(authId, deviceUuid))
+
+        then()
+        assertTrue(result.exceptionOrNull() is InvalidCredentials)
+        coVerify(exactly = 0) { fixture.tokenIssuer.issue(any(), any()) }
+        coVerify(exactly = 0) { fixture.deviceDataSource.attachRefreshTokenToDevice(any(), any(), any()) }
+        coVerify(exactly = 0) { fixture.accountDataSource.recordActivity(any(), any(), any()) }
+    }
 }

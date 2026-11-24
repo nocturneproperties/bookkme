@@ -21,8 +21,8 @@ flowchart TD
     Lock -- locked --> Count{PassKeyDataSource.countPasskeys authId >= MAX_PASSKEYS 10?}
     Count -- Yes --> R422l([422 PASSKEYS_LIMIT_REACHED 13])
     Count -- No --> Verify[FinishPasskeyRegistration.verifyRequest request]
-    Verify -- expired --> R422a([422 CHALLENGE_WINDOW_EXPIRED 6])
-    Verify -- signature invalid --> R422b([422 VERIFICATION_FAILED 4])
+    Verify -- missing, expired or already taken challenge --> R422a([422 CHALLENGE_WINDOW_EXPIRED 6])
+    Verify -- malformed, signature, challenge or origin invalid --> R422b([422 VERIFICATION_FAILED 4])
     Verify -- ok passkey --> Attach[FinishPasskeyRegistration.attachOwner principal.authId passkey]
     Attach --> R204([204 Passkey created])
 ```

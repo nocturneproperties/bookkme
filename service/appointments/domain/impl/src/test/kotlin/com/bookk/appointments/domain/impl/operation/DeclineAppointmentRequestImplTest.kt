@@ -12,6 +12,7 @@ import com.bookk.appointments.domain.datasource.AppointmentSubscriptionDataSourc
 import com.bookk.core.data.eventstreaming.StandardEventProducer
 import com.bookk.core.domain.datasource.transaction.TransactionManager
 import com.bookk.core.domain.datasource.transaction.mockTransaction
+import com.bookk.core.domain.entity.Error
 import com.bookk.core.test.given
 import com.bookk.core.test.runUnitTest
 import com.bookk.core.test.then
@@ -22,6 +23,7 @@ import io.mockk.coVerify
 import io.mockk.mockk
 import io.mockk.slot
 import kotlinx.datetime.TimeZone
+import library.permissions.EmployeeAccessSuspended
 import library.permissions.ResourcePermission
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -286,5 +288,47 @@ internal class DeclineAppointmentRequestImplTest {
         then()
         assertTrue(result.exceptionOrNull() is com.bookk.core.domain.entity.Error.NotFound)
         coVerify(exactly = 0) { fixture.requestDataSource.decline(any(), any()) }
+    }
+
+    @Test
+    fun `should refuse a suspended employee declining`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.transactionManager.mockTransaction()
+        val request = AppointmentRequest.stub(id = testCancellation.id, businessId = testBusinessId)
+        coEvery { fixture.requestDataSource.getForUpdate(testCancellation.id) } returns request
+        coEvery { fixture.appointmentPermissionDataSource.getPermission(testUserId, testBusinessId) } throws
+            EmployeeAccessSuspended()
+
+        whenn()
+        val result = fixture.sut.invoke(testUserId, testCancellation)
+
+        then()
+        assertTrue(result.exceptionOrNull() is EmployeeAccessSuspended)
+        coVerify(exactly = 0) { fixture.requestDataSource.decline(any(), any()) }
+        coVerify(exactly = 0) { fixture.eventProducer.send(any(), any()) }
+    }
+
+    @Test
+    fun `should roll the decline back when the business snapshot is missing`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        var rolledBack = false
+        fixture.transactionManager.mockTransaction(onRollback = { rolledBack = true })
+        val request = AppointmentRequest.stub(id = testCancellation.id, businessId = testBusinessId)
+        coEvery { fixture.requestDataSource.getForUpdate(testCancellation.id) } returns request
+        coEvery { fixture.appointmentPermissionDataSource.getPermission(testUserId, testBusinessId) } returns
+            ResourcePermission(view = false, update = true, delete = false)
+        coEvery { fixture.requestDataSource.decline(testCancellation.id, testCancellation.reason) } returns
+            request.copy(status = AppointmentRequestStatus.DECLINED)
+        coEvery { fixture.subscriptionDataSource.getBusinessSnapshot(testBusinessId) } returns null
+
+        whenn()
+        val result = fixture.sut.invoke(testUserId, testCancellation)
+
+        then()
+        assertTrue(result.exceptionOrNull() is Error.NotFound)
+        assertTrue(rolledBack)
+        coVerify(exactly = 0) { fixture.eventProducer.send(any(), any()) }
     }
 }

@@ -5,8 +5,7 @@ import kotlin.uuid.Uuid
 
 interface PassKeyDataSource {
     suspend fun saveChallengeToCache(requestId: String, challenge: String)
-    suspend fun getCachedChallenge(requestId: String): String?
-    suspend fun deleteCachedChallenge(requestId: String)
+    suspend fun takeCachedChallenge(requestId: String): String?
     suspend fun createPasskeyCredential(credential: PasskeyCredential)
     suspend fun getCredentialBy(userHandle: Uuid, credentialId: ByteArray): PasskeyCredential?
     suspend fun getCredentialBy(authId: Uuid): List<PasskeyCredential>
