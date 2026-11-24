@@ -253,15 +253,30 @@ internal class PassKeyDataSourceImplTest {
     }
 
     @Test
-    fun `should return null from getCachedChallenge on cache miss`() = runUnitTest {
+    fun `should give nothing for a request id with no challenge`() = runUnitTest {
         given()
         val fixture = SutFixture()
 
         whenn()
-        val result = fixture.sut.getCachedChallenge("req-1")
+        val result = fixture.sut.takeCachedChallenge("req-1")
 
         then()
         assertNull(result)
+    }
+
+    @Test
+    fun `should give a saved challenge only once`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.sut.saveChallengeToCache("req-1", "challenge-abc")
+
+        whenn()
+        val first = fixture.sut.takeCachedChallenge("req-1")
+        val second = fixture.sut.takeCachedChallenge("req-1")
+
+        then()
+        assertEquals("challenge-abc", first)
+        assertNull(second)
     }
 
     @Test
@@ -269,12 +284,13 @@ internal class PassKeyDataSourceImplTest {
         given()
         val fixture = SutFixture()
         fixture.sut.saveChallengeToCache("req-1", "challenge-abc")
+        fixture.sut.saveChallengeToCache("req-2", "challenge-def")
 
         whenn()
         fixture.timeSource += 10.minutes - 1.seconds
-        val beforeExpiry = fixture.sut.getCachedChallenge("req-1")
+        val beforeExpiry = fixture.sut.takeCachedChallenge("req-1")
         fixture.timeSource += 2.seconds
-        val afterExpiry = fixture.sut.getCachedChallenge("req-1")
+        val afterExpiry = fixture.sut.takeCachedChallenge("req-2")
 
         then()
         assertEquals("challenge-abc", beforeExpiry)

@@ -10,6 +10,7 @@ import com.bookk.core.data.DataSource
 import com.bookk.core.data.cache.CacheClient
 import com.bookk.core.data.cache.get
 import com.bookk.core.data.cache.set
+import com.bookk.core.data.cache.setIfAbsent
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.count
 import org.jetbrains.exposed.v1.core.eq
@@ -34,10 +35,14 @@ internal class PassKeyDataSourceImpl(
         cacheClient.set(requestId, challenge, CHALLENGE_LIFETIME)
     }
 
-    override suspend fun getCachedChallenge(requestId: String): String? = mapExceptions { cacheClient.get(requestId) }
+    override suspend fun takeCachedChallenge(requestId: String): String? = mapExceptions {
+        val claimed = cacheClient.setIfAbsent(takenMarkerKey(requestId), TAKEN_MARKER, CHALLENGE_LIFETIME)
+        if (!claimed) return@mapExceptions null
+        cacheClient.get<String, String>(requestId)?.also { cacheClient.delete(requestId) }
+    }
 
-    override suspend fun deleteCachedChallenge(requestId: String) {
-        mapExceptions { cacheClient.delete(requestId) }
+    private fun takenMarkerKey(requestId: String): String {
+        return "$requestId$TAKEN_SUFFIX"
     }
 
     override suspend fun createPasskeyCredential(credential: PasskeyCredential) = dbQuery<Unit> {
@@ -155,5 +160,7 @@ internal class PassKeyDataSourceImpl(
 
     private companion object {
         val CHALLENGE_LIFETIME = 10.minutes
+        const val TAKEN_SUFFIX = ":taken"
+        const val TAKEN_MARKER = "taken"
     }
 }

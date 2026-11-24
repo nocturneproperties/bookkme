@@ -1465,4 +1465,35 @@ internal class CreateAppointmentRequestImplTest {
         coVerify(exactly = 0) { fixture.requestDataSource.create(any()) }
         coVerify(exactly = 1) { fixture.requestDataSource.releaseOfferToken("token") }
     }
+
+    @Test
+    fun `should give the offer token back and store no request when the automatic approval fails`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val businessId = Uuid.random()
+        val context = bookingContext(businessId, Uuid.random(), Uuid.random(), Uuid.random())
+        val draft = draftFor(context, businessId, futureDate)
+        val settings = mockk<AppointmentSettings> { every { inBetweenBreakInMinutes } returns 0 }
+
+        with(fixture) {
+            coEvery {
+                businessClient.getAppointmentBookingContext(businessId, draft.employeeId, userId, distinctIds(draft))
+            } returns Result.success(context)
+            coEvery { settingsDataSource.getForUpdate(businessId) } returns settings
+            coEvery { settings.automaticApproval } returns true
+            coEvery { createAppointment.createBypassingPermissions(any(), any()) } returns
+                Result.failure(BookingConflictError.EmployeeBusy())
+            mockValidToken(draft, totalOf(expand(context, draft)), durationOf(expand(context, draft)))
+            transactionManager.mockTransaction()
+        }
+
+        whenn()
+        val result = fixture.sut.invoke(userId, draft)
+
+        then()
+        assertTrue(result.exceptionOrNull() is BookingConflictError.EmployeeBusy)
+        coVerify(exactly = 0) { fixture.requestDataSource.create(any()) }
+        coVerify(exactly = 1) { fixture.requestDataSource.releaseOfferToken(draft.offerToken) }
+    }
 }

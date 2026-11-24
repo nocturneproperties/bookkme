@@ -40,8 +40,8 @@ flowchart TD
     Redeem -- sixth attempt --> R422h([422 EMAIL_CODE_ATTEMPTS_EXCEEDED 910003])
     Redeem -- wrong code, or purpose is not sign-up --> R422i([422 EMAIL_CODE_INVALID 910001])
     Redeem -- verified email --> Verify[FinishPasskeyRegistration.verifyRequest request]
-    Verify -- expired --> R422a([422 CHALLENGE_WINDOW_EXPIRED 6])
-    Verify -- signature invalid --> R422b([422 VERIFICATION_FAILED 4])
+    Verify -- missing, expired or already taken challenge --> R422a([422 CHALLENGE_WINDOW_EXPIRED 6])
+    Verify -- malformed, signature, challenge or origin invalid --> R422b([422 VERIFICATION_FAILED 4])
     Verify -- ok --> CreateUser[UserClient.createUser name lastName verified email acceptedDocuments]
     CreateUser -- already exists --> R422c([422 USER_ALREADY_EXIST 3])
     CreateUser -- version not published --> R422e([422 LEGAL_DOCUMENT_VERSION_UNKNOWN 100003])

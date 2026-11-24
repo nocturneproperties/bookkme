@@ -36,11 +36,11 @@ any account would pass.
 flowchart TD
     Start([POST /api/auth/passkey/confirm_action body ActionConfirmationRequest]) --> Auth{JWT valid?}
     Auth -- No --> R401([401 Unauthorized])
-    Auth -- Yes --> Challenge{"PassKeyDataSource.getCachedChallenge requestId"}
-    Challenge -- missing or expired --> R422a([422 CHALLENGE_WINDOW_EXPIRED 6])
-    Challenge -- found --> Verify["RelyingParty.finishAssertion - challenge deleted, single use"]
-    Verify -- signature or origin invalid --> R422b([422 VERIFICATION_FAILED 4])
-    Verify -- unknown credential --> R422c([422 PASSKEY_OWNER_NOT_FOUND 7])
+    Auth -- Yes --> Challenge{"PassKeyDataSource.takeCachedChallenge requestId - claimed with setIfAbsent, single use"}
+    Challenge -- missing, expired or already taken --> R422a([422 CHALLENGE_WINDOW_EXPIRED 6])
+    Challenge -- taken --> Verify["RelyingParty.finishAssertion"]
+    Verify -- malformed assertion or lookup failure --> R422b([422 VERIFICATION_FAILED 4])
+    Verify -- no user handle, unknown credential, signature, challenge or origin invalid --> R422c([422 PASSKEY_OWNER_NOT_FOUND 7])
     Verify -- ok --> MarkUsed[PassKeyDataSource.markAsUsed credentialId]
     MarkUsed --> Owner{"credential.authInfo.userId == caller userId?"}
     Owner -- No --> R422d([422 PASSKEY_NOT_OWNED 11])
