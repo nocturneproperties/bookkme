@@ -131,7 +131,7 @@ internal class SnapshotCipher(
         val stored = read.stored.encryptedEmployeeName
         val isSameEmployee = employee.userId == read.stored.employeeUserId
         val isUnchanged = isSameEmployee && employee.fullName == read.decrypted.employeeName
-        if (stored != null && isUnchanged && !read.decrypted.isEmployeeNameErased) return stored
+        if (stored != null && isUnchanged && !read.decrypted.isEmployeeErased) return stored
         return encryptEmployeeName(employee)
     }
 

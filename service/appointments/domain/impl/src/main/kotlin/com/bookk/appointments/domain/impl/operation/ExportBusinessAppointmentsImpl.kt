@@ -78,15 +78,17 @@ internal class ExportBusinessAppointmentsImpl(
         note = note.ifBlank { null },
     )
 
-    private fun EmployeeSnapshot.toExport() = EmployeeExport(id = id, name = fullName)
+    private fun EmployeeSnapshot.toExport(): EmployeeExport {
+        return EmployeeExport(id = id, name = fullName, erased = erased)
+    }
 
     private fun ClientSnapshot.toExport() = ClientExport(
         id = id,
         name = fullName,
         phone = phone,
         email = email,
-        hasAccount =
-        userId != null,
+        hasAccount = userId != null,
+        erased = erased,
     )
 
     private fun ServiceSnapshot.toExport() = ServiceExport(

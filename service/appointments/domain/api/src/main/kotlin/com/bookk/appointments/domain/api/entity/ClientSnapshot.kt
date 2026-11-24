@@ -11,6 +11,7 @@ data class ClientSnapshot(
     @ProtoNumber(3) val phone: String?,
     @ProtoNumber(4) val email: String?,
     @ProtoNumber(5) val userId: Uuid?,
+    @ProtoNumber(6) val erased: Boolean = false,
 ) {
     companion object {
         fun stub(userId: Uuid? = Uuid.random()) = ClientSnapshot(

@@ -67,6 +67,7 @@ internal class ExportUserAppointmentsImpl(
                 )
             },
             completedBy = completedBy?.name,
+            employeeErased = employee.erased,
         )
     }
 

@@ -1,6 +1,7 @@
 package com.bookk.appointments.data.orm.entity
 
 import library.encryption.Decrypted
+import library.encryption.valueOrNull
 import kotlin.uuid.Uuid
 
 internal data class ClientDetails(
@@ -11,12 +12,9 @@ internal data class ClientDetails(
     val clientNote: String,
 ) {
     companion object {
-        val ERASED = ClientDetails(fullName = "Deleted Client", phone = null, email = null, note = "", clientNote = "")
-        val UNREADABLE = ClientDetails(fullName = "", phone = null, email = null, note = "", clientNote = "")
+        val EMPTY = ClientDetails(fullName = "", phone = null, email = null, note = "", clientNote = "")
     }
 }
-
-internal const val ERASED_EMPLOYEE_NAME = "Deleted User"
 
 internal class EncryptedClientDetails(
     val fullName: ByteArray,
@@ -47,7 +45,7 @@ internal class DecryptedClient(
 ) {
     companion object {
         val ERASED = DecryptedClient(
-            details = ClientDetails.ERASED,
+            details = ClientDetails.EMPTY,
             isNameReadable = false,
             isErased = true,
             hasMissingKey = false,
@@ -74,17 +72,13 @@ internal class DecryptedSnapshot(
             return decryptedClient.isErased
         }
 
-    val isEmployeeNameErased: Boolean
+    val isEmployeeErased: Boolean
         get() {
             return decryptedEmployeeName is Decrypted.Shredded
         }
 
     val employeeName: String
         get() {
-            return when (decryptedEmployeeName) {
-                is Decrypted.Plain -> decryptedEmployeeName.value
-                Decrypted.Shredded -> ERASED_EMPLOYEE_NAME
-                Decrypted.Missing -> ""
-            }
+            return decryptedEmployeeName.valueOrNull().orEmpty()
         }
 }

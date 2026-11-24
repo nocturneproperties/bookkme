@@ -77,7 +77,6 @@ internal class DeleteUserAppointmentDataImplTest {
             coEvery { appointmentDataSource.getAllByIds(upcoming.map { it.id }) } returns upcoming
             coEvery { appointmentDataSource.cancelAll(any(), any()) } coAnswers { recordWrite() }
             coEvery { appointmentDataSource.anonymizeClientUser(userId) } coAnswers { recordWrite() }
-            coEvery { appointmentDataSource.anonymizeEmployee(userId) } coAnswers { recordWrite() }
             coEvery { appointmentDataSource.unlinkInitiator(userId) } coAnswers { recordWrite() }
             coEvery { requestDataSource.deleteForUser(userId) } coAnswers { recordWrite() }
             coEvery { appointmentPermissionDataSource.deleteForUser(userId) } coAnswers { recordWrite() }
@@ -111,7 +110,7 @@ internal class DeleteUserAppointmentDataImplTest {
         .let { it.copy(employee = it.employee.copy(userId = employeeUserId)) }
 
     @Test
-    fun `should erase the user as client, employee and initiator with requests and grants at once`() = runUnitTest {
+    fun `should erase the user as client and initiator with requests and grants at once`() = runUnitTest {
         given()
         val fixture = SutFixture()
         val userId = Uuid.random()
@@ -123,7 +122,6 @@ internal class DeleteUserAppointmentDataImplTest {
         then()
         assertTrue(result.isSuccess)
         coVerify(exactly = 1) { fixture.appointmentDataSource.anonymizeClientUser(userId) }
-        coVerify(exactly = 1) { fixture.appointmentDataSource.anonymizeEmployee(userId) }
         coVerify(exactly = 1) { fixture.appointmentDataSource.unlinkInitiator(userId) }
         coVerify(exactly = 1) { fixture.requestDataSource.deleteForUser(userId) }
         coVerify(exactly = 1) { fixture.appointmentPermissionDataSource.deleteForUser(userId) }

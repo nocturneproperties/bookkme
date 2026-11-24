@@ -38,6 +38,7 @@ data class AppointmentsUserDataExport(
         @ProtoNumber(11) val cancellationReason: String?,
         @ProtoNumber(12) val priceAdjustment: PriceAdjustmentExport?,
         @ProtoNumber(13) val completedBy: String?,
+        @ProtoNumber(14) val employeeErased: Boolean = false,
     ) {
         companion object {
             fun stub(

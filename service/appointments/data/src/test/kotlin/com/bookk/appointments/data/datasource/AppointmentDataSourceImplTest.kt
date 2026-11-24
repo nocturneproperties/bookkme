@@ -776,7 +776,8 @@ internal class AppointmentDataSourceImplTest {
         val found = suspendTransaction { fixture.sut.get(created.id) }
 
         then()
-        assertEquals("Deleted Client", found.client.fullName)
+        assertEquals("", found.client.fullName)
+        assertTrue(found.client.erased)
         assertNull(found.client.phone)
         assertNull(found.client.email)
         assertEquals(created.client.id, found.client.id)
@@ -818,25 +819,6 @@ internal class AppointmentDataSourceImplTest {
         assertEquals("Carol", found.client.fullName)
         assertEquals("+456", found.client.phone)
         assertEquals("carol@test.com", found.client.email)
-    }
-
-    @Test
-    fun `should leave client details alone when anonymizing an employee user`() = runUnitTest {
-        given()
-        val fixture = SutFixture()
-        fixture.setup()
-        val userId = Uuid.random()
-        val request = fixture.buildRequest().let {
-            it.copy(client = it.client.copy(userId = userId, fullName = "Dave"))
-        }
-        val created = suspendTransaction { fixture.sut.create(request) }
-
-        whenn()
-        suspendTransaction { fixture.sut.anonymizeEmployee(userId) }
-        val found = suspendTransaction { fixture.sut.get(created.id) }
-
-        then()
-        assertEquals("Dave", found.client.fullName)
     }
 
     @Test
@@ -972,59 +954,6 @@ internal class AppointmentDataSourceImplTest {
     }
 
     @Test
-    fun `should anonymize employee name on appointments assigned to the deleted user as employee`() = runUnitTest {
-        given()
-        val fixture = SutFixture()
-        fixture.setup()
-        val userId = Uuid.random()
-        val request = fixture.buildRequest().let {
-            it.copy(employee = it.employee.copy(userId = userId, fullName = "Bob"))
-        }
-        val created = suspendTransaction { fixture.sut.create(request) }
-
-        whenn()
-        suspendTransaction { fixture.sut.anonymizeEmployee(userId) }
-        val found = suspendTransaction { fixture.sut.get(created.id) }
-
-        then()
-        assertEquals("Deleted User", found.employee.fullName)
-    }
-
-    @Test
-    fun `should unlink the deleted user's account from appointments assigned to them as employee`() = runUnitTest {
-        given()
-        val fixture = SutFixture()
-        fixture.setup()
-        val userId = Uuid.random()
-        val request = fixture.buildRequest().let { it.copy(employee = it.employee.copy(userId = userId)) }
-        val created = suspendTransaction { fixture.sut.create(request) }
-
-        whenn()
-        suspendTransaction { fixture.sut.anonymizeEmployee(userId) }
-        val found = suspendTransaction { fixture.sut.get(created.id) }
-
-        then()
-        assertEquals(Uuid.NIL, found.employee.userId)
-        assertEquals(created.employee.id, found.employee.id)
-    }
-
-    @Test
-    fun `should keep other employees' accounts when anonymizing an employee user`() = runUnitTest {
-        given()
-        val fixture = SutFixture()
-        fixture.setup()
-        val untouched = suspendTransaction { fixture.sut.create(fixture.buildRequest()) }
-
-        whenn()
-        suspendTransaction { fixture.sut.anonymizeEmployee(Uuid.random()) }
-        val found = suspendTransaction { fixture.sut.get(untouched.id) }
-
-        then()
-        assertEquals(untouched.employee.userId, found.employee.userId)
-        assertEquals(untouched.employee.fullName, found.employee.fullName)
-    }
-
-    @Test
     fun `should unlink the deleted user's account from appointments they booked`() = runUnitTest {
         given()
         val fixture = SutFixture()
@@ -1053,19 +982,6 @@ internal class AppointmentDataSourceImplTest {
 
         then()
         assertEquals(untouched.initiatorUserId, found.initiatorUserId)
-    }
-
-    @Test
-    fun `should not fail anonymizing appointments for an employee user with none`() = runUnitTest {
-        given()
-        val fixture = SutFixture()
-        fixture.setup()
-
-        whenn()
-        val result = runCatching { suspendTransaction { fixture.sut.anonymizeEmployee(Uuid.random()) } }
-
-        then()
-        assertTrue(result.isSuccess)
     }
 
     @Test
@@ -1502,7 +1418,8 @@ internal class AppointmentDataSourceImplTest {
         val found = suspendTransaction { fixture.sut.get(created.id) }
 
         then()
-        assertEquals("Deleted Client", found.client.fullName)
+        assertEquals("", found.client.fullName)
+        assertTrue(found.client.erased)
         assertNull(found.client.phone)
         assertNull(found.client.email)
         assertNull(found.client.userId)

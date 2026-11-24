@@ -72,7 +72,6 @@ internal class DeleteUserAppointmentDataImpl(
         appointmentDataSource.cancelAll(asClient.map { it.id }, ACCOUNT_DELETED_CANCELLATION_REASON)
         appointmentDataSource.cancelAll(asEmployee.map { it.id }, EMPLOYEE_DELETED_CANCELLATION_REASON)
         appointmentDataSource.anonymizeClientUser(userId)
-        appointmentDataSource.anonymizeEmployee(userId)
         appointmentDataSource.unlinkInitiator(userId)
         requestDataSource.deleteForUser(userId)
         appointmentPermissionDataSource.deleteForUser(userId)
