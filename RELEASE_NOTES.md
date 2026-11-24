@@ -2,7 +2,7 @@
 
 ## 0.21.0
 
-Changes since `monolith/0.20.0`. Adds sign-in from a Telegram Mini App, which creates an account with a placeholder email on first use, sends notifications to those users through the Telegram bot, gives clients their upcoming bookings across businesses, a list of saved businesses and an employee's free slots, stops two bookings from taking the same employee at once, and lets owners pick a booking link name for their business.
+Changes since `monolith/0.20.0`. Adds sign-in from a Telegram Mini App, which creates an account with a placeholder email on first use, sends notifications to those users through the Telegram bot, gives clients their upcoming bookings across businesses, a list of saved businesses, an employee's free slots and the business's note for clients, stops two bookings from taking the same employee at once, and lets owners pick a booking link name for their business.
 
 ### Clients
 
@@ -30,6 +30,7 @@ Changes since `monolith/0.20.0`. Adds sign-in from a Telegram Mini App, which cr
 - New `GET /api/business/{businessId}/employee/bookable` lets any signed-in user list a business's employees who are not suspended, with only `id`, `businessId`, `name`, `lastName`, `services` and `schedule`; use it to pick the employee for a booking.
 - New `POST /api/appointments/slots` takes `businessId`, `employeeId`, `services` (`{serviceId, count}`), `from` and `to` (dates in the business time zone, at most 31 days) and returns each date's free `{start, end}` slots on a 15-minute grid; use it to offer start times before booking.
 - It answers 422 `SERVICE_SELECTION_INVALID` (300024) for an empty, repeated or over-100 service selection and the new `SLOT_RANGE_INVALID` (300033) for a range that ends before it starts or spans more than 31 days.
+- New `GET /api/appointments/booking-info/{businessId}` lets any signed-in user read the business's `appointmentNote` from its appointment settings, 404 when the business doesn't take appointments; show it on the booking screen.
 - Booking an employee who already has a scheduled appointment at that time, including the business's break before and after it, now answers 422 `EMPLOYEE_BUSY` (300032) on `POST /api/appointments/request`, `POST /api/appointments`, `POST /api/appointments/instant` and `PUT /api/appointments/{id}`; pending requests never block, so once one of several requests for the same time is approved, approving another answers `EMPLOYEE_BUSY`.
 - These routes no longer answer `APPOINTMENT_EXISTS` (300004) or `REQUEST_EXISTS` (300001): a client's own overlapping bookings are allowed (two services with two employees at once), and staff can book several employees for the same time.
 - A passkey challenge is now used once even when two requests send the same `requestId` at the same moment (sign-in, action confirmation, sign-up, adding a passkey); the second answers 422 `CHALLENGE_WINDOW_EXPIRED` (6), so fetch a new challenge.

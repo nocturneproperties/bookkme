@@ -2,6 +2,7 @@ package com.bookk.appointments.microservice.route.api
 
 import com.bookk.appointments.domain.api.entity.RequestedService
 import com.bookk.appointments.domain.api.operation.GetAvailableSlots
+import com.bookk.appointments.domain.api.operation.GetBookingInfo
 import com.bookk.appointments.domain.api.operation.GetSavedBusinesses
 import com.bookk.appointments.domain.api.operation.GetUpcomingBookings
 import com.bookk.appointments.domain.api.operation.RemoveSavedBusiness
@@ -52,6 +53,22 @@ fun Routing.clientBookings() {
             val getAvailableSlots by application.injectScoped<GetAvailableSlots>(AppointmentsScope)
 
             call.respondWith(getAvailableSlots(body.businessId, body.employeeId, body.services, body.from, body.to))
+        }
+
+        /**
+         * Get booking info
+         *
+         * Summary: Get booking info
+         * Description: What a client needs to know before booking at a business, currently the note the business wrote for clients in its appointment settings (empty when it wrote none). Any signed in user may ask
+         * Tag: appointment
+         * Security: jwt
+         * Response: 200 application/x-protobuf [com.bookk.appointments.domain.api.entity.BookingInfo] Booking info of the business
+         * Response: 404 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] The business does not take appointments
+         */
+        get<Api.Appointment.BookingInfo> {
+            val getBookingInfo by application.injectScoped<GetBookingInfo>(AppointmentsScope)
+
+            call.respondWith(getBookingInfo(it.businessId))
         }
 
         /**

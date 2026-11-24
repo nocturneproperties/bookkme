@@ -20,6 +20,7 @@ import com.bookk.appointments.domain.api.operation.GetAppointmentHistory
 import com.bookk.appointments.domain.api.operation.GetAppointmentRequests
 import com.bookk.appointments.domain.api.operation.GetAppointmentsForDate
 import com.bookk.appointments.domain.api.operation.GetAvailableSlots
+import com.bookk.appointments.domain.api.operation.GetBookingInfo
 import com.bookk.appointments.domain.api.operation.GetPendingAppointmentRequests
 import com.bookk.appointments.domain.api.operation.GetSavedBusinesses
 import com.bookk.appointments.domain.api.operation.GetSettings
@@ -53,6 +54,7 @@ import com.bookk.appointments.domain.impl.operation.GetAppointmentImpl
 import com.bookk.appointments.domain.impl.operation.GetAppointmentRequestsImpl
 import com.bookk.appointments.domain.impl.operation.GetAppointmentsForDateImpl
 import com.bookk.appointments.domain.impl.operation.GetAvailableSlotsImpl
+import com.bookk.appointments.domain.impl.operation.GetBookingInfoImpl
 import com.bookk.appointments.domain.impl.operation.GetPendingAppointmentRequestsImpl
 import com.bookk.appointments.domain.impl.operation.GetSavedBusinessesImpl
 import com.bookk.appointments.domain.impl.operation.GetSettingsImpl
@@ -107,6 +109,7 @@ fun appointmentsDomainModule() = module {
         scopedOf(::GetUpcomingBookingsImpl) bind GetUpcomingBookings::class
         scoped<GetAvailableSlots> { GetAvailableSlotsImpl(get(), get(), get(), get(), get(), Clock.System) }
         scopedOf(::GetSavedBusinessesImpl) bind GetSavedBusinesses::class
+        scopedOf(::GetBookingInfoImpl) bind GetBookingInfo::class
         scopedOf(::SaveBusinessImpl) bind SaveBusiness::class
         scopedOf(::RemoveSavedBusinessImpl) bind RemoveSavedBusiness::class
         scopedOf(::MarkAppointmentsCompletedImpl) bind MarkAppointmentsCompleted::class
