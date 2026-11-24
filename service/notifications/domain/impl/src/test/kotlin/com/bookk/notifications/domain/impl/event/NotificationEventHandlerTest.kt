@@ -11,6 +11,7 @@ import com.bookk.core.test.whenn
 import com.bookk.notifications.domain.api.CreateDeviceEntry
 import com.bookk.notifications.domain.api.DeleteDeviceByUUID
 import com.bookk.notifications.domain.api.DeleteUserNotificationData
+import com.bookk.notifications.domain.impl.ClearPushNotificationToken
 import com.bookk.notifications.domain.impl.UpdateDeviceLanguage
 import com.bookk.notifications.domain.impl.UpdateTargetInformation
 import com.bookk.notifications.domain.impl.notification.NotificationParameters
@@ -42,6 +43,7 @@ internal class NotificationEventHandlerTest {
         val deleteDeviceByUUID = mockk<DeleteDeviceByUUID>()
         val updateTargetInformation = mockk<UpdateTargetInformation>()
         val updateDeviceLanguage = mockk<UpdateDeviceLanguage>()
+        val clearPushNotificationToken = mockk<ClearPushNotificationToken>()
         val sendNotification = mockk<SendNotification>()
         val deleteUserNotificationData = mockk<DeleteUserNotificationData>()
         val receivers = mutableMapOf<String, suspend (Any) -> Unit>()
@@ -51,6 +53,7 @@ internal class NotificationEventHandlerTest {
             deleteDeviceByUUID,
             updateTargetInformation,
             updateDeviceLanguage,
+            clearPushNotificationToken,
             sendNotification,
             deleteUserNotificationData,
         )
@@ -285,5 +288,28 @@ internal class NotificationEventHandlerTest {
         assertTrue(deletion.exceptionOrNull() is IllegalArgumentException)
         coVerify(exactly = 0) { fixture.updateDeviceLanguage(any(), any(), any()) }
         coVerify(exactly = 0) { fixture.deleteDeviceByUUID(any(), any()) }
+    }
+
+    @Test
+    fun `should clear the push token of a device that signed out`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val event = AuthEvent.DeviceSignedOut(
+            authId = Uuid.random(),
+            deviceUuid = Uuid.random(),
+            signedOutAt = Instant.fromEpochMilliseconds(1_700_000_000_000),
+        )
+        coEvery {
+            fixture.clearPushNotificationToken(event.authId, event.deviceUuid, event.signedOutAt)
+        } returns Result.success(Unit)
+        fixture.start(this)
+
+        whenn()
+        fixture.dispatch(AuthEvent.DeviceSignedOut.TOPIC, event)
+
+        then()
+        coVerify(exactly = 1) {
+            fixture.clearPushNotificationToken(event.authId, event.deviceUuid, event.signedOutAt)
+        }
     }
 }

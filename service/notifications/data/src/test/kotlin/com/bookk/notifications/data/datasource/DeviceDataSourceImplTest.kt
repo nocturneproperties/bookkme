@@ -16,6 +16,8 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import kotlin.time.Clock
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
@@ -292,5 +294,104 @@ internal class DeviceDataSourceImplTest {
 
         then()
         assertNull(language)
+    }
+
+    @Test
+    fun `should clear a token registered before the device signed out`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val device =
+            suspendTransaction { fixture.sut.getOrCreate(Uuid.random(), Uuid.random(), Uuid.random(), Language.EN) }
+        suspendTransaction { fixture.sut.updateToken(device.authId, device.deviceUuid, "fcm-token") }
+        val signedOutAt = Clock.System.now() + 1.minutes
+
+        whenn()
+        suspendTransaction { fixture.sut.clearTokenRegisteredBefore(device.authId, device.deviceUuid, signedOutAt) }
+
+        then()
+        assertNull(suspendTransaction { fixture.sut.getByUserId(device.userId) }.single().notificationToken)
+    }
+
+    @Test
+    fun `should keep a token registered again after the device signed out`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val device =
+            suspendTransaction { fixture.sut.getOrCreate(Uuid.random(), Uuid.random(), Uuid.random(), Language.EN) }
+        val signedOutAt = Clock.System.now() - 1.minutes
+        suspendTransaction { fixture.sut.updateToken(device.authId, device.deviceUuid, "fcm-token") }
+
+        whenn()
+        suspendTransaction { fixture.sut.clearTokenRegisteredBefore(device.authId, device.deviceUuid, signedOutAt) }
+
+        then()
+        assertEquals(
+            "fcm-token",
+            suspendTransaction {
+                fixture.sut.getByUserId(device.userId)
+            }.single().notificationToken,
+        )
+    }
+
+    @Test
+    fun `should clear a token stored before registration times were recorded`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val device =
+            suspendTransaction { fixture.sut.getOrCreate(Uuid.random(), Uuid.random(), Uuid.random(), Language.EN) }
+        suspendTransaction {
+            DeviceTable.update(where = { DeviceTable.id eq device.id }) { it[notificationToken] = "legacy-token" }
+        }
+
+        whenn()
+        suspendTransaction {
+            fixture.sut.clearTokenRegisteredBefore(device.authId, device.deviceUuid, Instant.fromEpochMilliseconds(0))
+        }
+
+        then()
+        assertNull(suspendTransaction { fixture.sut.getByUserId(device.userId) }.single().notificationToken)
+    }
+
+    @Test
+    fun `should clear only the signed out account's token on a shared device`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val deviceUuid = Uuid.random()
+        val first =
+            suspendTransaction { fixture.sut.getOrCreate(Uuid.random(), deviceUuid, Uuid.random(), Language.EN) }
+        val second =
+            suspendTransaction { fixture.sut.getOrCreate(Uuid.random(), deviceUuid, Uuid.random(), Language.EN) }
+        suspendTransaction {
+            fixture.sut.updateToken(first.authId, deviceUuid, "first-token")
+            fixture.sut.updateToken(second.authId, deviceUuid, "second-token")
+        }
+
+        whenn()
+        suspendTransaction {
+            fixture.sut.clearTokenRegisteredBefore(first.authId, deviceUuid, Clock.System.now() + 1.minutes)
+        }
+
+        then()
+        assertNull(suspendTransaction { fixture.sut.getByUserId(first.userId) }.single().notificationToken)
+        assertEquals(
+            "second-token",
+            suspendTransaction { fixture.sut.getByUserId(second.userId) }.single().notificationToken,
+        )
+    }
+
+    @Test
+    fun `should ignore a sign out of a device it does not know`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+
+        whenn()
+        val result = runSuspendCatching {
+            suspendTransaction {
+                fixture.sut.clearTokenRegisteredBefore(Uuid.random(), Uuid.random(), Clock.System.now())
+            }
+        }
+
+        then()
+        assertTrue(result.isSuccess)
     }
 }

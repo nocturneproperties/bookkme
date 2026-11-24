@@ -128,6 +128,7 @@ Reactions to cross-service events (all handled by the same
 | `UserEvent.DataExportReady` | [React to a ready personal data export](notifications/on-data-export-ready.md) |
 | `BusinessEvent.ExportReady` | [React to a ready business data export](notifications/on-business-export-ready.md) |
 | `AuthEvent.DeviceDeleted` | [React to device deletion](notifications/on-device-deleted.md) |
+| `AuthEvent.DeviceSignedOut` | [React to device sign-out](notifications/on-device-signed-out.md) |
 | `UserEvent.Updated` | [React to user profile update](notifications/on-user-updated.md) |
 | `AppointmentEvent.RequestCreated` | [React to appointment request creation](notifications/on-appointment-request-created.md) |
 | `AppointmentEvent.RequestApproved` | [React to appointment request approval](notifications/on-appointment-request-approved.md) |
@@ -172,6 +173,7 @@ the operation committed, and reaches its consumers at least once. See
 | `AuthEvent.DeviceDeleted` | [Delete account](authorization/delete-account.md), [`auth-deleteInactiveDevices`, `auth-handleDormantAccounts` and `auth-reapplyErasures` jobs](scheduled-jobs.md) | [notifications](notifications/on-device-deleted.md) |
 | `AuthEvent.DeviceCreated` | [Verify sign-up](authorization/sign-up.md), [Verify sign-in](authorization/sign-in.md), [Sign in with Telegram](authorization/telegram-sign-in.md) | [notifications](notifications/on-device-created.md) |
 | `AuthEvent.DeviceLanguageUpdated` | [Verify sign-in](authorization/sign-in.md), [Sign in with Telegram](authorization/telegram-sign-in.md) | [notifications](notifications/on-device-language-updated.md) |
+| `AuthEvent.DeviceSignedOut` | [Sign out](authorization/sign-out.md), [Refresh access token](authorization/refresh-token.md) (reused refresh token) | [notifications](notifications/on-device-signed-out.md) |
 | `AuthEvent.AccountDormancyWarning` | [`auth-handleDormantAccounts` job](scheduled-jobs.md) | [notifications](notifications/on-account-dormancy-warning.md) |
 | `BusinessEvent.Updated` | [Update business](business/update-business.md) | [appointments](appointments/on-business-updated.md) |
 | `BusinessEvent.Deleted` | [React to user deletion (business)](business/on-user-deleted.md) | [appointments](appointments/on-business-deleted.md) |

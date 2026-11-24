@@ -11,6 +11,7 @@ import kotlinx.serialization.protobuf.ProtoNumber
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Test
+import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
 internal class AuthEventTest {
@@ -135,5 +136,25 @@ internal class AuthEventTest {
         assertEquals("old-update", updated.idempotencyKey)
         assertEquals(Language.UK, updated.language)
         assertEquals(Uuid.NIL, updated.authId)
+    }
+
+    @Test
+    fun `should round trip a device sign out keyed by its device`() = runUnitTest {
+        given()
+        val event = AuthEvent.DeviceSignedOut(
+            authId = Uuid.random(),
+            deviceUuid = deviceUuid,
+            signedOutAt = Instant.fromEpochMilliseconds(1_700_000_000_123),
+        )
+        val protoBuf = ProtoBuf { encodeDefaults = true }
+
+        whenn()
+        val bytes = protoBuf.encodeToByteArray(AuthEvent.DeviceSignedOut.serializer(), event)
+        val decoded = protoBuf.decodeFromByteArray(AuthEvent.DeviceSignedOut.serializer(), bytes)
+
+        then()
+        assertEquals(event, decoded)
+        assertEquals(AuthEvent.DeviceSignedOut.TOPIC, decoded.topic)
+        assertEquals(deviceUuid.toString(), event.partitionKey)
     }
 }

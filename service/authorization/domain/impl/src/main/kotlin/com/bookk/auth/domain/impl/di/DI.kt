@@ -27,6 +27,7 @@ import com.bookk.auth.domain.api.token.operation.GenerateAuthToken
 import com.bookk.auth.domain.api.token.operation.RefreshToken
 import com.bookk.auth.domain.impl.operation.AccountEraser
 import com.bookk.auth.domain.impl.operation.DeleteAccountImpl
+import com.bookk.auth.domain.impl.operation.DeviceSignOut
 import com.bookk.auth.domain.impl.operation.SignOutImpl
 import com.bookk.auth.domain.impl.operation.actionconfirmation.ConfirmActionImpl
 import com.bookk.auth.domain.impl.operation.authentication.FinishAssertionImpl
@@ -72,6 +73,7 @@ fun authDomainModule(environment: (String) -> String? = System::getenv) = module
         scopedOf(::RefreshTokenImpl) bind RefreshToken::class
         scopedOf(::SignOutImpl) bind SignOut::class
         scopedOf(::AccountEraser)
+        scopedOf(::DeviceSignOut)
         scopedOf(::HandleDormantAccountsImpl) bind HandleDormantAccounts::class
         scopedOf(::DeleteAccountImpl) bind DeleteAccount::class
         scopedOf(::ReapplyAccountErasuresImpl) bind ReapplyAccountErasures::class

@@ -10,6 +10,7 @@ import com.bookk.notifications.domain.api.NOTIFICATIONS_SCHEMA
 import com.bookk.notifications.domain.api.UpdateNotificationSettings
 import com.bookk.notifications.domain.api.UpdatePushNotificationToken
 import com.bookk.notifications.domain.api.entity.CommunicationChannel
+import com.bookk.notifications.domain.impl.ClearPushNotificationToken
 import com.bookk.notifications.domain.impl.CreateDeviceEntryImpl
 import com.bookk.notifications.domain.impl.DeleteDeviceByUUIDImpl
 import com.bookk.notifications.domain.impl.DeleteUserNotificationDataImpl
@@ -53,6 +54,7 @@ fun notificationsDomainModule(environment: (String) -> String? = System::getenv)
         scopedOf(::SendNotification)
         scopedOf(::UpdateTargetInformation)
         scopedOf(::UpdateDeviceLanguage)
+        scopedOf(::ClearPushNotificationToken)
         scoped<Map<CommunicationChannel, NotificationSender>> {
             mapOf(
                 CommunicationChannel.EMAIL to get<EmailNotificationSender>(),

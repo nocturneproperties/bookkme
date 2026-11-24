@@ -8,6 +8,7 @@ import com.bookk.appointments.data.orm.table.WorkingHoursTable
 import com.bookk.appointments.domain.api.entity.AppointmentRequest
 import com.bookk.appointments.domain.api.entity.AppointmentRequestStatus
 import com.bookk.appointments.domain.api.entity.BusinessSnapshot
+import com.bookk.appointments.domain.api.entity.EmployeeSnapshot
 import com.bookk.core.data.cache.test.InMemoryCacheClient
 import com.bookk.core.data.test.createTestDatabase
 import com.bookk.core.test.given
@@ -52,7 +53,8 @@ internal class AppointmentRequestDataSourceImplTest {
         fun buildRequest(
             userId: Uuid = Uuid.random(),
             date: Instant = Instant.fromEpochMilliseconds(0),
-        ) = AppointmentRequest.stub(initiatorUserId = userId, businessId = businessId, date = date)
+            employee: EmployeeSnapshot = EmployeeSnapshot.stub(),
+        ) = AppointmentRequest.stub(initiatorUserId = userId, businessId = businessId, date = date, employee = employee)
     }
 
     @Test
@@ -126,6 +128,37 @@ internal class AppointmentRequestDataSourceImplTest {
 
         then()
         assertEquals(setOf(first.id, second.id), pending.map { it.id }.toSet())
+    }
+
+    @Test
+    fun `should retrieve pending requests assigned to the employee user in the business by date`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val employee = EmployeeSnapshot.stub()
+        val otherBusiness = BusinessSnapshot.stub()
+        suspendTransaction { fixture.subscriptionSut.attachBusiness(otherBusiness) }
+        val later = suspendTransaction {
+            fixture.sut.create(
+                fixture.buildRequest(date = Instant.fromEpochMilliseconds(0) + 2.hours, employee = employee),
+            )
+        }
+        val earlier = suspendTransaction { fixture.sut.create(fixture.buildRequest(employee = employee)) }
+        val approved = suspendTransaction { fixture.sut.create(fixture.buildRequest(employee = employee)) }
+        suspendTransaction { fixture.sut.approve(approved) }
+        val declined = suspendTransaction { fixture.sut.create(fixture.buildRequest(employee = employee)) }
+        suspendTransaction { fixture.sut.decline(declined.id, "Fully booked") }
+        suspendTransaction { fixture.sut.create(fixture.buildRequest()) }
+        suspendTransaction { fixture.sut.create(fixture.buildRequest(userId = employee.userId)) }
+        suspendTransaction {
+            fixture.sut.create(AppointmentRequest.stub(businessId = otherBusiness.id, employee = employee))
+        }
+
+        whenn()
+        val assigned = suspendTransaction { fixture.sut.getPendingAssignedTo(employee.userId, fixture.businessId) }
+
+        then()
+        assertEquals(listOf(earlier.id, later.id), assigned.map { it.id })
     }
 
     @Test

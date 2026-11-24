@@ -62,6 +62,22 @@ internal class AppointmentRequestDataSourceImpl(
             .decrypted()
     }
 
+    override suspend fun getPendingAssignedTo(
+        employeeUserId: Uuid,
+        businessId: Uuid,
+    ): List<AppointmentRequest> = dbQuery {
+        AppointmentRequestEntity
+            .find {
+                (AppointmentRequestTable.employeeUserId eq employeeUserId)
+                    .and(AppointmentRequestTable.businessId eq businessId)
+                    .and(AppointmentRequestTable.status eq AppointmentRequestStatus.PENDING)
+            }
+            .orderBy(AppointmentRequestTable.dateStart to SortOrder.ASC)
+            .toList()
+            .with(AppointmentRequestEntity::services)
+            .decrypted()
+    }
+
     override suspend fun getUpcomingPendingOfUser(
         userId: Uuid,
         startingAfter: Instant,

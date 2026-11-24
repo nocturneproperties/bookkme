@@ -56,13 +56,13 @@ internal class GetNotificationSettingsImplTest {
     }
 
     @Test
-    fun `should create default settings with all channels disabled when none exist`() = runUnitTest {
+    fun `should create default settings with appointments on and channels off when none exist`() = runUnitTest {
         given()
         val fixture = SutFixture()
         val userId = Uuid.random()
         val defaultSettings = NotificationSettings.stub(
             userId = userId,
-            appointmentEnabled = false,
+            appointmentEnabled = true,
             channels = listOf(
                 NotificationChannelSettings.stub(channel = CommunicationChannel.PUSH_NOTIFICATIONS, enabled = false),
                 NotificationChannelSettings.stub(channel = CommunicationChannel.EMAIL, enabled = false),
@@ -85,7 +85,7 @@ internal class GetNotificationSettingsImplTest {
         coVerify(exactly = 1) {
             fixture.notificationSettingsDataSource.upsert(
                 match<NotificationSettings> { s ->
-                    s.userId == userId && !s.appointmentEnabled && s.channels.none { ch -> ch.enabled }
+                    s.userId == userId && s.appointmentEnabled && s.channels.none { ch -> ch.enabled }
                 },
             )
         }

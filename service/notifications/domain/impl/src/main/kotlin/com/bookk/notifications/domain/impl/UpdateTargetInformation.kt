@@ -40,17 +40,20 @@ internal class UpdateTargetInformation(
     }
 
     private suspend fun saveTelegram(userId: Uuid, telegramUserId: String) {
-        if (!targetDataSource.updateTelegram(userId, telegramUserId) && !targetDataSource.hasTelegram(userId)) {
+        val updated = targetDataSource.updateTelegram(userId, telegramUserId)
+        val isFirstTarget = !updated && !targetDataSource.hasTelegram(userId)
+        if (isFirstTarget) {
             targetDataSource.insertTelegram(userId, telegramUserId)
         }
-        offerTelegram(userId)
+        offerTelegram(userId, turnOn = isFirstTarget)
     }
 
-    private suspend fun offerTelegram(userId: Uuid) {
+    private suspend fun offerTelegram(userId: Uuid, turnOn: Boolean) {
         val settings = notificationSettingsDataSource.getByUserId(userId) ?: return
         val telegram = settings.channels.firstOrNull { it.channel == CommunicationChannel.TELEGRAM } ?: return
-        if (telegram.availableToClients) return
-        notificationSettingsDataSource.upsert(telegram.copy(availableToClients = true))
+        val offered = telegram.copy(availableToClients = true, enabled = telegram.enabled || turnOn)
+        if (offered == telegram) return
+        notificationSettingsDataSource.upsert(offered)
     }
 
     internal sealed interface Target {
