@@ -20,7 +20,7 @@ this user's appointment footprint in every role, in one transaction:
   `AppointmentEvent.Cancelled`. This is a stopgap until such appointments
   can be reassigned to another employee (#137). The appointments they
   worked are not rewritten: shredding their key makes the employee name
-  unreadable, so it reads as "Deleted User", and `employee_user_id` keeps
+  unreadable, so the employee reads with an empty name and `erased` set, and `employee_user_id` keeps
   an id that no longer belongs to any account. Appointments erased before
   0.21.0 hold the nil UUID and no name instead, and read the same. An appointment they
   booked with themselves is cancelled with the client reason and notifies
@@ -78,7 +78,7 @@ flowchart TD
     Each -- found --> Cancel
     Log --> Cancel
     Cancel["AppointmentDataSource.cancelAll - CANCELLED, reason 'User deleted their account' where the user is the client, 'Employee deleted their account' where the user is only the employee"]
-    Cancel --> AnonClient["AppointmentDataSource.anonymizeClientUser userId - client name, phone, email, note, client note and their encrypted columns and client_user_id null, read as Deleted Client, cancellation and price adjustment reasons kept"]
+    Cancel --> AnonClient["AppointmentDataSource.anonymizeClientUser userId - client name, phone, email, note, client note and their encrypted columns and client_user_id null, read with an empty name and erased set, cancellation and price adjustment reasons kept"]
     AnonClient --> Unlink["AppointmentDataSource.unlinkInitiator userId - initiator_user_id match set to the nil UUID"]
     Unlink --> DelReq["AppointmentRequestDataSource.deleteForUser userId - deletes rows where client_user_id or employee_user_id match, sets initiator_user_id to the nil UUID on requests they only booked"]
     DelReq --> DelPerm[AppointmentPermissionDataSource.deleteForUser userId]
@@ -91,7 +91,7 @@ flowchart TD
     Send --> Shred
     SendClient --> Shred
     HasAccount -- no --> Shred
-    Shred["SubjectKeys.shredAll userId, the client ids of their appointments and requests, and the clients of the dropped businesses - the employee name on the appointments they worked becomes unreadable, read as Deleted User"]
+    Shred["SubjectKeys.shredAll userId, the client ids of their appointments and requests, and the clients of the dropped businesses - the employee name on the appointments they worked becomes unreadable, read with an empty name and erased set"]
     Shred --> Processed([markProcessed - kept 1 hour])
     Shred -- any step throws, rolled back --> Release[Release the claim] --> Dlt["Retried through auth.user_deleted_appointments_dlt, up to 3 attempts"]
     Dlt -- every attempt failed --> Parked(["Saved to exhausted_event - EventsExhausted alert, replayed on the next start or when replay_requested is set"])

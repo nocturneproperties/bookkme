@@ -35,6 +35,7 @@ import org.jetbrains.exposed.v1.jdbc.update
 import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import kotlin.time.Instant
 import kotlin.uuid.Uuid
@@ -294,9 +295,9 @@ internal class AppointmentDataSourceImplEncryptionTest {
         val read = suspendTransaction { fixture.sut.get(created.id) }
 
         then()
-        assertEquals(created.client.copy(fullName = "Deleted Client", phone = null, email = null), read.client)
+        assertEquals(created.client.copy(fullName = "", phone = null, email = null, erased = true), read.client)
         assertEquals("", read.note)
-        assertEquals(created.employee.copy(fullName = "Deleted User"), read.employee)
+        assertEquals(created.employee.copy(fullName = "", erased = true), read.employee)
         assertEquals(emptyList<String>(), fixture.missingKeys.reported)
     }
 
@@ -337,7 +338,7 @@ internal class AppointmentDataSourceImplEncryptionTest {
         assertNull(row[AppointmentTable.clientNameEncrypted])
         assertNull(row[AppointmentTable.noteEncrypted])
         assertNull(row[AppointmentTable.clientNameIndex])
-        assertEquals("Deleted Client", suspendTransaction { fixture.sut.get(created.id) }.client.fullName)
+        assertTrue(suspendTransaction { fixture.sut.get(created.id) }.client.erased)
     }
 
     @Test
@@ -417,7 +418,7 @@ internal class AppointmentDataSourceImplEncryptionTest {
         assertNull(row[AppointmentTable.clientNoteEncrypted])
         assertNull(row[AppointmentTable.clientNameIndex])
         val read = suspendTransaction { fixture.sut.get(created.id) }
-        assertEquals(ClientSnapshot(created.client.id, "Deleted Client", null, null, null), read.client)
+        assertEquals(ClientSnapshot(created.client.id, "", null, null, null, erased = true), read.client)
         assertEquals("", read.note)
         assertEquals("", read.clientNote)
     }
@@ -439,7 +440,7 @@ internal class AppointmentDataSourceImplEncryptionTest {
         assertNull(row[AppointmentTable.clientNoteEncrypted])
         assertNull(row[AppointmentTable.clientNameIndex])
         val read = suspendTransaction { fixture.sut.get(created.id) }
-        assertEquals(ClientSnapshot(created.client.id, "Deleted Client", null, null, null), read.client)
+        assertEquals(ClientSnapshot(created.client.id, "", null, null, null, erased = true), read.client)
     }
 
     @Test
@@ -454,7 +455,7 @@ internal class AppointmentDataSourceImplEncryptionTest {
         val read = suspendTransaction { fixture.sut.get(created.id) }
 
         then()
-        assertEquals(EmployeeSnapshot(created.employee.id, Uuid.NIL, "Deleted User"), read.employee)
+        assertEquals(EmployeeSnapshot(created.employee.id, Uuid.NIL, "", erased = true), read.employee)
         assertEquals(emptyList<String>(), fixture.missingKeys.reported)
     }
 
@@ -655,7 +656,7 @@ internal class AppointmentDataSourceImplEncryptionTest {
 
         then()
         val read = suspendTransaction { fixture.sut.get(created.id) }
-        assertEquals(created.employee.copy(fullName = "Deleted User"), read.employee)
+        assertEquals(created.employee.copy(fullName = "", erased = true), read.employee)
         assertEquals("Changed", read.note)
     }
 
@@ -674,6 +675,6 @@ internal class AppointmentDataSourceImplEncryptionTest {
         then()
         val row = fixture.storedRow(created.id)
         assertNull(row[AppointmentTable.employeeNameEncrypted])
-        assertEquals("Deleted User", suspendTransaction { fixture.sut.get(created.id) }.employee.fullName)
+        assertTrue(suspendTransaction { fixture.sut.get(created.id) }.employee.erased)
     }
 }

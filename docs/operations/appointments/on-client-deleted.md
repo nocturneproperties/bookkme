@@ -19,7 +19,7 @@ keeps their account.
   client themselves gets only the client notification.
 - Every appointment of theirs at the business then has its client name,
   phone, email and note cleared (the encrypted columns set to NULL) and
-  `client_user_id` cleared; it reads as "Deleted Client". The rows, their
+  `client_user_id` cleared; it reads with an empty name and `erased` set. The rows, their
   `client_id` and the history stay for the business.
 - Their requests at the business are deleted.
 
@@ -54,7 +54,7 @@ flowchart TD
     Snapshot -- missing --> Log[Log error, nobody notified] --> Cancel
     Snapshot -- found --> Cancel
     Cancel["AppointmentDataSource.cancelAll upcoming ids 'Client was removed by the business' - one UPDATE to CANCELLED"]
-    Cancel --> Anon["AppointmentDataSource.anonymizeClient businessId clientId - client name, phone, email, note, client note and their encrypted columns and client_user_id null, read as Deleted Client, cancellation and price adjustment reasons kept"]
+    Cancel --> Anon["AppointmentDataSource.anonymizeClient businessId clientId - client name, phone, email, note, client note and their encrypted columns and client_user_id null, read with an empty name and erased set, cancellation and price adjustment reasons kept"]
     Anon --> DelReq["AppointmentRequestDataSource.deleteForClient businessId clientId"]
     DelReq --> Known{business snapshot found?}
     Known -- No --> Shred

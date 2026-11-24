@@ -776,7 +776,8 @@ internal class AppointmentDataSourceImplTest {
         val found = suspendTransaction { fixture.sut.get(created.id) }
 
         then()
-        assertEquals("Deleted Client", found.client.fullName)
+        assertEquals("", found.client.fullName)
+        assertTrue(found.client.erased)
         assertNull(found.client.phone)
         assertNull(found.client.email)
         assertEquals(created.client.id, found.client.id)
@@ -1417,7 +1418,8 @@ internal class AppointmentDataSourceImplTest {
         val found = suspendTransaction { fixture.sut.get(created.id) }
 
         then()
-        assertEquals("Deleted Client", found.client.fullName)
+        assertEquals("", found.client.fullName)
+        assertTrue(found.client.erased)
         assertNull(found.client.phone)
         assertNull(found.client.email)
         assertNull(found.client.userId)

@@ -49,6 +49,7 @@ internal class AppointmentRequestEntity(id: EntityID<Uuid>) : UuidEntity(id) {
                 id = employeeId,
                 userId = employeeUserId,
                 fullName = snapshot.employeeName,
+                erased = snapshot.isEmployeeErased,
             ),
             client = RequestClientSnapshot(
                 id = clientId,
@@ -56,6 +57,7 @@ internal class AppointmentRequestEntity(id: EntityID<Uuid>) : UuidEntity(id) {
                 phone = client.phone,
                 email = client.email,
                 userId = clientUserId,
+                erased = snapshot.isClientErased,
             ),
             services = services.map {
                 ServiceSnapshot(

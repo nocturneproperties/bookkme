@@ -200,6 +200,21 @@ internal class ExportUserAppointmentsImplTest {
     }
 
     @Test
+    fun `should mark an appointment whose employee was erased`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val erasedEmployee = EmployeeSnapshot.stub(userId = fixture.someoneElse).copy(fullName = "", erased = true)
+        fixture.stored(fixture.appointment(client = fixture.clientUser(), employee = erasedEmployee))
+
+        whenn()
+        val exported = fixture.sut(fixture.userId).getOrThrow().appointments.single()
+
+        then()
+        assertEquals("", exported.employeeName)
+        assertTrue(exported.employeeErased)
+    }
+
+    @Test
     fun `should leave out the client's details where the user only booked for someone else`() = runUnitTest {
         given()
         val fixture = SutFixture()
