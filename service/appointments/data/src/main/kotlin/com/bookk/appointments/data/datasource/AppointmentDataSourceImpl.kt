@@ -316,13 +316,6 @@ internal class AppointmentDataSourceImpl(
         }?.decrypted() ?: throw Error.NotFound()
     }
 
-    override suspend fun anonymizeEmployee(employeeUserId: Uuid) = dbQuery<Unit> {
-        AppointmentTable.update(where = { AppointmentTable.employeeUserId eq employeeUserId }) {
-            it[employeeNameEncrypted] = null
-            it[AppointmentTable.employeeUserId] = Uuid.NIL
-        }
-    }
-
     override suspend fun unlinkInitiator(initiatorUserId: Uuid) = dbQuery<Unit> {
         AppointmentTable.update(where = { AppointmentTable.initiatorUserId eq initiatorUserId }) {
             it[AppointmentTable.initiatorUserId] = Uuid.NIL

@@ -38,7 +38,6 @@ interface AppointmentDataSource {
     suspend fun reopen(id: Uuid)
     suspend fun adjustPrice(id: Uuid, adjustment: PriceAdjustment): Appointment
     suspend fun markNoShow(id: Uuid): Appointment
-    suspend fun anonymizeEmployee(employeeUserId: Uuid)
     suspend fun getClientIdsOfUserForUpdate(clientUserId: Uuid): Set<Uuid>
     suspend fun anonymizeClientUser(clientUserId: Uuid)
     suspend fun unlinkInitiator(initiatorUserId: Uuid)

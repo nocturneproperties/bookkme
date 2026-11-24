@@ -83,6 +83,15 @@ internal class AppointmentDataSourceImplEncryptionTest {
             return suspendTransaction { sut.create(appointment) }
         }
 
+        suspend fun anonymizeEmployeeTheOldWay(id: Uuid) {
+            suspendTransaction {
+                AppointmentTable.update(where = { AppointmentTable.id eq id }) {
+                    it[AppointmentTable.employeeNameEncrypted] = null
+                    it[AppointmentTable.employeeUserId] = Uuid.NIL
+                }
+            }
+        }
+
         suspend fun storedRow(id: Uuid): ResultRow {
             return suspendTransaction { AppointmentTable.selectAll().where { AppointmentTable.id eq id }.single() }
         }
@@ -434,20 +443,19 @@ internal class AppointmentDataSourceImplEncryptionTest {
     }
 
     @Test
-    fun `should erase a deleted employee's encrypted name`() = runUnitTest {
+    fun `should read an employee erased before shredding replaced anonymization as a deleted user`() = runUnitTest {
         given()
         val fixture = SutFixture()
         fixture.setup()
         val created = fixture.create(fixture.appointment())
+        fixture.anonymizeEmployeeTheOldWay(created.id)
 
         whenn()
-        suspendTransaction { fixture.sut.anonymizeEmployee(created.employee.userId) }
+        val read = suspendTransaction { fixture.sut.get(created.id) }
 
         then()
-        val row = fixture.storedRow(created.id)
-        assertNull(row[AppointmentTable.employeeNameEncrypted])
-        val read = suspendTransaction { fixture.sut.get(created.id) }
         assertEquals(EmployeeSnapshot(created.employee.id, Uuid.NIL, "Deleted User"), read.employee)
+        assertEquals(emptyList<String>(), fixture.missingKeys.reported)
     }
 
     @Test
@@ -634,12 +642,30 @@ internal class AppointmentDataSourceImplEncryptionTest {
     }
 
     @Test
-    fun `should not store a deleted employee's name under a key`() = runUnitTest {
+    fun `should keep a deleted employee erased when the appointment is updated`() = runUnitTest {
         given()
         val fixture = SutFixture()
         fixture.setup()
         val created = fixture.create(fixture.appointment())
-        suspendTransaction { fixture.sut.anonymizeEmployee(created.employee.userId) }
+        fixture.subjectKeys.shred(created.employee.userId)
+        val erased = suspendTransaction { fixture.sut.get(created.id) }
+
+        whenn()
+        suspendTransaction { fixture.sut.update(erased.copy(note = "Changed")) }
+
+        then()
+        val read = suspendTransaction { fixture.sut.get(created.id) }
+        assertEquals(created.employee.copy(fullName = "Deleted User"), read.employee)
+        assertEquals("Changed", read.note)
+    }
+
+    @Test
+    fun `should not store the name of an employee erased before shredding replaced anonymization`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val created = fixture.create(fixture.appointment())
+        fixture.anonymizeEmployeeTheOldWay(created.id)
         val anonymized = suspendTransaction { fixture.sut.get(created.id) }
 
         whenn()
