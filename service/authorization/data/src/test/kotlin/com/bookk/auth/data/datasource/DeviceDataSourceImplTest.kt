@@ -59,6 +59,34 @@ internal class DeviceDataSourceImplTest {
     }
 
     @Test
+    fun `should lock and retrieve device by id`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val auth = fixture.insertAuth()
+        val deviceUuid = Uuid.random()
+        val deviceId = suspendTransaction { fixture.sut.insertDevice(auth.id, deviceUuid, "iPhone", Language.EN) }
+
+        whenn()
+        val found = suspendTransaction { fixture.sut.getDeviceByIdForUpdate(requireNotNull(deviceId)) }
+
+        then()
+        assertEquals(deviceUuid, found?.deviceInfo?.deviceUUID)
+        assertEquals(auth.id, found?.authRecord?.id)
+    }
+
+    @Test
+    fun `should return null when locking a device that does not exist`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+
+        whenn()
+        val found = suspendTransaction { fixture.sut.getDeviceByIdForUpdate(Uuid.random()) }
+
+        then()
+        assertNull(found)
+    }
+
+    @Test
     fun `should retrieve device by auth id and device uuid`() = runUnitTest {
         given()
         val fixture = SutFixture()

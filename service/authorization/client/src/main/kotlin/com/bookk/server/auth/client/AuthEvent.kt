@@ -82,4 +82,20 @@ interface AuthEvent : EventStreaming.Event<String> {
             const val TOPIC = "auth.device_deleted"
         }
     }
+
+    @Serializable
+    data class DeviceSignedOut(
+        @ProtoNumber(1) val authId: Uuid,
+        @ProtoNumber(2) val deviceUuid: Uuid,
+        @ProtoNumber(3) val signedOutAt: Instant,
+        @ProtoNumber(4) override val idempotencyKey: String = Uuid.random().toString(),
+    ) : AuthEvent {
+        @ProtoNumber(5)
+        override val topic: String = TOPIC
+        override val partitionKey: String get() = deviceUuid.toString()
+
+        companion object {
+            const val TOPIC = "auth.device_signed_out"
+        }
+    }
 }

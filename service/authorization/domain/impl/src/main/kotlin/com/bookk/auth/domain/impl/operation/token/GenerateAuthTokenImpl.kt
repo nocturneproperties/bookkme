@@ -7,6 +7,7 @@ import com.bookk.auth.domain.api.token.operation.GenerateAuthToken.Error.Invalid
 import com.bookk.auth.domain.api.token.operation.GenerateAuthToken.Source
 import com.bookk.auth.domain.datasource.AccountDataSource
 import com.bookk.auth.domain.datasource.DeviceDataSource
+import com.bookk.auth.domain.impl.operation.DeviceSignOut
 import com.bookk.core.AppLevelConstants
 import com.bookk.core.domain.datasource.transaction.TransactionManager
 import com.bookk.server.auth.client.AuthClaim
@@ -20,6 +21,7 @@ import kotlin.uuid.Uuid
 
 internal class GenerateAuthTokenImpl(
     private val deviceDataSource: DeviceDataSource,
+    private val deviceSignOut: DeviceSignOut,
     private val transactionManager: TransactionManager,
     private val tokenIssuer: TokenIssuer,
     private val accountDataSource: AccountDataSource,
@@ -101,7 +103,7 @@ internal class GenerateAuthTokenImpl(
         val previousDeviceToken = device.deviceInfo.previousRefreshToken
 
         if (previousDeviceToken != null && OpaqueRefreshToken.matches(refreshToken, previousDeviceToken)) {
-            deviceDataSource.deleteTokenFromDevice(device.deviceInfo.id)
+            deviceSignOut.signOut(device)
             return DeviceCheck.RefreshTokenReused
         }
         if (OpaqueRefreshToken.matches(refreshToken, currentDeviceToken)) {

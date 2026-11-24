@@ -67,6 +67,16 @@ internal class DeviceDataSourceImpl : DataSource(), DeviceDataSource {
             .singleOrNull()
     }
 
+    override suspend fun getDeviceByIdForUpdate(deviceId: Uuid): Device? = dbQuery {
+        AuthDeviceTable
+            .innerJoin(AuthenticationTable, onColumn = { userAuthId }, otherColumn = { id })
+            .selectAll()
+            .where { AuthDeviceTable.id eq deviceId }
+            .forUpdate()
+            .map { AuthDeviceEntity.wrapRow(it).toDomain() }
+            .singleOrNull()
+    }
+
     override suspend fun getDeviceByRefreshTokenIdForUpdate(tokenId: Uuid): Device? = dbQuery {
         AuthDeviceTable
             .innerJoin(AuthenticationTable, onColumn = { userAuthId }, otherColumn = { id })

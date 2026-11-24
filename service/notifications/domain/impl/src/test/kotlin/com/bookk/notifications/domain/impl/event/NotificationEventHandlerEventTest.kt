@@ -17,6 +17,7 @@ import com.bookk.notifications.domain.api.CreateDeviceEntry
 import com.bookk.notifications.domain.api.DeleteDeviceByUUID
 import com.bookk.notifications.domain.api.DeleteUserNotificationData
 import com.bookk.notifications.domain.api.entity.Device
+import com.bookk.notifications.domain.impl.ClearPushNotificationToken
 import com.bookk.notifications.domain.impl.UpdateDeviceLanguage
 import com.bookk.notifications.domain.impl.UpdateTargetInformation
 import com.bookk.notifications.domain.impl.notification.SendNotification
@@ -52,6 +53,7 @@ internal class NotificationEventHandlerEventTest {
             KafkaTestBroker.createTopic(AuthEvent.DeviceLanguageUpdated.TOPIC, partitions = 3)
             KafkaTestBroker.createTopic(AuthEvent.DeviceCreated.TOPIC, partitions = 3)
             KafkaTestBroker.createTopic(AuthEvent.DeviceDeleted.TOPIC, partitions = 3)
+            KafkaTestBroker.createTopic(AuthEvent.DeviceSignedOut.TOPIC, partitions = 3)
             KafkaTestBroker.createTopic(AuthEvent.UserDeleted.TOPIC, partitions = 3)
             KafkaTestBroker.createTopic(AppointmentEvent.RequestCreated.TOPIC, partitions = 3)
             KafkaTestBroker.createTopic(AppointmentEvent.RequestApproved.TOPIC, partitions = 3)
@@ -67,6 +69,7 @@ internal class NotificationEventHandlerEventTest {
         val deleteDeviceByUUID = mockk<DeleteDeviceByUUID>()
         val updateTargetInformation = mockk<UpdateTargetInformation>()
         val updateDeviceLanguage = mockk<UpdateDeviceLanguage>()
+        val clearPushNotificationToken = mockk<ClearPushNotificationToken>()
         val sendNotification = mockk<SendNotification>()
         val deleteUserNotificationData = mockk<DeleteUserNotificationData>()
         val transactionManager = mockedTransactionManager()
@@ -85,6 +88,7 @@ internal class NotificationEventHandlerEventTest {
             deleteDeviceByUUID,
             updateTargetInformation,
             updateDeviceLanguage,
+            clearPushNotificationToken,
             sendNotification,
             deleteUserNotificationData,
         )
@@ -273,6 +277,31 @@ internal class NotificationEventHandlerEventTest {
 
         then()
         coVerify(exactly = 1) { fixture.deleteDeviceByUUID(authId, deviceUuid) }
+    }
+
+    @Test
+    fun `should clear the push token from a published sign out`() = runIntegrationTest {
+        given()
+        val fixture = SutFixture()
+        val deviceUuid = Uuid.random()
+        val authId = Uuid.random()
+        val signedOutAt = Instant.fromEpochMilliseconds(1_700_000_000_000)
+        val arrived = CountDownLatch(1)
+        coEvery { fixture.clearPushNotificationToken(authId, deviceUuid, signedOutAt) } answers {
+            arrived.countDown()
+            Result.success(Unit)
+        }
+
+        whenn()
+        publishAndAwait(
+            fixture,
+            arrived,
+            AuthEvent.DeviceSignedOut(authId = authId, deviceUuid = deviceUuid, signedOutAt = signedOutAt),
+            typeOf<AuthEvent.DeviceSignedOut>(),
+        )
+
+        then()
+        coVerify(exactly = 1) { fixture.clearPushNotificationToken(authId, deviceUuid, signedOutAt) }
     }
 
     @Test

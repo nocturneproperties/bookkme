@@ -12,6 +12,7 @@ import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.upsert
 import kotlin.time.Clock
+import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
 internal class DeviceDataSourceImpl : DataSource(), DeviceDataSource {
@@ -51,12 +52,11 @@ internal class DeviceDataSourceImpl : DataSource(), DeviceDataSource {
     }
 
     override suspend fun updateToken(authId: Uuid, deviceUuid: Uuid, token: String?): Device = dbQuery {
-        DeviceEntity
-            .find { (DeviceTable.authId eq authId) and (DeviceTable.deviceUuid eq deviceUuid) }
-            .firstOrNull()
-            ?.also { it.notificationToken = token }
-            ?.domain()
-            ?: throw Error.NotFound()
+        DeviceEntity.findAndUpdateToken(authId, deviceUuid, token)?.domain() ?: throw Error.NotFound()
+    }
+
+    override suspend fun clearTokenRegisteredBefore(authId: Uuid, deviceUuid: Uuid, before: Instant) = dbQuery {
+        DeviceEntity.findAndClearTokenRegisteredBefore(authId, deviceUuid, before)
     }
 
     override suspend fun updateLanguage(authId: Uuid, deviceUuid: Uuid, language: Language): Device = dbQuery {

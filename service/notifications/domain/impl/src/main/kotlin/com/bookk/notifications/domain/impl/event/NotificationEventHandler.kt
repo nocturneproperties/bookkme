@@ -6,6 +6,7 @@ import com.bookk.core.data.eventstreaming.registerResultReceiver
 import com.bookk.notifications.domain.api.CreateDeviceEntry
 import com.bookk.notifications.domain.api.DeleteDeviceByUUID
 import com.bookk.notifications.domain.api.DeleteUserNotificationData
+import com.bookk.notifications.domain.impl.ClearPushNotificationToken
 import com.bookk.notifications.domain.impl.UpdateDeviceLanguage
 import com.bookk.notifications.domain.impl.UpdateTargetInformation
 import com.bookk.notifications.domain.impl.UpdateTargetInformation.Target
@@ -27,6 +28,7 @@ internal class NotificationEventHandler(
     private val deleteDeviceByUUID: DeleteDeviceByUUID,
     private val updateTargetInformation: UpdateTargetInformation,
     private val updateDeviceLanguage: UpdateDeviceLanguage,
+    private val clearPushNotificationToken: ClearPushNotificationToken,
     private val sendNotification: SendNotification,
     private val deleteUserNotificationData: DeleteUserNotificationData,
 ) : EventHandler {
@@ -45,6 +47,9 @@ internal class NotificationEventHandler(
             .registerResultReceiver(AuthEvent.DeviceDeleted.TOPIC) { event: AuthEvent.DeviceDeleted ->
                 require(event.authId != Uuid.NIL) { "DeviceDeleted requires authId" }
                 deleteDeviceByUUID(event.authId, event.deviceUuid)
+            }
+            .registerResultReceiver(AuthEvent.DeviceSignedOut.TOPIC) { event: AuthEvent.DeviceSignedOut ->
+                clearPushNotificationToken(event.authId, event.deviceUuid, event.signedOutAt)
             }
             .registerResultReceiver(AuthEvent.AccountDormancyWarning.TOPIC) { event: AuthEvent.AccountDormancyWarning ->
                 sendNotification(event.userId, event.notification)

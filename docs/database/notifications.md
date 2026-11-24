@@ -14,6 +14,7 @@ erDiagram
         uuid device_uuid UK "composite with auth_id"
         uuid user_id "logical FK -> user.profile.id"
         text notification_token
+        timestamp notification_token_updated_at "set whenever the token changes; null for tokens stored before 0.21.0"
         enum language
         timestamp createdAt
         timestamp updatedAt

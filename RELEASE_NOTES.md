@@ -2,7 +2,7 @@
 
 ## 0.21.0
 
-Changes since `monolith/0.20.0`. Adds sign-in from a Telegram Mini App, which creates an account with a placeholder email on first use, sends notifications to those users through the Telegram bot, gives clients their upcoming bookings across businesses, a list of saved businesses, an employee's free slots and the business's note for clients, stops two bookings from taking the same employee at once, and lets owners pick a booking link name for their business.
+Changes since `monolith/0.20.0`. Adds sign-in from a Telegram Mini App, which creates an account with a placeholder email on first use, sends notifications to those users through the Telegram bot, gives clients their upcoming bookings across businesses, a list of saved businesses, an employee's free slots and the business's note for clients, stops two bookings from taking the same employee at once, lets owners pick a booking link name for their business, and stops push notifications to signed-out devices.
 
 ### Clients
 
@@ -37,6 +37,7 @@ Changes since `monolith/0.20.0`. Adds sign-in from a Telegram Mini App, which cr
 - A malformed passkey response now answers 422 `VERIFICATION_FAILED` (4) instead of 500, and a sign-in assertion without a user handle answers 422 `PASSKEY_OWNER_NOT_FOUND` (7).
 - `ClientSnapshot`, `RequestClientSnapshot` and `EmployeeSnapshot` in every appointment and request response have a new `erased` (fields 6, 6 and 4): an erased client or employee now comes with `erased` set and an empty `fullName` instead of "Deleted Client" / "Deleted User", so show your own translated text for it.
 - An empty `fullName` with `erased` unset means the data is unreadable (a lost key), not deleted.
+- Signing out (`DELETE /api/auth/session`) or being signed out by a reused refresh token now removes the device's push token; send it again with `PUT /api/notifications/{deviceUuid}/token` after every sign-in.
 - An appointment whose employee deleted their account now keeps that employee's `employee.userId`, an id of no account, instead of the nil UUID; appointments erased earlier keep the nil UUID.
 - In the data exports, `ClientExport` and `EmployeeExport` of the business export have `erased`, and the personal export's appointments have `employeeErased`, with an empty name, instead of the placeholder text.
 
@@ -50,6 +51,7 @@ Changes since `monolith/0.20.0`. Adds sign-in from a Telegram Mini App, which cr
 - Migration appointments `V14` adds `appointment_price_adjustment_services.count`, merges rows repeating a service in one adjustment into one row with that count, and adds a unique index on `(price_adjustment_id, service_id)`; data exports still list such a service once per count.
 - The same `V14` adds `appointment.client_note_encrypted`, the table `saved_business` (erased with the account and with its business) and an index on `appointment(employee_id, date_end)`; existing double bookings of an employee stay and can still be edited as long as their time and employee don't change.
 - Migration user `V8` adds `profile.telegram_user_id_encrypted`; the user service stores the Telegram user id encrypted and sends it in `user.updated` (new field 9), and notifications saves it as the user's Telegram target.
+- New event `auth.device_signed_out` makes notifications clear the device's push token unless it was registered after the sign-out; migration notifications `V7` adds `device.notification_token_updated_at`, empty for existing tokens.
 - No email is ever sent to `@telegramundeliverable.org`; these accounts get their notifications, dormancy warnings included, through Telegram.
 - The business service's internal `GET /api/internal/client/{userId}/businesses` is removed; when running separate services, update business and appointments together.
 - Migration business `V22` adds the tables `business_link` and `business_link_change`, deleted with their business; the daily job `business-deleteReleasedBusinessLinks` frees replaced names after 90 days, and deleting a business frees its names at once.

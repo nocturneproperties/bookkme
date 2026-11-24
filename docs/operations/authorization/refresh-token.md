@@ -14,8 +14,9 @@ flowchart TD
     HeaderCheck -- Yes --> Lock[DeviceDataSource.getDeviceByRefreshTokenIdForUpdate - locks the device row first]
     Lock --> Gen[GenerateAuthToken checks the token against the locked device]
     Gen -- token invalid/expired/mismatched hash --> R422([422 INVALID_CREDENTIALS 8])
-    Gen -- token matches the device's previous refresh token --> Revoke[DeviceDataSource.deleteTokenFromDevice - device signed out, committed]
-    Revoke --> Count[auth_refresh_token_reused_total + 1, after the commit]
+    Gen -- token matches the device's previous refresh token --> Revoke[DeviceDataSource.deleteTokenFromDevice - device signed out]
+    Revoke --> SignedOut["outbox: AuthEvent.DeviceSignedOut - committed with the revocation"]
+    SignedOut --> Count[auth_refresh_token_reused_total + 1, after the commit]
     Count --> R422
     Gen -- valid --> Activity[AccountDataSource.recordActivity authId - last_active_at = now and dormancy_stage = ACTIVE, written at most once a day unless a dormancy warning is pending]
     Activity --> Rotate[Rotate device refresh_token_hash + previous_refresh_token_hash]
@@ -32,7 +33,9 @@ A refresh token that was already exchanged and comes back is what a stolen
 token looks like, so its device is signed out: the transaction commits the
 revocation and returns, and the operation fails with `INVALID_CREDENTIALS`
 only after the commit (throwing inside the transaction would roll the
-revocation back). The counter feeds the `RefreshTokenReused` alert.
+revocation back). The revocation sends `AuthEvent.DeviceSignedOut` like
+[Sign out](sign-out.md), so the device also stops receiving pushes. The
+counter feeds the `RefreshTokenReused` alert.
 
 The device row is locked as the transaction's first statement, so two
 refreshes of one device run one after the other; the app refreshes under a
