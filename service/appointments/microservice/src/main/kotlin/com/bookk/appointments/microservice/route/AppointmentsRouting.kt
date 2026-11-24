@@ -72,6 +72,9 @@ object AppointmentsRouting {
 
                 @Resource("/mine")
                 class Own(val parent: Requests)
+
+                @Resource("/assigned")
+                class Assigned(val parent: Requests)
             }
 
             @Resource("/settings/{businessId}")

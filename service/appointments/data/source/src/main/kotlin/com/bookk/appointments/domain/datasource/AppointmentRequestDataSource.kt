@@ -10,6 +10,7 @@ interface AppointmentRequestDataSource {
     suspend fun getForUpdate(id: Uuid): AppointmentRequest?
     suspend fun getPending(businessId: Uuid): List<AppointmentRequest>
     suspend fun getPendingByUser(userId: Uuid, businessId: Uuid): List<AppointmentRequest>
+    suspend fun getPendingAssignedTo(employeeUserId: Uuid, businessId: Uuid): List<AppointmentRequest>
     suspend fun getUpcomingPendingOfUser(userId: Uuid, startingAfter: Instant, limit: Int): List<AppointmentRequest>
     suspend fun countPendingByUser(userId: Uuid, businessId: Uuid): Long
     suspend fun create(request: AppointmentRequest): AppointmentRequest

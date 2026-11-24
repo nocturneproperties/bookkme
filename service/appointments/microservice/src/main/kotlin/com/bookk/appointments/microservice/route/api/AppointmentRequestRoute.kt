@@ -5,6 +5,7 @@ import com.bookk.appointments.domain.api.entity.AppointmentRequestDraft
 import com.bookk.appointments.domain.api.operation.CreateAppointmentRequest
 import com.bookk.appointments.domain.api.operation.DeclineAppointmentRequest
 import com.bookk.appointments.domain.api.operation.GetAppointmentRequests
+import com.bookk.appointments.domain.api.operation.GetAssignedAppointmentRequests
 import com.bookk.appointments.domain.api.operation.GetPendingAppointmentRequests
 import com.bookk.appointments.domain.api.operation.WithdrawAppointmentRequest
 import com.bookk.appointments.domain.impl.di.AppointmentsScope
@@ -52,6 +53,23 @@ fun Routing.requests() {
         get<Api.Appointment.Requests.Own> {
             val principal = requireNotNull(call.principal<AppPrincipal>())
             val getRequests by application.injectScoped<GetAppointmentRequests>(AppointmentsScope)
+
+            call.respondWith(getRequests(principal.userId, it.parent.businessId))
+        }
+
+        /**
+         * Get pending appointment requests assigned to me
+         *
+         * Summary: Get pending appointment requests assigned to me
+         * Description: Get pending appointment requests in the business that the caller, as an employee, is booked to serve, earliest first. Needs no appointments permission
+         * Tag: appointment
+         * Security: jwt
+         * Response: 200 application/protobuf [com.bookk.appointments.domain.api.entity.AppointmentRequest]+ List of pending appointment requests assigned to the caller
+         * Response: 403 application/protobuf [com.bookk.core.domain.entity.SimpleServerError] Caller is a suspended employee of this business<br>BUSINESS_EMPLOYEE_ACCESS_SUSPENDED (200034) Your access to this business is suspended
+         */
+        get<Api.Appointment.Requests.Assigned> {
+            val principal = requireNotNull(call.principal<AppPrincipal>())
+            val getRequests by application.injectScoped<GetAssignedAppointmentRequests>(AppointmentsScope)
 
             call.respondWith(getRequests(principal.userId, it.parent.businessId))
         }
