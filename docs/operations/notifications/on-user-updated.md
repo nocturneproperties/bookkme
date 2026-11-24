@@ -9,8 +9,10 @@ delivery target in sync with their profile email and, when the event
 carries a `telegramUserId` (an account created through Telegram sign-in),
 saves it as the user's Telegram target, creating default notification
 settings first when the user has none, and offers the Telegram channel to
-the app (`availableToClients = true`, still off) so the user can turn it
-on. Both targets are written in one
+the app (`availableToClients = true`). The event that saves the account's
+first Telegram target also turns the channel on; a later event leaves
+`enabled` as it is, so a channel the user or the server turned off stays
+off. Both targets are written in one
 transaction. The Telegram user id never changes, so its target has no
 `updatedAt` ordering: an existing row is overwritten with the same id. An update that arrives
 after the account was deleted (`SubjectKeys.isShredded`) creates neither
@@ -42,7 +44,7 @@ flowchart TD
     Dedup -- No --> Erased{"SubjectKeys.isShredded userId - shared lock on the key row; account already deleted?"}
     Erased -- Yes --> Ack
     Erased -- No --> GetSettings[GetNotificationSettings userId]
-    GetSettings -- none --> Create[NotificationSettingsDataSource.upsert default settings - EMAIL offered, off]
+    GetSettings -- none --> Create[NotificationSettingsDataSource.upsert default settings - appointment notifications on, EMAIL offered, off]
     Create --> UpdateEmail
     GetSettings -- found --> UpdateEmail{NotificationTargetDataSource.updateEmail userId email updatedAt - encrypted, row matched?}
     UpdateEmail -- Yes --> HasTelegramId
@@ -56,7 +58,11 @@ flowchart TD
     UpdateTelegram -- No --> HasTelegram{NotificationTargetDataSource.hasTelegram userId - row exists?}
     HasTelegram -- No --> InsertTelegram[NotificationTargetDataSource.insertTelegram userId telegramUserId - encrypted under the user's key]
     HasTelegram -- Yes, inserted concurrently --> Offered
-    InsertTelegram --> Offered{"NotificationSettingsDataSource.getByUserId userId - TELEGRAM channel already availableToClients?"}
+    InsertTelegram --> OnAlready{"NotificationSettingsDataSource.getByUserId userId - TELEGRAM channel already availableToClients and enabled?"}
+    OnAlready -- Yes --> Ack
+    OnAlready -- No --> TurnOn[NotificationSettingsDataSource.upsert TELEGRAM channel availableToClients true, enabled true]
+    TurnOn --> Ack
+    Offered{"NotificationSettingsDataSource.getByUserId userId - TELEGRAM channel already availableToClients?"}
     Offered -- Yes --> Ack
     Offered -- No --> Offer[NotificationSettingsDataSource.upsert TELEGRAM channel availableToClients true, enabled unchanged]
     Offer --> Ack
