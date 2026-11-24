@@ -11,8 +11,9 @@ this user's appointment footprint in every role, in one transaction:
   of each one is told through `AppointmentEvent.CancelledForDeletedClient`
   (no client name or address: it is sent after the erasure), unless that
   employee is the deleted user themselves, booked at their own business. Every one of
-  their appointments then has its client name, phone, email and
-  `client_user_id` cleared, and the rows, their `client_id` and the
+  their appointments then has its encrypted client name, phone, email,
+  note and client note, the name's blind index `client_name_index` and
+  `client_user_id` set to NULL, and the rows, their `client_id` and the
   scheduling history stay for the business.
 - **As the employee** (`employee_user_id`, indexed): their upcoming
   scheduled appointments are cancelled with the reason "Employee deleted
@@ -78,7 +79,7 @@ flowchart TD
     Each -- found --> Cancel
     Log --> Cancel
     Cancel["AppointmentDataSource.cancelAll - CANCELLED, reason 'User deleted their account' where the user is the client, 'Employee deleted their account' where the user is only the employee"]
-    Cancel --> AnonClient["AppointmentDataSource.anonymizeClientUser userId - client name, phone, email, note, client note and their encrypted columns and client_user_id null, read with an empty name and erased set, cancellation and price adjustment reasons kept"]
+    Cancel --> AnonClient["AppointmentDataSource.anonymizeClientUser userId - client_name_encrypted, client_phone_encrypted, client_email_encrypted, note_encrypted, client_note_encrypted, client_name_index and client_user_id set to NULL, read with an empty name and erased set, cancellation and price adjustment reasons kept"]
     AnonClient --> Unlink["AppointmentDataSource.unlinkInitiator userId - initiator_user_id match set to the nil UUID"]
     Unlink --> DelReq["AppointmentRequestDataSource.deleteForUser userId - deletes rows where client_user_id or employee_user_id match, sets initiator_user_id to the nil UUID on requests they only booked"]
     DelReq --> DelPerm[AppointmentPermissionDataSource.deleteForUser userId]

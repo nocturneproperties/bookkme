@@ -5,8 +5,9 @@
 Keeps its own denormalized copy of business identity (`business_has_appointments`,
 populated from the business service via events) so booking logic never has to
 cross a service boundary at read time. `APPOINTMENT`/`APPOINTMENT_REQUEST` also
-denormalize employee, client and service line items (`employee_name`,
-`client_name`/`phone`/`email`, `service_name`/`price`/`duration`, …) the same
+denormalize employee, client and service line items (`employee_name_encrypted`,
+`client_name_encrypted`/`client_phone_encrypted`/`client_email_encrypted`,
+`service_name`/`price`/`duration`, …) the same
 way, but these are populated by resolving the ids synchronously from the
 business service at write time (`GetAppointmentBookingContext`, see
 [create-appointment-request](../operations/appointments/create-appointment-request.md))

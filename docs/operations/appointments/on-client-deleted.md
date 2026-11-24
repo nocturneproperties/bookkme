@@ -17,9 +17,10 @@ keeps their account.
   `cause = REMOVED_BY_BUSINESS`, and a client with an account gets
   `AppointmentEvent.Cancelled` with that reason. An employee who is the
   client themselves gets only the client notification.
-- Every appointment of theirs at the business then has its client name,
-  phone, email and note cleared (the encrypted columns set to NULL) and
-  `client_user_id` cleared; it reads with an empty name and `erased` set. The rows, their
+- Every appointment of theirs at the business then has its encrypted
+  client name, phone, email, note and client note, the name's blind index
+  `client_name_index` and `client_user_id` set to NULL, and the client's key
+  is shredded; it reads with an empty name and `erased` set. The rows, their
   `client_id` and the history stay for the business.
 - Their requests at the business are deleted.
 
@@ -54,7 +55,7 @@ flowchart TD
     Snapshot -- missing --> Log[Log error, nobody notified] --> Cancel
     Snapshot -- found --> Cancel
     Cancel["AppointmentDataSource.cancelAll upcoming ids 'Client was removed by the business' - one UPDATE to CANCELLED"]
-    Cancel --> Anon["AppointmentDataSource.anonymizeClient businessId clientId - client name, phone, email, note, client note and their encrypted columns and client_user_id null, read with an empty name and erased set, cancellation and price adjustment reasons kept"]
+    Cancel --> Anon["AppointmentDataSource.anonymizeClient businessId clientId - client_name_encrypted, client_phone_encrypted, client_email_encrypted, note_encrypted, client_note_encrypted, client_name_index and client_user_id set to NULL, read with an empty name and erased set, cancellation and price adjustment reasons kept"]
     Anon --> DelReq["AppointmentRequestDataSource.deleteForClient businessId clientId"]
     DelReq --> Known{business snapshot found?}
     Known -- No --> Shred
