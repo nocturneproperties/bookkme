@@ -1,6 +1,7 @@
 package com.bookk.auth.domain.impl.operation
 
 import com.bookk.auth.domain.api.identification.entity.Device
+import com.bookk.auth.domain.api.identification.entity.DeviceInfo
 import com.bookk.auth.domain.datasource.DeviceDataSource
 import com.bookk.core.data.eventstreaming.StandardEventProducer
 import com.bookk.core.domain.datasource.transaction.TransactionManager
@@ -89,6 +90,25 @@ internal class SignOutImplTest {
 
         whenn()
         val result = fixture.sut.invoke(deviceId)
+
+        then()
+        assertTrue(result.isSuccess)
+        coVerify(exactly = 0) { fixture.deviceDataSource.deleteTokenFromDevice(any()) }
+        coVerify(exactly = 0) { fixture.eventProducer.send(any<AuthEvent.DeviceSignedOut>(), any()) }
+    }
+
+    @Test
+    fun `should succeed without clearing or publishing when the device is already signed out`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val device = Device.stub(deviceInfo = DeviceInfo.stub(isSignedIn = false))
+        with(fixture) {
+            transactionManager.mockTransaction()
+            coEvery { deviceDataSource.getDeviceByIdForUpdate(device.deviceInfo.id) } returns device
+        }
+
+        whenn()
+        val result = fixture.sut.invoke(device.deviceInfo.id)
 
         then()
         assertTrue(result.isSuccess)

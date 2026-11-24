@@ -5,6 +5,8 @@ import com.bookk.appointments.domain.api.operation.GetAssignedAppointmentRequest
 import com.bookk.appointments.domain.datasource.AppointmentPermissionDataSource
 import com.bookk.appointments.domain.datasource.AppointmentRequestDataSource
 import com.bookk.core.domain.datasource.transaction.TransactionManager
+import library.permissions.PermissionAction
+import library.permissions.assert
 import kotlin.uuid.Uuid
 
 internal class GetAssignedAppointmentRequestsImpl(
@@ -16,11 +18,7 @@ internal class GetAssignedAppointmentRequestsImpl(
         userId: Uuid,
         businessId: Uuid,
     ): Result<List<AppointmentRequest>> = transactionManager.transaction {
-        requireNotSuspended(userId, businessId)
+        appointmentPermissionDataSource.getPermission(userId, businessId).assert(PermissionAction.VIEW)
         requestsDataSource.getPendingAssignedTo(userId, businessId)
-    }
-
-    private suspend fun requireNotSuspended(userId: Uuid, businessId: Uuid) {
-        appointmentPermissionDataSource.getPermission(userId, businessId)
     }
 }

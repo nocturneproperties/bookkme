@@ -4,6 +4,7 @@ import com.bookk.appointments.domain.api.entity.AppointmentRequest
 import com.bookk.appointments.domain.api.entity.EmployeeSnapshot
 import com.bookk.appointments.domain.api.operation.GetAssignedAppointmentRequests
 import com.bookk.appointments.microservice.route.AppointmentsRouting.Api
+import com.bookk.core.domain.entity.Error
 import com.bookk.core.domain.entity.SimpleServerError
 import com.bookk.core.service.test.createTestClient
 import com.bookk.core.service.test.routeTest
@@ -63,6 +64,38 @@ internal class GetAssignedAppointmentRequestsTest {
         then()
         assertEquals(HttpStatusCode.OK, response.status)
         assertEquals(requests, response.body<List<AppointmentRequest>>())
+    }
+
+    @Test
+    fun `should return not found when the caller has no view grant`() = routeTest {
+        given()
+        val useCase: GetAssignedAppointmentRequests = mockk()
+        val userId = Uuid.random()
+        val businessId = Uuid.random()
+        coEvery { useCase.invoke(userId, businessId) } returns Result.failure(Error.OperationNotAllowed())
+
+        setupApplication(
+            extension = {
+                install(Authentication) {
+                    provider {
+                        authenticate { context ->
+                            context.principal(AppPrincipal(Uuid.random(), userId, Uuid.random()))
+                        }
+                    }
+                }
+            },
+            diModule = module { single { useCase } },
+            routeUnderTest = { requests() },
+        )
+
+        whenn()
+        val client = createTestClient()
+        val response = client.get(
+            Api.Appointment.Requests.Assigned(Api.Appointment.Requests(businessId = businessId)),
+        )
+
+        then()
+        assertEquals(HttpStatusCode.NotFound, response.status)
     }
 
     @Test

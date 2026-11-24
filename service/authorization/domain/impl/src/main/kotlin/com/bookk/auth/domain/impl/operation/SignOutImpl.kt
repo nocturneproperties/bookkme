@@ -13,6 +13,7 @@ internal class SignOutImpl(
 
     override suspend fun invoke(deviceId: Uuid): Result<Unit> = transactionManager.transaction {
         val device = deviceDataSource.getDeviceByIdForUpdate(deviceId) ?: return@transaction
+        if (!device.deviceInfo.isSignedIn) return@transaction
         deviceSignOut.signOut(device)
     }
 }

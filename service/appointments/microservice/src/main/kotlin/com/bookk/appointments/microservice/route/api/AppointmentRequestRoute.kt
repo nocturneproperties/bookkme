@@ -61,10 +61,11 @@ fun Routing.requests() {
          * Get pending appointment requests assigned to me
          *
          * Summary: Get pending appointment requests assigned to me
-         * Description: Get pending appointment requests in the business that the caller, as an employee, is booked to serve, earliest first. Needs no appointments permission
+         * Description: Get pending appointment requests in the business that the caller, as an employee, is booked to serve, earliest first. Needs the appointments view permission
          * Tag: appointment
          * Security: jwt
          * Response: 200 application/protobuf [com.bookk.appointments.domain.api.entity.AppointmentRequest]+ List of pending appointment requests assigned to the caller
+         * Response: 404 application/protobuf [com.bookk.core.domain.entity.SimpleServerError] Caller has no appointments view permission in this business
          * Response: 403 application/protobuf [com.bookk.core.domain.entity.SimpleServerError] Caller is a suspended employee of this business<br>BUSINESS_EMPLOYEE_ACCESS_SUSPENDED (200034) Your access to this business is suspended
          */
         get<Api.Appointment.Requests.Assigned> {
