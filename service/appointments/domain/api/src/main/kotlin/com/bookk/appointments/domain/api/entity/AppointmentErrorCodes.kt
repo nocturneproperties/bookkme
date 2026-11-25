@@ -27,4 +27,5 @@ object AppointmentErrorCodes {
     const val SAVED_BUSINESSES_LIMIT_REACHED = BASE + 31
     const val EMPLOYEE_BUSY = BASE + 32
     const val SLOT_RANGE_INVALID = BASE + 33
+    const val HISTORY_DATE_RANGE_INVALID = BASE + 34
 }

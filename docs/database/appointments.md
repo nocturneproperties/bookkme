@@ -57,7 +57,7 @@ erDiagram
         bytes client_phone_encrypted "nullable; under the client_id key"
         bytes client_email_encrypted "nullable; under the client_id key"
         string client_name_index "nullable; keyed HMAC of the trimmed, lowercased client name, non-unique index with business_id (search); NULL when erased"
-        timestamp date_start
+        timestamp date_start "indexed after business_id, after employee_id and after client_id (history pages)"
         timestamp date_end
         bytes note_encrypted "nullable; under the client_id key, set whenever client_name_encrypted is"
         bytes client_note_encrypted "nullable; under the client_id key; the request's note, copied when the request becomes this appointment; NULL for instant appointments, rows before 0.21.0 and when erased"
@@ -120,7 +120,7 @@ erDiagram
         bytes client_name_encrypted "nullable; under the client_id key, NULL when erased"
         bytes client_phone_encrypted "nullable; under the client_id key"
         bytes client_email_encrypted "nullable; under the client_id key"
-        timestamp date_start
+        timestamp date_start "indexed after business_id (request history pages); requests live at most 60 days past their slot, so client and employee filters need no index of their own"
         timestamp date_end "indexed; requests ended more than 60 days ago are deleted by appointments-deleteExpiredRequests"
         bytes note_encrypted "nullable; under the client_id key, set whenever client_name_encrypted is"
         enum status

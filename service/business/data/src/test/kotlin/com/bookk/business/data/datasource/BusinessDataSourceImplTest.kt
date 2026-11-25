@@ -5,6 +5,7 @@ import com.bookk.business.data.orm.table.BusinessDayOffTable
 import com.bookk.business.data.orm.table.BusinessPermissionGrantsTable
 import com.bookk.business.data.orm.table.BusinessTable
 import com.bookk.business.data.orm.table.BusinessWorkingHoursTable
+import com.bookk.business.data.orm.table.ClientNameTokenTable
 import com.bookk.business.data.orm.table.ClientTable
 import com.bookk.business.data.orm.table.EmployeeCanProvideServiceTable
 import com.bookk.business.data.orm.table.EmployeeDayOffTable
@@ -59,6 +60,7 @@ internal class BusinessDataSourceImplTest {
             EmployeeWorkingHoursTable,
             EmployeeDayOffTable,
             ClientTable,
+            ClientNameTokenTable,
         )
         val sut = BusinessDataSourceImpl()
         val contactCipher = testContactCipher()

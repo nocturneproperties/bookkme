@@ -151,7 +151,6 @@ internal class SwaggerTest {
             "get /api/appointments/list/{businessId}" to "Appointment",
             "get /api/appointments/businesses" to "SavedBusiness",
             "post /api/appointments/slots" to "DaySlots",
-            "get /api/appointments/request/{businessId}" to "AppointmentRequest",
             "get /api/appointments/request/{businessId}/mine" to "AppointmentRequest",
         ),
         Service.BUSINESS to mapOf(
@@ -161,13 +160,22 @@ internal class SwaggerTest {
             "get /api/business/{businessId}/employee_invitation" to "EmployeeInvitation",
             "get /api/business/{businessId}/service" to "Service",
             "get /api/business/{businessId}/service_group" to "ServiceGroup",
-            "get /api/business/{businessId}/clients" to "ClientRemote",
             "post /api/internal/business/{id}/services" to "Service",
             "get /api/internal/owner/{userId}/members" to "Uuid",
         ),
         Service.USER to mapOf(
             "get /api/user/legal" to "LegalDocumentVersion",
             "get /api/user/me/legal" to "LegalDocumentStatus",
+        ),
+    )
+
+    private val pageResponses = mapOf(
+        Service.APPOINTMENTS to mapOf(
+            "get /api/appointments/history/{businessId}" to "AppointmentPage",
+            "get /api/appointments/request/history/{businessId}" to "AppointmentRequestPage",
+        ),
+        Service.BUSINESS to mapOf(
+            "get /api/business/{businessId}/clients" to "ClientPage",
         ),
     )
 
@@ -239,6 +247,15 @@ internal class SwaggerTest {
                     "$operation must describe the list item fields",
                 )
             }
+        }
+        services.flatMap { pageResponses[it].orEmpty().entries }.forEach { (operation, pageType) ->
+            val responses = operations.getValue(operation).getValue("responses").jsonObject
+            val schema = responses.getValue("200").jsonObject.getValue("content").jsonObject
+                .getValue("application/x-protobuf").jsonObject.getValue("schema").jsonObject
+            assertEquals("#/components/schemas/$pageType", schema.getValue("\$ref").jsonPrimitive.content, operation)
+            val properties = resolveSchema(document, schema).getValue("properties").jsonObject
+            assertTrue(properties.keys.containsAll(setOf("data", "nextCursor")), "$operation must describe the page")
+            assertTrue("422" in responses, "$operation must document the page errors")
         }
         assertSchemaReferences(document, document)
         if (Service.APPOINTMENTS in services) {

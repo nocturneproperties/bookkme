@@ -9,15 +9,21 @@ import com.bookk.appointments.data.orm.table.AppointmentTable
 import com.bookk.appointments.data.orm.table.SettingsTable
 import com.bookk.appointments.domain.api.entity.Appointment
 import com.bookk.appointments.domain.api.entity.AppointmentCompletedBy
-import com.bookk.appointments.domain.api.entity.AppointmentPagination
+import com.bookk.appointments.domain.api.entity.AppointmentHistoryFilter
 import com.bookk.appointments.domain.api.entity.AppointmentRequest
 import com.bookk.appointments.domain.api.entity.AppointmentStatus
 import com.bookk.appointments.domain.api.entity.BookedRange
+import com.bookk.appointments.domain.api.entity.HistoryOrder
 import com.bookk.appointments.domain.api.entity.PriceAdjustment
+import com.bookk.appointments.domain.api.entity.StartBounds
 import com.bookk.appointments.domain.datasource.AppointmentDataSource
 import com.bookk.core.data.DataSource
+import com.bookk.core.data.Keyset
 import com.bookk.core.domain.entity.Error
-import com.bookk.core.domain.entity.PaginationMetadata
+import com.bookk.core.domain.entity.Page
+import com.bookk.core.domain.entity.PageCursor
+import com.bookk.core.domain.entity.PageRequest
+import com.bookk.core.domain.entity.toPage
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.atStartOfDayIn
 import kotlinx.datetime.toLocalDateTime
@@ -112,29 +118,33 @@ internal class AppointmentDataSourceImpl(
             .decrypted()
     }
 
-    override suspend fun getAllPaginated(
+    override suspend fun getHistoryPage(
         businessId: Uuid,
-        limit: Int,
-        offset: Long,
-        query: String?,
-    ): AppointmentPagination = dbQuery {
-        if (query.isNullOrBlank()) {
-            pageOfAll(businessId, limit, offset)
-        } else {
-            pageOfMatches(businessId, limit, offset, query.lowercase())
-        }
+        filter: AppointmentHistoryFilter,
+        starts: StartBounds,
+        page: PageRequest,
+    ): Page<Appointment> = dbQuery {
+        val keyset = if (filter.order == HistoryOrder.SOONEST_FIRST) soonestFirst else newestFirst
+        val query = filter.query?.takeIf { it.isNotBlank() }?.lowercase()
+        val conditions = listOfNotNull(
+            AppointmentTable.businessId eq businessId,
+            filter.clientId?.let { AppointmentTable.clientId eq it },
+            filter.employeeId?.let { AppointmentTable.employeeId eq it },
+            filter.statuses.takeIf { it.isNotEmpty() }?.let { AppointmentTable.status inList it },
+            starts.from?.let { AppointmentTable.dateStart greaterEq it },
+            starts.until?.let { AppointmentTable.dateStart less it },
+            query?.let { matching(businessId, it) },
+            keyset.after(page.after),
+        )
+        val entities = AppointmentEntity.find { conditions.reduce { acc, condition -> acc and condition } }
+            .orderBy(*keyset.orderBy())
+            .limit(page.fetchSize)
+            .toList()
+            .toPage(page) { PageCursor(after = it.dateStart, id = it.id.value) }
+        Page(entities.items.withDetails().decrypted(), entities.next)
     }
 
-    private suspend fun pageOfAll(businessId: Uuid, limit: Int, offset: Long): AppointmentPagination {
-        return page(AppointmentTable.businessId eq businessId, limit, offset)
-    }
-
-    private suspend fun pageOfMatches(
-        businessId: Uuid,
-        limit: Int,
-        offset: Long,
-        query: String,
-    ): AppointmentPagination {
+    private fun matching(businessId: Uuid, query: String): Op<Boolean> {
         val serviceMatches = (AppointmentServicesTable innerJoin AppointmentTable)
             .select(AppointmentServicesTable.appointmentId)
             .where {
@@ -143,28 +153,7 @@ internal class AppointmentDataSourceImpl(
             }
         val matchesService = AppointmentTable.id inSubQuery serviceMatches
         val matchesClientName = AppointmentTable.clientNameIndex eq snapshotCipher.clientNameIndex(query)
-        return page(
-            (AppointmentTable.businessId eq businessId) and (matchesService or matchesClientName),
-            limit,
-            offset,
-        )
-    }
-
-    private suspend fun page(where: Op<Boolean>, limit: Int, offset: Long): AppointmentPagination {
-        val appointments = AppointmentEntity.find(where).orderBy(AppointmentTable.dateStart to SortOrder.DESC)
-        val page = appointments.limit(limit).offset(offset).toList().withDetails().decrypted()
-        return pagination(page, total = appointments.count(), limit, offset)
-    }
-
-    private fun pagination(page: List<Appointment>, total: Long, limit: Int, offset: Long): AppointmentPagination {
-        return AppointmentPagination(
-            data = page,
-            metadata = PaginationMetadata(
-                total = total,
-                pageSize = limit,
-                page = (offset / limit) + 1,
-            ),
-        )
+        return matchesService or matchesClientName
     }
 
     override suspend fun getEmployeeBookings(
@@ -415,5 +404,10 @@ internal class AppointmentDataSourceImpl(
     private suspend fun List<AppointmentEntity>.decrypted(): List<Appointment> {
         val snapshots = snapshotCipher.decryptAll(map { it.storedSnapshot() }, AppointmentTable.tableName)
         return zip(snapshots) { entity, snapshot -> entity.domain(snapshot) }
+    }
+
+    private companion object {
+        val newestFirst = Keyset(AppointmentTable.dateStart, AppointmentTable.id, SortOrder.DESC)
+        val soonestFirst = Keyset(AppointmentTable.dateStart, AppointmentTable.id, SortOrder.ASC)
     }
 }

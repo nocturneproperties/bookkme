@@ -76,6 +76,15 @@ object BusinessRouting {
         }
 
         @Resource("/business/{businessId}/clients")
+        class ClientList(
+            val parent: Api = Api(),
+            val businessId: Uuid,
+            val limit: Int? = null,
+            val cursor: String? = null,
+            val query: String? = null,
+        )
+
+        @Resource("/business/{businessId}/clients")
         class Clients(val parent: Api = Api(), val businessId: Uuid) {
             @Resource("/{id}")
             class Id(val parent: Clients, val id: Uuid)

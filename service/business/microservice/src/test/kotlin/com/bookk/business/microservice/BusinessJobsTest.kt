@@ -3,6 +3,7 @@ package com.bookk.business.microservice
 import com.bookk.business.domain.api.business.operation.DeleteDayOffsInThePast
 import com.bookk.business.domain.api.business.operation.DeleteReleasedBusinessLinks
 import com.bookk.business.domain.api.client.operation.DeleteInactiveClients
+import com.bookk.business.domain.api.client.operation.IndexClientContacts
 import com.bookk.business.domain.api.employee.operation.DeleteProcessedEmployeeInvitations
 import com.bookk.business.domain.api.employee.operation.ExpireEmployeeInvitations
 import com.bookk.business.domain.api.erasure.operation.DeleteExpiredErasureRecords
@@ -44,6 +45,7 @@ internal class BusinessJobsTest {
         val buildDataExports = mockk<BuildDataExports>()
         val deleteExpiredDataExports = mockk<DeleteExpiredDataExports>()
         val deleteReleasedBusinessLinks = mockk<DeleteReleasedBusinessLinks>()
+        val indexClientContacts = mockk<IndexClientContacts>()
         val scheduler = SchedulerConfiguration()
 
         suspend fun registerJobs(builder: ApplicationTestBuilder) {
@@ -58,6 +60,7 @@ internal class BusinessJobsTest {
                 scoped { buildDataExports }
                 scoped { deleteExpiredDataExports }
                 scoped { deleteReleasedBusinessLinks }
+                scoped { indexClientContacts }
             }
             application.registerBusinessJobs(scheduler)
         }
@@ -84,6 +87,7 @@ internal class BusinessJobsTest {
                 "business-buildDataExports" to 1.minutes,
                 "business-deleteExpiredDataExports" to 1.hours,
                 "business-deleteReleasedBusinessLinks" to 1.days,
+                "business-indexClientContacts" to 10.minutes,
             ),
             fixture.scheduler.registeredJobs(),
         )
@@ -386,6 +390,35 @@ internal class BusinessJobsTest {
 
         whenn()
         val result = runCatching { fixture.scheduler.runJob("business-deleteReleasedBusinessLinks") }
+
+        then()
+        assertSame(error, result.exceptionOrNull())
+    }
+
+    @Test
+    fun `should index the contacts of clients stored before the search indexes`() = routeTest {
+        given()
+        val fixture = SutFixture()
+        coEvery { fixture.indexClientContacts.invoke() } returns Result.success(Unit)
+        fixture.registerJobs(this)
+
+        whenn()
+        fixture.scheduler.runJob("business-indexClientContacts")
+
+        then()
+        coVerify(exactly = 1) { fixture.indexClientContacts.invoke() }
+    }
+
+    @Test
+    fun `should surface a failed indexing of client contacts`() = routeTest {
+        given()
+        val fixture = SutFixture()
+        val error = RuntimeException("indexClientContacts failed")
+        coEvery { fixture.indexClientContacts.invoke() } returns Result.failure(error)
+        fixture.registerJobs(this)
+
+        whenn()
+        val result = runCatching { fixture.scheduler.runJob("business-indexClientContacts") }
 
         then()
         assertSame(error, result.exceptionOrNull())

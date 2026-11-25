@@ -1,5 +1,8 @@
 package com.bookk.appointments.microservice.route
 
+import com.bookk.appointments.domain.api.entity.AppointmentRequestStatus
+import com.bookk.appointments.domain.api.entity.AppointmentStatus
+import com.bookk.appointments.domain.api.entity.HistoryOrder
 import io.ktor.resources.Resource
 import kotlinx.datetime.LocalDate
 import kotlin.uuid.Uuid
@@ -67,15 +70,22 @@ object AppointmentsRouting {
             @Resource("/request/{id}/withdraw")
             class RequestWithdraw(val parent: Appointment = Appointment(), val id: Uuid)
 
-            @Resource("/request/{businessId}")
-            class Requests(val parent: Appointment = Appointment(), val businessId: Uuid) {
+            @Resource("/request/history/{businessId}")
+            class RequestHistory(
+                val parent: Appointment = Appointment(),
+                val businessId: Uuid,
+                val limit: Int? = null,
+                val cursor: String? = null,
+                val clientId: Uuid? = null,
+                val employeeId: Uuid? = null,
+                val status: List<AppointmentRequestStatus> = emptyList(),
+                val from: LocalDate? = null,
+                val to: LocalDate? = null,
+                val order: HistoryOrder? = null,
+            )
 
-                @Resource("/mine")
-                class Own(val parent: Requests)
-
-                @Resource("/assigned")
-                class Assigned(val parent: Requests)
-            }
+            @Resource("/request/{businessId}/mine")
+            class OwnRequests(val parent: Appointment = Appointment(), val businessId: Uuid)
 
             @Resource("/settings/{businessId}")
             class Settings(val parent: Appointment = Appointment(), val businessId: Uuid)
@@ -93,9 +103,15 @@ object AppointmentsRouting {
         class AppointmentHistory(
             val parent: Api = Api(),
             val businessId: Uuid,
-            val limit: Int,
-            val offset: Long,
+            val limit: Int? = null,
+            val cursor: String? = null,
             val query: String? = null,
+            val clientId: Uuid? = null,
+            val employeeId: Uuid? = null,
+            val status: List<AppointmentStatus> = emptyList(),
+            val from: LocalDate? = null,
+            val to: LocalDate? = null,
+            val order: HistoryOrder? = null,
         )
     }
 }

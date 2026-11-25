@@ -5,17 +5,26 @@ import com.bookk.appointments.data.orm.entity.AppointmentRequestServiceEntity
 import com.bookk.appointments.data.orm.table.AppointmentRequestServicesTable
 import com.bookk.appointments.data.orm.table.AppointmentRequestTable
 import com.bookk.appointments.domain.api.entity.AppointmentRequest
+import com.bookk.appointments.domain.api.entity.AppointmentRequestHistoryFilter
 import com.bookk.appointments.domain.api.entity.AppointmentRequestStatus
+import com.bookk.appointments.domain.api.entity.HistoryOrder
+import com.bookk.appointments.domain.api.entity.StartBounds
 import com.bookk.appointments.domain.datasource.AppointmentRequestDataSource
 import com.bookk.core.data.DataSource
+import com.bookk.core.data.Keyset
 import com.bookk.core.data.cache.CacheClient
 import com.bookk.core.data.cache.setIfAbsent
 import com.bookk.core.domain.entity.Error
+import com.bookk.core.domain.entity.Page
+import com.bookk.core.domain.entity.PageCursor
+import com.bookk.core.domain.entity.PageRequest
+import com.bookk.core.domain.entity.toPage
 import org.jetbrains.exposed.v1.core.Op
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.greater
+import org.jetbrains.exposed.v1.core.greaterEq
 import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.core.less
 import org.jetbrains.exposed.v1.core.or
@@ -62,20 +71,29 @@ internal class AppointmentRequestDataSourceImpl(
             .decrypted()
     }
 
-    override suspend fun getPendingAssignedTo(
-        employeeUserId: Uuid,
+    override suspend fun getHistoryPage(
         businessId: Uuid,
-    ): List<AppointmentRequest> = dbQuery {
-        AppointmentRequestEntity
-            .find {
-                (AppointmentRequestTable.employeeUserId eq employeeUserId)
-                    .and(AppointmentRequestTable.businessId eq businessId)
-                    .and(AppointmentRequestTable.status eq AppointmentRequestStatus.PENDING)
-            }
-            .orderBy(AppointmentRequestTable.dateStart to SortOrder.ASC)
+        filter: AppointmentRequestHistoryFilter,
+        starts: StartBounds,
+        page: PageRequest,
+    ): Page<AppointmentRequest> = dbQuery {
+        val keyset = if (filter.order == HistoryOrder.SOONEST_FIRST) soonestFirst else newestFirst
+        val conditions = listOfNotNull(
+            AppointmentRequestTable.businessId eq businessId,
+            filter.clientId?.let { AppointmentRequestTable.clientId eq it },
+            filter.employeeId?.let { AppointmentRequestTable.employeeId eq it },
+            filter.statuses.takeIf { it.isNotEmpty() }?.let { AppointmentRequestTable.status inList it },
+            starts.from?.let { AppointmentRequestTable.dateStart greaterEq it },
+            starts.until?.let { AppointmentRequestTable.dateStart less it },
+            keyset.after(page.after),
+        )
+        val entities = AppointmentRequestEntity.find { conditions.reduce { acc, condition -> acc and condition } }
+            .orderBy(*keyset.orderBy())
+            .limit(page.fetchSize)
             .toList()
-            .with(AppointmentRequestEntity::services)
-            .decrypted()
+            .toPage(page) { PageCursor(after = it.dateStart, id = it.id.value) }
+        val requests = entities.items.with(AppointmentRequestEntity::services).decrypted()
+        Page(requests, entities.next)
     }
 
     override suspend fun getUpcomingPendingOfUser(
@@ -246,5 +264,10 @@ internal class AppointmentRequestDataSourceImpl(
         return AppointmentRequestTable.initiatorUserId.eq(userId)
             .and(AppointmentRequestTable.businessId.eq(businessId))
             .and(AppointmentRequestTable.status.eq(AppointmentRequestStatus.PENDING))
+    }
+
+    private companion object {
+        val newestFirst = Keyset(AppointmentRequestTable.dateStart, AppointmentRequestTable.id, SortOrder.DESC)
+        val soonestFirst = Keyset(AppointmentRequestTable.dateStart, AppointmentRequestTable.id, SortOrder.ASC)
     }
 }

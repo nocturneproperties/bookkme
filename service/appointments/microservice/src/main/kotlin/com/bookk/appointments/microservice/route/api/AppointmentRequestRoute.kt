@@ -2,11 +2,13 @@ package com.bookk.appointments.microservice.route.api
 
 import com.bookk.appointments.domain.api.entity.AppointmentCancellation
 import com.bookk.appointments.domain.api.entity.AppointmentRequestDraft
+import com.bookk.appointments.domain.api.entity.AppointmentRequestHistoryFilter
+import com.bookk.appointments.domain.api.entity.HistoryDates
+import com.bookk.appointments.domain.api.entity.HistoryOrder
 import com.bookk.appointments.domain.api.operation.CreateAppointmentRequest
 import com.bookk.appointments.domain.api.operation.DeclineAppointmentRequest
+import com.bookk.appointments.domain.api.operation.GetAppointmentRequestHistory
 import com.bookk.appointments.domain.api.operation.GetAppointmentRequests
-import com.bookk.appointments.domain.api.operation.GetAssignedAppointmentRequests
-import com.bookk.appointments.domain.api.operation.GetPendingAppointmentRequests
 import com.bookk.appointments.domain.api.operation.WithdrawAppointmentRequest
 import com.bookk.appointments.domain.impl.di.AppointmentsScope
 import com.bookk.appointments.microservice.route.AppointmentsRouting.Api
@@ -26,19 +28,29 @@ import io.ktor.server.routing.application
 fun Routing.requests() {
     authenticate {
         /**
-         * Get pending appointment requests
+         * Get appointment request history
          *
-         * Summary: Get pending appointment requests
+         * Summary: Get appointment request history
+         * Description: Get one page of the business's appointment requests in any status. Filter by clientId (the business's client id), employeeId, one or more status (repeat the parameter), and from and to (inclusive dates in the business time zone, compared with the request's start). Pass order NEWEST_FIRST (default) or SOONEST_FIRST, limit (1 to 100, default 50) and, for the next page, the previous page's nextCursor as cursor with the same filters; the last page has no nextCursor. An employee lists the requests assigned to them with their own employeeId, status PENDING and order SOONEST_FIRST
          * Tag: appointment
          * Security: jwt
-         * Response: 200 application/protobuf [com.bookk.appointments.domain.api.entity.AppointmentRequest]+ List of appointment requests
-         * Response: 403 application/protobuf [com.bookk.core.domain.entity.SimpleServerError] Caller is a suspended employee of this business - BUSINESS_EMPLOYEE_ACCESS_SUSPENDED (200034)
+         * Response: 200 application/x-protobuf [com.bookk.appointments.domain.api.entity.AppointmentRequestPage] Page of appointment requests
+         * Response: 422 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Request history errors<br>PAGE_LIMIT_INVALID (900003) Page limit must be from 1 to 100<br>PAGE_CURSOR_INVALID (900004) Page cursor is invalid, start from the first page<br>HISTORY_DATE_RANGE_INVALID (300034) The last date is before the first date
+         * Response: 404 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Caller has no appointments view permission in this business, or dates were given for a business that doesn't take appointments
+         * Response: 403 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Caller is a suspended employee of this business<br>BUSINESS_EMPLOYEE_ACCESS_SUSPENDED (200034) Your access to this business is suspended
          */
-        get<Api.Appointment.Requests> {
+        get<Api.Appointment.RequestHistory> {
             val principal = requireNotNull(call.principal<AppPrincipal>())
-            val getRequests by application.injectScoped<GetPendingAppointmentRequests>(AppointmentsScope)
+            val getHistory by application.injectScoped<GetAppointmentRequestHistory>(AppointmentsScope)
+            val filter = AppointmentRequestHistoryFilter(
+                clientId = it.clientId,
+                employeeId = it.employeeId,
+                statuses = it.status.toSet(),
+                dates = HistoryDates(from = it.from, to = it.to),
+                order = it.order ?: HistoryOrder.NEWEST_FIRST,
+            )
 
-            call.respondWith(getRequests(principal.userId, it.businessId))
+            call.respondWith(getHistory(principal.userId, it.businessId, filter, it.limit, it.cursor))
         }
 
         /**
@@ -50,29 +62,11 @@ fun Routing.requests() {
          * Security: jwt
          * Response: 200 application/protobuf [com.bookk.appointments.domain.api.entity.AppointmentRequest]+ List of the caller's pending appointment requests
          */
-        get<Api.Appointment.Requests.Own> {
+        get<Api.Appointment.OwnRequests> {
             val principal = requireNotNull(call.principal<AppPrincipal>())
             val getRequests by application.injectScoped<GetAppointmentRequests>(AppointmentsScope)
 
-            call.respondWith(getRequests(principal.userId, it.parent.businessId))
-        }
-
-        /**
-         * Get pending appointment requests assigned to me
-         *
-         * Summary: Get pending appointment requests assigned to me
-         * Description: Get pending appointment requests in the business that the caller, as an employee, is booked to serve, earliest first. Needs the appointments view permission
-         * Tag: appointment
-         * Security: jwt
-         * Response: 200 application/protobuf [com.bookk.appointments.domain.api.entity.AppointmentRequest]+ List of pending appointment requests assigned to the caller
-         * Response: 404 application/protobuf [com.bookk.core.domain.entity.SimpleServerError] Caller has no appointments view permission in this business
-         * Response: 403 application/protobuf [com.bookk.core.domain.entity.SimpleServerError] Caller is a suspended employee of this business<br>BUSINESS_EMPLOYEE_ACCESS_SUSPENDED (200034) Your access to this business is suspended
-         */
-        get<Api.Appointment.Requests.Assigned> {
-            val principal = requireNotNull(call.principal<AppPrincipal>())
-            val getRequests by application.injectScoped<GetAssignedAppointmentRequests>(AppointmentsScope)
-
-            call.respondWith(getRequests(principal.userId, it.parent.businessId))
+            call.respondWith(getRequests(principal.userId, it.businessId))
         }
 
         /**

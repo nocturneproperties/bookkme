@@ -25,6 +25,7 @@ import com.bookk.business.domain.api.client.operation.DeleteClient
 import com.bookk.business.domain.api.client.operation.DeleteInactiveClients
 import com.bookk.business.domain.api.client.operation.GetClients
 import com.bookk.business.domain.api.client.operation.ImportClients
+import com.bookk.business.domain.api.client.operation.IndexClientContacts
 import com.bookk.business.domain.api.client.operation.RecordClientVisit
 import com.bookk.business.domain.api.client.operation.UpdateClient
 import com.bookk.business.domain.api.employee.operation.CreateEmployeeInvitation
@@ -81,6 +82,7 @@ import com.bookk.business.domain.impl.operation.client.DeleteClientImpl
 import com.bookk.business.domain.impl.operation.client.DeleteInactiveClientsImpl
 import com.bookk.business.domain.impl.operation.client.GetClientsImpl
 import com.bookk.business.domain.impl.operation.client.ImportClientsImpl
+import com.bookk.business.domain.impl.operation.client.IndexClientContactsImpl
 import com.bookk.business.domain.impl.operation.client.RecordClientVisitImpl
 import com.bookk.business.domain.impl.operation.client.UpdateClientImpl
 import com.bookk.business.domain.impl.operation.employee.CreateEmployeeInvitationImpl
@@ -150,6 +152,7 @@ fun businessDomainModule() = module {
         scopedOf(::CreateClientImpl) bind CreateClient::class
         scopedOf(::ImportClientsImpl) bind ImportClients::class
         scopedOf(::GetClientsImpl) bind GetClients::class
+        scopedOf(::IndexClientContactsImpl) bind IndexClientContacts::class
         scopedOf(::GetOwnedBusinessMemberIdsImpl) bind GetOwnedBusinessMemberIds::class
         scopedOf(::DeleteClientImpl) bind DeleteClient::class
         scopedOf(::ExportUserBusinessDataImpl) bind ExportUserBusinessData::class

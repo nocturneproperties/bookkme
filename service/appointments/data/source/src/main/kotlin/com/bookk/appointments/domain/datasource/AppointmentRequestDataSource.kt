@@ -1,6 +1,10 @@
 package com.bookk.appointments.domain.datasource
 
 import com.bookk.appointments.domain.api.entity.AppointmentRequest
+import com.bookk.appointments.domain.api.entity.AppointmentRequestHistoryFilter
+import com.bookk.appointments.domain.api.entity.StartBounds
+import com.bookk.core.domain.entity.Page
+import com.bookk.core.domain.entity.PageRequest
 import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
@@ -10,7 +14,12 @@ interface AppointmentRequestDataSource {
     suspend fun getForUpdate(id: Uuid): AppointmentRequest?
     suspend fun getPending(businessId: Uuid): List<AppointmentRequest>
     suspend fun getPendingByUser(userId: Uuid, businessId: Uuid): List<AppointmentRequest>
-    suspend fun getPendingAssignedTo(employeeUserId: Uuid, businessId: Uuid): List<AppointmentRequest>
+    suspend fun getHistoryPage(
+        businessId: Uuid,
+        filter: AppointmentRequestHistoryFilter,
+        starts: StartBounds,
+        page: PageRequest,
+    ): Page<AppointmentRequest>
     suspend fun getUpcomingPendingOfUser(userId: Uuid, startingAfter: Instant, limit: Int): List<AppointmentRequest>
     suspend fun countPendingByUser(userId: Uuid, businessId: Uuid): Long
     suspend fun create(request: AppointmentRequest): AppointmentRequest

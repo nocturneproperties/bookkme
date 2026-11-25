@@ -9,13 +9,16 @@ import com.bookk.appointments.data.orm.table.PriceAdjustmentTable
 import com.bookk.appointments.data.orm.table.SettingsTable
 import com.bookk.appointments.data.orm.table.WorkingHoursTable
 import com.bookk.appointments.domain.api.entity.Appointment
+import com.bookk.appointments.domain.api.entity.AppointmentHistoryFilter
 import com.bookk.appointments.domain.api.entity.AppointmentRequest
 import com.bookk.appointments.domain.api.entity.AppointmentSettings
 import com.bookk.appointments.domain.api.entity.BusinessSnapshot
 import com.bookk.appointments.domain.api.entity.ClientSnapshot
 import com.bookk.appointments.domain.api.entity.EmployeeSnapshot
 import com.bookk.appointments.domain.api.entity.ServiceSnapshot
+import com.bookk.appointments.domain.api.entity.StartBounds
 import com.bookk.core.data.test.createTestDatabase
+import com.bookk.core.domain.entity.pageRequest
 import com.bookk.core.test.given
 import com.bookk.core.test.runUnitTest
 import com.bookk.core.test.then
@@ -101,8 +104,10 @@ internal class AppointmentDataSourceImplEncryptionTest {
             return blindIndex.ofCaseInsensitive(fullName)
         }
 
-        suspend fun page(query: String, limit: Int = 10, offset: Long = 0): List<Uuid> {
-            return suspendTransaction { sut.getAllPaginated(businessId, limit, offset, query) }.data.map { it.id }
+        suspend fun page(query: String): List<Uuid> {
+            return suspendTransaction {
+                sut.getHistoryPage(businessId, AppointmentHistoryFilter(query = query), StartBounds.OPEN, pageRequest())
+            }.items.map { it.id }
         }
 
         suspend fun decrypted(subjectId: Uuid, ciphertext: ByteArray?): String? {
@@ -468,11 +473,10 @@ internal class AppointmentDataSourceImplEncryptionTest {
         fixture.create(fixture.appointment(client = ClientSnapshot.stub().copy(fullName = "Carol Jones")))
 
         whenn()
-        val page = suspendTransaction { fixture.sut.getAllPaginated(fixture.businessId, 10, 0, " aLiCe sMiTh ") }
+        val found = fixture.page(" aLiCe sMiTh ")
 
         then()
-        assertEquals(listOf(match.id), page.data.map { it.id })
-        assertEquals(1L, page.metadata.total)
+        assertEquals(listOf(match.id), found)
     }
 
     @Test
@@ -538,13 +542,29 @@ internal class AppointmentDataSourceImplEncryptionTest {
             )
         }
 
+        val first = suspendTransaction {
+            fixture.sut.getHistoryPage(
+                fixture.businessId,
+                AppointmentHistoryFilter(query = "alice smith"),
+                StartBounds.OPEN,
+                pageRequest(limit = 2),
+            )
+        }
+
         whenn()
-        val page = suspendTransaction { fixture.sut.getAllPaginated(fixture.businessId, 2, 2, "alice smith") }
+        val second = suspendTransaction {
+            fixture.sut.getHistoryPage(
+                fixture.businessId,
+                AppointmentHistoryFilter(query = "alice smith"),
+                StartBounds.OPEN,
+                pageRequest(limit = 2, after = first.next),
+            )
+        }
 
         then()
-        assertEquals(listOf(matches[0].id), page.data.map { it.id })
-        assertEquals(3L, page.metadata.total)
-        assertEquals(2L, page.metadata.page)
+        assertEquals(listOf(matches[2].id, matches[1].id), first.items.map { it.id })
+        assertEquals(listOf(matches[0].id), second.items.map { it.id })
+        assertNull(second.next)
     }
 
     @Test

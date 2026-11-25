@@ -1,7 +1,10 @@
 package com.bookk.appointments.microservice.route.api
 
 import com.bookk.appointments.domain.api.entity.AppointmentCancellation
+import com.bookk.appointments.domain.api.entity.AppointmentHistoryFilter
 import com.bookk.appointments.domain.api.entity.AppointmentUpdate
+import com.bookk.appointments.domain.api.entity.HistoryDates
+import com.bookk.appointments.domain.api.entity.HistoryOrder
 import com.bookk.appointments.domain.api.entity.InstantAppointmentDraft
 import com.bookk.appointments.domain.api.entity.PriceAdjustmentDraft
 import com.bookk.appointments.domain.api.operation.CancelAppointment
@@ -115,10 +118,12 @@ fun Routing.appointment() {
          * Get appointments history
          *
          * Summary: Get appointments history
-         * Description: Get paginated appointments history, optionally filtered by a query matching the client's whole name (ignoring case) or part of a service name
+         * Description: Get one page of the business's appointments history, optionally filtered by a query matching the client's whole name (ignoring case) or part of a service name. Filter by clientId (the business's client id), employeeId, one or more status (repeat the parameter), and from and to (inclusive dates in the business time zone, compared with the appointment's start). Pass order NEWEST_FIRST (default) or SOONEST_FIRST, limit (1 to 100, default 50) and, for the next page, the previous page's nextCursor as cursor with the same filters; the last page has no nextCursor
          * Tag: appointment
          * Security: jwt
-         * Response: 200 application/x-protobuf [com.bookk.appointments.domain.api.entity.AppointmentPagination] List of appointments
+         * Response: 200 application/x-protobuf [com.bookk.appointments.domain.api.entity.AppointmentPage] Page of appointments
+         * Response: 422 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] History errors<br>PAGE_LIMIT_INVALID (900003) Page limit must be from 1 to 100<br>PAGE_CURSOR_INVALID (900004) Page cursor is invalid, start from the first page<br>HISTORY_DATE_RANGE_INVALID (300034) The last date is before the first date
+         * Response: 404 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Caller has no appointments view permission in this business, or dates were given for a business that doesn't take appointments
          * Response: 403 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Caller is a suspended employee of this business<br>BUSINESS_EMPLOYEE_ACCESS_SUSPENDED (200034) Your access to this business is suspended
          */
         get<Api.AppointmentHistory> {
@@ -129,9 +134,16 @@ fun Routing.appointment() {
                 getHistory(
                     userId = principal.userId,
                     businessId = it.businessId,
+                    filter = AppointmentHistoryFilter(
+                        clientId = it.clientId,
+                        employeeId = it.employeeId,
+                        statuses = it.status.toSet(),
+                        dates = HistoryDates(from = it.from, to = it.to),
+                        query = it.query,
+                        order = it.order ?: HistoryOrder.NEWEST_FIRST,
+                    ),
                     limit = it.limit,
-                    offset = it.offset,
-                    query = it.query,
+                    cursor = it.cursor,
                 ),
             )
         }
