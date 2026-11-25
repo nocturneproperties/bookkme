@@ -17,6 +17,7 @@ import com.bookk.core.test.then
 import com.bookk.core.test.whenn
 import com.bookk.library.serializer.moneyFormatter
 import com.bookk.server.appointments.client.api.event.AppointmentEvent
+import com.bookk.server.appointments.client.api.event.CancellationReasonKind
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.coVerifyOrder
@@ -253,11 +254,11 @@ internal class DeleteUserAppointmentDataImplTest {
             from = appointment.date,
             to = appointment.dateEnd,
             timeZone = business.timeZone,
-            address = business.address,
             businessName = business.name,
             price = moneyFormatter.print(appointment.totalAmount),
             reason = "Employee deleted their account",
             idempotencyKey = "",
+            reasonKind = CancellationReasonKind.EMPLOYEE_DELETED,
         )
         assertEquals(listOf(expected), fixture.clientNotifications().map { it.withoutIdempotencyKey() })
         assertTrue(fixture.employeeNotifications().isEmpty())

@@ -52,7 +52,6 @@ internal class DeclineAppointmentRequestImpl(
                 to = appointment.dateEnd,
                 timeZone = business.timeZone,
                 businessName = business.name,
-                address = business.address,
                 price = moneyFormatter.print(appointment.totalAmount),
                 declineReason = appointment.declineReason,
             ),

@@ -11,6 +11,7 @@ import com.bookk.server.business.client.api.event.BusinessEvent
 import com.bookk.server.user.client.api.event.UserEvent
 import kotlinx.datetime.TimeZone
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import kotlin.time.Instant
 import kotlin.uuid.Uuid
@@ -62,7 +63,7 @@ internal class DataExportReadyNotificationTest {
 
         then()
         assertEquals("Ваші дані готові до завантаження", push.title)
-        assertEquals("Завантажте їх у застосунку до $until, після цього файл буде видалено.", push.body)
+        assertEquals("Завантажте їх у застосунку до $until, після цієї дати файл буде видалено.", push.body)
     }
 
     @Test
@@ -89,6 +90,7 @@ internal class DataExportReadyNotificationTest {
 
         then()
         assertEquals("Дані вашого бізнесу готові до завантаження", push.title)
+        assertTrue(push.body.endsWith("після цієї дати файл буде видалено."))
     }
 
     @Test
@@ -102,5 +104,21 @@ internal class DataExportReadyNotificationTest {
         then()
         assertEquals("Twoje dane są gotowe do pobrania", push.title)
         assertEquals("Pobierz je w aplikacji do $until, potem plik zostanie usunięty.", push.body)
+    }
+
+    @Test
+    fun `should tell the user in Ukrainian that the file is deleted after the date`() = runUnitTest {
+        given()
+        val until = expiresAt.formatLocalized(TimeZone.UTC, Language.UK)
+
+        whenn()
+        val email = personal.notification.email(Language.UK)
+
+        then()
+        assertEquals(
+            "Копія ваших даних, яку ви запросили, готова. Завантажте її в застосунку BookkMe до $until. " +
+                "Після цієї дати файл буде видалено, і ви зможете запросити нову копію.",
+            email.body,
+        )
     }
 }

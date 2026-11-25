@@ -88,7 +88,7 @@ flowchart TD
     Owned --> Notify{"For each cancelled appointment with a known business, not booked by the user with themselves - was the user its client?"}
     Notify -- yes --> Send["eventProducer.send AppointmentEvent.CancelledForDeletedClient employeeUserId from to timeZone businessName"]
     Notify -- "no, its employee" --> HasAccount{client.userId set?}
-    HasAccount -- yes --> SendClient["eventProducer.send AppointmentEvent.Cancelled clientUserId reason 'Employee deleted their account'"]
+    HasAccount -- yes --> SendClient["eventProducer.send AppointmentEvent.Cancelled clientUserId reason 'Employee deleted their account' reasonKind EMPLOYEE_DELETED"]
     Send --> Shred
     SendClient --> Shred
     HasAccount -- no --> Shred

@@ -18,18 +18,24 @@ internal val AppointmentEvent.RequestCreated.notification: NotificationParameter
             val whenText = from.formatLocalized(timeZone, language)
             PushNotification(
                 title = message(language, "$KEY_PREFIX.push.title"),
-                body = message(language, "$KEY_PREFIX.push.body", clientName, businessName, whenText),
+                body = message(language, "$KEY_PREFIX.push.body", whenText),
             )
         },
         email = { language ->
             val whenText = from.formatLocalized(timeZone, language)
             EmailNotification(
-                subject = message(language, "$KEY_PREFIX.email.subject", clientName),
-                body = message(language, "$KEY_PREFIX.email.body", clientName, businessName, whenText, price),
+                subject = message(language, "$KEY_PREFIX.email.subject"),
+                body = message(language, "$KEY_PREFIX.email.body", whenText, serviceNames.servicesText(), price),
             )
         },
         text = { language ->
             val whenText = from.formatLocalized(timeZone, language)
-            TextNotification(message(language, "$KEY_PREFIX.text.body", clientName, businessName, whenText))
+            TextNotification(message(language, "$KEY_PREFIX.text.body", whenText))
         },
     )
+
+private fun List<String>.servicesText(): String {
+    return groupingBy { it }.eachCount().entries.joinToString(", ") { (name, count) ->
+        if (count == 1) name else "$name ×$count"
+    }
+}

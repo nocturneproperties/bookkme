@@ -53,7 +53,6 @@ internal class CancelAppointmentImpl(
                 timeZone = business.timeZone,
                 businessName = business.name,
                 employeeUserId = appointment.employee.userId,
-                address = business.address,
                 price = moneyFormatter.print(appointment.totalAmount),
                 reason = appointment.cancellationReason,
             ),

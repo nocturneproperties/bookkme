@@ -906,6 +906,43 @@ internal class CreateAppointmentRequestImplTest {
     }
 
     @Test
+    fun `should announce the name of every requested service once per booked unit`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val businessId = Uuid.random()
+        val haircut = Service.stub(businessId = businessId, name = "Haircut")
+        val beardTrim = Service.stub(businessId = businessId, name = "Beard trim")
+        val context = bookingContext(businessId, Uuid.random(), Uuid.random(), listOf(haircut, beardTrim))
+        val draft = draftFor(context, businessId, futureDate, counts = mapOf(haircut.id to 1, beardTrim.id to 2))
+        val settings = mockk<AppointmentSettings> { every { inBetweenBreakInMinutes } returns 0 }
+        val eventSlot = slot<AppointmentEvent.RequestCreated>()
+
+        with(fixture) {
+            coEvery {
+                businessClient.getAppointmentBookingContext(businessId, draft.employeeId, userId, distinctIds(draft))
+            } returns Result.success(context)
+            coEvery { settingsDataSource.getForUpdate(businessId) } returns settings
+            coEvery { settings.automaticApproval } returns false
+            every { settings.maxPendingRequestsPerClient } returns 10
+            every { settings.requireBookable(any(), any(), any()) } just Runs
+            coEvery { requestDataSource.create(any()) } answers { firstArg() }
+            coEvery { subscriptionDataSource.getBusinessSnapshot(any()) } returns BusinessSnapshot.stub()
+            coEvery { eventProducer.send(capture(eventSlot), any()) } returns Unit
+            coEvery { eventProducer.send(any<AppointmentEvent.ClientVisitBooked>(), any()) } returns Unit
+            mockValidToken(draft, totalOf(expand(context, draft)), durationOf(expand(context, draft)))
+            transactionManager.mockTransaction()
+        }
+
+        whenn()
+        val result = fixture.sut.invoke(userId, draft)
+
+        then()
+        assertTrue(result.isSuccess)
+        assertEquals(listOf("Haircut", "Beard trim", "Beard trim"), eventSlot.captured.serviceNames)
+    }
+
+    @Test
     fun `should record and announce the booking context client and its account on the request`() = runUnitTest {
         given()
         val fixture = SutFixture()
@@ -941,7 +978,6 @@ internal class CreateAppointmentRequestImplTest {
         assertTrue(result.isSuccess)
         assertEquals(userId, created.captured.client.userId)
         assertEquals(userId, eventSlot.captured.clientUserId)
-        assertEquals(context.client.id, eventSlot.captured.clientId)
     }
 
     @Test

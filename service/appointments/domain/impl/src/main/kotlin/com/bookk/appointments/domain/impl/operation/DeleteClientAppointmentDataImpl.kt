@@ -12,7 +12,7 @@ import com.bookk.core.data.eventstreaming.send
 import com.bookk.core.domain.datasource.transaction.TransactionManager
 import com.bookk.library.serializer.moneyFormatter
 import com.bookk.server.appointments.client.api.event.AppointmentEvent
-import com.bookk.server.appointments.client.api.event.ClientDeletionCause
+import com.bookk.server.appointments.client.api.event.CancellationReasonKind
 import library.encryption.SubjectKeys
 import org.slf4j.LoggerFactory
 import kotlin.time.Clock
@@ -44,7 +44,8 @@ internal class DeleteClientAppointmentDataImpl(
             Clock.System.now(),
         )
         val upcoming = appointmentDataSource.getAllByIds(upcomingIds)
-        val business = if (upcoming.isEmpty()) null else businessToNotify(businessId)
+        val hasClientToNotify = upcoming.any { it.client.userId != null }
+        val business = if (hasClientToNotify) businessToNotify(businessId) else null
         return ClientErasure(upcoming, business)
     }
 
@@ -65,28 +66,9 @@ internal class DeleteClientAppointmentDataImpl(
 
     private suspend fun notifyCancellations(erasure: ClientErasure) {
         val business = erasure.business ?: return
-        erasure.upcoming.forEach { appointment ->
-            if (!appointment.isOwnBookingOfEmployee()) eventProducer.send(employeeNotification(appointment, business))
-            if (appointment.client.userId != null) eventProducer.send(clientNotification(appointment, business))
-        }
-    }
-
-    private fun Appointment.isOwnBookingOfEmployee(): Boolean {
-        return client.userId == employee.userId
-    }
-
-    private fun employeeNotification(
-        appointment: Appointment,
-        business: BusinessSnapshot,
-    ): AppointmentEvent.CancelledForDeletedClient {
-        return AppointmentEvent.CancelledForDeletedClient(
-            employeeUserId = appointment.employee.userId,
-            from = appointment.date,
-            to = appointment.dateEnd,
-            timeZone = business.timeZone,
-            businessName = business.name,
-            cause = ClientDeletionCause.REMOVED_BY_BUSINESS,
-        )
+        erasure.upcoming
+            .filter { it.client.userId != null }
+            .forEach { appointment -> eventProducer.send(clientNotification(appointment, business)) }
     }
 
     private fun clientNotification(appointment: Appointment, business: BusinessSnapshot): AppointmentEvent.Cancelled {
@@ -96,10 +78,10 @@ internal class DeleteClientAppointmentDataImpl(
             from = appointment.date,
             to = appointment.dateEnd,
             timeZone = business.timeZone,
-            address = business.address,
             businessName = business.name,
             price = moneyFormatter.print(appointment.totalAmount),
             reason = CLIENT_REMOVED_CANCELLATION_REASON,
+            reasonKind = CancellationReasonKind.CLIENT_REMOVED,
         )
     }
 
