@@ -281,7 +281,14 @@ internal class ClientDataSourceImplEncryptionTest {
 
         then()
         assertEquals(
-            Client.Detached(id = created.id, name = "Again", lastName = "", phone = null, email = null),
+            Client.Detached.stub(
+                id = created.id,
+                name = "Again",
+                lastName = "",
+                phone = null,
+                email = null,
+                createdAt = created.createdAt,
+            ),
             read,
         )
         assertEquals(listOf("client"), fixture.missingKeys.reported.drop(reportedBefore))
@@ -355,7 +362,14 @@ internal class ClientDataSourceImplEncryptionTest {
 
         then()
         assertEquals(
-            Client.Detached(id = created.id, name = "", lastName = "", phone = null, email = null, description = null),
+            Client.Detached.stub(
+                id = created.id,
+                name = "",
+                lastName = "",
+                phone = null,
+                email = null,
+                createdAt = created.createdAt,
+            ),
             read,
         )
         assertEquals(listOf("client"), fixture.missingKeys.reported)
@@ -376,7 +390,16 @@ internal class ClientDataSourceImplEncryptionTest {
 
         then()
         assertEquals(
-            listOf(Client.Detached(id = created.id, name = "", lastName = "", phone = null, email = null)),
+            listOf(
+                Client.Detached.stub(
+                    id = created.id,
+                    name = "",
+                    lastName = "",
+                    phone = null,
+                    email = null,
+                    createdAt = created.createdAt,
+                ),
+            ),
             read,
         )
         assertTrue(fixture.missingKeys.reported.isEmpty())

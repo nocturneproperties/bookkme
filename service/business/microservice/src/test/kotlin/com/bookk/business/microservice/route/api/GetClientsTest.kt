@@ -30,6 +30,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 import org.koin.dsl.module
+import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
 internal class GetClientsTest {
@@ -58,7 +59,7 @@ internal class GetClientsTest {
         val useCase: GetClients = mockk()
         val userId = Uuid.random()
         val businessId = Uuid.random()
-        val clients = listOf(ClientRemote.stub())
+        val clients = listOf(ClientRemote.stub(createdAt = Instant.fromEpochMilliseconds(1_700_000_000_000)))
         coEvery { useCase.invoke(userId, businessId, 20, "next", "alice smith") } returns
             Result.success(ClientPage(clients, nextCursor = "after"))
         serve(useCase, userId)
@@ -72,6 +73,7 @@ internal class GetClientsTest {
         assertEquals(HttpStatusCode.OK, response.status)
         val page = response.body<ClientPage>()
         assertEquals(clients.map { it.id }, page.data.map { it.id })
+        assertEquals(clients.map { it.createdAt }, page.data.map { it.createdAt })
         assertEquals("after", page.nextCursor)
     }
 

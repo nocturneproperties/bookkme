@@ -43,6 +43,7 @@ internal class ClientEntity(id: EntityID<Uuid>) : UuidEntity(id) {
                 phone = contact.phone,
                 email = contact.email,
                 description = contact.description,
+                createdAt = createdAt,
             )
 
             else -> Client.Integrated(
@@ -53,6 +54,7 @@ internal class ClientEntity(id: EntityID<Uuid>) : UuidEntity(id) {
                 email = contact.email,
                 userId = userId,
                 description = contact.description,
+                createdAt = createdAt,
             )
         }
     }

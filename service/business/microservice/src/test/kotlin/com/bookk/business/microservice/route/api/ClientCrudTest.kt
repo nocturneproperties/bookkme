@@ -33,6 +33,7 @@ import io.mockk.mockk
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.koin.dsl.module
+import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
 private const val ACTION_CONFIRMATION_TOKEN = "action-confirmation-token"
@@ -73,6 +74,40 @@ internal class ClientCrudTest {
 
         then()
         assertEquals(HttpStatusCode.OK, response.status)
+    }
+
+    @Test
+    fun `should create a client from a body without a creation time`() = routeTest {
+        given()
+        val useCase: CreateClient = mockk()
+        val clientRemote = ClientRemote.stub(createdAt = null)
+        val created = ClientRemote.stub(id = clientRemote.id, createdAt = Instant.fromEpochMilliseconds(1_000))
+        coEvery { useCase.invoke(userId, businessId, clientRemote.toDetachedClient()) } returns
+            Result.success(created)
+
+        setupApplication(
+            extension = {
+                install(Authentication) {
+                    provider {
+                        authenticate { it.principal(AppPrincipal(Uuid.random(), userId, Uuid.random())) }
+                    }
+                }
+            },
+            diModule = module {
+                single { useCase }
+            },
+            routeUnderTest = { clientCrud() },
+        )
+
+        whenn()
+        val httpClient = createTestClient()
+        val response = httpClient.post(BusinessRouting.Api.Clients(businessId = businessId)) {
+            setBody(clientRemote)
+        }
+
+        then()
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertEquals(created.createdAt, response.body<ClientRemote>().createdAt)
     }
 
     @Test

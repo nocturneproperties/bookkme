@@ -45,8 +45,8 @@ import kotlin.uuid.Uuid
 internal class ClientDataSourceImpl(private val contactCipher: ContactCipher) : DataSource(), ClientDataSource {
     override suspend fun createDetachedClient(businessId: Uuid, client: Client.Detached): Client = dbQuery {
         val id = Uuid.random()
-        insertClient(businessId, id, client.trimmedContact(), userId = null)
-        client.copy(id = id)
+        val createdAt = insertClient(businessId, id, client.trimmedContact(), userId = null)
+        client.copy(id = id, createdAt = createdAt)
     }
 
     override suspend fun createDetachedClients(
@@ -54,6 +54,7 @@ internal class ClientDataSourceImpl(private val contactCipher: ContactCipher) : 
         clients: List<Client.Detached>,
     ): List<Client> = dbQuery {
         val contacts = clients.map { it.trimmedContact() }
+        val createdAt = storedNow()
         val rows = contacts.map { contact ->
             val id = Uuid.random()
             NewClientRow(id, contact, encryptNew(id, contact))
@@ -62,9 +63,10 @@ internal class ClientDataSourceImpl(private val contactCipher: ContactCipher) : 
             this[ClientTable.id] = row.id
             this[ClientTable.businessId] = businessId
             this[ClientTable.userId] = null
+            this[ClientTable.createdAt] = createdAt
             writeContact(row.encrypted, contactCipher.indexes(row.contact))
         }
-        clients.zip(rows) { client, row -> client.copy(id = row.id) }
+        clients.zip(rows) { client, row -> client.copy(id = row.id, createdAt = createdAt) }
     }
 
     override suspend fun getClientsPage(businessId: Uuid, page: PageRequest, query: String?): Page<Client> = dbQuery {
@@ -307,18 +309,27 @@ internal class ClientDataSourceImpl(private val contactCipher: ContactCipher) : 
 
     private suspend fun insertIntegratedClient(businessId: Uuid, client: Client.Integrated): Client {
         val id = Uuid.random()
-        insertClient(businessId, id, client.trimmedContact(), userId = client.userId)
-        return client.copy(id = id)
+        val createdAt = insertClient(businessId, id, client.trimmedContact(), userId = client.userId)
+        return client.copy(id = id, createdAt = createdAt)
     }
 
-    private suspend fun insertClient(businessId: Uuid, id: Uuid, contact: Contact, userId: Uuid?) {
+    private suspend fun insertClient(businessId: Uuid, id: Uuid, contact: Contact, userId: Uuid?): Instant {
         val encrypted = encryptNew(id, contact)
+        val createdAt = storedNow()
         ClientTable.insert {
             it[ClientTable.id] = id
             it[this.businessId] = businessId
             it[this.userId] = userId
+            it[this.createdAt] = createdAt
             it.writeContact(encrypted, contactCipher.indexes(contact))
         }
+        return createdAt
+    }
+
+    private fun storedNow(): Instant {
+        val now = Clock.System.now()
+        val wholeMicroseconds = now.nanosecondsOfSecond / NANOSECONDS_PER_MICROSECOND * NANOSECONDS_PER_MICROSECOND
+        return Instant.fromEpochSeconds(now.epochSeconds, wholeMicroseconds)
     }
 
     private suspend fun encryptNew(id: Uuid, contact: Contact): EncryptedContact {
@@ -358,6 +369,7 @@ internal class ClientDataSourceImpl(private val contactCipher: ContactCipher) : 
 
     private companion object {
         const val SOURCE = "client"
+        const val NANOSECONDS_PER_MICROSECOND = 1_000
         val pageKeyset = Keyset(ClientTable.createdAt, ClientTable.id, SortOrder.DESC)
     }
 }

@@ -31,6 +31,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.days
+import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
@@ -111,6 +112,27 @@ internal class ClientDataSourceImplTest {
         then()
         assertEquals(1, clients.size)
         assertEquals("Alice", clients.first().name)
+    }
+
+    @Test
+    fun `should give detached and integrated clients their creation time`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val before = Clock.System.now() - 1.seconds
+
+        whenn()
+        val created = suspendTransaction {
+            listOf(
+                fixture.sut.createDetachedClient(fixture.businessId, Client.Detached.stub()),
+                fixture.sut.getOrCreateIntegratedClient(fixture.businessId, Client.Integrated.stub(email = null)),
+            )
+        }
+        val listed = fixture.clients()
+
+        then()
+        assertTrue(created.all { it.createdAt!! >= before })
+        assertEquals(created.associate { it.id to it.createdAt }, listed.associate { it.id to it.createdAt })
     }
 
     @Test
