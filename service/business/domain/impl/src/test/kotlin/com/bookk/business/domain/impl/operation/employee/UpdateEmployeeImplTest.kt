@@ -84,10 +84,55 @@ internal class UpdateEmployeeImplTest {
     }
 
     @Test
-    fun `should return failure when name is invalid`() = runUnitTest {
+    fun `should update employee with an empty last name`() = runUnitTest {
         given()
         val fixture = SutFixture()
         fixture.transactionManager.mockTransaction()
+        val employee = Employee.stub(lastName = "")
+        coEvery { fixture.employeeDataSource.updateEmployee(updateModel(employee)) } returns employee
+
+        whenn()
+        val result = fixture.sut(requestUserId, updateModel(employee))
+
+        then()
+        assertTrue(result.isSuccess) { result.toString() }
+        coVerify(exactly = 1) { fixture.employeeDataSource.updateEmployee(updateModel(employee)) }
+    }
+
+    @Test
+    fun `should update employee with a one letter last name`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.transactionManager.mockTransaction()
+        val employee = Employee.stub(lastName = "D")
+        coEvery { fixture.employeeDataSource.updateEmployee(updateModel(employee)) } returns employee
+
+        whenn()
+        val result = fixture.sut(requestUserId, updateModel(employee))
+
+        then()
+        assertTrue(result.isSuccess) { result.toString() }
+        coVerify(exactly = 1) { fixture.employeeDataSource.updateEmployee(updateModel(employee)) }
+    }
+
+    @Test
+    fun `should return failure when name is a single letter`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val employee = Employee.stub(name = "J")
+
+        whenn()
+        val result = fixture.sut(requestUserId, updateModel(employee))
+
+        then()
+        assertTrue(result.exceptionOrNull() is UpdateEmployee.Error.ValidationError)
+        coVerify(exactly = 0) { fixture.transactionManager.transaction<Any>(any()) }
+    }
+
+    @Test
+    fun `should return failure when name is invalid`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
         val employee = Employee.stub(name = "a".repeat(600))
 
         whenn()
@@ -96,13 +141,13 @@ internal class UpdateEmployeeImplTest {
         then()
         assertTrue(result.exceptionOrNull() is UpdateEmployee.Error.ValidationError)
         coVerify(exactly = 0) { fixture.employeeDataSource.updateEmployee(any()) }
+        coVerify(exactly = 0) { fixture.transactionManager.transaction<Any>(any()) }
     }
 
     @Test
     fun `should return failure when last name is invalid`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        fixture.transactionManager.mockTransaction()
         val employee = Employee.stub(lastName = "a".repeat(600))
 
         whenn()
@@ -111,13 +156,13 @@ internal class UpdateEmployeeImplTest {
         then()
         assertTrue(result.exceptionOrNull() is UpdateEmployee.Error.ValidationError)
         coVerify(exactly = 0) { fixture.employeeDataSource.updateEmployee(any()) }
+        coVerify(exactly = 0) { fixture.transactionManager.transaction<Any>(any()) }
     }
 
     @Test
     fun `should return failure when phone is invalid`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        fixture.transactionManager.mockTransaction()
         val employee = Employee.stub(phone = "not-a-phone")
 
         whenn()
@@ -126,13 +171,13 @@ internal class UpdateEmployeeImplTest {
         then()
         assertTrue(result.exceptionOrNull() is UpdateEmployee.Error.ValidationError)
         coVerify(exactly = 0) { fixture.employeeDataSource.updateEmployee(any()) }
+        coVerify(exactly = 0) { fixture.transactionManager.transaction<Any>(any()) }
     }
 
     @Test
     fun `should return failure when email is invalid`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        fixture.transactionManager.mockTransaction()
         val employee = Employee.stub(email = "not-an-email")
 
         whenn()
@@ -141,13 +186,13 @@ internal class UpdateEmployeeImplTest {
         then()
         assertTrue(result.exceptionOrNull() is UpdateEmployee.Error.ValidationError)
         coVerify(exactly = 0) { fixture.employeeDataSource.updateEmployee(any()) }
+        coVerify(exactly = 0) { fixture.transactionManager.transaction<Any>(any()) }
     }
 
     @Test
     fun `should return failure when active day has no work hours`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        fixture.transactionManager.mockTransaction()
         val schedule = Schedule(workingDays = listOf(DayOfWeek.MONDAY), workingHours = emptyMap())
         val employee = Employee.stub(schedule = schedule)
 
@@ -157,13 +202,13 @@ internal class UpdateEmployeeImplTest {
         then()
         assertTrue(result.exceptionOrNull() is UpdateEmployee.Error.ActiveDayWithoutWorkHours)
         coVerify(exactly = 0) { fixture.employeeDataSource.updateEmployee(any()) }
+        coVerify(exactly = 0) { fixture.transactionManager.transaction<Any>(any()) }
     }
 
     @Test
     fun `should return failure when a working range starts and ends at the same time`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        fixture.transactionManager.mockTransaction()
         val schedule = Schedule(
             workingDays = listOf(DayOfWeek.MONDAY),
             workingHours = mapOf(DayOfWeek.MONDAY to listOf(WorkHour(LocalTime(0, 0), LocalTime(0, 0)))),
@@ -176,13 +221,13 @@ internal class UpdateEmployeeImplTest {
         then()
         assertTrue(result.exceptionOrNull() is UpdateEmployee.Error.EmptyWorkHourRange)
         coVerify(exactly = 0) { fixture.employeeDataSource.updateEmployee(any()) }
+        coVerify(exactly = 0) { fixture.transactionManager.transaction<Any>(any()) }
     }
 
     @Test
     fun `should return failure when day off range start date is after end date`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        fixture.transactionManager.mockTransaction()
         val dayOffs = listOf(DayOffRange(LocalDate(2099, 12, 31), LocalDate(2099, 12, 30)))
         val schedule = Schedule(workingDays = emptyList(), workingHours = emptyMap(), dayOffs = dayOffs)
         val employee = Employee.stub(schedule = schedule)
@@ -193,6 +238,7 @@ internal class UpdateEmployeeImplTest {
         then()
         assertTrue(result.exceptionOrNull() is UpdateEmployee.Error.InvalidDayOffRange)
         coVerify(exactly = 0) { fixture.employeeDataSource.updateEmployee(any()) }
+        coVerify(exactly = 0) { fixture.transactionManager.transaction<Any>(any()) }
     }
 
     @Test

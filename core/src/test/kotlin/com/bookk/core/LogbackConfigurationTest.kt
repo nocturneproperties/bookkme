@@ -12,6 +12,7 @@ import com.bookk.core.test.then
 import com.bookk.core.test.whenn
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 internal class LogbackConfigurationTest {
@@ -58,6 +59,21 @@ internal class LogbackConfigurationTest {
 
         then()
         assertEquals(Level.DEBUG, fixture.rootLogger.level)
+    }
+
+    @Test
+    fun `should keep apache http client wire and header logs out of debug output`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.context.putProperty("APPLICATION_LOG_LEVEL", "debug")
+
+        whenn()
+        fixture.configure()
+
+        then()
+        assertFalse(fixture.context.getLogger("org.apache.hc.client5.http.headers").isDebugEnabled)
+        assertFalse(fixture.context.getLogger("org.apache.hc.client5.http.wire").isDebugEnabled)
+        assertFalse(fixture.context.getLogger("org.apache.hc.core5.http2.frame").isInfoEnabled)
     }
 
     @Test

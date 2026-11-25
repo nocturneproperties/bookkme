@@ -2,6 +2,7 @@ package com.bookk.auth.domain.impl.operation.email
 
 import com.bookk.auth.domain.api.email.operation.StartEmailChange
 import com.bookk.auth.domain.api.email.operation.StartEmailChange.Error.EmailAlreadyExist
+import com.bookk.auth.domain.api.email.operation.StartEmailChange.Error.EmailDomainUnsupported
 import com.bookk.auth.domain.api.email.operation.StartEmailChange.Error.InvalidEmailFormat
 import com.bookk.auth.domain.impl.email.AuthEmails
 import com.bookk.auth.domain.impl.email.EmailPurpose
@@ -12,6 +13,7 @@ import com.bookk.server.user.client.UserClient
 import io.ktor.http.HttpStatusCode
 import library.email.EmailCodeIssuer
 import library.email.EmailVerificationStarted
+import library.email.PlaceholderEmail
 import library.validation.EmailValidator
 import kotlin.uuid.Uuid
 
@@ -26,6 +28,7 @@ internal class StartEmailChangeImpl(
         language: Language,
     ): Result<EmailVerificationStarted> = runSuspendCatching {
         if (!EmailValidator.isValid(email)) throw InvalidEmailFormat()
+        if (PlaceholderEmail.isPlaceholder(email)) throw EmailDomainUnsupported()
         userClient.getUserByEmail(email)
             .onSuccess { throw EmailAlreadyExist() }
             .rethrowBusinessIf { it.statusCode != HttpStatusCode.NotFound.value }

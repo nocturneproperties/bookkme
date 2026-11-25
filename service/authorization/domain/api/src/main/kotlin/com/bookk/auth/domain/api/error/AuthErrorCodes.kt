@@ -19,4 +19,5 @@ object AuthErrorCodes {
     const val TELEGRAM_DATA_INVALID = BASE + 14
     const val TELEGRAM_DATA_EXPIRED = BASE + 15
     const val TELEGRAM_SIGN_IN_UNAVAILABLE = BASE + 16
+    const val EMAIL_DOMAIN_UNSUPPORTED = BASE + 17
 }

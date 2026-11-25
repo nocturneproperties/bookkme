@@ -12,6 +12,13 @@ wrong code leaves the passkey challenge in place, so the user can type the
 code again. If anything after the code check fails, the code is released
 and can be used again; once the account exists it is spent.
 
+The app sends the user's full name in one field, `userInfo.name`. It is
+split at the first run of whitespace: the first word is the first name and
+the rest, with the whitespace between words collapsed, the last name, which
+may be empty ("John") or a single letter ("John D"). An older app that
+still sends the last name separately (field 2) has it ignored, so the
+account gets only the first name.
+
 The user is created in the user service through [Create user
 (internal)](../user/create-user-internal.md), which also records the legal
 document versions the app sent in `acceptedDocuments`. The field is
@@ -42,7 +49,8 @@ flowchart TD
     Redeem -- verified email --> Verify[FinishPasskeyRegistration.verifyRequest request]
     Verify -- missing, expired or already taken challenge --> R422a([422 CHALLENGE_WINDOW_EXPIRED 6])
     Verify -- malformed, signature, challenge or origin invalid --> R422b([422 VERIFICATION_FAILED 4])
-    Verify -- ok --> CreateUser[UserClient.createUser name lastName verified email acceptedDocuments]
+    Verify -- ok --> Split[PersonName.of userInfo.name<br/>first word = name, the rest = lastName, may be empty]
+    Split --> CreateUser[UserClient.createUser name lastName verified email acceptedDocuments]
     CreateUser -- already exists --> R422c([422 USER_ALREADY_EXIST 3])
     CreateUser -- version not published --> R422e([422 LEGAL_DOCUMENT_VERSION_UNKNOWN 100003])
     CreateUser -- version in effect not accepted --> R422f([422 LEGAL_DOCUMENTS_NOT_ACCEPTED 100004])

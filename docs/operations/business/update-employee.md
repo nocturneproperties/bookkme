@@ -11,7 +11,11 @@ numbers match `Employee`'s, so a client still sending a full `Employee`
 decodes cleanly and the extra fields are ignored. The target employee is
 looked up by `(businessId, id)` before the write, so a caller holding
 `EMPLOYEES.update` on one business cannot edit another business's employee
-by id.
+by id. Every check on the body alone (names, phone, email, schedule) runs
+before the transaction, so a rejected body never takes a connection and
+answers 422 even to a caller without the permission. The first name takes
+2 to 512 characters and the last name 0 to 512, so it may be empty or a
+single letter, as sign-up allows.
 
 ```mermaid
 flowchart TD
@@ -19,15 +23,7 @@ flowchart TD
     PathCheck -- No --> R400([400 Bad Request])
     PathCheck -- Yes --> Auth{JWT valid?}
     Auth -- No --> R401([401 Unauthorized])
-    Auth -- Yes --> Tx[[Begin transaction]]
-    Tx --> Suspended{BusinessPermissionDataSource.getPermission - caller is a suspended employee of the business?}
-    Suspended -- Yes --> R403s([403 BUSINESS_EMPLOYEE_ACCESS_SUSPENDED 200034])
-    Suspended -- No --> Perm{caller EMPLOYEES.update?}
-    Perm -- No --> R404a([404 Error.OperationNotAllowed])
-    Perm -- Yes --> Lookup[EmployeeDataSource.getEmployee businessId, id]
-    Lookup --> Found{employee found in this business?}
-    Found -- No --> R404b([404 Error.NotFound])
-    Found -- Yes --> NameCheck{name and lastName valid?}
+    Auth -- Yes --> NameCheck{name 2-512 chars and lastName 0-512 chars?}
     NameCheck -- No --> R422a([422 BUSINESS_EMPLOYEE_VALIDATION_ERROR 200021])
     NameCheck -- Yes --> PhoneCheck{phone valid, if present?}
     PhoneCheck -- No --> R422a
@@ -39,6 +35,14 @@ flowchart TD
     EmptyRange -- Yes --> R422e([422 BUSINESS_EMPLOYEE_EMPTY_WORK_HOUR_RANGE 200043])
     EmptyRange -- No --> DayOffRange{any dayOff.start > end?}
     DayOffRange -- Yes --> R422c([422 BUSINESS_EMPLOYEE_INVALID_DAY_OFF_RANGE 200023])
-    DayOffRange -- No --> Update[EmployeeDataSource.updateEmployee model]
+    DayOffRange -- No --> Tx[[Begin transaction]]
+    Tx --> Suspended{BusinessPermissionDataSource.getPermission - caller is a suspended employee of the business?}
+    Suspended -- Yes --> R403s([403 BUSINESS_EMPLOYEE_ACCESS_SUSPENDED 200034])
+    Suspended -- No --> Perm{caller EMPLOYEES.update?}
+    Perm -- No --> R404a([404 Error.OperationNotAllowed])
+    Perm -- Yes --> Lookup[EmployeeDataSource.getEmployee businessId, id]
+    Lookup --> Found{employee found in this business?}
+    Found -- No --> R404b([404 Error.NotFound])
+    Found -- Yes --> Update[EmployeeDataSource.updateEmployee model]
     Update --> R200([200 Updated Employee with its permissions, via EmployeeEntity.grants])
 ```

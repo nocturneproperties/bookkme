@@ -18,6 +18,7 @@ import io.mockk.coVerify
 import io.mockk.mockk
 import library.email.EmailCodeError
 import library.email.EmailSendError
+import library.email.PlaceholderEmail
 import library.email.test.EmailTestMailbox
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -40,8 +41,7 @@ internal class StartRegistrationImplTest {
     }
 
     private val validRequest = CreateAccountRequest(
-        firstName = "John",
-        lastName = "Doe",
+        name = "  John   Doe ",
         email = "john.doe@example.com",
     )
 
@@ -119,6 +119,37 @@ internal class StartRegistrationImplTest {
 
         then()
         assertTrue(result.exceptionOrNull() is StartRegistration.Error.InvalidEmailFormat)
+        assertTrue(fixture.mailbox.sent.isEmpty())
+    }
+
+    @Test
+    fun `should return EmailDomainUnsupported before any lookup or send for the Telegram placeholder domain`() =
+        runUnitTest {
+            given()
+            val fixture = SutFixture()
+            val placeholderRequest = validRequest.copy(email = PlaceholderEmail.forTelegramUser(42))
+
+            whenn()
+            val result = fixture.sut.invoke(placeholderRequest, Language.EN)
+
+            then()
+            assertTrue(result.exceptionOrNull() is StartRegistration.Error.EmailDomainUnsupported) { result.toString() }
+            assertTrue(fixture.mailbox.sent.isEmpty())
+            coVerify(exactly = 0) { fixture.userClient.getUserByEmail(any()) }
+            coVerify(exactly = 0) { fixture.startPasskeyRegistration(any(), any()) }
+        }
+
+    @Test
+    fun `should return EmailDomainUnsupported for a subdomain of the placeholder domain`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val placeholderRequest = validRequest.copy(email = "someone@mail.telegramundeliverable.org")
+
+        whenn()
+        val result = fixture.sut.invoke(placeholderRequest, Language.EN)
+
+        then()
+        assertTrue(result.exceptionOrNull() is StartRegistration.Error.EmailDomainUnsupported) { result.toString() }
         assertTrue(fixture.mailbox.sent.isEmpty())
     }
 

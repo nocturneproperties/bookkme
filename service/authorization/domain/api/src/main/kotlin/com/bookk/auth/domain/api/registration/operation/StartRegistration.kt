@@ -27,5 +27,13 @@ interface StartRegistration {
                 message = "Invalid email format",
             ),
             Error
+
+        class EmailDomainUnsupported :
+            BusinessError(
+                statusCode = HttpStatusCode.UnprocessableEntity.value,
+                code = AuthErrorCodes.EMAIL_DOMAIN_UNSUPPORTED,
+                message = "Email addresses on this domain are not supported",
+            ),
+            Error
     }
 }

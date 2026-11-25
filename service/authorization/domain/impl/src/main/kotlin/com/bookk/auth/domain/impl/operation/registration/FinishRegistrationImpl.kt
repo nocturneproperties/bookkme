@@ -80,9 +80,10 @@ internal class FinishRegistrationImpl(
         request: VerifyAccountCreationRequest,
         verifiedEmail: String,
     ): CreateUserRequest {
+        val personName = PersonName.of(request.userInfo.name)
         return CreateUserRequest(
-            name = request.userInfo.name,
-            lastName = request.userInfo.lastName,
+            name = personName.name,
+            lastName = personName.lastName,
             email = verifiedEmail,
             acceptedDocuments = request.acceptedDocuments,
             telegramUserId = null,
