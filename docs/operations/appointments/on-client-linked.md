@@ -78,5 +78,5 @@ flowchart TD
 ```
 
 **Consumed by:**
-- `AppointmentEvent.CancelledForDeletedClient`, sent by either erasure when the account or the client was already deleted → [notifications: tell the employee](../notifications/on-appointment-cancelled-for-deleted-client.md).
+- `AppointmentEvent.CancelledForDeletedClient`, sent by the account erasure when the account was already deleted → [notifications: tell the employee](../notifications/on-appointment-cancelled-for-deleted-client.md).
 - `AppointmentEvent.Cancelled`, sent by the client erasure to a client with an account → [notifications: tell the client](../notifications/on-appointment-cancelled.md).

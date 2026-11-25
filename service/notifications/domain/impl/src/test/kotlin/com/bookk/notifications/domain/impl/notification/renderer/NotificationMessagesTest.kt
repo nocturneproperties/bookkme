@@ -54,4 +54,18 @@ internal class NotificationMessagesTest {
         val misnamed = messages.filter { (_, message) -> shortName.containsMatchIn(message) }.map { it.first }
         assertTrue(misnamed.isEmpty()) { misnamed.toString() }
     }
+
+    @Test
+    fun `should call the account акаунт in every Ukrainian notification message`() = runUnitTest {
+        given()
+        val properties = propertiesOf(bundleOf(Language.UK))
+
+        whenn()
+        val misworded = properties.stringPropertyNames().filter { key ->
+            properties.getProperty(key).contains("обліков", ignoreCase = true)
+        }
+
+        then()
+        assertTrue(misworded.isEmpty()) { misworded.toString() }
+    }
 }

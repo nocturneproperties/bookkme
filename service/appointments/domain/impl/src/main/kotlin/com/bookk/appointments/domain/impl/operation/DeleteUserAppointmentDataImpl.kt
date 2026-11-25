@@ -14,6 +14,7 @@ import com.bookk.core.data.eventstreaming.send
 import com.bookk.core.domain.datasource.transaction.TransactionManager
 import com.bookk.library.serializer.moneyFormatter
 import com.bookk.server.appointments.client.api.event.AppointmentEvent
+import com.bookk.server.appointments.client.api.event.CancellationReasonKind
 import library.encryption.SubjectKeys
 import org.slf4j.LoggerFactory
 import kotlin.time.Clock
@@ -123,10 +124,10 @@ internal class DeleteUserAppointmentDataImpl(
             from = appointment.date,
             to = appointment.dateEnd,
             timeZone = business.timeZone,
-            address = business.address,
             businessName = business.name,
             price = moneyFormatter.print(appointment.totalAmount),
             reason = EMPLOYEE_DELETED_CANCELLATION_REASON,
+            reasonKind = CancellationReasonKind.EMPLOYEE_DELETED,
         )
     }
 

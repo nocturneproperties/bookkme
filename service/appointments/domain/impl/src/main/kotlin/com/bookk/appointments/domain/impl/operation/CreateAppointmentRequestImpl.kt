@@ -133,16 +133,13 @@ internal class CreateAppointmentRequestImpl(
         }
         eventProducer.send(
             AppointmentEvent.RequestCreated(
-                clientId = request.client.id,
                 clientUserId = request.client.userId,
-                clientName = request.client.fullName,
                 employeeUserId = request.employee.userId,
                 from = request.date,
                 to = request.dateEnd,
                 timeZone = business.timeZone,
-                businessName = business.name,
-                address = business.address,
                 price = moneyFormatter.print(request.totalAmount),
+                serviceNames = request.services.map { it.name },
             ),
         )
     }

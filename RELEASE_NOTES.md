@@ -41,6 +41,11 @@ Changes since `monolith/0.20.0`. Adds sign-in from a Telegram Mini App, which cr
 - An empty `fullName` with `erased` unset means the data is unreadable (a lost key), not deleted.
 - Signing out (`DELETE /api/auth/session`) or being signed out by a reused refresh token now removes the device's push token; send it again with `PUT /api/notifications/{deviceUuid}/token` after every sign-in.
 - An appointment whose employee deleted their account now keeps that employee's `employee.userId`, an id of no account, instead of the nil UUID; appointments erased earlier keep the nil UUID.
+- The new-request notification no longer names the client or the business: it reads "You have a new appointment request on {date}", and its email lists the services and the price.
+- Cancellation and decline notifications without a reason now say "no reason given" instead of ending in an empty reason.
+- Cancellation and decline emails no longer include the business address, and the decline push title now reads "Request declined".
+- When a business removes a client, only the client is notified of the cancelled appointments; the business's employees no longer get a notice for it.
+- Cancellation notifications for a client removed by the business or whose employee deleted their account now give that reason in the user's language instead of English.
 - In the data exports, `ClientExport` and `EmployeeExport` of the business export have `erased`, and the personal export's appointments have `employeeErased`, with an empty name, instead of the placeholder text.
 
 ### Services
@@ -54,6 +59,7 @@ Changes since `monolith/0.20.0`. Adds sign-in from a Telegram Mini App, which cr
 - The same `V14` adds `appointment.client_note_encrypted`, the table `saved_business` (erased with the account and with its business) and an index on `appointment(employee_id, date_end)`; existing double bookings of an employee stay and can still be edited as long as their time and employee don't change.
 - Migration user `V8` adds `profile.telegram_user_id_encrypted`; the user service stores the Telegram user id encrypted and sends it in `user.updated` (new field 9), and notifications saves it as the user's Telegram target.
 - New event `auth.device_signed_out` makes notifications clear the device's push token unless it was registered after the sign-out; migration notifications `V7` adds `device.notification_token_updated_at`, empty for existing tokens.
+- `appointment.request_created` has a new `serviceNames` (field 14), no longer carries the client name, business name, address and client id (fields 2, 8, 9, 13) and is no longer stored encrypted, `appointment.cancelled` has a new `reasonKind` (field 14), `appointment.cancelled` and `appointment.request_rejected` no longer carry the address (field 8), and `appointment.cancelled_for_deleted_client` loses `cause` (field 8) and is now sent only for a client's account deletion; when running separate services, update appointments and notifications together.
 - No email is ever sent to `@telegramundeliverable.org`; these accounts get their notifications, dormancy warnings included, through Telegram.
 - The business service's internal `GET /api/internal/client/{userId}/businesses` is removed; when running separate services, update business and appointments together.
 - Migration business `V22` adds the tables `business_link` and `business_link_change`, deleted with their business; the daily job `business-deleteReleasedBusinessLinks` frees replaced names after 90 days, and deleting a business frees its names at once.

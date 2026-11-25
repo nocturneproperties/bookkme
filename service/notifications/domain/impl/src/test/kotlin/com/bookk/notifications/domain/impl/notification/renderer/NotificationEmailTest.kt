@@ -88,4 +88,17 @@ internal class NotificationEmailTest {
         assertTrue(content.textBody.endsWith(footer))
         assertTrue(content.htmlBody.contains(footer))
     }
+
+    @Test
+    fun `should keep each line of the body on its own line in the html body`() = runUnitTest {
+        given()
+        val params = notification(email = { EmailNotification(subject = "Subject", body = "First <line>\nSecond") })
+
+        whenn()
+        val content = params.emailContent(Language.EN)
+
+        then()
+        assertTrue(content.htmlBody.contains("<p>First &lt;line&gt;<br>Second</p>"))
+        assertTrue(content.textBody.startsWith("First <line>\nSecond"))
+    }
 }

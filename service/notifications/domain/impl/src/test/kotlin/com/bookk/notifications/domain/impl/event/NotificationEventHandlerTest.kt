@@ -171,9 +171,14 @@ internal class NotificationEventHandlerTest {
         given()
         val fixture = SutFixture()
         val event = AppointmentEvent.Cancelled(
-            clientUserId = null, employeeUserId = Uuid.random(),
-            from = from, to = to, timeZone = TimeZone.UTC, address = "1 Main St", businessName = "Salon",
-            price = "10 USD", reason = "changed plans",
+            clientUserId = null,
+            employeeUserId = Uuid.random(),
+            from = from,
+            to = to,
+            timeZone = TimeZone.UTC,
+            businessName = "Salon",
+            price = "10 USD",
+            reason = "changed plans",
         )
         fixture.start(this)
 

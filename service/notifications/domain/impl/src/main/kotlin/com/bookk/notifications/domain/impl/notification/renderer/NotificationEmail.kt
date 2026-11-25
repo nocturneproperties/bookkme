@@ -11,7 +11,7 @@ internal fun NotificationParameters.emailContent(language: Language): EmailConte
     return EmailContent(
         subject = notification.subject,
         textBody = "${notification.body}\n\n$footer",
-        htmlBody = "<p>${notification.body.escapedHtml()}</p>" +
+        htmlBody = "<p>${notification.body.escapedHtml().replace("\n", "<br>")}</p>" +
             "<p style=\"color:#6b7280;font-size:12px\">${footer.escapedHtml()}</p>",
     )
 }

@@ -5,7 +5,9 @@ Kafka topic `AppointmentEvent.RequestCreated` → `NotificationEventHandler` →
 Produced by [Create appointment request](../appointments/create-appointment-request.md)
 (the manual-approval path only — see [Send
 notification](#shared-send-notification-behavior) below). Notifies the
-employee a new request is waiting for them.
+employee a new request is waiting for them, with its date; the email also
+lists the services (a service booked more than once as `name ×count`) and the
+price.
 
 ```mermaid
 flowchart TD
