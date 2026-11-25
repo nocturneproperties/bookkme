@@ -2,6 +2,7 @@ package com.bookk.appointments.data.datasource
 
 import com.bookk.appointments.data.orm.entity.AppointmentRequestEntity
 import com.bookk.appointments.data.orm.entity.AppointmentRequestServiceEntity
+import com.bookk.appointments.data.orm.entity.withDetails
 import com.bookk.appointments.data.orm.table.AppointmentRequestServicesTable
 import com.bookk.appointments.data.orm.table.AppointmentRequestTable
 import com.bookk.appointments.domain.api.entity.AppointmentRequest
@@ -31,7 +32,6 @@ import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.core.less
 import org.jetbrains.exposed.v1.core.lessEq
 import org.jetbrains.exposed.v1.core.or
-import org.jetbrains.exposed.v1.dao.with
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.selectAll
@@ -95,7 +95,7 @@ internal class AppointmentRequestDataSourceImpl(
             .limit(page.fetchSize)
             .toList()
             .toPage(page) { PageCursor(after = it.dateStart, id = it.id.value) }
-        val requests = entities.items.with(AppointmentRequestEntity::services).decrypted()
+        val requests = entities.items.withDetails().decrypted()
         Page(requests, entities.next)
     }
 
@@ -121,7 +121,7 @@ internal class AppointmentRequestDataSourceImpl(
             .limit(page.fetchSize)
             .toList()
             .toPage(page) { PageCursor(after = it.dateStart, id = it.id.value) }
-        val requests = entities.items.with(AppointmentRequestEntity::services).decrypted()
+        val requests = entities.items.withDetails().decrypted()
         Page(requests, entities.next)
     }
 
@@ -139,7 +139,7 @@ internal class AppointmentRequestDataSourceImpl(
             .orderBy(AppointmentRequestTable.dateStart to SortOrder.ASC)
             .limit(limit)
             .toList()
-            .with(AppointmentRequestEntity::services)
+            .withDetails()
             .decrypted()
     }
 
@@ -152,7 +152,7 @@ internal class AppointmentRequestDataSourceImpl(
         request.services.forEach {
             AppointmentRequestServiceEntity.new(requestEntity.id, it)
         }
-        request.copy(id = requestEntity.id.value)
+        request.copy(id = requestEntity.id.value, businessName = requestEntity.business.name)
     }
 
     override suspend fun update(request: AppointmentRequest): AppointmentRequest = dbQuery {

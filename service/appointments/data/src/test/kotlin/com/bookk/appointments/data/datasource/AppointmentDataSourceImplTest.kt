@@ -179,6 +179,114 @@ internal class AppointmentDataSourceImplTest {
     }
 
     @Test
+    fun `should return the business name with an appointment created from a request`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val business = BusinessSnapshot.stub(name = "Hair studio")
+        suspendTransaction { fixture.subscriptionSut.attachBusiness(business) }
+        val request = AppointmentRequest.stub(businessId = business.id)
+
+        whenn()
+        val created = suspendTransaction { fixture.sut.create(request) }
+        val found = suspendTransaction { fixture.sut.get(created.id) }
+
+        then()
+        assertEquals("Hair studio", created.businessName)
+        assertEquals("Hair studio", found.businessName)
+    }
+
+    @Test
+    fun `should return the business name with an appointment created from an appointment`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val business = BusinessSnapshot.stub(name = "Hair studio")
+        suspendTransaction { fixture.subscriptionSut.attachBusiness(business) }
+        val appointment = Appointment.stub(businessId = business.id)
+
+        whenn()
+        val created = suspendTransaction { fixture.sut.create(appointment) }
+
+        then()
+        assertEquals("Hair studio", created.businessName)
+    }
+
+    @Test
+    fun `should return the current business name after the business is renamed`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val business = BusinessSnapshot.stub(name = "Hair studio")
+        suspendTransaction { fixture.subscriptionSut.attachBusiness(business) }
+        val created = suspendTransaction { fixture.sut.create(AppointmentRequest.stub(businessId = business.id)) }
+        val renamed = business.copy(name = "Barber shop")
+        suspendTransaction { fixture.subscriptionSut.updateBusiness(renamed, Clock.System.now()) }
+
+        whenn()
+        val found = suspendTransaction { fixture.sut.get(created.id) }
+
+        then()
+        assertEquals("Barber shop", found.businessName)
+    }
+
+    @Test
+    fun `should return the name of each business with the client's appointments`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val clientUserId = Uuid.random()
+        val studio = BusinessSnapshot.stub(name = "Hair studio")
+        val barber = BusinessSnapshot.stub(name = "Barber shop")
+        suspendTransaction {
+            fixture.subscriptionSut.attachBusiness(studio)
+            fixture.subscriptionSut.attachBusiness(barber)
+        }
+        val atStudio = fixture.createForClientUser(clientUserId, Instant.fromEpochMilliseconds(0), studio.id)
+        val atBarber = fixture.createForClientUser(clientUserId, Instant.fromEpochMilliseconds(0), barber.id)
+
+        whenn()
+        val page = suspendTransaction {
+            fixture.sut.getPageOfClientUser(clientUserId, OwnAppointmentFilter(), Clock.System.now(), pageRequest())
+        }
+
+        then()
+        val names = page.items.associate { it.id to it.businessName }
+        assertEquals(mapOf(atStudio.id to "Hair studio", atBarber.id to "Barber shop"), names)
+    }
+
+    @Test
+    fun `should load the client's appointments across businesses with a constant number of queries`() =
+        runUnitTest {
+            given()
+            val fixture = SutFixture()
+            fixture.setup()
+            val singleUserId = Uuid.random()
+            val severalUserId = Uuid.random()
+            fixture.createForClientUser(
+                singleUserId,
+                Instant.fromEpochMilliseconds(0),
+                fixture.attachBusiness(automaticCompletion = true),
+            )
+            repeat(3) {
+                fixture.createForClientUser(
+                    severalUserId,
+                    Instant.fromEpochMilliseconds(0),
+                    fixture.attachBusiness(automaticCompletion = true),
+                )
+            }
+            val now = Clock.System.now()
+
+            whenn()
+            val singleQueries = countStatements {
+                fixture.sut.getPageOfClientUser(singleUserId, OwnAppointmentFilter(), now, pageRequest())
+            }
+            val severalQueries = countStatements {
+                fixture.sut.getPageOfClientUser(severalUserId, OwnAppointmentFilter(), now, pageRequest())
+            }
+
+            then()
+            assertEquals(singleQueries, severalQueries)
+        }
+
+    @Test
     fun `should retrieve all appointments for business`() = runUnitTest {
         given()
         val fixture = SutFixture()

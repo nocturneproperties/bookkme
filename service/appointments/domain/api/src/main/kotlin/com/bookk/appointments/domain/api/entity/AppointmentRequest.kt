@@ -19,6 +19,7 @@ data class AppointmentRequest(
     @ProtoNumber(8) override val date: Instant,
     @ProtoNumber(9) val note: String,
     @ProtoNumber(10) val declineReason: String,
+    @ProtoNumber(11) val businessName: String = "",
 ) : AppointmentRepresentation {
 
     @Transient
@@ -48,6 +49,7 @@ data class AppointmentRequest(
             businessId: Uuid = Uuid.random(),
             date: Instant = Instant.fromEpochMilliseconds(0),
             employee: EmployeeSnapshot = EmployeeSnapshot.stub(),
+            businessName: String = "",
         ) = AppointmentRequest(
             id = id,
             initiatorUserId = initiatorUserId,
@@ -59,6 +61,7 @@ data class AppointmentRequest(
             date = date,
             note = "Note",
             declineReason = "",
+            businessName = businessName,
         )
     }
 }

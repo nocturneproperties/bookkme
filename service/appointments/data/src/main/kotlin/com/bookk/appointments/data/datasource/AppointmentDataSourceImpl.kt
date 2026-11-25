@@ -220,7 +220,7 @@ internal class AppointmentDataSourceImpl(
         appointment.services.forEach {
             AppointmentServiceEntity.new(appointmentEntity.id, it)
         }
-        appointment.copy(id = appointmentEntity.id.value)
+        appointment.copy(id = appointmentEntity.id.value, businessName = appointmentEntity.business.name)
     }
 
     override suspend fun update(appointment: Appointment): Appointment = dbQuery {

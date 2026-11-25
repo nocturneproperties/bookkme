@@ -19,6 +19,7 @@ Changes since `monolith/0.20.0`. Adds sign-in from a Telegram Mini App, which cr
 - `PriceAdjustment.additionalServices` in every appointment response is now field 4, a list of `{service, count}` with each service once; the old repeated snapshot list (field 1) is removed.
 - New `GET /api/appointments/upcoming` returns the caller's 2 nearest scheduled appointments that haven't ended and 2 nearest pending requests that haven't started, across all businesses, with each appointment's `note` left empty.
 - `Appointment` has a new `clientNote` (field 13): the request's note, copied when the request is approved; staff can't edit it, and appointments approved before 0.21.0 have it empty.
+- `Appointment` and `AppointmentRequest` in every response have a new `businessName` (fields 14 and 11), the business's current name, so lists across businesses need no separate business lookup.
 - New `GET /api/appointments/businesses` lists the caller's saved businesses with `enabled`, `savedAt` and `lastVisitAt` (start of the last completed appointment, absent if none); read names from the business service by id.
 - New `POST` and `DELETE /api/appointments/businesses/{businessId}` save and remove a business; saving answers 422 `APPOINTMENTS_NOT_ENABLED` (300030) for a business without appointments and `SAVED_BUSINESSES_LIMIT_REACHED` (300031) past 100 saved businesses.
 - `GET /api/appointments/enabled` is removed; use `GET /api/appointments/businesses`.

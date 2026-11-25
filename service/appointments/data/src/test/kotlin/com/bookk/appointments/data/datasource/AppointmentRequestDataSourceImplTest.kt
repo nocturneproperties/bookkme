@@ -85,6 +85,100 @@ internal class AppointmentRequestDataSourceImplTest {
     }
 
     @Test
+    fun `should return the business name with a created request`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val business = BusinessSnapshot.stub(name = "Hair studio")
+        suspendTransaction { fixture.subscriptionSut.attachBusiness(business) }
+        val request = AppointmentRequest.stub(businessId = business.id)
+
+        whenn()
+        val created = suspendTransaction { fixture.sut.create(request) }
+        val found = suspendTransaction { fixture.sut.get(created.id) }
+
+        then()
+        assertEquals("Hair studio", created.businessName)
+        assertEquals("Hair studio", found?.businessName)
+    }
+
+    @Test
+    fun `should return the current business name after the business is renamed`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val business = BusinessSnapshot.stub(name = "Hair studio")
+        suspendTransaction { fixture.subscriptionSut.attachBusiness(business) }
+        val created = suspendTransaction { fixture.sut.create(AppointmentRequest.stub(businessId = business.id)) }
+        val renamed = business.copy(name = "Barber shop")
+        suspendTransaction { fixture.subscriptionSut.updateBusiness(renamed, Clock.System.now()) }
+
+        whenn()
+        val found = suspendTransaction { fixture.sut.get(created.id) }
+
+        then()
+        assertEquals("Barber shop", found?.businessName)
+    }
+
+    @Test
+    fun `should return the name of each business with the initiator's requests`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val studio = BusinessSnapshot.stub(name = "Hair studio")
+        val barber = BusinessSnapshot.stub(name = "Barber shop")
+        suspendTransaction {
+            fixture.subscriptionSut.attachBusiness(studio)
+            fixture.subscriptionSut.attachBusiness(barber)
+        }
+        val atStudio = suspendTransaction {
+            fixture.sut.create(AppointmentRequest.stub(initiatorUserId = userId, businessId = studio.id))
+        }
+        val atBarber = suspendTransaction {
+            fixture.sut.create(AppointmentRequest.stub(initiatorUserId = userId, businessId = barber.id))
+        }
+
+        whenn()
+        val page = suspendTransaction {
+            fixture.sut.getPageOfInitiator(userId, OwnAppointmentRequestFilter(), Clock.System.now(), pageRequest())
+        }
+
+        then()
+        val names = page.items.associate { it.id to it.businessName }
+        assertEquals(mapOf(atStudio.id to "Hair studio", atBarber.id to "Barber shop"), names)
+    }
+
+    @Test
+    fun `should load the initiator's requests across businesses with a constant number of queries`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val singleUserId = Uuid.random()
+        val severalUserId = Uuid.random()
+        val businesses = List(4) { BusinessSnapshot.stub() }
+        suspendTransaction { businesses.forEach { fixture.subscriptionSut.attachBusiness(it) } }
+        suspendTransaction {
+            fixture.sut.create(AppointmentRequest.stub(initiatorUserId = singleUserId, businessId = businesses[0].id))
+            businesses.drop(1).forEach {
+                fixture.sut.create(AppointmentRequest.stub(initiatorUserId = severalUserId, businessId = it.id))
+            }
+        }
+        val now = Clock.System.now()
+
+        whenn()
+        val singleQueries = suspendTransaction {
+            val before = statementCount
+            fixture.sut.getPageOfInitiator(singleUserId, OwnAppointmentRequestFilter(), now, pageRequest())
+            statementCount - before
+        }
+        val severalQueries = suspendTransaction {
+            val before = statementCount
+            fixture.sut.getPageOfInitiator(severalUserId, OwnAppointmentRequestFilter(), now, pageRequest())
+            statementCount - before
+        }
+
+        then()
+        assertEquals(singleQueries, severalQueries)
+    }
+
+    @Test
     fun `should create request at the start of a declined one for the same client`() = runUnitTest {
         given()
         val fixture = SutFixture()

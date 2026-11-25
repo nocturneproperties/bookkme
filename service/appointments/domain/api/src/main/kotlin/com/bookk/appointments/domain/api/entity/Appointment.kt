@@ -25,6 +25,7 @@ data class Appointment(
     @ProtoNumber(11) val completedBy: AppointmentCompletedBy?,
     @ProtoNumber(12) val priceAdjustment: PriceAdjustment?,
     @ProtoNumber(13) val clientNote: String = "",
+    @ProtoNumber(14) val businessName: String = "",
 ) : AppointmentRepresentation {
     @Transient
     override val dateEnd = date + services.fold(0.minutes) { acc, service ->
@@ -74,6 +75,7 @@ data class Appointment(
             note: String = "Note",
             clientNote: String = "",
             status: AppointmentStatus = AppointmentStatus.SCHEDULED,
+            businessName: String = "",
         ) = Appointment(
             id = id,
             initiatorUserId = initiatorUserId,
@@ -88,6 +90,7 @@ data class Appointment(
             completedBy = null,
             priceAdjustment = null,
             clientNote = clientNote,
+            businessName = businessName,
         )
     }
 }
