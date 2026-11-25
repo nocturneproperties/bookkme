@@ -14,7 +14,6 @@ import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.core.or
-import org.jetbrains.exposed.v1.dao.with
 import org.jetbrains.exposed.v1.jdbc.select
 import kotlin.uuid.Uuid
 
@@ -48,8 +47,8 @@ internal class UserDataExportDataSourceImpl(
                     (AppointmentRequestTable.initiatorUserId eq userId)
             }
             .orderBy(AppointmentRequestTable.dateStart to SortOrder.ASC)
-            .with(AppointmentRequestEntity::services)
             .toList()
+            .withDetails()
             .let { requests ->
                 val snapshots = snapshotCipher.decryptAll(
                     requests.map { it.storedSnapshot() },

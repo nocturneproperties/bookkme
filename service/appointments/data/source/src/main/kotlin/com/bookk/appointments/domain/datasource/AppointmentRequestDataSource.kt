@@ -2,6 +2,7 @@ package com.bookk.appointments.domain.datasource
 
 import com.bookk.appointments.domain.api.entity.AppointmentRequest
 import com.bookk.appointments.domain.api.entity.AppointmentRequestHistoryFilter
+import com.bookk.appointments.domain.api.entity.OwnAppointmentRequestFilter
 import com.bookk.appointments.domain.api.entity.StartBounds
 import com.bookk.core.domain.entity.Page
 import com.bookk.core.domain.entity.PageRequest
@@ -18,6 +19,12 @@ interface AppointmentRequestDataSource {
         businessId: Uuid,
         filter: AppointmentRequestHistoryFilter,
         starts: StartBounds,
+        page: PageRequest,
+    ): Page<AppointmentRequest>
+    suspend fun getPageOfInitiator(
+        initiatorUserId: Uuid,
+        filter: OwnAppointmentRequestFilter,
+        now: Instant,
         page: PageRequest,
     ): Page<AppointmentRequest>
     suspend fun getUpcomingPendingOfUser(userId: Uuid, startingAfter: Instant, limit: Int): List<AppointmentRequest>

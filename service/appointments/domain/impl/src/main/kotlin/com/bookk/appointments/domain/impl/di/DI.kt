@@ -22,6 +22,8 @@ import com.bookk.appointments.domain.api.operation.GetAppointmentRequests
 import com.bookk.appointments.domain.api.operation.GetAppointmentsForDate
 import com.bookk.appointments.domain.api.operation.GetAvailableSlots
 import com.bookk.appointments.domain.api.operation.GetBookingInfo
+import com.bookk.appointments.domain.api.operation.GetOwnAppointmentHistory
+import com.bookk.appointments.domain.api.operation.GetOwnAppointmentRequestHistory
 import com.bookk.appointments.domain.api.operation.GetSavedBusinesses
 import com.bookk.appointments.domain.api.operation.GetSettings
 import com.bookk.appointments.domain.api.operation.GetUpcomingBookings
@@ -56,6 +58,8 @@ import com.bookk.appointments.domain.impl.operation.GetAppointmentRequestsImpl
 import com.bookk.appointments.domain.impl.operation.GetAppointmentsForDateImpl
 import com.bookk.appointments.domain.impl.operation.GetAvailableSlotsImpl
 import com.bookk.appointments.domain.impl.operation.GetBookingInfoImpl
+import com.bookk.appointments.domain.impl.operation.GetOwnAppointmentHistoryImpl
+import com.bookk.appointments.domain.impl.operation.GetOwnAppointmentRequestHistoryImpl
 import com.bookk.appointments.domain.impl.operation.GetSavedBusinessesImpl
 import com.bookk.appointments.domain.impl.operation.GetSettingsImpl
 import com.bookk.appointments.domain.impl.operation.GetUpcomingBookingsImpl
@@ -108,6 +112,8 @@ fun appointmentsDomainModule() = module {
         scopedOf(::IsAppointmentsEnabledImpl) bind IsAppointmentsEnabled::class
         scopedOf(::GetUpcomingBookingsImpl) bind GetUpcomingBookings::class
         scoped<GetAvailableSlots> { GetAvailableSlotsImpl(get(), get(), get(), get(), get(), Clock.System) }
+        scoped<GetOwnAppointmentHistory> { GetOwnAppointmentHistoryImpl(get(), get(), Clock.System) }
+        scoped<GetOwnAppointmentRequestHistory> { GetOwnAppointmentRequestHistoryImpl(get(), get(), Clock.System) }
         scopedOf(::GetSavedBusinessesImpl) bind GetSavedBusinesses::class
         scopedOf(::GetBookingInfoImpl) bind GetBookingInfo::class
         scopedOf(::SaveBusinessImpl) bind SaveBusiness::class

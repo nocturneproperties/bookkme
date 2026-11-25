@@ -2,12 +2,15 @@ package com.bookk.appointments.data.datasource
 
 import com.bookk.appointments.data.orm.entity.AppointmentRequestEntity
 import com.bookk.appointments.data.orm.entity.AppointmentRequestServiceEntity
+import com.bookk.appointments.data.orm.entity.withDetails
 import com.bookk.appointments.data.orm.table.AppointmentRequestServicesTable
 import com.bookk.appointments.data.orm.table.AppointmentRequestTable
 import com.bookk.appointments.domain.api.entity.AppointmentRequest
 import com.bookk.appointments.domain.api.entity.AppointmentRequestHistoryFilter
 import com.bookk.appointments.domain.api.entity.AppointmentRequestStatus
+import com.bookk.appointments.domain.api.entity.BookingPeriod
 import com.bookk.appointments.domain.api.entity.HistoryOrder
+import com.bookk.appointments.domain.api.entity.OwnAppointmentRequestFilter
 import com.bookk.appointments.domain.api.entity.StartBounds
 import com.bookk.appointments.domain.datasource.AppointmentRequestDataSource
 import com.bookk.core.data.DataSource
@@ -27,8 +30,8 @@ import org.jetbrains.exposed.v1.core.greater
 import org.jetbrains.exposed.v1.core.greaterEq
 import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.core.less
+import org.jetbrains.exposed.v1.core.lessEq
 import org.jetbrains.exposed.v1.core.or
-import org.jetbrains.exposed.v1.dao.with
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.selectAll
@@ -92,7 +95,33 @@ internal class AppointmentRequestDataSourceImpl(
             .limit(page.fetchSize)
             .toList()
             .toPage(page) { PageCursor(after = it.dateStart, id = it.id.value) }
-        val requests = entities.items.with(AppointmentRequestEntity::services).decrypted()
+        val requests = entities.items.withDetails().decrypted()
+        Page(requests, entities.next)
+    }
+
+    override suspend fun getPageOfInitiator(
+        initiatorUserId: Uuid,
+        filter: OwnAppointmentRequestFilter,
+        now: Instant,
+        page: PageRequest,
+    ): Page<AppointmentRequest> = dbQuery {
+        val keyset = if (filter.period == BookingPeriod.UPCOMING) soonestFirst else newestFirst
+        val conditions = listOfNotNull(
+            AppointmentRequestTable.initiatorUserId eq initiatorUserId,
+            filter.statuses.takeIf { it.isNotEmpty() }?.let { AppointmentRequestTable.status inList it },
+            when (filter.period) {
+                BookingPeriod.UPCOMING -> AppointmentRequestTable.dateStart greater now
+                BookingPeriod.PAST -> AppointmentRequestTable.dateStart lessEq now
+                null -> null
+            },
+            keyset.after(page.after),
+        )
+        val entities = AppointmentRequestEntity.find { conditions.reduce { acc, condition -> acc and condition } }
+            .orderBy(*keyset.orderBy())
+            .limit(page.fetchSize)
+            .toList()
+            .toPage(page) { PageCursor(after = it.dateStart, id = it.id.value) }
+        val requests = entities.items.withDetails().decrypted()
         Page(requests, entities.next)
     }
 
@@ -110,7 +139,7 @@ internal class AppointmentRequestDataSourceImpl(
             .orderBy(AppointmentRequestTable.dateStart to SortOrder.ASC)
             .limit(limit)
             .toList()
-            .with(AppointmentRequestEntity::services)
+            .withDetails()
             .decrypted()
     }
 
@@ -123,7 +152,7 @@ internal class AppointmentRequestDataSourceImpl(
         request.services.forEach {
             AppointmentRequestServiceEntity.new(requestEntity.id, it)
         }
-        request.copy(id = requestEntity.id.value)
+        request.copy(id = requestEntity.id.value, businessName = requestEntity.business.name)
     }
 
     override suspend fun update(request: AppointmentRequest): AppointmentRequest = dbQuery {

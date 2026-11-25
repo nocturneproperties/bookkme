@@ -29,6 +29,7 @@ internal class AppointmentEntity(id: EntityID<Uuid>) : UuidEntity(id) {
 
     var initiatorUserId by AppointmentTable.initiatorUserId
     var businessId by AppointmentTable.businessId
+    val business by AppointmentBusinessEntity referencedOn AppointmentTable.businessId
     var employeeId by AppointmentTable.employeeId
     var employeeUserId by AppointmentTable.employeeUserId
     var employeeNameEncrypted by AppointmentTable.employeeNameEncrypted
@@ -88,6 +89,7 @@ internal class AppointmentEntity(id: EntityID<Uuid>) : UuidEntity(id) {
             completedBy = completedBy,
             priceAdjustment = priceAdjustments.singleOrNull()?.domain(),
             clientNote = client.clientNote,
+            businessName = business.name,
         )
     }
 
@@ -191,6 +193,7 @@ internal class AppointmentEntity(id: EntityID<Uuid>) : UuidEntity(id) {
 }
 
 internal fun List<AppointmentEntity>.withDetails(): List<AppointmentEntity> = this.with(
+    AppointmentEntity::business,
     AppointmentEntity::services,
     AppointmentEntity::priceAdjustments,
     PriceAdjustmentEntity::additionalServices,

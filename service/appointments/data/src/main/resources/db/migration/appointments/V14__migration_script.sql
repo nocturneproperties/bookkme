@@ -11,3 +11,6 @@ CREATE INDEX IF NOT EXISTS appointment_employee_id_date_start ON appointment (em
 CREATE INDEX IF NOT EXISTS appointment_client_id_date_start ON appointment (client_id, date_start);
 DROP INDEX IF EXISTS appointment_client_id ON appointment;
 CREATE INDEX IF NOT EXISTS appointment_request_business_date_start ON appointment_request (business_id, date_start);
+CREATE INDEX IF NOT EXISTS appointment_client_user_id_date_start ON appointment (client_user_id, date_start);
+DROP INDEX IF EXISTS appointment_client_user_id ON appointment;
+CREATE INDEX IF NOT EXISTS appointment_request_initiator_user_id_date_start ON appointment_request (initiator_user_id, date_start);

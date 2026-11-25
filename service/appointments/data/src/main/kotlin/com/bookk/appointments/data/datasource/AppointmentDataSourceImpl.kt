@@ -13,7 +13,9 @@ import com.bookk.appointments.domain.api.entity.AppointmentHistoryFilter
 import com.bookk.appointments.domain.api.entity.AppointmentRequest
 import com.bookk.appointments.domain.api.entity.AppointmentStatus
 import com.bookk.appointments.domain.api.entity.BookedRange
+import com.bookk.appointments.domain.api.entity.BookingPeriod
 import com.bookk.appointments.domain.api.entity.HistoryOrder
+import com.bookk.appointments.domain.api.entity.OwnAppointmentFilter
 import com.bookk.appointments.domain.api.entity.PriceAdjustment
 import com.bookk.appointments.domain.api.entity.StartBounds
 import com.bookk.appointments.domain.datasource.AppointmentDataSource
@@ -98,6 +100,31 @@ internal class AppointmentDataSourceImpl(
             .toList()
             .withDetails()
             .decrypted()
+    }
+
+    override suspend fun getPageOfClientUser(
+        clientUserId: Uuid,
+        filter: OwnAppointmentFilter,
+        now: Instant,
+        page: PageRequest,
+    ): Page<Appointment> = dbQuery {
+        val keyset = if (filter.period == BookingPeriod.UPCOMING) soonestFirst else newestFirst
+        val conditions = listOfNotNull(
+            AppointmentTable.clientUserId eq clientUserId,
+            filter.statuses.takeIf { it.isNotEmpty() }?.let { AppointmentTable.status inList it },
+            when (filter.period) {
+                BookingPeriod.UPCOMING -> AppointmentTable.dateEnd greater now
+                BookingPeriod.PAST -> AppointmentTable.dateEnd lessEq now
+                null -> null
+            },
+            keyset.after(page.after),
+        )
+        val entities = AppointmentEntity.find { conditions.reduce { acc, condition -> acc and condition } }
+            .orderBy(*keyset.orderBy())
+            .limit(page.fetchSize)
+            .toList()
+            .toPage(page) { PageCursor(after = it.dateStart, id = it.id.value) }
+        Page(entities.items.withDetails().decrypted(), entities.next)
     }
 
     override suspend fun getAllForDate(
@@ -193,7 +220,7 @@ internal class AppointmentDataSourceImpl(
         appointment.services.forEach {
             AppointmentServiceEntity.new(appointmentEntity.id, it)
         }
-        appointment.copy(id = appointmentEntity.id.value)
+        appointment.copy(id = appointmentEntity.id.value, businessName = appointmentEntity.business.name)
     }
 
     override suspend fun update(appointment: Appointment): Appointment = dbQuery {

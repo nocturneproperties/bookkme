@@ -52,7 +52,7 @@ erDiagram
         uuid employee_user_id "indexed; logical FK -> user.profile.id (employee's own userId); what account deletion cancels and renames by"
         bytes employee_name_encrypted "nullable; under the employee_user_id key, NULL when erased"
         uuid client_id "logical FK -> business.client.id"
-        uuid client_user_id "nullable, indexed; logical FK -> user.profile.id of the client's own account, empty for a client without one or once erased; who client notifications go to, and what account deletion erases by"
+        uuid client_user_id "nullable, non-unique index with date_start (the client's own history pages); logical FK -> user.profile.id of the client's own account, empty for a client without one or once erased; who client notifications go to, and what account deletion erases by"
         bytes client_name_encrypted "nullable; under the client_id key, NULL when erased"
         bytes client_phone_encrypted "nullable; under the client_id key"
         bytes client_email_encrypted "nullable; under the client_id key"
@@ -110,7 +110,7 @@ erDiagram
 
     APPOINTMENT_REQUEST {
         uuid id PK
-        uuid initiator_user_id "logical FK -> user.profile.id of whoever booked; non-unique index with business_id, date_start"
+        uuid initiator_user_id "logical FK -> user.profile.id of whoever booked; non-unique indexes with business_id, date_start and with date_start (the client's own request history pages)"
         uuid business_id FK
         uuid employee_id "logical FK -> business.employee.id"
         uuid employee_user_id "indexed; logical FK -> user.profile.id (employee's own userId); what account deletion cancels and renames by"

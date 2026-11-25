@@ -14,7 +14,7 @@ object AppointmentTable : BaseUUIDTable("appointment") {
     val employeeId = uuid("employee_id")
     val employeeUserId = uuid("employee_user_id").index()
     val clientId = uuid("client_id")
-    val clientUserId = uuid("client_user_id").nullable().index()
+    val clientUserId = uuid("client_user_id").nullable()
     val dateStart = timestamp("date_start")
     val dateEnd = timestamp("date_end").index()
     val status = enumeration("status", AppointmentStatus::class).index()
@@ -35,5 +35,6 @@ object AppointmentTable : BaseUUIDTable("appointment") {
         index("appointment_business_id_date_start", false, businessId, dateStart)
         index("appointment_employee_id_date_start", false, employeeId, dateStart)
         index("appointment_client_id_date_start", false, clientId, dateStart)
+        index("appointment_client_user_id_date_start", false, clientUserId, dateStart)
     }
 }
