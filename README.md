@@ -35,10 +35,10 @@ This repository holds the BookkMe backend. You can run it yourself to take booki
 - Services and service groups, each with its own price and duration
 - Staff accounts with invite codes and separate view, edit and delete permissions for business details, staff, clients, services and appointments, plus suspending access
 - Working hours, days off and schedules for every employee: a booking must fit both the business's hours and the employee's, a range ending before its start (such as 20:00 to 00:00) runs past midnight, a range can't start and end at the same time, and new employees (the owner included) start on the business's working days and hours
-- A client list with import, notes and automatic matching to client accounts
+- A client list with import, notes, search by name, email or phone, and automatic matching to client accounts
 - Booking requests you approve or decline, or instant booking when you prefer; clients can withdraw a request you haven't answered
 - A booking link with a name the owner picks, such as `bookkme.com/my-salon`; a replaced name keeps leading to the business for 90 days and no other business can take it meanwhile
-- Appointment history, completion and no-show tracking
+- Appointment and booking request history, filtered by client, staff member, status and dates, with completion and no-show tracking
 
 **For clients**
 
@@ -134,7 +134,7 @@ The server is configured through environment variables. `deployment/dev/service/
 | `APPLICATION_EMAIL_SENDER_NAME` | Sender name shown next to the mailbox address, such as your business name |
 | `APPLICATION_EMAIL_CODE_SECRET` | Random secret of at least 32 bytes for verification codes |
 | `APPLICATION_SUBJECT_MASTER_KEY` | Base64 of exactly 32 random bytes; wraps every person's encryption key. Keep it outside the database and never lose it: without it no encrypted field or export can be read |
-| `APPLICATION_BLIND_INDEX_KEY` | Base64 of at least 32 random bytes, for the keyed hashes that look up encrypted emails and phones and Telegram accounts |
+| `APPLICATION_BLIND_INDEX_KEY` | Base64 of at least 32 random bytes, for the keyed hashes that look up encrypted names, emails and phones and Telegram accounts |
 | `APPLICATION_TELEGRAM_BOT_ID` | Optional. The numeric id of the Telegram bot whose Mini App signs users in (the part of its token before the colon). Leave it unset to turn Telegram sign-in off |
 | `APPLICATION_TELEGRAM_BOT_TOKEN` | Optional, a secret. The token of that same bot, used only to send Telegram notifications. Leave it unset and nothing is sent to Telegram. Set it whenever Telegram sign-in is on, or accounts created through Telegram get no warning before a dormant account is deleted |
 

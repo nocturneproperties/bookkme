@@ -6,3 +6,8 @@ ALTER TABLE appointment ADD COLUMN IF NOT EXISTS client_note_encrypted VARBINARY
 CREATE TABLE IF NOT EXISTS saved_business (user_id BINARY(16) NOT NULL, business_id BINARY(16) NOT NULL, saved_at TIMESTAMP(6) NOT NULL, CONSTRAINT pk_saved_business PRIMARY KEY (user_id, business_id), CONSTRAINT fk_saved_business_business_id__id FOREIGN KEY (business_id) REFERENCES business_has_appointments(id) ON DELETE CASCADE ON UPDATE RESTRICT);
 CREATE INDEX IF NOT EXISTS saved_business_business_id ON saved_business (business_id);
 CREATE INDEX IF NOT EXISTS appointment_employee_id_date_end ON appointment (employee_id, date_end);
+CREATE INDEX IF NOT EXISTS appointment_business_id_date_start ON appointment (business_id, date_start);
+CREATE INDEX IF NOT EXISTS appointment_employee_id_date_start ON appointment (employee_id, date_start);
+CREATE INDEX IF NOT EXISTS appointment_client_id_date_start ON appointment (client_id, date_start);
+DROP INDEX IF EXISTS appointment_client_id ON appointment;
+CREATE INDEX IF NOT EXISTS appointment_request_business_date_start ON appointment_request (business_id, date_start);

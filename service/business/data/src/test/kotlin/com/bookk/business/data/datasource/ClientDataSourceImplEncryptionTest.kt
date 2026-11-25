@@ -12,6 +12,8 @@ import com.bookk.business.domain.api.client.entity.ClientUpdateModel
 import com.bookk.core.data.map.toDomain
 import com.bookk.core.data.test.createTestDatabase
 import com.bookk.core.domain.entity.Error
+import com.bookk.core.domain.entity.PageRequest
+import com.bookk.core.domain.entity.pageRequest
 import com.bookk.core.test.given
 import com.bookk.core.test.runUnitTest
 import com.bookk.core.test.then
@@ -50,6 +52,10 @@ internal class ClientDataSourceImplEncryptionTest {
         val sut = ClientDataSourceImpl(ContactCipher(subjectKeys, blindIndex, missingKeys))
         val businessSut = BusinessDataSourceImpl()
         lateinit var businessId: Uuid
+
+        suspend fun clients(): List<Client> {
+            return suspendTransaction { sut.getClientsPage(businessId, pageRequest(PageRequest.MAX_LIMIT), null) }.items
+        }
 
         suspend fun setup() {
             businessId = suspendTransaction {
@@ -366,7 +372,7 @@ internal class ClientDataSourceImplEncryptionTest {
         fixture.subjectKeys.shred(created.id)
 
         whenn()
-        val read = suspendTransaction { fixture.sut.getClients(fixture.businessId) }
+        val read = fixture.clients()
 
         then()
         assertEquals(

@@ -17,6 +17,9 @@ internal class ClientEntity(id: EntityID<Uuid>) : UuidEntity(id) {
     var emailEncrypted by ClientTable.emailEncrypted
     var descriptionEncrypted by ClientTable.descriptionEncrypted
     var emailIndex by ClientTable.emailIndex
+    var nameIndex by ClientTable.nameIndex
+    var phoneIndex by ClientTable.phoneIndex
+    val createdAt by ClientTable.createdAt
     var sourceUpdatedAt by ClientTable.sourceUpdatedAt
     var lastActivityAt by ClientTable.lastActivityAt
 
@@ -29,15 +32,6 @@ internal class ClientEntity(id: EntityID<Uuid>) : UuidEntity(id) {
             description = descriptionEncrypted,
         )
         return StoredContact(subjectId = id.value, encrypted = encrypted)
-    }
-
-    fun store(contact: EncryptedContact, emailIndex: String?, reindexEmail: Boolean) {
-        nameEncrypted = contact.name
-        lastNameEncrypted = contact.lastName
-        phoneEncrypted = contact.phone
-        emailEncrypted = contact.email
-        descriptionEncrypted = contact.description
-        if (reindexEmail) this.emailIndex = emailIndex
     }
 
     fun toDomain(contact: Contact): Client {
@@ -64,13 +58,35 @@ internal class ClientEntity(id: EntityID<Uuid>) : UuidEntity(id) {
     }
 
     companion object : DecoratorUuidEntityClass<ClientEntity>(ClientTable) {
-        fun UpdateBuilder<*>.writeContact(contact: EncryptedContact, emailIndex: String?) {
+        fun UpdateBuilder<*>.writeContact(contact: EncryptedContact, indexes: ContactIndexes) {
             this[ClientTable.nameEncrypted] = contact.name
             this[ClientTable.lastNameEncrypted] = contact.lastName
             this[ClientTable.phoneEncrypted] = contact.phone
             this[ClientTable.emailEncrypted] = contact.email
             this[ClientTable.descriptionEncrypted] = contact.description
-            this[ClientTable.emailIndex] = emailIndex
+            this[ClientTable.emailIndex] = indexes.email
+            this[ClientTable.nameIndex] = indexes.name
+            this[ClientTable.phoneIndex] = indexes.phone
+        }
+
+        fun ClientEntity.storeContact(contact: EncryptedContact, indexes: ContactIndexes, reindex: ContactReindex) {
+            nameEncrypted = contact.name
+            lastNameEncrypted = contact.lastName
+            phoneEncrypted = contact.phone
+            emailEncrypted = contact.email
+            descriptionEncrypted = contact.description
+            if (reindex.email) emailIndex = indexes.email
+            if (reindex.name) nameIndex = indexes.name
+            if (reindex.phone) phoneIndex = indexes.phone
+        }
+
+        fun findByIdAndUpdateSearchIndexes(
+            id: Uuid,
+            nameIndex: String?,
+            phoneIndex: String?,
+        ): ClientEntity? = findByIdAndUpdate(id) {
+            nameIndex?.let { index -> it.nameIndex = index }
+            phoneIndex?.let { index -> it.phoneIndex = index }
         }
     }
 }

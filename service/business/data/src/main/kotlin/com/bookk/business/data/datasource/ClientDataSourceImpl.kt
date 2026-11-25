@@ -1,8 +1,10 @@
 package com.bookk.business.data.datasource
 
 import com.bookk.business.data.orm.entity.ClientEntity
+import com.bookk.business.data.orm.entity.ClientEntity.Companion.storeContact
 import com.bookk.business.data.orm.entity.ClientEntity.Companion.writeContact
 import com.bookk.business.data.orm.entity.Contact
+import com.bookk.business.data.orm.entity.ContactReindex
 import com.bookk.business.data.orm.entity.EncryptedContact
 import com.bookk.business.data.orm.table.ClientTable
 import com.bookk.business.domain.api.client.entity.Client
@@ -11,13 +13,22 @@ import com.bookk.business.domain.api.client.entity.ClientUpdateModel
 import com.bookk.business.domain.api.client.entity.ErasedClient
 import com.bookk.business.domain.datasource.ClientDataSource
 import com.bookk.core.data.DataSource
+import com.bookk.core.data.Keyset
 import com.bookk.core.data.map.toDomain
 import com.bookk.core.domain.entity.Error
+import com.bookk.core.domain.entity.Page
+import com.bookk.core.domain.entity.PageCursor
+import com.bookk.core.domain.entity.PageRequest
+import com.bookk.core.domain.entity.toPage
 import org.jetbrains.exposed.v1.core.JoinType
+import org.jetbrains.exposed.v1.core.Op
+import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.alias
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.greater
 import org.jetbrains.exposed.v1.core.inList
+import org.jetbrains.exposed.v1.core.isNotNull
 import org.jetbrains.exposed.v1.core.isNull
 import org.jetbrains.exposed.v1.core.less
 import org.jetbrains.exposed.v1.core.or
@@ -51,13 +62,20 @@ internal class ClientDataSourceImpl(private val contactCipher: ContactCipher) : 
             this[ClientTable.id] = row.id
             this[ClientTable.businessId] = businessId
             this[ClientTable.userId] = null
-            writeContact(row.encrypted, contactCipher.emailIndex(row.contact.email))
+            writeContact(row.encrypted, contactCipher.indexes(row.contact))
         }
         clients.zip(rows) { client, row -> client.copy(id = row.id) }
     }
 
-    override suspend fun getClients(businessId: Uuid): List<Client> = dbQuery {
-        ClientEntity.find { ClientTable.businessId eq businessId }.toList().domains()
+    override suspend fun getClientsPage(businessId: Uuid, page: PageRequest, query: String?): Page<Client> = dbQuery {
+        val ofBusiness = ClientTable.businessId eq businessId
+        val where = if (query.isNullOrBlank()) ofBusiness else ofBusiness and matching(query)
+        val entities = ClientEntity.find { where and pageKeyset.after(page.after) }
+            .orderBy(*pageKeyset.orderBy())
+            .limit(page.fetchSize)
+            .toList()
+            .toPage(page) { PageCursor(after = it.createdAt, id = it.id.value) }
+        Page(entities.items.domains(), entities.next)
     }
 
     override suspend fun countClients(businessId: Uuid): Long = dbQuery {
@@ -117,7 +135,8 @@ internal class ClientDataSourceImpl(private val contactCipher: ContactCipher) : 
             phone = profile.phone?.trim() ?: current.phone,
             email = profileEmail ?: current.email,
         )
-        if (!entity.write(read, takenOver, reindexEmail = profileEmail != null)) return@dbQuery null
+        val reindex = ContactReindex(email = profileEmail != null, name = true, phone = profile.phone != null)
+        if (!entity.write(read, takenOver, reindex)) return@dbQuery null
         entity.userId = profile.userId
         entity.lastActivityAt = Clock.System.now()
         entity.toDomain(takenOver)
@@ -169,7 +188,12 @@ internal class ClientDataSourceImpl(private val contactCipher: ContactCipher) : 
             email = model.email ?: current.email,
             description = model.description ?: current.description,
         )
-        if (!entity.write(read, edited, reindexEmail = model.email != null)) return@dbQuery null
+        val reindex = ContactReindex(
+            email = model.email != null,
+            name = model.name != null || model.lastName != null,
+            phone = model.phone != null,
+        )
+        if (!entity.write(read, edited, reindex)) return@dbQuery null
         entity.lastActivityAt = Clock.System.now()
         entity.toDomain(edited)
     }
@@ -194,7 +218,8 @@ internal class ClientDataSourceImpl(private val contactCipher: ContactCipher) : 
                 email = email.trim(),
                 phone = phone?.trim() ?: read.contact.phone,
             )
-            entity.write(read, synced, reindexEmail = true).also { written ->
+            val reindex = ContactReindex(email = true, name = true, phone = phone != null)
+            entity.write(read, synced, reindex).also { written ->
                 if (written) entity.sourceUpdatedAt = updatedAt
             }
         }
@@ -245,6 +270,35 @@ internal class ClientDataSourceImpl(private val contactCipher: ContactCipher) : 
                 .map { it[ClientTable.id].value }
         }
 
+    override suspend fun indexClientContacts(after: Uuid, limit: Int): Uuid? = dbQuery {
+        val phoneUnindexed = ClientTable.phoneEncrypted.isNotNull() and ClientTable.phoneIndex.isNull()
+        val unindexed = ClientEntity
+            .find { (ClientTable.id greater after) and (ClientTable.nameIndex.isNull() or phoneUnindexed) }
+            .orderBy(ClientTable.id to SortOrder.ASC)
+            .limit(limit)
+            .forUpdate()
+            .toList()
+        val contacts = contactCipher.decryptAll(unindexed.map { it.storedContact() }, SOURCE)
+        unindexed.zip(contacts).forEach { (entity, contact) ->
+            ClientEntity.findByIdAndUpdateSearchIndexes(
+                id = entity.id.value,
+                nameIndex = contactCipher.nameIndex(contact.name, contact.lastName),
+                phoneIndex = contactCipher.phoneIndex(contact.phone),
+            )
+        }
+        unindexed.lastOrNull()?.id?.value
+    }
+
+    private fun matching(query: String): Op<Boolean> {
+        val indexes = contactCipher.searchIndexes(query)
+        val matches = listOfNotNull(
+            indexes.name?.let { ClientTable.nameIndex eq it },
+            indexes.email?.let { ClientTable.emailIndex eq it },
+            indexes.phone?.let { ClientTable.phoneIndex eq it },
+        )
+        return matches.reduceOrNull { acc, match -> acc or match } ?: Op.FALSE
+    }
+
     private suspend fun findIntegratedClient(businessId: Uuid, userId: Uuid): Client? {
         return ClientEntity.find { (ClientTable.businessId eq businessId) and (ClientTable.userId eq userId) }
             .firstOrNull()
@@ -263,7 +317,7 @@ internal class ClientDataSourceImpl(private val contactCipher: ContactCipher) : 
             it[ClientTable.id] = id
             it[this.businessId] = businessId
             it[this.userId] = userId
-            it.writeContact(encrypted, contactCipher.emailIndex(contact.email))
+            it.writeContact(encrypted, contactCipher.indexes(contact))
         }
     }
 
@@ -271,9 +325,9 @@ internal class ClientDataSourceImpl(private val contactCipher: ContactCipher) : 
         return checkNotNull(contactCipher.encrypt(id, contact)) { "The new client $id has a shredded key" }
     }
 
-    private suspend fun ClientEntity.write(read: ReadContact, contact: Contact, reindexEmail: Boolean): Boolean {
+    private suspend fun ClientEntity.write(read: ReadContact, contact: Contact, reindex: ContactReindex): Boolean {
         val encrypted = contactCipher.encryptChanges(read, contact) ?: return false
-        store(encrypted, contactCipher.emailIndex(contact.email), reindexEmail)
+        storeContact(encrypted, contactCipher.indexes(contact), reindex)
         return true
     }
 
@@ -304,5 +358,6 @@ internal class ClientDataSourceImpl(private val contactCipher: ContactCipher) : 
 
     private companion object {
         const val SOURCE = "client"
+        val pageKeyset = Keyset(ClientTable.createdAt, ClientTable.id, SortOrder.DESC)
     }
 }

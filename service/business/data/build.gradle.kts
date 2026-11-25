@@ -13,6 +13,7 @@ dependencies {
     implementation(projects.library.encryption.impl)
 
     testImplementation(testFixtures(projects.core))
+    testImplementation(testFixtures(projects.core.domain))
     testImplementation(testFixtures(projects.library.encryption.impl))
     testImplementation(testFixtures(projects.library.encryption.api))
     testImplementation(testFixtures(projects.core.data))

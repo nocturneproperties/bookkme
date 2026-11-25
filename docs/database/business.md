@@ -117,11 +117,13 @@ erDiagram
         bytes email_encrypted "nullable; at least one of phone/email required on create"
         bytes description_encrypted "nullable; business owner's notes about the client"
         string email_index "nullable; HMAC of the trimmed, lowercased email; UK with business_id"
+        string name_index "nullable; HMAC of the lowercased first and last name joined by single spaces; indexed with business_id (search)"
+        string phone_index "nullable; HMAC of the phone's digits; indexed with business_id (search)"
         uuid user_id "logical FK -> user.profile.id, nullable; UK with business_id"
         timestamp last_activity_at "latest booked visit end, or create/edit/takeover time; indexed with business_id; the business-deleteInactiveClients job deletes the row once it is older than the business retention period"
         boolean deletion_hold "default false; set by staff on the owner's instruction, business-deleteInactiveClients skips the row"
         timestamp source_updated_at
-        timestamp created_at
+        timestamp created_at "indexed with business_id; sort key of the paged client list, newest first"
         timestamp updated_at
     }
 
@@ -260,7 +262,7 @@ erDiagram
 
 `USER_LIMITS` holds a person's own creation limits inside the business service. Creating a business creates the row if it is missing and locks it (`SELECT … FOR UPDATE`) before counting the businesses the person owns, so their creations run one at a time without a cross-service call; businesses they only work at don't count; deleting the account deletes the row. Only an operator sets `max_businesses`.
 
-`CLIENT` holds each client's name, last name, phone, email and notes encrypted under the client's own key (`*_encrypted`, `library/encryption`, keyed by `id`), and `EMPLOYEE` an employee's name, last name, phone and email under their user's key (keyed by `user_id`), so deleting the row and shredding that key leaves nothing readable in backups. A client's email stays unique within the business and searchable (booking takeover, imports, profile merges) through `email_index`, a keyed HMAC of the trimmed, lowercased email; employees are never looked up by contact, so they get no index. 0.19.0 dropped the plaintext columns that rows written before 0.18.0 had.
+`CLIENT` holds each client's name, last name, phone, email and notes encrypted under the client's own key (`*_encrypted`, `library/encryption`, keyed by `id`), and `EMPLOYEE` an employee's name, last name, phone and email under their user's key (keyed by `user_id`), so deleting the row and shredding that key leaves nothing readable in backups. A client's email stays unique within the business and searchable (booking takeover, imports, profile merges) through `email_index`, a keyed HMAC of the trimmed, lowercased email. The client list's search matches a whole value only, through `name_index` (first and last name, lowercased, spaces collapsed), `email_index` or `phone_index` (digits only), so nothing is decrypted except the returned page; rows stored before 0.21.0 get their name and phone hashes from the `business-indexClientContacts` job. Employees are never looked up by contact, so they get no index. 0.19.0 dropped the plaintext columns that rows written before 0.18.0 had.
 
 `ERASED_CLIENT` records every client a business deleted (`DeleteClient` and the `business-deleteInactiveClients` retention job), in the same transaction as the deletion. Clients deleted with their user's account aren't recorded here: `authorization.erased_account` covers them. Like `ERASED_ACCOUNT`, the restore tool re-inserts the records from the latest backup with `reapply_requested`, and `business-reapplyErasures` deletes those clients again and sends `BusinessEvent.ClientDeleted`. Keyed by the client id alone, inserted once (`INSERT IGNORE`), kept 60 days, hidden from NocoDB.
 

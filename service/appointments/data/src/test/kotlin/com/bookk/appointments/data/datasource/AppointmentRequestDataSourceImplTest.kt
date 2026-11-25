@@ -6,11 +6,19 @@ import com.bookk.appointments.data.orm.table.AppointmentRequestTable
 import com.bookk.appointments.data.orm.table.DayOffsTable
 import com.bookk.appointments.data.orm.table.WorkingHoursTable
 import com.bookk.appointments.domain.api.entity.AppointmentRequest
+import com.bookk.appointments.domain.api.entity.AppointmentRequestHistoryFilter
 import com.bookk.appointments.domain.api.entity.AppointmentRequestStatus
+import com.bookk.appointments.domain.api.entity.AppointmentRequestStatus.DECLINED
+import com.bookk.appointments.domain.api.entity.AppointmentRequestStatus.PENDING
 import com.bookk.appointments.domain.api.entity.BusinessSnapshot
 import com.bookk.appointments.domain.api.entity.EmployeeSnapshot
+import com.bookk.appointments.domain.api.entity.HistoryOrder
+import com.bookk.appointments.domain.api.entity.StartBounds
 import com.bookk.core.data.cache.test.InMemoryCacheClient
 import com.bookk.core.data.test.createTestDatabase
+import com.bookk.core.domain.entity.Page
+import com.bookk.core.domain.entity.PageCursor
+import com.bookk.core.domain.entity.pageRequest
 import com.bookk.core.test.given
 import com.bookk.core.test.runUnitTest
 import com.bookk.core.test.then
@@ -130,35 +138,118 @@ internal class AppointmentRequestDataSourceImplTest {
         assertEquals(setOf(first.id, second.id), pending.map { it.id }.toSet())
     }
 
+    private suspend fun SutFixture.history(
+        filter: AppointmentRequestHistoryFilter = AppointmentRequestHistoryFilter(),
+        starts: StartBounds = StartBounds.OPEN,
+        after: PageCursor? = null,
+        limit: Int = 10,
+    ): Page<AppointmentRequest> {
+        return suspendTransaction { sut.getHistoryPage(businessId, filter, starts, pageRequest(limit, after)) }
+    }
+
     @Test
-    fun `should retrieve pending requests assigned to the employee user in the business by date`() = runUnitTest {
+    fun `should page every request of the business in any status newest first`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val otherBusiness = BusinessSnapshot.stub()
+        suspendTransaction { fixture.subscriptionSut.attachBusiness(otherBusiness) }
+        val pending = suspendTransaction { fixture.sut.create(fixture.buildRequest()) }
+        val approved = suspendTransaction {
+            fixture.sut.create(fixture.buildRequest(date = Instant.fromEpochMilliseconds(0) + 1.hours))
+        }
+        suspendTransaction { fixture.sut.approve(approved) }
+        val declined = suspendTransaction {
+            fixture.sut.create(fixture.buildRequest(date = Instant.fromEpochMilliseconds(0) + 2.hours))
+        }
+        suspendTransaction { fixture.sut.decline(declined.id, "Fully booked") }
+        suspendTransaction { fixture.sut.create(AppointmentRequest.stub(businessId = otherBusiness.id)) }
+
+        whenn()
+        val page = fixture.history()
+
+        then()
+        assertEquals(listOf(declined.id, approved.id, pending.id), page.items.map { it.id })
+        assertNull(page.next)
+    }
+
+    @Test
+    fun `should filter the request history by any of the given statuses`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val pending = suspendTransaction { fixture.sut.create(fixture.buildRequest()) }
+        val approved = suspendTransaction { fixture.sut.create(fixture.buildRequest()) }
+        suspendTransaction { fixture.sut.approve(approved) }
+        val declined = suspendTransaction { fixture.sut.create(fixture.buildRequest()) }
+        suspendTransaction { fixture.sut.decline(declined.id, "Fully booked") }
+
+        whenn()
+        val onlyPending = fixture.history(AppointmentRequestHistoryFilter(statuses = setOf(PENDING)))
+        val pendingOrDeclined = fixture.history(AppointmentRequestHistoryFilter(statuses = setOf(PENDING, DECLINED)))
+
+        then()
+        assertEquals(listOf(pending.id), onlyPending.items.map { it.id })
+        assertEquals(setOf(pending.id, declined.id), pendingOrDeclined.items.map { it.id }.toSet())
+    }
+
+    @Test
+    fun `should filter the request history by employee and by client`() = runUnitTest {
         given()
         val fixture = SutFixture()
         fixture.setup()
         val employee = EmployeeSnapshot.stub()
-        val otherBusiness = BusinessSnapshot.stub()
-        suspendTransaction { fixture.subscriptionSut.attachBusiness(otherBusiness) }
-        val later = suspendTransaction {
-            fixture.sut.create(
-                fixture.buildRequest(date = Instant.fromEpochMilliseconds(0) + 2.hours, employee = employee),
-            )
-        }
-        val earlier = suspendTransaction { fixture.sut.create(fixture.buildRequest(employee = employee)) }
-        val approved = suspendTransaction { fixture.sut.create(fixture.buildRequest(employee = employee)) }
-        suspendTransaction { fixture.sut.approve(approved) }
-        val declined = suspendTransaction { fixture.sut.create(fixture.buildRequest(employee = employee)) }
-        suspendTransaction { fixture.sut.decline(declined.id, "Fully booked") }
-        suspendTransaction { fixture.sut.create(fixture.buildRequest()) }
-        suspendTransaction { fixture.sut.create(fixture.buildRequest(userId = employee.userId)) }
-        suspendTransaction {
-            fixture.sut.create(AppointmentRequest.stub(businessId = otherBusiness.id, employee = employee))
-        }
+        val ofEmployee = suspendTransaction { fixture.sut.create(fixture.buildRequest(employee = employee)) }
+        val other = suspendTransaction { fixture.sut.create(fixture.buildRequest()) }
 
         whenn()
-        val assigned = suspendTransaction { fixture.sut.getPendingAssignedTo(employee.userId, fixture.businessId) }
+        val byEmployee = fixture.history(AppointmentRequestHistoryFilter(employeeId = employee.id))
+        val byClient = fixture.history(AppointmentRequestHistoryFilter(clientId = other.client.id))
 
         then()
-        assertEquals(listOf(earlier.id, later.id), assigned.map { it.id })
+        assertEquals(listOf(ofEmployee.id), byEmployee.items.map { it.id })
+        assertEquals(listOf(other.id), byClient.items.map { it.id })
+    }
+
+    @Test
+    fun `should keep requests starting from the first bound and before the second`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val requests = (0 until 3).map { hour ->
+            suspendTransaction {
+                fixture.sut.create(fixture.buildRequest(date = Instant.fromEpochMilliseconds(0) + hour.hours))
+            }
+        }
+        val starts = StartBounds(from = Instant.fromEpochSeconds(3600), until = Instant.fromEpochSeconds(7200))
+
+        whenn()
+        val page = fixture.history(starts = starts)
+
+        then()
+        assertEquals(listOf(requests[1].id), page.items.map { it.id })
+    }
+
+    @Test
+    fun `should page requests soonest first without gaps or repeats when they start together`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val created = (0 until 5).map { suspendTransaction { fixture.sut.create(fixture.buildRequest()) } }
+        val filter = AppointmentRequestHistoryFilter(order = HistoryOrder.SOONEST_FIRST)
+
+        whenn()
+        val pages = mutableListOf<List<Uuid>>()
+        var after: PageCursor? = null
+        do {
+            val page = fixture.history(filter, after = after, limit = 2)
+            pages += page.items.map { it.id }
+            after = page.next
+        } while (after != null)
+
+        then()
+        assertEquals(listOf(2, 2, 1), pages.map { it.size })
+        assertEquals(created.map { it.id }.toSet(), pages.flatten().toSet())
     }
 
     @Test

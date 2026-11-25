@@ -1,6 +1,7 @@
 package com.bookk.business.data.datasource
 
 import com.bookk.business.data.orm.entity.Contact
+import com.bookk.business.data.orm.entity.ContactIndexes
 import com.bookk.business.data.orm.entity.EncryptedContact
 import com.bookk.business.data.orm.entity.StoredContact
 import library.encryption.BlindIndex
@@ -63,6 +64,37 @@ internal class ContactCipher(
         return email?.let { blindIndex.ofCaseInsensitive(it) }
     }
 
+    fun nameIndex(name: String, lastName: String): String? {
+        return fullNameIndex("$name $lastName")
+    }
+
+    fun phoneIndex(phone: String?): String? {
+        val digits = phone?.filter { it in '0'..'9' }.orEmpty()
+        return digits.takeIf { it.isNotEmpty() }?.let(blindIndex::of)
+    }
+
+    fun indexes(contact: Contact): ContactIndexes {
+        return ContactIndexes(
+            email = emailIndex(contact.email),
+            name = nameIndex(contact.name, contact.lastName),
+            phone = phoneIndex(contact.phone),
+        )
+    }
+
+    fun searchIndexes(query: String): ContactIndexes {
+        val looksLikePhone = query.all { it in '0'..'9' || it in PHONE_SEPARATORS }
+        return ContactIndexes(
+            email = emailIndex(query.trim()),
+            name = fullNameIndex(query),
+            phone = if (looksLikePhone) phoneIndex(query) else null,
+        )
+    }
+
+    private fun fullNameIndex(fullName: String): String? {
+        val normalized = fullName.split(WHITESPACE).filter { it.isNotEmpty() }.joinToString(" ")
+        return normalized.takeIf { it.isNotEmpty() }?.let(blindIndex::ofCaseInsensitive)
+    }
+
     private fun Encryptor.changes(read: ReadContact, edited: Contact): EncryptedContact {
         val current = read.contact
         val stored = read.stored.encrypted
@@ -97,6 +129,11 @@ internal class ContactCipher(
             email = email?.valueOrNull(),
             description = description?.valueOrNull(),
         )
+    }
+
+    private companion object {
+        val WHITESPACE = Regex("\\s+")
+        const val PHONE_SEPARATORS = " +-()."
     }
 }
 

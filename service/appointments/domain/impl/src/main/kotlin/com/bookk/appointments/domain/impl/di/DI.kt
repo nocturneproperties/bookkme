@@ -17,12 +17,11 @@ import com.bookk.appointments.domain.api.operation.EditSettings
 import com.bookk.appointments.domain.api.operation.EnableAppointmentsForBusiness
 import com.bookk.appointments.domain.api.operation.GetAppointment
 import com.bookk.appointments.domain.api.operation.GetAppointmentHistory
+import com.bookk.appointments.domain.api.operation.GetAppointmentRequestHistory
 import com.bookk.appointments.domain.api.operation.GetAppointmentRequests
 import com.bookk.appointments.domain.api.operation.GetAppointmentsForDate
-import com.bookk.appointments.domain.api.operation.GetAssignedAppointmentRequests
 import com.bookk.appointments.domain.api.operation.GetAvailableSlots
 import com.bookk.appointments.domain.api.operation.GetBookingInfo
-import com.bookk.appointments.domain.api.operation.GetPendingAppointmentRequests
 import com.bookk.appointments.domain.api.operation.GetSavedBusinesses
 import com.bookk.appointments.domain.api.operation.GetSettings
 import com.bookk.appointments.domain.api.operation.GetUpcomingBookings
@@ -52,12 +51,11 @@ import com.bookk.appointments.domain.impl.operation.ExportBusinessAppointmentsIm
 import com.bookk.appointments.domain.impl.operation.ExportUserAppointmentsImpl
 import com.bookk.appointments.domain.impl.operation.GetAppointmentHistoryImpl
 import com.bookk.appointments.domain.impl.operation.GetAppointmentImpl
+import com.bookk.appointments.domain.impl.operation.GetAppointmentRequestHistoryImpl
 import com.bookk.appointments.domain.impl.operation.GetAppointmentRequestsImpl
 import com.bookk.appointments.domain.impl.operation.GetAppointmentsForDateImpl
-import com.bookk.appointments.domain.impl.operation.GetAssignedAppointmentRequestsImpl
 import com.bookk.appointments.domain.impl.operation.GetAvailableSlotsImpl
 import com.bookk.appointments.domain.impl.operation.GetBookingInfoImpl
-import com.bookk.appointments.domain.impl.operation.GetPendingAppointmentRequestsImpl
 import com.bookk.appointments.domain.impl.operation.GetSavedBusinessesImpl
 import com.bookk.appointments.domain.impl.operation.GetSettingsImpl
 import com.bookk.appointments.domain.impl.operation.GetUpcomingBookingsImpl
@@ -94,8 +92,7 @@ fun appointmentsDomainModule() = module {
         scopedOf(::CreateAppointmentRequestImpl) bind CreateAppointmentRequest::class
         scopedOf(::CreateInstantAppointmentImpl) bind CreateInstantAppointment::class
         scopedOf(::GetAppointmentRequestsImpl) bind GetAppointmentRequests::class
-        scopedOf(::GetAssignedAppointmentRequestsImpl) bind GetAssignedAppointmentRequests::class
-        scopedOf(::GetPendingAppointmentRequestsImpl) bind GetPendingAppointmentRequests::class
+        scopedOf(::GetAppointmentRequestHistoryImpl) bind GetAppointmentRequestHistory::class
         scopedOf(::GetAppointmentImpl) bind GetAppointment::class
         scopedOf(::GetAppointmentsForDateImpl) bind GetAppointmentsForDate::class
         scopedOf(::GetAppointmentHistoryImpl) bind GetAppointmentHistory::class

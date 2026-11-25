@@ -5,6 +5,7 @@ import com.bookk.business.domain.api.BUSINESS_SERVICE_NAME
 import com.bookk.business.domain.api.business.operation.DeleteDayOffsInThePast
 import com.bookk.business.domain.api.business.operation.DeleteReleasedBusinessLinks
 import com.bookk.business.domain.api.client.operation.DeleteInactiveClients
+import com.bookk.business.domain.api.client.operation.IndexClientContacts
 import com.bookk.business.domain.api.employee.operation.DeleteProcessedEmployeeInvitations
 import com.bookk.business.domain.api.employee.operation.ExpireEmployeeInvitations
 import com.bookk.business.domain.api.erasure.operation.DeleteExpiredErasureRecords
@@ -107,5 +108,8 @@ fun Application.registerBusinessJobs(scheduler: SchedulerConfiguration) {
     }
     scheduler.job("$BUSINESS_SERVICE_NAME-deleteReleasedBusinessLinks", interval = 1.days) {
         scope.get<DeleteReleasedBusinessLinks>().invoke().getOrThrow()
+    }
+    scheduler.job("$BUSINESS_SERVICE_NAME-indexClientContacts", interval = 10.minutes) {
+        scope.get<IndexClientContacts>().invoke().getOrThrow()
     }
 }

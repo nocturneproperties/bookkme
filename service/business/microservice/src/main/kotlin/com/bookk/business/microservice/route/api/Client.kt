@@ -119,18 +119,27 @@ fun Route.clientCrud() {
          * Get clients
          *
          * Summary: Get clients
-         * Description: Get clients list for specific business
+         * Description: Get one page of the business's clients, newest first. An optional query finds clients by their whole name (first and last, ignoring case and extra spaces), their email (ignoring case) or their phone (digits only, so spaces, dashes and brackets don't matter); parts of a name, email or phone match nothing. Pass limit (1 to 100, default 50) and, for the next page, the previous page's nextCursor as cursor with the same query; the last page has no nextCursor
          * Tag: business
          * Security: jwt
-         * Response: 200 application/protobuf [com.bookk.business.domain.api.client.entity.ClientRemote]+ List of clients
+         * Response: 200 application/x-protobuf [com.bookk.business.domain.api.client.entity.ClientPage] Page of clients
+         * Response: 422 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Page errors<br>PAGE_LIMIT_INVALID (900003) Page limit must be from 1 to 100<br>PAGE_CURSOR_INVALID (900004) Page cursor is invalid, start from the first page
          * Response: 403 application/protobuf [com.bookk.core.domain.entity.SimpleServerError] Caller is a suspended employee of this business - BUSINESS_EMPLOYEE_ACCESS_SUSPENDED (200034)
          * Response: 404 application/protobuf [com.bookk.core.domain.entity.SimpleServerError] User is not allowed to read clients of this business
          */
-        get<Api.Clients> {
+        get<Api.ClientList> {
             val principal = requireNotNull(call.principal<AppPrincipal>())
             val getClients by application.injectScoped<GetClients>(BusinessScope)
 
-            call.respondWith(getClients(requestUserId = principal.userId, businessId = it.businessId))
+            call.respondWith(
+                getClients(
+                    requestUserId = principal.userId,
+                    businessId = it.businessId,
+                    limit = it.limit,
+                    cursor = it.cursor,
+                    query = it.query,
+                ),
+            )
         }
 
         /**

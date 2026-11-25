@@ -2,7 +2,7 @@
 
 ## 0.21.0
 
-Changes since `monolith/0.20.0`. Adds sign-in from a Telegram Mini App, which creates an account with a placeholder email on first use, sends notifications to those users through the Telegram bot, gives clients their upcoming bookings across businesses, a list of saved businesses, an employee's free slots and the business's note for clients, lets employees list the pending requests assigned to them, stops two bookings from taking the same employee at once, lets owners pick a booking link name for their business, and stops push notifications to signed-out devices.
+Changes since `monolith/0.20.0`. Adds sign-in from a Telegram Mini App, which creates an account with a placeholder email on first use, sends notifications to those users through the Telegram bot, gives clients their upcoming bookings across businesses, a list of saved businesses, an employee's free slots and the business's note for clients, stops two bookings from taking the same employee at once, lets owners pick a booking link name for their business, stops push notifications to signed-out devices, pages and filters the appointment and request histories, and pages the client list with server-side client search.
 
 ### Clients
 
@@ -32,7 +32,6 @@ Changes since `monolith/0.20.0`. Adds sign-in from a Telegram Mini App, which cr
 - New `POST /api/appointments/slots` takes `businessId`, `employeeId`, `services` (`{serviceId, count}`), `from` and `to` (dates in the business time zone, at most 31 days) and returns each date's free `{start, end}` slots on a 15-minute grid; use it to offer start times before booking.
 - It answers 422 `SERVICE_SELECTION_INVALID` (300024) for an empty, repeated or over-100 service selection and the new `SLOT_RANGE_INVALID` (300033) for a range that ends before it starts or spans more than 31 days.
 - New `GET /api/appointments/booking-info/{businessId}` lets any signed-in user read the business's `appointmentNote` from its appointment settings, 404 when the business doesn't take appointments; show it on the booking screen.
-- New `GET /api/appointments/request/{businessId}/assigned` returns the pending requests in the business assigned to the calling employee, earliest first, to an employee with the appointments view permission (404 without it); a suspended employee gets 403 `BUSINESS_EMPLOYEE_ACCESS_SUSPENDED` (200034).
 - Booking an employee who already has a scheduled appointment at that time, including the business's break before and after it, now answers 422 `EMPLOYEE_BUSY` (300032) on `POST /api/appointments/request`, `POST /api/appointments`, `POST /api/appointments/instant` and `PUT /api/appointments/{id}`; pending requests never block, so once one of several requests for the same time is approved, approving another answers `EMPLOYEE_BUSY`.
 - These routes no longer answer `APPOINTMENT_EXISTS` (300004) or `REQUEST_EXISTS` (300001): a client's own overlapping bookings are allowed (two services with two employees at once), and staff can book several employees for the same time.
 - A passkey challenge is now used once even when two requests send the same `requestId` at the same moment (sign-in, action confirmation, sign-up, adding a passkey); the second answers 422 `CHALLENGE_WINDOW_EXPIRED` (6), so fetch a new challenge.
@@ -48,6 +47,16 @@ Changes since `monolith/0.20.0`. Adds sign-in from a Telegram Mini App, which cr
 - Cancellation notifications for a client removed by the business or whose employee deleted their account now give that reason in the user's language instead of English.
 - In the data exports, `ClientExport` and `EmployeeExport` of the business export have `erased`, and the personal export's appointments have `employeeErased`, with an empty name, instead of the placeholder text.
 
+- `GET /api/business/{businessId}/clients` now returns one page, `ClientPage` (`data` field 1, `nextCursor` field 2), newest client first, instead of the whole list; pass `limit` (1 to 100, default 50) and the previous page's `nextCursor` as `cursor`, and stop when `nextCursor` is absent.
+- The same route takes an optional `query` that finds clients by whole name (first and last, ignoring case and extra spaces), email (ignoring case) or phone (digits only); part of a name, email or phone finds nothing, so the app must search on the server instead of filtering its loaded list.
+- `GET /api/appointments/request/{businessId}` (the business's pending requests) is removed; new `GET /api/appointments/request/history/{businessId}` returns one page, `AppointmentRequestPage` (`data` field 1, `nextCursor` field 2), of the business's requests in any status, with the same `limit` and `cursor`, to an employee with the appointments view permission.
+- It takes the same filters as the appointment history below except `query`; for pending requests pass `status=PENDING`, and for an employee's own pending requests add their `employeeId` and `order=SOONEST_FIRST`.
+- `GET /api/appointments/history/{businessId}` takes `limit` and `cursor` instead of `limit` and `offset` and returns `AppointmentPage` (`data` field 1, `nextCursor` field 3); `AppointmentPagination` and its `metadata` (`total`, `page`, `pageSize`) are gone, so keep the same `query` on every page and drop any total count.
+- Both histories take optional filters: `clientId`, `employeeId`, one or more `status` (repeat the parameter), and `from` and `to` (inclusive dates in the business time zone, matched against the start), plus `order`, `NEWEST_FIRST` (default) or `SOONEST_FIRST`; send the same filters with every `cursor`.
+- `to` before `from` answers 422 `HISTORY_DATE_RANGE_INVALID` (300034), and dates for a business that doesn't take appointments answer 404.
+- A `limit` outside 1 to 100 answers 422 `PAGE_LIMIT_INVALID` (900003) and a cursor the server didn't issue answers 422 `PAGE_CURSOR_INVALID` (900004); restart from the first page on the latter, and an empty `cursor` reads the first page.
+- These changes are not backwards compatible: release the app update that reads pages together with this version.
+
 ### Services
 
 - New optional `APPLICATION_TELEGRAM_BOT_ID` (the bot's numeric id) turns Telegram sign-in on; in prod run `make vault-update` (adds an empty `vault_telegram_bot_id`) and set it with `make vault-edit`.
@@ -56,6 +65,7 @@ Changes since `monolith/0.20.0`. Adds sign-in from a Telegram Mini App, which cr
 - A standalone `auth` service now needs `APPLICATION_BLIND_INDEX_KEY`, with the same value as the other services; the monolith already has it.
 - Migration authorization `V6` adds the table `telegram_identity`, holding only a keyed hash of the Telegram user id per account.
 - Migration appointments `V14` adds `appointment_price_adjustment_services.count`, merges rows repeating a service in one adjustment into one row with that count, and adds a unique index on `(price_adjustment_id, service_id)`; data exports still list such a service once per count.
+- The same `V14` adds indexes on `appointment(business_id, date_start)`, `(employee_id, date_start)` and `(client_id, date_start)`, the last replacing the index on `client_id` alone, and on `appointment_request(business_id, date_start)` for the paged histories.
 - The same `V14` adds `appointment.client_note_encrypted`, the table `saved_business` (erased with the account and with its business) and an index on `appointment(employee_id, date_end)`; existing double bookings of an employee stay and can still be edited as long as their time and employee don't change.
 - Migration user `V8` adds `profile.telegram_user_id_encrypted`; the user service stores the Telegram user id encrypted and sends it in `user.updated` (new field 9), and notifications saves it as the user's Telegram target.
 - New event `auth.device_signed_out` makes notifications clear the device's push token unless it was registered after the sign-out; migration notifications `V7` adds `device.notification_token_updated_at`, empty for existing tokens.
@@ -63,6 +73,8 @@ Changes since `monolith/0.20.0`. Adds sign-in from a Telegram Mini App, which cr
 - No email is ever sent to `@telegramundeliverable.org`; these accounts get their notifications, dormancy warnings included, through Telegram.
 - The business service's internal `GET /api/internal/client/{userId}/businesses` is removed; when running separate services, update business and appointments together.
 - Migration business `V22` adds the tables `business_link` and `business_link_change`, deleted with their business; the daily job `business-deleteReleasedBusinessLinks` frees replaced names after 90 days, and deleting a business frees its names at once.
+- The same business `V22` adds `client.created_at` (filled from `last_activity_at`, at most the migration time), `client.name_index` and `client.phone_index` (keyed hashes for client search) and their indexes.
+- New job `business-indexClientContacts` (every 10 minutes, one pass per start) fills the name and phone hashes of clients stored before this version; a client whose key is lost stays unfound by name and phone.
 - The website's domain (`SITE_DOMAIN_NAME` and its `www.`) can now create and use passkeys for the API domain: nginx serves `/.well-known/webauthn` listing those origins, and the server accepts them from the new optional `APPLICATION_SITE_DOMAIN_NAME` (prod sets it from the vault's `EMAIL_DOMAIN_NAME`). The API's own origin now comes from `APPLICATION_DOMAIN_NAME` instead of a fixed `https://bookkme.app`, so a self-hosted server accepts passkeys on its own domain.
 - nginx gets a new `limit_req` zone `business_link_resolve` (30/min per address, burst 30) on `/api/business/link/`.
 - nginx now allows browser calls to every `/api/` route from the website's domain (`SITE_DOMAIN_NAME` and its `www.`) through CORS, answering preflight requests itself and accepting the request headers the client apps send (`User-Agent`, `X-Debug`, `X-App-Version`, `X-Platform`, `Idempotency-Key`); other origins get no CORS headers.
@@ -80,6 +92,8 @@ Changes since `monolith/0.20.0`. Adds sign-in from a Telegram Mini App, which cr
 - Run `make infra tags=nginx` for the new rate limit, CORS and `/.well-known/webauthn` (nginx reloads without a restart), in the same deploy as this version, so the website's passkey origins are accepted by both.
 - For the web app, add a proxied (orange-cloud) Cloudflare `A` record for `app.bookkme.com` pointing at the manager, run `make infra tags=nginx,monitoring`, then `make deploy-webapp v=<version> first=1` once `bookkme-webapp:<version>` is published; the registry token needs read access to that package.
 - The BookkMe privacy policy, DPA Annex 1 and record of processing now describe booking link names and their 90-day hold; publish them with the next BookkMe document version.
+- The BookkMe privacy policy, DPA and record of processing, and the self-hosting privacy template, now say that clients are also found by a keyed hash of their full name; publish them with the same document version.
+- The next release removes `business-indexClientContacts`; deploy it only after this version has finished a pass in prod, when `SELECT COUNT(*) FROM business.client WHERE name_index IS NULL` counts only clients whose key was lost.
 - The renamed secret `monolith-mariadb-users-init-v5` restarts the database once on deploy, before the app creates `business_link` and `business_link_change`; after the deploy, run `docker --context swarm-manager service update --force monolith_database` once (a few seconds without database) so NocoDB can read them.
 
 ## 0.20.0
