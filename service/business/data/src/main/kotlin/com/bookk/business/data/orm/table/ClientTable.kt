@@ -17,7 +17,6 @@ internal object ClientTable : UuidTable("client") {
     val emailEncrypted = binary("email_encrypted", 2080).nullable()
     val descriptionEncrypted = binary("description_encrypted", 4128).nullable()
     val emailIndex = char("email_index", BLIND_INDEX_LENGTH).nullable()
-    val nameIndex = char("name_index", BLIND_INDEX_LENGTH).nullable()
     val phoneIndex = char("phone_index", BLIND_INDEX_LENGTH).nullable()
     val createdAt = timestamp("created_at").clientDefault { Clock.System.now() }
     val lastActivityAt = timestamp("last_activity_at").clientDefault { Clock.System.now() }
@@ -28,7 +27,6 @@ internal object ClientTable : UuidTable("client") {
         uniqueIndex(businessId, emailIndex)
         index(false, businessId, lastActivityAt)
         index(false, businessId, createdAt)
-        index(false, businessId, nameIndex)
         index(false, businessId, phoneIndex)
     }
 }

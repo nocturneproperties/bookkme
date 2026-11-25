@@ -119,7 +119,7 @@ fun Route.clientCrud() {
          * Get clients
          *
          * Summary: Get clients
-         * Description: Get one page of the business's clients, newest first. An optional query finds clients by their whole name (first and last, ignoring case and extra spaces), their email (ignoring case) or their phone (digits only, so spaces, dashes and brackets don't matter); parts of a name, email or phone match nothing. Pass limit (1 to 100, default 50) and, for the next page, the previous page's nextCursor as cursor with the same query; the last page has no nextCursor
+         * Description: Get one page of the business's clients, newest first. An optional query finds clients whose first or last name starts with every word of the query (each word at least 2 letters, ignoring case, accents and apostrophes, so "ol kov" finds Olena Kovalenko), by their whole email (ignoring case) or by their whole phone (digits only, so spaces, dashes and brackets don't matter); the middle of a name and parts of an email or phone match nothing. Pass limit (1 to 100, default 50) and, for the next page, the previous page's nextCursor as cursor with the same query; the last page has no nextCursor. A searched page can hold fewer clients than limit, even none, and still have a nextCursor, so keep paging until it is absent
          * Tag: business
          * Security: jwt
          * Response: 200 application/x-protobuf [com.bookk.business.domain.api.client.entity.ClientPage] Page of clients

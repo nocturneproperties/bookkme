@@ -5,10 +5,12 @@ import com.bookk.business.data.orm.table.BusinessDayOffTable
 import com.bookk.business.data.orm.table.BusinessPermissionGrantsTable
 import com.bookk.business.data.orm.table.BusinessTable
 import com.bookk.business.data.orm.table.BusinessWorkingHoursTable
+import com.bookk.business.data.orm.table.ClientNameTokenTable
 import com.bookk.business.data.orm.table.ClientTable
 import com.bookk.business.domain.api.client.entity.Client
 import com.bookk.business.domain.api.client.entity.ClientUpdateModel
 import com.bookk.core.data.test.createTestDatabase
+import com.bookk.core.domain.entity.Page
 import com.bookk.core.domain.entity.PageCursor
 import com.bookk.core.domain.entity.pageRequest
 import com.bookk.core.test.given
@@ -22,6 +24,7 @@ import library.encryption.test.UnkeyedBlindIndex
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.inList
+import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
 import org.jetbrains.exposed.v1.jdbc.update
@@ -45,6 +48,7 @@ internal class ClientDataSourceImplPageTest {
             BusinessWorkingHoursTable,
             BusinessDayOffTable,
             ClientTable,
+            ClientNameTokenTable,
         )
         val subjectKeys = InMemorySubjectKeys()
         val blindIndex = UnkeyedBlindIndex()
@@ -71,9 +75,18 @@ internal class ClientDataSourceImplPageTest {
         }
 
         suspend fun search(query: String?, after: PageCursor? = null, limit: Int = 10): List<Uuid> {
+            return searchPage(query, after, limit).items.map { it.id }
+        }
+
+        suspend fun searchPage(query: String?, after: PageCursor? = null, limit: Int = 10): Page<Client> {
+            return suspendTransaction { sut.getClientsPage(businessId, pageRequest(limit, after), query) }
+        }
+
+        suspend fun tokens(clientId: Uuid): List<ByteArray> {
             return suspendTransaction {
-                sut.getClientsPage(businessId, pageRequest(limit, after), query)
-            }.items.map { it.id }
+                ClientNameTokenTable.selectAll().where { ClientNameTokenTable.clientId eq clientId }
+                    .map { it[ClientNameTokenTable.token] }
+            }
         }
 
         suspend fun storedRow(id: Uuid): ResultRow {
@@ -82,10 +95,8 @@ internal class ClientDataSourceImplPageTest {
 
         suspend fun clearIndexes(ids: List<Uuid>) {
             suspendTransaction {
-                ClientTable.update(where = { ClientTable.id inList ids }) {
-                    it[nameIndex] = null
-                    it[phoneIndex] = null
-                }
+                ClientTable.update(where = { ClientTable.id inList ids }) { it[phoneIndex] = null }
+                ClientNameTokenTable.deleteWhere { ClientNameTokenTable.clientId inList ids }
             }
         }
     }
@@ -180,7 +191,7 @@ internal class ClientDataSourceImplPageTest {
     }
 
     @Test
-    fun `should find a client by the whole name ignoring case and spacing`() = runUnitTest {
+    fun `should find a client by the start of the first name or the last name`() = runUnitTest {
         given()
         val fixture = SutFixture()
         fixture.setup()
@@ -188,10 +199,168 @@ internal class ClientDataSourceImplPageTest {
         fixture.create(bob())
 
         whenn()
-        val found = fixture.search("  aLiCe    SMITH ")
+        val found = listOf("al", "ali", "alic", "smi", "smith").map { fixture.search(it) }
+
+        then()
+        found.forEach { assertEquals(listOf(match.id), it) }
+    }
+
+    @Test
+    fun `should find a client only when every word of the query starts one of their names`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val match = fixture.create(alice())
+        fixture.create(Client.Detached.stub(name = "Alina", lastName = "Jones", email = null))
+
+        whenn()
+        val found = fixture.search("smi al")
 
         then()
         assertEquals(listOf(match.id), found)
+    }
+
+    @Test
+    fun `should find a client ignoring case, accents, apostrophes and extra spaces`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val match = fixture.create(Client.Detached.stub(name = "Мар'яна", lastName = "Hernández-Ruiz", email = null))
+
+        whenn()
+        val found = listOf("  МАРЯ ", "мар’я", "hern", "ruiz", "HERNANDEZ", "маряна ruiz").map { fixture.search(it) }
+
+        then()
+        found.forEach { assertEquals(listOf(match.id), it) }
+    }
+
+    @Test
+    fun `should match a query word longer than the indexed prefix only against the whole start`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val match = fixture.create(Client.Detached.stub(name = "Olena", lastName = "Kovalenko", email = null))
+        fixture.create(Client.Detached.stub(name = "Olena", lastName = "Kovalchuk", email = null))
+
+        whenn()
+        val found = fixture.search("kovalen")
+
+        then()
+        assertEquals(listOf(match.id), found)
+    }
+
+    @Test
+    fun `should fill the page past newer clients that only share the indexed prefix`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val match = fixture.create(Client.Detached.stub(lastName = "Kovalenko", email = null))
+        fixture.createdAt(match.id, Instant.fromEpochSeconds(1_800_000_000))
+        repeat(3) { day ->
+            val other = fixture.create(Client.Detached.stub(lastName = "Kovalchuk", email = null))
+            fixture.createdAt(other.id, Instant.fromEpochSeconds(1_800_086_400L + day * 86_400L))
+        }
+
+        whenn()
+        val page = fixture.searchPage("kovalenko", limit = 1)
+
+        then()
+        assertEquals(listOf(match.id), page.items.map { it.id })
+        assertNull(page.next)
+    }
+
+    @Test
+    fun `should return a short page with a cursor once it has scanned its share of prefix matches`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val match = fixture.create(Client.Detached.stub(lastName = "Kovalenko", email = null))
+        fixture.createdAt(match.id, Instant.fromEpochSeconds(1_800_000_000))
+        repeat(25) { day ->
+            val other = fixture.create(Client.Detached.stub(lastName = "Kovalchuk", email = null))
+            fixture.createdAt(other.id, Instant.fromEpochSeconds(1_800_086_400L + day * 86_400L))
+        }
+
+        whenn()
+        val first = fixture.searchPage("kovalenko", limit = 1)
+        val second = fixture.searchPage("kovalenko", after = first.next, limit = 1)
+
+        then()
+        assertEquals(emptyList<Client>(), first.items)
+        assertNotNull(first.next)
+        assertEquals(listOf(match.id), second.items.map { it.id })
+    }
+
+    @Test
+    fun `should not find a client by a single letter, the middle of a name, part of an email or phone`() =
+        runUnitTest {
+            given()
+            val fixture = SutFixture()
+            fixture.setup()
+            fixture.create(alice())
+
+            whenn()
+            val found = listOf("a", "lice", "mith", "a@example", "0001").flatMap { fixture.search(it) }
+
+            then()
+            assertEquals(emptyList<Uuid>(), found)
+        }
+
+    @Test
+    fun `should store two to four letter prefixes of the first and the last name`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+
+        whenn()
+        val created = fixture.create(Client.Detached.stub(name = "Alice", lastName = "Li", email = null))
+
+        then()
+        assertEquals(4, fixture.tokens(created.id).size)
+    }
+
+    @Test
+    fun `should hash the same name differently in each business`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val here = fixture.create(alice())
+        val elsewhere = fixture.create(alice(), businessId = fixture.createBusiness())
+
+        whenn()
+        val hereTokens = fixture.tokens(here.id).map { it.toList() }.toSet()
+        val elsewhereTokens = fixture.tokens(elsewhere.id).map { it.toList() }.toSet()
+
+        then()
+        assertEquals(6, hereTokens.size)
+        assertTrue(hereTokens.intersect(elsewhereTokens).isEmpty())
+    }
+
+    @Test
+    fun `should hash a prefix differently in the first and the last name`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+
+        whenn()
+        val created = fixture.create(Client.Detached.stub(name = "Anna", lastName = "Anna", email = null))
+
+        then()
+        assertEquals(6, fixture.tokens(created.id).map { it.toList() }.toSet().size)
+    }
+
+    @Test
+    fun `should delete the name tokens with the client`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val created = fixture.create(alice())
+
+        whenn()
+        suspendTransaction { fixture.sut.deleteClient(fixture.businessId, created.id) }
+
+        then()
+        assertEquals(emptyList<ByteArray>(), fixture.tokens(created.id))
     }
 
     @Test
@@ -222,20 +391,6 @@ internal class ClientDataSourceImplPageTest {
 
         then()
         assertEquals(listOf(match.id), found)
-    }
-
-    @Test
-    fun `should not find a client by part of a name, email or phone`() = runUnitTest {
-        given()
-        val fixture = SutFixture()
-        fixture.setup()
-        fixture.create(alice())
-
-        whenn()
-        val found = listOf("alice", "a@example", "0001").flatMap { fixture.search(it) }
-
-        then()
-        assertEquals(emptyList<Uuid>(), found)
     }
 
     @Test
@@ -283,9 +438,8 @@ internal class ClientDataSourceImplPageTest {
         val created = fixture.create(alice())
 
         then()
-        val row = fixture.storedRow(created.id)
-        assertEquals(fixture.blindIndex.of("alice smith"), row[ClientTable.nameIndex])
-        assertEquals(fixture.blindIndex.of("10000000001"), row[ClientTable.phoneIndex])
+        assertEquals(6, fixture.tokens(created.id).size)
+        assertEquals(fixture.blindIndex.of("10000000001"), fixture.storedRow(created.id)[ClientTable.phoneIndex])
     }
 
     @Test
@@ -316,7 +470,7 @@ internal class ClientDataSourceImplPageTest {
         then()
         assertEquals(listOf(created.id), fixture.search("alice jones"))
         assertEquals(listOf(created.id), fixture.search("+19999999999"))
-        assertEquals(emptyList<Uuid>(), fixture.search("alice smith"))
+        assertEquals(emptyList<Uuid>(), fixture.search("smi"))
     }
 
     @Test
@@ -331,9 +485,8 @@ internal class ClientDataSourceImplPageTest {
         suspendTransaction { fixture.sut.updateClient(fixture.businessId, edit(created.id, description = "new")) }
 
         then()
-        val row = fixture.storedRow(created.id)
-        assertEquals(fixture.blindIndex.of("alice smith"), row[ClientTable.nameIndex])
-        assertEquals(fixture.blindIndex.of("10000000001"), row[ClientTable.phoneIndex])
+        assertEquals(6, fixture.tokens(created.id).size)
+        assertEquals(fixture.blindIndex.of("10000000001"), fixture.storedRow(created.id)[ClientTable.phoneIndex])
     }
 
     @Test
@@ -349,6 +502,7 @@ internal class ClientDataSourceImplPageTest {
 
         then()
         assertEquals(listOf(detached.id), fixture.search("carol white"))
+        assertEquals(emptyList<Uuid>(), fixture.search("alice"))
         assertEquals(listOf(detached.id), fixture.search("+15555555555"))
     }
 
@@ -425,7 +579,7 @@ internal class ClientDataSourceImplPageTest {
 
         then()
         assertEquals(unreadable.id, next)
-        assertNull(fixture.storedRow(unreadable.id)[ClientTable.nameIndex])
+        assertEquals(emptyList<ByteArray>(), fixture.tokens(unreadable.id))
         assertNull(fixture.storedRow(unreadable.id)[ClientTable.phoneIndex])
     }
 
@@ -442,7 +596,7 @@ internal class ClientDataSourceImplPageTest {
 
         then()
         assertEquals(clients[0].id, next)
-        assertNotNull(fixture.storedRow(clients[0].id)[ClientTable.nameIndex])
-        assertNull(fixture.storedRow(clients[1].id)[ClientTable.nameIndex])
+        assertTrue(fixture.tokens(clients[0].id).isNotEmpty())
+        assertEquals(emptyList<ByteArray>(), fixture.tokens(clients[1].id))
     }
 }

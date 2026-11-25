@@ -24,6 +24,6 @@ internal class EncryptedContact(
 
 internal class StoredContact(val subjectId: Uuid, val encrypted: EncryptedContact)
 
-internal class ContactIndexes(val email: String?, val name: String?, val phone: String?)
+internal class ContactIndexes(val email: String?, val phone: String?, val nameTokens: List<ByteArray>)
 
 internal class ContactReindex(val email: Boolean, val name: Boolean, val phone: Boolean)

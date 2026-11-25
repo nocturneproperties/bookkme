@@ -5,6 +5,7 @@ import com.bookk.business.data.orm.table.BusinessDayOffTable
 import com.bookk.business.data.orm.table.BusinessPermissionGrantsTable
 import com.bookk.business.data.orm.table.BusinessTable
 import com.bookk.business.data.orm.table.BusinessWorkingHoursTable
+import com.bookk.business.data.orm.table.ClientNameTokenTable
 import com.bookk.business.data.orm.table.ClientTable
 import com.bookk.business.domain.api.client.entity.Client
 import com.bookk.business.domain.api.client.entity.ClientMerge
@@ -45,6 +46,7 @@ internal class ClientDataSourceImplEncryptionTest {
             BusinessWorkingHoursTable,
             BusinessDayOffTable,
             ClientTable,
+            ClientNameTokenTable,
         )
         val subjectKeys = InMemorySubjectKeys()
         val blindIndex = UnkeyedBlindIndex()

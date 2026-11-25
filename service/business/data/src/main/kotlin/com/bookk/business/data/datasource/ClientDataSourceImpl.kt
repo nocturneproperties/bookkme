@@ -4,8 +4,10 @@ import com.bookk.business.data.orm.entity.ClientEntity
 import com.bookk.business.data.orm.entity.ClientEntity.Companion.storeContact
 import com.bookk.business.data.orm.entity.ClientEntity.Companion.writeContact
 import com.bookk.business.data.orm.entity.Contact
+import com.bookk.business.data.orm.entity.ContactIndexes
 import com.bookk.business.data.orm.entity.ContactReindex
 import com.bookk.business.data.orm.entity.EncryptedContact
+import com.bookk.business.data.orm.table.ClientNameTokenTable
 import com.bookk.business.data.orm.table.ClientTable
 import com.bookk.business.domain.api.client.entity.Client
 import com.bookk.business.domain.api.client.entity.ClientMerge
@@ -25,13 +27,17 @@ import org.jetbrains.exposed.v1.core.Op
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.alias
 import org.jetbrains.exposed.v1.core.and
+import org.jetbrains.exposed.v1.core.compoundAnd
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.greater
 import org.jetbrains.exposed.v1.core.inList
+import org.jetbrains.exposed.v1.core.inSubQuery
 import org.jetbrains.exposed.v1.core.isNotNull
 import org.jetbrains.exposed.v1.core.isNull
 import org.jetbrains.exposed.v1.core.less
+import org.jetbrains.exposed.v1.core.notExists
 import org.jetbrains.exposed.v1.core.or
+import org.jetbrains.exposed.v1.core.orIfNotNull
 import org.jetbrains.exposed.v1.jdbc.batchInsert
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.insert
@@ -57,26 +63,23 @@ internal class ClientDataSourceImpl(private val contactCipher: ContactCipher) : 
         val createdAt = storedNow()
         val rows = contacts.map { contact ->
             val id = Uuid.random()
-            NewClientRow(id, contact, encryptNew(id, contact))
+            NewClientRow(id, encryptNew(id, contact), contactCipher.indexes(businessId, contact))
         }
         ClientTable.batchInsert(rows) { row ->
             this[ClientTable.id] = row.id
             this[ClientTable.businessId] = businessId
             this[ClientTable.userId] = null
             this[ClientTable.createdAt] = createdAt
-            writeContact(row.encrypted, contactCipher.indexes(row.contact))
+            writeContact(row.encrypted, row.indexes)
         }
+        ClientEntity.insertNameTokens(businessId, rows.associate { it.id to it.indexes.nameTokens })
         clients.zip(rows) { client, row -> client.copy(id = row.id, createdAt = createdAt) }
     }
 
     override suspend fun getClientsPage(businessId: Uuid, page: PageRequest, query: String?): Page<Client> = dbQuery {
-        val ofBusiness = ClientTable.businessId eq businessId
-        val where = if (query.isNullOrBlank()) ofBusiness else ofBusiness and matching(query)
-        val entities = ClientEntity.find { where and pageKeyset.after(page.after) }
-            .orderBy(*pageKeyset.orderBy())
-            .limit(page.fetchSize)
-            .toList()
-            .toPage(page) { PageCursor(after = it.createdAt, id = it.id.value) }
+        if (!query.isNullOrBlank()) return@dbQuery searchPage(businessId, page, contactCipher.search(businessId, query))
+        val entities = pageOfClients(ClientTable.businessId eq businessId, page.after, page.fetchSize)
+            .toPage(page) { it.pageCursor() }
         Page(entities.items.domains(), entities.next)
     }
 
@@ -273,32 +276,77 @@ internal class ClientDataSourceImpl(private val contactCipher: ContactCipher) : 
         }
 
     override suspend fun indexClientContacts(after: Uuid, limit: Int): Uuid? = dbQuery {
-        val phoneUnindexed = ClientTable.phoneEncrypted.isNotNull() and ClientTable.phoneIndex.isNull()
-        val unindexed = ClientEntity
-            .find { (ClientTable.id greater after) and (ClientTable.nameIndex.isNull() or phoneUnindexed) }
+        val unindexed = findUnindexedClientsForUpdate(after, limit)
+        val contacts = contactCipher.decryptAll(unindexed.map { it.storedContact() }, SOURCE)
+        unindexed.zip(contacts).forEach { (client, contact) -> indexContact(client, contact) }
+        unindexed.lastOrNull()?.id?.value
+    }
+
+    private fun findUnindexedClientsForUpdate(after: Uuid, limit: Int): List<ClientEntity> {
+        return ClientEntity.find { (ClientTable.id greater after) and isUnindexed() }
             .orderBy(ClientTable.id to SortOrder.ASC)
             .limit(limit)
             .forUpdate()
             .toList()
-        val contacts = contactCipher.decryptAll(unindexed.map { it.storedContact() }, SOURCE)
-        unindexed.zip(contacts).forEach { (entity, contact) ->
-            ClientEntity.findByIdAndUpdateSearchIndexes(
-                id = entity.id.value,
-                nameIndex = contactCipher.nameIndex(contact.name, contact.lastName),
-                phoneIndex = contactCipher.phoneIndex(contact.phone),
-            )
-        }
-        unindexed.lastOrNull()?.id?.value
     }
 
-    private fun matching(query: String): Op<Boolean> {
-        val indexes = contactCipher.searchIndexes(query)
-        val matches = listOfNotNull(
-            indexes.name?.let { ClientTable.nameIndex eq it },
-            indexes.email?.let { ClientTable.emailIndex eq it },
-            indexes.phone?.let { ClientTable.phoneIndex eq it },
-        )
-        return matches.reduceOrNull { acc, match -> acc or match } ?: Op.FALSE
+    private fun isUnindexed(): Op<Boolean> {
+        val nameTokensOfClient = ClientNameTokenTable.select(ClientNameTokenTable.clientId)
+            .where { ClientNameTokenTable.clientId eq ClientTable.id }
+        val nameUnindexed = notExists(nameTokensOfClient)
+        val phoneUnindexed = ClientTable.phoneEncrypted.isNotNull() and ClientTable.phoneIndex.isNull()
+        return nameUnindexed or phoneUnindexed
+    }
+
+    private fun indexContact(client: ClientEntity, contact: Contact) {
+        val nameTokens = contactCipher.nameTokens(client.businessId.value, contact.name, contact.lastName)
+        val phoneIndex = contactCipher.phoneIndex(contact.phone)
+        ClientEntity.findByIdAndUpdateSearchIndexes(client.id.value, nameTokens, phoneIndex)
+    }
+
+    private suspend fun searchPage(businessId: Uuid, page: PageRequest, search: ClientSearch): Page<Client> {
+        val nameHasWord = search.wordTokens.map { tokens ->
+            ClientTable.id inSubQuery ClientNameTokenTable
+                .select(ClientNameTokenTable.clientId)
+                .where {
+                    (ClientNameTokenTable.businessId eq businessId) and (ClientNameTokenTable.token inList tokens)
+                }
+        }
+        val nameMatches = if (nameHasWord.isEmpty()) Op.FALSE else nameHasWord.compoundAnd()
+        val emailMatches = ClientTable.emailIndex eq search.emailIndex
+        val phoneMatch = search.phoneIndex?.let { ClientTable.phoneIndex eq it }
+        val matchesSearch = nameMatches or emailMatches orIfNotNull phoneMatch
+        val matches = mutableListOf<MatchedClient>()
+        var after = page.after
+        repeat(MAX_SEARCH_BATCHES) {
+            val batch = ClientEntity
+                .find { (ClientTable.businessId eq businessId) and matchesSearch and pageKeyset.after(after) }
+                .orderBy(*pageKeyset.orderBy())
+                .limit(page.fetchSize)
+                .toList()
+            val contacts = contactCipher.decryptAll(batch.map { it.storedContact() }, SOURCE)
+            batch.zip(contacts)
+                .filter { (entity, contact) -> search.matches(entity.emailIndex, entity.phoneIndex, contact) }
+                .mapTo(matches) { (entity, contact) -> MatchedClient(entity.toDomain(contact), entity.pageCursor()) }
+            if (matches.size > page.limit) {
+                val items = matches.take(page.limit)
+                return Page(items.map { it.client }, next = items.last().cursor)
+            }
+            if (batch.size < page.fetchSize) return Page(matches.map { it.client }, next = null)
+            after = batch.last().pageCursor()
+        }
+        return Page(matches.map { it.client }, next = after)
+    }
+
+    private fun pageOfClients(where: Op<Boolean>, after: PageCursor?, size: Int): List<ClientEntity> {
+        return ClientEntity.find { where and pageKeyset.after(after) }
+            .orderBy(*pageKeyset.orderBy())
+            .limit(size)
+            .toList()
+    }
+
+    private fun ClientEntity.pageCursor(): PageCursor {
+        return PageCursor(after = createdAt, id = id.value)
     }
 
     private suspend fun findIntegratedClient(businessId: Uuid, userId: Uuid): Client? {
@@ -315,14 +363,16 @@ internal class ClientDataSourceImpl(private val contactCipher: ContactCipher) : 
 
     private suspend fun insertClient(businessId: Uuid, id: Uuid, contact: Contact, userId: Uuid?): Instant {
         val encrypted = encryptNew(id, contact)
+        val indexes = contactCipher.indexes(businessId, contact)
         val createdAt = storedNow()
         ClientTable.insert {
             it[ClientTable.id] = id
             it[this.businessId] = businessId
             it[this.userId] = userId
             it[this.createdAt] = createdAt
-            it.writeContact(encrypted, contactCipher.indexes(contact))
+            it.writeContact(encrypted, indexes)
         }
+        ClientEntity.insertNameTokens(businessId, mapOf(id to indexes.nameTokens))
         return createdAt
     }
 
@@ -338,7 +388,7 @@ internal class ClientDataSourceImpl(private val contactCipher: ContactCipher) : 
 
     private suspend fun ClientEntity.write(read: ReadContact, contact: Contact, reindex: ContactReindex): Boolean {
         val encrypted = contactCipher.encryptChanges(read, contact) ?: return false
-        storeContact(encrypted, contactCipher.indexes(contact), reindex)
+        storeContact(encrypted, contactCipher.indexes(businessId.value, contact), reindex)
         return true
     }
 
@@ -365,11 +415,14 @@ internal class ClientDataSourceImpl(private val contactCipher: ContactCipher) : 
         )
     }
 
-    private class NewClientRow(val id: Uuid, val contact: Contact, val encrypted: EncryptedContact)
+    private class MatchedClient(val client: Client, val cursor: PageCursor)
+
+    private class NewClientRow(val id: Uuid, val encrypted: EncryptedContact, val indexes: ContactIndexes)
 
     private companion object {
         const val SOURCE = "client"
         const val NANOSECONDS_PER_MICROSECOND = 1_000
+        const val MAX_SEARCH_BATCHES = 10
         val pageKeyset = Keyset(ClientTable.createdAt, ClientTable.id, SortOrder.DESC)
     }
 }
