@@ -11,9 +11,11 @@ import com.bookk.server.user.client.UserClient
 import com.bookk.server.user.client.api.UserSnapshot
 import io.ktor.http.HttpStatusCode
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.mockk
 import library.email.EmailCodeError
 import library.email.EmailSendError
+import library.email.PlaceholderEmail
 import library.email.test.EmailTestMailbox
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -76,6 +78,21 @@ internal class StartEmailChangeImplTest {
         assertTrue(result.exceptionOrNull() is StartEmailChange.Error.InvalidEmailFormat) { result.toString() }
         assertTrue(fixture.mailbox.sent.isEmpty())
     }
+
+    @Test
+    fun `should return EmailDomainUnsupported before any lookup or send for the Telegram placeholder domain`() =
+        runUnitTest {
+            given()
+            val fixture = SutFixture()
+
+            whenn()
+            val result = fixture.sut.invoke(Uuid.random(), PlaceholderEmail.forTelegramUser(42), Language.EN)
+
+            then()
+            assertTrue(result.exceptionOrNull() is StartEmailChange.Error.EmailDomainUnsupported) { result.toString() }
+            assertTrue(fixture.mailbox.sent.isEmpty())
+            coVerify(exactly = 0) { fixture.userClient.getUserByEmail(any()) }
+        }
 
     @Test
     fun `should return EmailAlreadyExist and send nothing when an account holds the address`() = runUnitTest {

@@ -33,4 +33,5 @@
     <logger name="io.micrometer" level="warn"/>
     <logger name="io.ktor.auth.jwt" level="warn"/>
     <logger name="IdempotencyPlugin" level="warn"/>
+    <logger name="org.apache.hc" level="warn"/>
 </configuration>

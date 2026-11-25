@@ -6,7 +6,10 @@ afterwards only through a code sent to the new one, so nothing downstream
 checks whether an address is verified. The one exception is an account
 created by Telegram Mini App sign-in, whose address is the placeholder
 `<telegram user id>@telegramundeliverable.org` (`PlaceholderEmail`): nothing is
-ever sent to it, and the user can replace it through an email change. A business client is linked to an
+ever sent to it, and the user can replace it through an email change. Sign-up
+and email change refuse that domain and its subdomains with `EMAIL_DOMAIN_UNSUPPORTED` (17)
+before looking the address up or sending anything, so a placeholder can't be
+registered or switched to, and its existence is never revealed through `EMAIL_EXIST`. A business client is linked to an
 account by that email alone (`docs/agents/domain-rules.md`). Scope and
 decisions: issues #146 and #147.
 

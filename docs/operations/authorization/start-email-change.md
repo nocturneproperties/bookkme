@@ -3,7 +3,7 @@
 `POST /api/auth/email` → `StartEmailChange`
 
 A signed-in user asks to move their account to a new address. Auth checks
-the address is well formed and free, then emails a 6-digit code to it,
+the address is well formed, not on the Telegram placeholder domain and free, then emails a 6-digit code to it,
 valid 10 minutes. Nothing is stored yet: the address changes only through
 [Confirm an email change](confirm-email-change.md). The code's owner is
 the caller's `userId`, and only their newest code works.
@@ -14,7 +14,9 @@ flowchart TD
     Auth -- No --> R401([401])
     Auth -- Yes --> EmailFormat{EmailValidator.isValid email?}
     EmailFormat -- No --> R422a([422 INVALID_EMAIL_FORMAT 2])
-    EmailFormat -- Yes --> LookupUser[UserClient.getUserByEmail email]
+    EmailFormat -- Yes --> Placeholder{PlaceholderEmail.isPlaceholder email?<br/>telegramundeliverable.org or a subdomain}
+    Placeholder -- Yes --> R422d([422 EMAIL_DOMAIN_UNSUPPORTED 17])
+    Placeholder -- No --> LookupUser[UserClient.getUserByEmail email]
     LookupUser -- found, the caller's own address included --> R422b([422 EMAIL_EXIST 1])
     LookupUser -- error other than 404 --> RErr([Propagate user-service error])
     LookupUser -- 404 not found --> Issue[EmailCodeIssuer.issue email purpose=email-change ownerId=userId<br/>AuthEmails.emailChangeCode language]

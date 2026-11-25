@@ -134,6 +134,19 @@ internal class EmailChangeTest {
     }
 
     @Test
+    fun `should return unprocessable entity when the new address is on an unsupported domain`() = routeTest {
+        given()
+        val response = startRejectedWith(StartEmailChange.Error.EmailDomainUnsupported())
+
+        whenn()
+        val body = response.body<SimpleServerError>()
+
+        then()
+        assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
+        assertEquals(AuthErrorCodes.EMAIL_DOMAIN_UNSUPPORTED, body.errorCode)
+    }
+
+    @Test
     fun `should return unprocessable entity when the new address can't receive email`() = routeTest {
         given()
         val response = startRejectedWith(EmailSendError.Undeliverable())

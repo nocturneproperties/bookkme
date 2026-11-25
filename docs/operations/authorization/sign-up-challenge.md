@@ -2,7 +2,8 @@
 
 `POST /api/auth/passkey/sign_up/challenge` → `StartRegistration`
 
-The first step of registration: validates the email, confirms no user
+The first step of registration: validates the email, refuses the Telegram
+placeholder domain before any lookup, confirms no user
 already owns it (via the user service), asks the WebAuthn layer for a
 passkey creation challenge, and emails a 6-digit code to the address. The
 code is bound to this challenge (its owner is the challenge's `requestId`)
@@ -16,7 +17,9 @@ code, subject to the code's resend limits.
 flowchart TD
     Start([POST /api/auth/passkey/sign_up/challenge<br/>Accept-Language picks the email's language]) --> EmailFormat{EmailValidator.isValid email?}
     EmailFormat -- No --> R422a([422 INVALID_EMAIL_FORMAT 2])
-    EmailFormat -- Yes --> LookupUser[UserClient.getUserByEmail email]
+    EmailFormat -- Yes --> Placeholder{PlaceholderEmail.isPlaceholder email?<br/>telegramundeliverable.org or a subdomain}
+    Placeholder -- Yes --> R422d([422 EMAIL_DOMAIN_UNSUPPORTED 17])
+    Placeholder -- No --> LookupUser[UserClient.getUserByEmail email]
     LookupUser -- found --> R422b([422 EMAIL_EXIST 1])
     LookupUser -- error other than 404 --> RErr([Propagate user-service error])
     LookupUser -- 404 not found --> StartPasskey[StartPasskeyRegistration userHandle=random displayName<br/>challenge cached 10 min under requestId]

@@ -9,7 +9,8 @@ Changes since `monolith/0.20.0`. Adds sign-in from a Telegram Mini App, which cr
 - New `POST /api/auth/telegram/sign_in` takes the Mini App's raw `initData`, a device and, for a new user, `acceptedDocuments`, and returns tokens; send the documents after a 422 `LEGAL_DOCUMENTS_NOT_ACCEPTED` (100004).
 - It answers 422 `TELEGRAM_DATA_INVALID` (14) for data not signed by Telegram for this bot, `TELEGRAM_DATA_EXPIRED` (15) once `initData` is over an hour old (reopen the Mini App), and 503 `TELEGRAM_SIGN_IN_UNAVAILABLE` (16) when the server has no bot configured.
 - `GET /api/user/me` returns the new `telegramUserId` (field 6), set only for an account created through Telegram sign-in, and the personal data export includes it.
-- An account created this way has the email `<telegram user id>@telegramundeliverable.org`; codes to that domain answer `EMAIL_UNDELIVERABLE` (910005), so prompt the user to change to a real address and to add a passkey before deleting the account or exporting data.
+- An account created this way has the email `<telegram user id>@telegramundeliverable.org`, which is never mailed, so prompt the user to change to a real address and to add a passkey before deleting the account or exporting data.
+- `POST /api/auth/passkey/sign_up/challenge` and `POST /api/auth/email` refuse that domain and its subdomains with the new 422 `EMAIL_DOMAIN_UNSUPPORTED` (17); show it as "use a different email".
 - `GET`/`PUT /api/notification/settings` now list the `TELEGRAM` channel, on at first, for accounts created through Telegram; call the Mini App's `requestWriteAccess()` right after sign-in and before turning it back on, since the bot can only write to users who allowed it and a message it can't deliver turns the channel off.
 - Telegram is turned off again when the user blocks the bot, and account notifications (dormancy warnings, finished exports) go to Telegram even when it is off while the account has no real email.
 - New users' notification settings start with `appointmentEnabled` on; channels still start off (except Telegram for Telegram accounts), so appointment notifications arrive once a channel is on, and existing settings keep their value.
@@ -88,6 +89,7 @@ Changes since `monolith/0.20.0`. Adds sign-in from a Telegram Mini App, which cr
 - nginx sends `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: require-corp` for the web app (`app.` and the VPN-only `local-app.`), replacing any value the web app sets; apply with `make infra tags=nginx`.
 - New alert `WebAppDown` fires when no web app container has run for 5 minutes.
 - A scheduled job's successful run is now one DEBUG line, `Scheduled job '<name>' completed in <duration>`, instead of two; the every-minute `auth-reapplyErasures` and `business-reapplyErasures` log only failures.
+- The HTTP client used for push notifications (`org.apache.hc`) now logs only warnings, even with `APPLICATION_LOG_LEVEL=debug`, so its debug logs no longer contain the Firebase access token, device push ids or notification text.
 
 ### Upgrade
 

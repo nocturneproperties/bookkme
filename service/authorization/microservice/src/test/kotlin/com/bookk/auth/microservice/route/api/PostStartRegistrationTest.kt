@@ -152,6 +152,19 @@ class PostStartRegistrationTest {
     }
 
     @Test
+    fun `should return unprocessable entity when the email domain is unsupported`() = routeTest {
+        given()
+        val response = rejectedWith(StartRegistration.Error.EmailDomainUnsupported())
+
+        whenn()
+        val body = response.body<SimpleServerError>()
+
+        then()
+        assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
+        assertEquals(AuthErrorCodes.EMAIL_DOMAIN_UNSUPPORTED, body.errorCode)
+    }
+
+    @Test
     fun `should write the code email in the language from Accept-Language`() = routeTest {
         given()
         val useCase: StartRegistration = mockk()

@@ -5,6 +5,7 @@ import com.bookk.auth.domain.api.registration.entity.SignUpChallengeResponse
 import com.bookk.auth.domain.api.registration.operation.StartPasskeyRegistration
 import com.bookk.auth.domain.api.registration.operation.StartRegistration
 import com.bookk.auth.domain.api.registration.operation.StartRegistration.Error.EmailAlreadyExist
+import com.bookk.auth.domain.api.registration.operation.StartRegistration.Error.EmailDomainUnsupported
 import com.bookk.auth.domain.api.registration.operation.StartRegistration.Error.InvalidEmailFormat
 import com.bookk.auth.domain.impl.email.AuthEmails
 import com.bookk.auth.domain.impl.email.EmailPurpose
@@ -14,6 +15,7 @@ import com.bookk.core.domain.entity.runSuspendCatching
 import com.bookk.server.user.client.UserClient
 import io.ktor.http.HttpStatusCode
 import library.email.EmailCodeIssuer
+import library.email.PlaceholderEmail
 import library.validation.EmailValidator
 import kotlin.uuid.Uuid
 
@@ -28,6 +30,7 @@ internal class StartRegistrationImpl(
         language: Language,
     ): Result<SignUpChallengeResponse> = runSuspendCatching {
         if (!EmailValidator.isValid(request.email)) throw InvalidEmailFormat()
+        if (PlaceholderEmail.isPlaceholder(request.email)) throw EmailDomainUnsupported()
         userClient.getUserByEmail(request.email)
             .onSuccess { throw EmailAlreadyExist() }
             .rethrowBusinessIf { it.statusCode != HttpStatusCode.NotFound.value }

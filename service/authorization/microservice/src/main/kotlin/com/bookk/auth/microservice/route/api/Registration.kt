@@ -25,7 +25,7 @@ internal fun Route.registration() {
      * Tag: auth
      * Body: application/x-protobuf [com.bookk.auth.domain.api.registration.entity.CreateAccountRequest] User parameters
      * Response: 200 application/x-protobuf [com.bookk.auth.domain.api.registration.entity.SignUpChallengeResponse] Passkey challenge and the email verification to finish sign-up with
-     * Response: 422 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Registration errors<br>EMAIL_EXIST (1) This email already exists<br>INVALID_EMAIL_FORMAT (2) Invalid email format<br>EMAIL_UNDELIVERABLE (910005) This address can't receive email
+     * Response: 422 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Registration errors<br>EMAIL_EXIST (1) This email already exists<br>INVALID_EMAIL_FORMAT (2) Invalid email format<br>EMAIL_DOMAIN_UNSUPPORTED (17) Email addresses on this domain are not supported<br>EMAIL_UNDELIVERABLE (910005) This address can't receive email
      * Response: 429 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Code sending limit<br>EMAIL_CODE_RESEND_TOO_SOON (910004) A code was sent to this address too recently
      * See: docs/operations/authorization/sign-up-challenge.md
      */
