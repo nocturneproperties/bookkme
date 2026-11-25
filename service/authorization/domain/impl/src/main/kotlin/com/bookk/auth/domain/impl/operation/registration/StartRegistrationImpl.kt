@@ -36,7 +36,7 @@ internal class StartRegistrationImpl(
             .rethrowBusinessIf { it.statusCode != HttpStatusCode.NotFound.value }
         val passkey = startPasskeyRegistration(
             userHandle = Uuid.random(),
-            passkeyDisplayName = "${request.firstName} ${request.lastName}",
+            passkeyDisplayName = PersonName.of(request.name).fullName,
         ).getOrThrow()
         val emailVerification = emailCodeIssuer.issue(
             email = request.email,

@@ -87,7 +87,7 @@ fun Route.employeeCrud() {
          * Update employee
          *
          * Summary: Update employee
-         * Description: Updates the employee profile, schedule and provided services. Permissions are not part of the body and are changed only through the set employee permission endpoint
+         * Description: Updates the employee profile, schedule and provided services. Permissions are not part of the body and are changed only through the set employee permission endpoint. name takes 2 to 512 characters, lastName 0 to 512, so it may be empty or a single letter
          * Tag: employee
          * Security: jwt
          * Body: application/x-protobuf [com.bookk.business.domain.api.employee.entity.EmployeeUpdateModel]

@@ -19,7 +19,6 @@ data class VerifyAccountCreationRequest(
     @Serializable
     data class UserInfo(
         @ProtoNumber(1) val name: String,
-        @ProtoNumber(2) val lastName: String,
         @ProtoNumber(3) val email: String,
     )
 

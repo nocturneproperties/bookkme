@@ -41,8 +41,7 @@ internal class StartRegistrationImplTest {
     }
 
     private val validRequest = CreateAccountRequest(
-        firstName = "John",
-        lastName = "Doe",
+        name = "  John   Doe ",
         email = "john.doe@example.com",
     )
 

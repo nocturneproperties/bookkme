@@ -2,10 +2,13 @@
 
 ## 0.21.0
 
-Changes since `monolith/0.20.0`. Adds sign-in from a Telegram Mini App, which creates an account with a placeholder email on first use, sends notifications to those users through the Telegram bot, gives clients their upcoming bookings across businesses, a list of saved businesses, an employee's free slots and the business's note for clients, stops two bookings from taking the same employee at once, lets owners pick a booking link name for their business, stops push notifications to signed-out devices, pages and filters the appointment and request histories, gives clients paged histories of their own appointments and requests, and pages the client list with server-side client search.
+Changes since `monolith/0.20.0`. Takes the user's name as one field at sign-up, adds sign-in from a Telegram Mini App, which creates an account with a placeholder email on first use, sends notifications to those users through the Telegram bot, gives clients their upcoming bookings across businesses, a list of saved businesses, an employee's free slots and the business's note for clients, stops two bookings from taking the same employee at once, lets owners pick a booking link name for their business, stops push notifications to signed-out devices, pages and filters the appointment and request histories, gives clients paged histories of their own appointments and requests, and pages the client list with server-side client search.
 
 ### Clients
 
+- `POST /api/auth/passkey/sign_up/challenge` and `POST /api/auth/sign_up` take the user's full name in one `name` (field 1); `lastName` (field 2) is removed from both and ignored, so send the whole name in `name`.
+- The server splits that name at the first space into the first and last name, so a one-word name gives an empty last name and "John D" a one-letter one.
+- `PUT /api/business/{businessId}/employee/{id}` now accepts an empty or one-letter `lastName`; `name` still needs at least 2 characters, else 422 `BUSINESS_EMPLOYEE_VALIDATION_ERROR` (200021).
 - New `POST /api/auth/telegram/sign_in` takes the Mini App's raw `initData`, a device and, for a new user, `acceptedDocuments`, and returns tokens; send the documents after a 422 `LEGAL_DOCUMENTS_NOT_ACCEPTED` (100004).
 - It answers 422 `TELEGRAM_DATA_INVALID` (14) for data not signed by Telegram for this bot, `TELEGRAM_DATA_EXPIRED` (15) once `initData` is over an hour old (reopen the Mini App), and 503 `TELEGRAM_SIGN_IN_UNAVAILABLE` (16) when the server has no bot configured.
 - `GET /api/user/me` returns the new `telegramUserId` (field 6), set only for an account created through Telegram sign-in, and the personal data export includes it.
