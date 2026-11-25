@@ -2,6 +2,7 @@ package com.bookk.appointments.microservice.route
 
 import com.bookk.appointments.domain.api.entity.AppointmentRequestStatus
 import com.bookk.appointments.domain.api.entity.AppointmentStatus
+import com.bookk.appointments.domain.api.entity.BookingPeriod
 import com.bookk.appointments.domain.api.entity.HistoryOrder
 import io.ktor.resources.Resource
 import kotlinx.datetime.LocalDate
@@ -33,6 +34,24 @@ object AppointmentsRouting {
 
             @Resource("/upcoming")
             class Upcoming(val parent: Appointment = Appointment())
+
+            @Resource("/mine")
+            class OwnHistory(
+                val parent: Appointment = Appointment(),
+                val limit: Int? = null,
+                val cursor: String? = null,
+                val period: BookingPeriod? = null,
+                val status: List<AppointmentStatus> = emptyList(),
+            )
+
+            @Resource("/request/mine")
+            class OwnRequestHistory(
+                val parent: Appointment = Appointment(),
+                val limit: Int? = null,
+                val cursor: String? = null,
+                val period: BookingPeriod? = null,
+                val status: List<AppointmentRequestStatus> = emptyList(),
+            )
 
             @Resource("/businesses")
             class SavedBusinesses(val parent: Appointment = Appointment())

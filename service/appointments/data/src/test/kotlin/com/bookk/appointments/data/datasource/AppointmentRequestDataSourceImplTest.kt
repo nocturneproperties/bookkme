@@ -10,9 +10,11 @@ import com.bookk.appointments.domain.api.entity.AppointmentRequestHistoryFilter
 import com.bookk.appointments.domain.api.entity.AppointmentRequestStatus
 import com.bookk.appointments.domain.api.entity.AppointmentRequestStatus.DECLINED
 import com.bookk.appointments.domain.api.entity.AppointmentRequestStatus.PENDING
+import com.bookk.appointments.domain.api.entity.BookingPeriod
 import com.bookk.appointments.domain.api.entity.BusinessSnapshot
 import com.bookk.appointments.domain.api.entity.EmployeeSnapshot
 import com.bookk.appointments.domain.api.entity.HistoryOrder
+import com.bookk.appointments.domain.api.entity.OwnAppointmentRequestFilter
 import com.bookk.appointments.domain.api.entity.StartBounds
 import com.bookk.core.data.cache.test.InMemoryCacheClient
 import com.bookk.core.data.test.createTestDatabase
@@ -813,5 +815,146 @@ internal class AppointmentRequestDataSourceImplTest {
 
         then()
         assertEquals(listOf(created), found)
+    }
+
+    @Test
+    fun `should page every request the user made across businesses, newest first`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val otherBusiness = BusinessSnapshot.stub()
+        suspendTransaction { fixture.subscriptionSut.attachBusiness(otherBusiness) }
+        val userId = Uuid.random()
+        val now = Clock.System.now()
+        val past = suspendTransaction { fixture.sut.create(fixture.buildRequest(userId, now - 48.hours)) }
+        val upcomingRequest = fixture.buildRequest(userId, now + 1.hours).copy(businessId = otherBusiness.id)
+        val upcoming = suspendTransaction { fixture.sut.create(upcomingRequest) }
+        suspendTransaction { fixture.sut.create(fixture.buildRequest(date = now + 2.hours)) }
+
+        whenn()
+        val page = suspendTransaction {
+            fixture.sut.getPageOfInitiator(userId, OwnAppointmentRequestFilter(), now, pageRequest(limit = 10))
+        }
+
+        then()
+        assertEquals(listOf(upcoming.id, past.id), page.items.map { it.id })
+        assertNull(page.next)
+    }
+
+    @Test
+    fun `should page the user's requests that have not started, soonest first`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val userId = Uuid.random()
+        val now = Clock.System.now()
+        val later = suspendTransaction { fixture.sut.create(fixture.buildRequest(userId, now + 72.hours)) }
+        val sooner = suspendTransaction { fixture.sut.create(fixture.buildRequest(userId, now + 1.hours)) }
+        suspendTransaction { fixture.sut.create(fixture.buildRequest(userId, now - 10.minutes)) }
+        val filter = OwnAppointmentRequestFilter(period = BookingPeriod.UPCOMING)
+
+        whenn()
+        val page = suspendTransaction { fixture.sut.getPageOfInitiator(userId, filter, now, pageRequest(limit = 10)) }
+
+        then()
+        assertEquals(listOf(sooner.id, later.id), page.items.map { it.id })
+    }
+
+    @Test
+    fun `should page the user's requests that have started, newest first`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val userId = Uuid.random()
+        val now = Clock.System.now()
+        val older = suspendTransaction { fixture.sut.create(fixture.buildRequest(userId, now - 48.hours)) }
+        val newer = suspendTransaction { fixture.sut.create(fixture.buildRequest(userId, now - 10.minutes)) }
+        suspendTransaction { fixture.sut.create(fixture.buildRequest(userId, now + 1.hours)) }
+        val filter = OwnAppointmentRequestFilter(period = BookingPeriod.PAST)
+
+        whenn()
+        val page = suspendTransaction { fixture.sut.getPageOfInitiator(userId, filter, now, pageRequest(limit = 10)) }
+
+        then()
+        assertEquals(listOf(newer.id, older.id), page.items.map { it.id })
+    }
+
+    @Test
+    fun `should page only the user's requests in the given statuses`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val userId = Uuid.random()
+        val now = Clock.System.now()
+        val pending = suspendTransaction { fixture.sut.create(fixture.buildRequest(userId, now + 1.hours)) }
+        val declined = suspendTransaction { fixture.sut.create(fixture.buildRequest(userId, now + 2.hours)) }
+        val withdrawn = suspendTransaction { fixture.sut.create(fixture.buildRequest(userId, now + 3.hours)) }
+        suspendTransaction {
+            fixture.sut.decline(declined.id, "Fully booked")
+            fixture.sut.withdraw(withdrawn.id)
+        }
+        val filter = OwnAppointmentRequestFilter(
+            statuses = setOf(AppointmentRequestStatus.PENDING, AppointmentRequestStatus.DECLINED),
+        )
+
+        whenn()
+        val page = suspendTransaction { fixture.sut.getPageOfInitiator(userId, filter, now, pageRequest(limit = 10)) }
+
+        then()
+        assertEquals(listOf(declined.id, pending.id), page.items.map { it.id })
+    }
+
+    @Test
+    fun `should page the user's requests starting at the same time without gaps or repeats`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val userId = Uuid.random()
+        val now = Clock.System.now()
+        val created = (0 until 5).map {
+            suspendTransaction { fixture.sut.create(fixture.buildRequest(userId, now + 1.hours)) }
+        }
+
+        whenn()
+        val pages = mutableListOf<List<Uuid>>()
+        var after: PageCursor? = null
+        do {
+            val page = suspendTransaction {
+                fixture.sut.getPageOfInitiator(
+                    userId,
+                    OwnAppointmentRequestFilter(period = BookingPeriod.UPCOMING),
+                    now,
+                    pageRequest(limit = 2, after = after),
+                )
+            }
+            pages += page.items.map { it.id }
+            after = page.next
+        } while (after != null)
+
+        then()
+        assertEquals(listOf(2, 2, 1), pages.map { it.size })
+        assertEquals(created.map { it.id }.toSet(), pages.flatten().toSet())
+    }
+
+    @Test
+    fun `should load the user's page of requests with their services`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val userId = Uuid.random()
+        val created = suspendTransaction { fixture.sut.create(fixture.buildRequest(userId, Clock.System.now())) }
+
+        whenn()
+        val page = suspendTransaction {
+            fixture.sut.getPageOfInitiator(
+                userId,
+                OwnAppointmentRequestFilter(),
+                Clock.System.now(),
+                pageRequest(limit = 10),
+            )
+        }
+
+        then()
+        assertEquals(created.services, page.items.single().services)
     }
 }

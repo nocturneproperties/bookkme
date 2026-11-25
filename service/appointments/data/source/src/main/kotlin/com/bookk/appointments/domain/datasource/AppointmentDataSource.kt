@@ -4,6 +4,7 @@ import com.bookk.appointments.domain.api.entity.Appointment
 import com.bookk.appointments.domain.api.entity.AppointmentHistoryFilter
 import com.bookk.appointments.domain.api.entity.AppointmentRequest
 import com.bookk.appointments.domain.api.entity.BookedRange
+import com.bookk.appointments.domain.api.entity.OwnAppointmentFilter
 import com.bookk.appointments.domain.api.entity.PriceAdjustment
 import com.bookk.appointments.domain.api.entity.StartBounds
 import com.bookk.core.domain.entity.Page
@@ -19,6 +20,12 @@ interface AppointmentDataSource {
     suspend fun getAll(businessId: Uuid): List<Appointment>
     suspend fun getAllByIds(ids: Collection<Uuid>): List<Appointment>
     suspend fun getUpcomingOfClientUser(clientUserId: Uuid, endingAfter: Instant, limit: Int): List<Appointment>
+    suspend fun getPageOfClientUser(
+        clientUserId: Uuid,
+        filter: OwnAppointmentFilter,
+        now: Instant,
+        page: PageRequest,
+    ): Page<Appointment>
     suspend fun getAllForDate(businessId: Uuid, range: ClosedRange<Instant>, employeeId: Uuid?): List<Appointment>
     suspend fun getHistoryPage(
         businessId: Uuid,

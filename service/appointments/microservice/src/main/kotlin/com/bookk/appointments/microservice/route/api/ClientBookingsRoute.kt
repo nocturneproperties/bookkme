@@ -1,8 +1,12 @@
 package com.bookk.appointments.microservice.route.api
 
+import com.bookk.appointments.domain.api.entity.OwnAppointmentFilter
+import com.bookk.appointments.domain.api.entity.OwnAppointmentRequestFilter
 import com.bookk.appointments.domain.api.entity.RequestedService
 import com.bookk.appointments.domain.api.operation.GetAvailableSlots
 import com.bookk.appointments.domain.api.operation.GetBookingInfo
+import com.bookk.appointments.domain.api.operation.GetOwnAppointmentHistory
+import com.bookk.appointments.domain.api.operation.GetOwnAppointmentRequestHistory
 import com.bookk.appointments.domain.api.operation.GetSavedBusinesses
 import com.bookk.appointments.domain.api.operation.GetUpcomingBookings
 import com.bookk.appointments.domain.api.operation.RemoveSavedBusiness
@@ -85,6 +89,42 @@ fun Routing.clientBookings() {
             val getUpcomingBookings by application.injectScoped<GetUpcomingBookings>(AppointmentsScope)
 
             call.respondWith(getUpcomingBookings(principal.userId))
+        }
+
+        /**
+         * Get own appointment history
+         *
+         * Summary: Get own appointment history
+         * Description: One page of the appointments whose client is the caller's account, across every business. Pass period UPCOMING for appointments that have not ended yet, soonest first, or PAST for those that have ended, newest first; without a period every appointment comes newest first. Filter by one or more status (repeat the parameter). Pass limit (1 to 100, default 50) and, for the next page, the previous page's nextCursor as cursor with the same filters; the last page has no nextCursor. The business's own note is left empty and the client's note from the request is in clientNote
+         * Tag: appointment
+         * Security: jwt
+         * Response: 200 application/x-protobuf [com.bookk.appointments.domain.api.entity.AppointmentPage] Page of the caller's appointments
+         * Response: 422 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Own appointment history errors<br>PAGE_LIMIT_INVALID (900003) Page limit must be from 1 to 100<br>PAGE_CURSOR_INVALID (900004) Page cursor is invalid, start from the first page
+         */
+        get<Api.Appointment.OwnHistory> {
+            val principal = requireNotNull(call.principal<AppPrincipal>())
+            val getOwnHistory by application.injectScoped<GetOwnAppointmentHistory>(AppointmentsScope)
+            val filter = OwnAppointmentFilter(period = it.period, statuses = it.status.toSet())
+
+            call.respondWith(getOwnHistory(principal.userId, filter, it.limit, it.cursor))
+        }
+
+        /**
+         * Get own appointment request history
+         *
+         * Summary: Get own appointment request history
+         * Description: One page of the appointment requests the caller sent, across every business. Pass period UPCOMING for requests that have not started yet, soonest first, or PAST for those that have started, newest first; without a period every request comes newest first. Filter by one or more status (repeat the parameter). Pass limit (1 to 100, default 50) and, for the next page, the previous page's nextCursor as cursor with the same filters; the last page has no nextCursor. An approved request is also listed by the own appointment history as the appointment it became
+         * Tag: appointment
+         * Security: jwt
+         * Response: 200 application/x-protobuf [com.bookk.appointments.domain.api.entity.AppointmentRequestPage] Page of the caller's appointment requests
+         * Response: 422 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Own request history errors<br>PAGE_LIMIT_INVALID (900003) Page limit must be from 1 to 100<br>PAGE_CURSOR_INVALID (900004) Page cursor is invalid, start from the first page
+         */
+        get<Api.Appointment.OwnRequestHistory> {
+            val principal = requireNotNull(call.principal<AppPrincipal>())
+            val getOwnRequestHistory by application.injectScoped<GetOwnAppointmentRequestHistory>(AppointmentsScope)
+            val filter = OwnAppointmentRequestFilter(period = it.period, statuses = it.status.toSet())
+
+            call.respondWith(getOwnRequestHistory(principal.userId, filter, it.limit, it.cursor))
         }
 
         /**
