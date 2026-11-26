@@ -3,6 +3,7 @@ package com.bookk.auth.data.datasource
 import com.bookk.auth.data.orm.table.AuthenticationTable
 import com.bookk.auth.domain.api.authentication.entity.AccountActivity
 import com.bookk.auth.domain.api.authentication.entity.Authentication
+import com.bookk.auth.domain.api.authentication.entity.DemoAccount
 import com.bookk.auth.domain.api.authentication.entity.DormancyStage
 import com.bookk.auth.domain.api.authentication.entity.DormantAccount
 import com.bookk.auth.domain.api.authentication.entity.LockedAccount
@@ -399,5 +400,110 @@ internal class AccountDataSourceImplTest {
 
         then()
         assertNull(found)
+    }
+
+    @Test
+    fun `should store a demo account's expiry and read it back`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val expiresAt = Instant.parse("2030-01-01T00:00:00Z")
+
+        whenn()
+        val created = suspendTransaction {
+            fixture.sut.createAuthorization(Authentication.stub(demoExpiresAt = expiresAt))
+        }
+        val found = suspendTransaction { fixture.sut.getAuthRecordById(created.id) }
+
+        then()
+        assertEquals(expiresAt, found?.demoExpiresAt)
+    }
+
+    @Test
+    fun `should count only the demo accounts that have not expired yet`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val now = Instant.parse("2030-01-01T00:00:00Z")
+        suspendTransaction {
+            fixture.sut.createAuthorization(Authentication.stub(demoExpiresAt = now + 1.days))
+            fixture.sut.createAuthorization(Authentication.stub(demoExpiresAt = now + 2.days))
+            fixture.sut.createAuthorization(Authentication.stub(demoExpiresAt = now - 1.days))
+            fixture.sut.createAuthorization(Authentication.stub())
+        }
+
+        whenn()
+        val count = suspendTransaction { fixture.sut.countDemoAccountsActiveAt(now) }
+
+        then()
+        assertEquals(2, count)
+    }
+
+    @Test
+    fun `should list the demo accounts expired before the cutoff with their hold`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val cutoff = Instant.parse("2030-01-01T00:00:00Z")
+        val expired = suspendTransaction {
+            fixture.sut.createAuthorization(Authentication.stub(demoExpiresAt = cutoff - 1.days))
+        }
+        suspendTransaction {
+            fixture.sut.createAuthorization(Authentication.stub(demoExpiresAt = cutoff + 1.days))
+            fixture.sut.createAuthorization(Authentication.stub())
+        }
+        fixture.hold(expired.id)
+
+        whenn()
+        val listed = suspendTransaction { fixture.sut.getDemoAccountsExpiredBefore(cutoff) }
+
+        then()
+        assertEquals(
+            listOf(DemoAccount(expired.id, expired.userId, cutoff - 1.days, deletionHold = true)),
+            listed,
+        )
+    }
+
+    @Test
+    fun `should lock a demo account and return its expiry`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val expiresAt = Instant.parse("2030-01-01T00:00:00Z")
+        val account = suspendTransaction {
+            fixture.sut.createAuthorization(Authentication.stub(demoExpiresAt = expiresAt))
+        }
+
+        whenn()
+        val locked = suspendTransaction { fixture.sut.getDemoAccountForUpdate(account.id) }
+
+        then()
+        assertEquals(DemoAccount(account.id, account.userId, expiresAt, deletionHold = false), locked)
+    }
+
+    @Test
+    fun `should not return an account that is not a demo when locking a demo account`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val account = suspendTransaction { fixture.sut.createAuthorization(Authentication.stub()) }
+
+        whenn()
+        val locked = suspendTransaction { fixture.sut.getDemoAccountForUpdate(account.id) }
+
+        then()
+        assertNull(locked)
+    }
+
+    @Test
+    fun `should end the demo of an account so it is no longer a demo`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val account = suspendTransaction {
+            fixture.sut.createAuthorization(Authentication.stub(demoExpiresAt = Instant.parse("2030-01-01T00:00:00Z")))
+        }
+
+        whenn()
+        suspendTransaction { fixture.sut.endDemo(account.id) }
+        val found = suspendTransaction { fixture.sut.getAuthRecordById(account.id) }
+
+        then()
+        assertNull(found?.demoExpiresAt)
+        assertNotNull(found)
     }
 }

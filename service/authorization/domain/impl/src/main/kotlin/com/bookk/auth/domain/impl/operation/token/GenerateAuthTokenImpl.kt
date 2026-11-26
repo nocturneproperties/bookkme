@@ -65,12 +65,14 @@ internal class GenerateAuthTokenImpl(
                 deviceRecord.deviceInfo.id,
                 refreshToken.id,
                 refreshToken.secretHash,
+                now + REFRESH_TTL,
             )
 
             is Source.InitialAuthentication -> deviceDataSource.attachRefreshTokenToDevice(
                 deviceRecord.deviceInfo.id,
                 refreshToken.id,
                 refreshToken.secretHash,
+                now + REFRESH_TTL,
             )
         }
         return Issued.Tokens(AuthTokens(accessToken, refreshToken.token))
@@ -126,6 +128,7 @@ internal class GenerateAuthTokenImpl(
     companion object {
         const val REFRESH_TOKEN_REUSED_METRIC = "auth.refresh_token.reused"
         private val ACCESS_TTL = 5.minutes
+        private val REFRESH_TTL = 7.days
         private val ACTIVITY_PRECISION = 1.days
     }
 }

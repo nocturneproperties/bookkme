@@ -84,7 +84,7 @@ internal class GenerateAuthTokenImplTest {
         with(fixture) {
             coEvery { tokenIssuer.issue(any(), any()) } returns "access-token"
             coEvery { deviceDataSource.getDeviceByRefreshTokenIdForUpdate(refreshToken.id) } returns deviceRecord
-            coEvery { deviceDataSource.rotateRefreshToken(any(), any(), any()) } returns Unit
+            coEvery { deviceDataSource.rotateRefreshToken(any(), any(), any(), any()) } returns Unit
             transactionManager.mockTransaction()
         }
 
@@ -93,8 +93,10 @@ internal class GenerateAuthTokenImplTest {
 
         then()
         assertTrue(result.isSuccess)
-        coVerify(exactly = 1) { fixture.deviceDataSource.rotateRefreshToken(deviceRecord.deviceInfo.id, any(), any()) }
-        coVerify(exactly = 0) { fixture.deviceDataSource.attachRefreshTokenToDevice(any(), any(), any()) }
+        coVerify(exactly = 1) {
+            fixture.deviceDataSource.rotateRefreshToken(deviceRecord.deviceInfo.id, any(), any(), any())
+        }
+        coVerify(exactly = 0) { fixture.deviceDataSource.attachRefreshTokenToDevice(any(), any(), any(), any()) }
         coVerify(exactly = 0) { fixture.deviceDataSource.deleteTokenFromDevice(any()) }
     }
 
@@ -107,7 +109,7 @@ internal class GenerateAuthTokenImplTest {
         with(fixture) {
             coEvery { tokenIssuer.issue(any(), any()) } returns "access-token"
             coEvery { deviceDataSource.getDeviceByRefreshTokenIdForUpdate(refreshToken.id) } returns deviceRecord
-            coEvery { deviceDataSource.rotateRefreshToken(any(), any(), any()) } returns Unit
+            coEvery { deviceDataSource.rotateRefreshToken(any(), any(), any(), any()) } returns Unit
             transactionManager.mockTransaction()
         }
 
@@ -118,7 +120,7 @@ internal class GenerateAuthTokenImplTest {
         coVerifyOrder {
             fixture.deviceDataSource.getDeviceByRefreshTokenIdForUpdate(refreshToken.id)
             fixture.accountDataSource.recordActivity(deviceRecord.authRecord.id, any(), any())
-            fixture.deviceDataSource.rotateRefreshToken(deviceRecord.deviceInfo.id, any(), any())
+            fixture.deviceDataSource.rotateRefreshToken(deviceRecord.deviceInfo.id, any(), any(), any())
         }
     }
 
@@ -148,7 +150,7 @@ internal class GenerateAuthTokenImplTest {
         then()
         assertTrue(result.exceptionOrNull() is InvalidCredentials)
         assertTrue(deviceRevoked)
-        coVerify(exactly = 0) { fixture.deviceDataSource.rotateRefreshToken(any(), any(), any()) }
+        coVerify(exactly = 0) { fixture.deviceDataSource.rotateRefreshToken(any(), any(), any(), any()) }
     }
 
     @Test
@@ -189,7 +191,7 @@ internal class GenerateAuthTokenImplTest {
         with(fixture) {
             coEvery { tokenIssuer.issue(any(), any()) } returns "access-token"
             coEvery { deviceDataSource.getDeviceByRefreshTokenIdForUpdate(refreshToken.id) } returns deviceRecord
-            coEvery { deviceDataSource.rotateRefreshToken(any(), any(), any()) } returns Unit
+            coEvery { deviceDataSource.rotateRefreshToken(any(), any(), any(), any()) } returns Unit
             transactionManager.mockTransaction()
         }
 
@@ -267,7 +269,7 @@ internal class GenerateAuthTokenImplTest {
         with(fixture) {
             coEvery { tokenIssuer.issue(any(), any()) } returns "access-token"
             coEvery { deviceDataSource.getDeviceByRefreshTokenIdForUpdate(refreshToken.id) } returns deviceRecord
-            coEvery { deviceDataSource.rotateRefreshToken(any(), any(), any()) } returns Unit
+            coEvery { deviceDataSource.rotateRefreshToken(any(), any(), any(), any()) } returns Unit
             coEvery {
                 accountDataSource.recordActivity(
                     deviceRecord.authRecord.id,
@@ -300,7 +302,7 @@ internal class GenerateAuthTokenImplTest {
                     deviceRecord.deviceInfo.deviceUUID,
                 )
             } returns deviceRecord
-            coEvery { deviceDataSource.attachRefreshTokenToDevice(any(), any(), any()) } returns Unit
+            coEvery { deviceDataSource.attachRefreshTokenToDevice(any(), any(), any(), any()) } returns Unit
             transactionManager.mockTransaction()
         }
 
@@ -346,7 +348,7 @@ internal class GenerateAuthTokenImplTest {
         assertTrue(result.exceptionOrNull() is InvalidCredentials)
         assertEquals(0.0, fixture.reusedTokens())
         coVerify(exactly = 0) { fixture.tokenIssuer.issue(any(), any()) }
-        coVerify(exactly = 0) { fixture.deviceDataSource.rotateRefreshToken(any(), any(), any()) }
+        coVerify(exactly = 0) { fixture.deviceDataSource.rotateRefreshToken(any(), any(), any(), any()) }
         coVerify(exactly = 0) { fixture.accountDataSource.recordActivity(any(), any(), any()) }
     }
 
@@ -367,7 +369,7 @@ internal class GenerateAuthTokenImplTest {
         then()
         assertTrue(result.exceptionOrNull() is InvalidCredentials)
         coVerify(exactly = 0) { fixture.tokenIssuer.issue(any(), any()) }
-        coVerify(exactly = 0) { fixture.deviceDataSource.attachRefreshTokenToDevice(any(), any(), any()) }
+        coVerify(exactly = 0) { fixture.deviceDataSource.attachRefreshTokenToDevice(any(), any(), any(), any()) }
         coVerify(exactly = 0) { fixture.accountDataSource.recordActivity(any(), any(), any()) }
     }
 }

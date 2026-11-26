@@ -22,6 +22,7 @@ erDiagram
         int dormancy_stage "ACTIVE, SENT_60_DAY_WARNING, SENT_30_DAY_WARNING, SENT_7_DAY_WARNING (days before deletion); reset to ACTIVE by activity"
         timestamp dormancy_warned_at "nullable; when the first dormancy warning went out"
         boolean deletion_hold "default false; set by staff for a restriction or legal hold, auth-handleDormantAccounts and auth-handleScheduledDeletions skip the account"
+        timestamp demo_expires_at "nullable, indexed; set only on a demo account (POST /api/auth/demo, 30 days), cleared by the upgrade; refresh is refused after it and auth-deleteExpiredDemoAccounts erases the account 7 days later"
     }
 
     AUTH_DEVICE {
@@ -32,7 +33,7 @@ erDiagram
         enum language
         uuid refresh_token_id
         string refresh_token_hash
-        timestamp refresh_token_expires_at
+        timestamp refresh_token_expires_at "7 days after the last refresh; for a demo account 7 days after demo_expires_at"
         uuid previous_refresh_token_id
         string previous_refresh_token_hash
         bool is_signed_in

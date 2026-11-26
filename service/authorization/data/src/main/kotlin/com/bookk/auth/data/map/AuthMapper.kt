@@ -19,6 +19,7 @@ internal fun AuthenticationEntity.toDomain(): Authentication = Authentication(
     id = id.value,
     userId = userId,
     uuid = uuid,
+    demoExpiresAt = demoExpiresAt,
 )
 
 internal fun AuthDeviceEntity.toDomain(): Device = Device(

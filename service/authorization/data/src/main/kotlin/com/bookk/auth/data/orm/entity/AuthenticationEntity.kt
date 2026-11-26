@@ -11,6 +11,7 @@ internal class AuthenticationEntity(id: EntityID<Uuid>) : UuidEntity(id) {
     var uuid by AuthenticationTable.uuid
     var createdAt by AuthenticationTable.createdAt
     var updatedAt by AuthenticationTable.updatedAt
+    var demoExpiresAt by AuthenticationTable.demoExpiresAt
 
     companion object : DecoratorUuidEntityClass<AuthenticationEntity>(AuthenticationTable)
 }
