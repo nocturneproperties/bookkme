@@ -11,6 +11,7 @@ import com.bookk.auth.microservice.route.api.passkeyOperations
 import com.bookk.auth.microservice.route.api.postRefreshToken
 import com.bookk.auth.microservice.route.api.registration
 import com.bookk.auth.microservice.route.api.signIn
+import com.bookk.auth.microservice.route.api.telegramConfirmAction
 import com.bookk.auth.microservice.route.api.telegramSignIn
 import io.ktor.server.routing.Routing
 
@@ -26,5 +27,6 @@ fun Routing.authRoute() {
     deleteAccount()
     accountDeletion()
     confirmAction()
+    telegramConfirmAction()
     exportAccountData()
 }

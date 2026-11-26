@@ -28,6 +28,12 @@ action (`action`, `ActionConfirmationClaims.ACTION_DELETE_CLIENT` = `client.dele
 business (`business_id`) and the target (`target_id`), and its `jti` is
 unique. The service that checks it spends the `jti` once.
 
+An account without a passkey (one created through Telegram) gets the same
+token for its own account deletion or personal data export through the bot
+instead: [Start confirming an action through
+Telegram](telegram-confirm-action-start.md) and [Confirm an action through
+Telegram](telegram-confirm-action.md).
+
 The passkey must belong to the caller (`FinishAssertion.finishOwnedBy`). The
 sign-in challenge names no user, so without that check any valid passkey of
 any account would pass.

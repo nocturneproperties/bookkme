@@ -31,6 +31,12 @@ object AuthRouting {
             class Telegram(val parent: Auth = Auth()) {
                 @Resource("/sign_in")
                 class SignIn(val parent: Telegram = Telegram())
+
+                @Resource("/confirm_action")
+                class ConfirmAction(val parent: Telegram = Telegram()) {
+                    @Resource("/start")
+                    class Start(val parent: ConfirmAction = ConfirmAction())
+                }
             }
 
             @Resource("/email")

@@ -33,7 +33,7 @@ internal class ConfirmActionImplTest {
     ) {
         val finishAssertion = mockk<FinishAssertion>()
         val tokenIssuer = mockk<TokenIssuer>()
-        val sut = ConfirmActionImpl(finishAssertion, tokenIssuer)
+        val sut = ConfirmActionImpl(finishAssertion, ActionConfirmationTokenIssuer(tokenIssuer))
         val request = ActionConfirmationRequest(
             requestId = "request-id",
             publicKeyCredentialJson = "{}",
@@ -81,7 +81,9 @@ internal class ConfirmActionImplTest {
             decoded.getClaim(ActionConfirmationClaims.CLAIM_TARGET_ID).asString(),
         )
         assertNotNull(decoded.id)
-        coVerify(exactly = 1) { fixture.tokenIssuer.issue(ConfirmActionImpl.ACTION_CONFIRMATION_TTL, any()) }
+        coVerify(exactly = 1) {
+            fixture.tokenIssuer.issue(ActionConfirmationTokenIssuer.ACTION_CONFIRMATION_TTL, any())
+        }
     }
 
     @Test

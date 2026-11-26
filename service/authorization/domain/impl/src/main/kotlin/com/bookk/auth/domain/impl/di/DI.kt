@@ -25,7 +25,9 @@ import com.bookk.auth.domain.api.registration.operation.FinishRegistration
 import com.bookk.auth.domain.api.registration.operation.StartPasskeyRegistration
 import com.bookk.auth.domain.api.registration.operation.StartRegistration
 import com.bookk.auth.domain.api.signout.operation.SignOut
+import com.bookk.auth.domain.api.telegram.operation.ConfirmActionWithTelegram
 import com.bookk.auth.domain.api.telegram.operation.SignInWithTelegram
+import com.bookk.auth.domain.api.telegram.operation.StartTelegramActionConfirmation
 import com.bookk.auth.domain.api.token.operation.GenerateAuthToken
 import com.bookk.auth.domain.api.token.operation.RefreshToken
 import com.bookk.auth.domain.impl.operation.AccountEraser
@@ -35,6 +37,7 @@ import com.bookk.auth.domain.impl.operation.DeviceSignOut
 import com.bookk.auth.domain.impl.operation.GetAccountDeletionImpl
 import com.bookk.auth.domain.impl.operation.HandleScheduledAccountDeletionsImpl
 import com.bookk.auth.domain.impl.operation.SignOutImpl
+import com.bookk.auth.domain.impl.operation.actionconfirmation.ActionConfirmationTokenIssuer
 import com.bookk.auth.domain.impl.operation.actionconfirmation.ConfirmActionImpl
 import com.bookk.auth.domain.impl.operation.authentication.FinishAssertionImpl
 import com.bookk.auth.domain.impl.operation.authentication.HandleDormantAccountsImpl
@@ -54,11 +57,14 @@ import com.bookk.auth.domain.impl.operation.registration.FinishPasskeyRegistrati
 import com.bookk.auth.domain.impl.operation.registration.FinishRegistrationImpl
 import com.bookk.auth.domain.impl.operation.registration.StartPasskeyRegistrationImpl
 import com.bookk.auth.domain.impl.operation.registration.StartRegistrationImpl
+import com.bookk.auth.domain.impl.operation.telegram.ConfirmActionWithTelegramImpl
 import com.bookk.auth.domain.impl.operation.telegram.SignInWithTelegramImpl
+import com.bookk.auth.domain.impl.operation.telegram.StartTelegramActionConfirmationImpl
 import com.bookk.auth.domain.impl.operation.token.GenerateAuthTokenImpl
 import com.bookk.auth.domain.impl.operation.token.RefreshTokenImpl
 import com.bookk.auth.domain.impl.telegram.Ed25519TelegramInitDataVerifier
 import com.bookk.auth.domain.impl.telegram.TelegramInitDataVerifier
+import com.bookk.notifications.client.di.notificationsClientModule
 import com.bookk.server.auth.client.export.ExportAccountData
 import com.bookk.server.user.client.di.userClientModule
 import org.koin.core.module.dsl.scopedOf
@@ -73,7 +79,7 @@ val AuthScope: Qualifier = named(AUTH_SCHEMA)
 private const val TELEGRAM_BOT_ID = "APPLICATION_TELEGRAM_BOT_ID"
 
 fun authDomainModule(environment: (String) -> String? = System::getenv) = module {
-    includes(userClientModule(AuthScope, AUTH_SERVICE_NAME))
+    includes(userClientModule(AuthScope, AUTH_SERVICE_NAME), notificationsClientModule(AuthScope, AUTH_SERVICE_NAME))
     scope(AuthScope) {
         scopedOf(::GenerateAuthTokenImpl) bind GenerateAuthToken::class
         scopedOf(::RefreshTokenImpl) bind RefreshToken::class
@@ -87,6 +93,7 @@ fun authDomainModule(environment: (String) -> String? = System::getenv) = module
         scopedOf(::HandleScheduledAccountDeletionsImpl) bind HandleScheduledAccountDeletions::class
         scopedOf(::ReapplyAccountErasuresImpl) bind ReapplyAccountErasures::class
         scopedOf(::DeleteExpiredErasureRecordsImpl) bind DeleteExpiredErasureRecords::class
+        scopedOf(::ActionConfirmationTokenIssuer)
         scopedOf(::ConfirmActionImpl) bind ConfirmAction::class
         scopedOf(::ExportAccountDataImpl) bind ExportAccountData::class
         scopedOf(::StartRegistrationImpl) bind StartRegistration::class
@@ -107,6 +114,8 @@ fun authDomainModule(environment: (String) -> String? = System::getenv) = module
             Ed25519TelegramInitDataVerifier(botId = environment.telegramBotId(), clock = Clock.System)
         }
         scopedOf(::SignInWithTelegramImpl) bind SignInWithTelegram::class
+        scopedOf(::StartTelegramActionConfirmationImpl) bind StartTelegramActionConfirmation::class
+        scopedOf(::ConfirmActionWithTelegramImpl) bind ConfirmActionWithTelegram::class
     }
 }
 

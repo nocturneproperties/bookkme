@@ -16,6 +16,10 @@ internal class TelegramIdentityDataSourceImpl(
         TelegramIdentityEntity.findByTelegramIdIndex(indexOf(telegramUserId))?.account?.toDomain()
     }
 
+    override suspend fun hasIdentity(userId: Uuid): Boolean = dbQuery {
+        TelegramIdentityEntity.existsForUser(userId)
+    }
+
     override suspend fun link(authId: Uuid, telegramUserId: Long, username: String?): Unit = dbQuery {
         TelegramIdentityEntity.new(authId, indexOf(telegramUserId), usernameIndexOf(username))
     }

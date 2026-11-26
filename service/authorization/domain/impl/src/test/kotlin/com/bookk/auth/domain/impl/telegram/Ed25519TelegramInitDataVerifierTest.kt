@@ -7,11 +7,13 @@ import com.bookk.core.test.runUnitTest
 import com.bookk.core.test.then
 import com.bookk.core.test.whenn
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
 
 internal class Ed25519TelegramInitDataVerifierTest {
@@ -31,6 +33,10 @@ internal class Ed25519TelegramInitDataVerifierTest {
         }
 
         fun verify(initData: String): Result<TelegramUser> = runCatching { sut.verify(initData) }
+
+        fun verifyLaunch(initData: String): Result<TelegramLaunch> = runCatching {
+            sut.verifyLaunch(initData, maxAge = 5.minutes)
+        }
     }
 
     @Test
@@ -310,7 +316,98 @@ internal class Ed25519TelegramInitDataVerifierTest {
         assertTrue(result.exceptionOrNull() is SignInWithTelegram.Error.TelegramDataInvalid) { result.toString() }
     }
 
+    @Test
+    fun `should return the start parameter Telegram signed with the launch`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val initData = fixture.signer.signed(
+            authDate = fixture.now - 1.minutes,
+            extra = mapOf("start_param" to "op_delete-account_$CHALLENGE"),
+        )
+
+        whenn()
+        val result = fixture.verifyLaunch(initData)
+
+        then()
+        assertEquals(
+            TelegramLaunch(
+                user = TelegramUser(id = 123456789, firstName = "Ann", lastName = "Lee", username = "ann_lee"),
+                startParam = "op_delete-account_$CHALLENGE",
+            ),
+            result.getOrThrow(),
+        )
+    }
+
+    @Test
+    fun `should return no start parameter for a launch without one`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val initData = fixture.signer.signed(authDate = fixture.now)
+
+        whenn()
+        val result = fixture.verifyLaunch(initData)
+
+        then()
+        assertNull(result.getOrThrow().startParam)
+    }
+
+    @Test
+    fun `should refuse a start parameter changed after signing`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val initData = fixture.signer.signed(
+            authDate = fixture.now,
+            extra = mapOf("start_param" to "op_export-personal_$CHALLENGE"),
+        ).replace("op_export-personal_", "op_delete-account_")
+
+        whenn()
+        val result = fixture.verifyLaunch(initData)
+
+        then()
+        assertTrue(result.exceptionOrNull() is SignInWithTelegram.Error.TelegramDataInvalid) { result.toString() }
+    }
+
+    @Test
+    fun `should refuse launch data older than the given age as expired`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val initData = fixture.signer.signed(authDate = fixture.now - 5.minutes - 1.seconds)
+
+        whenn()
+        val result = fixture.verifyLaunch(initData)
+
+        then()
+        assertTrue(result.exceptionOrNull() is SignInWithTelegram.Error.TelegramDataExpired) { result.toString() }
+    }
+
+    @Test
+    fun `should accept launch data exactly the given age old`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val initData = fixture.signer.signed(authDate = fixture.now - 5.minutes)
+
+        whenn()
+        val result = fixture.verifyLaunch(initData)
+
+        then()
+        assertTrue(result.isSuccess) { result.toString() }
+    }
+
+    @Test
+    fun `should refuse launch data dated more than a minute in the future`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val initData = fixture.signer.signed(authDate = fixture.now + 2.minutes)
+
+        whenn()
+        val result = fixture.verifyLaunch(initData)
+
+        then()
+        assertTrue(result.exceptionOrNull() is SignInWithTelegram.Error.TelegramDataInvalid) { result.toString() }
+    }
+
     private companion object {
         const val BOT_ID = 7000000001L
+        const val CHALLENGE = "0123456789abcdef0123456789abcdef"
     }
 }

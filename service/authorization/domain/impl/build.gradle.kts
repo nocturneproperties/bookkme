@@ -20,6 +20,7 @@ dependencies {
     implementation(projects.service.authorization.client)
     implementation(projects.service.user.client)
     implementation(projects.service.business.client)
+    implementation(projects.service.notifications.client)
     testImplementation(testFixtures(projects.core))
     testImplementation(testFixtures(projects.core.domain.datasource))
     testImplementation(testFixtures(projects.library.actionconfirmation.impl))
