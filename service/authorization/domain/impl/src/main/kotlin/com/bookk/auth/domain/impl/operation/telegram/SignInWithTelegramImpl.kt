@@ -45,12 +45,14 @@ internal class SignInWithTelegramImpl(
         language: Language,
     ): Result<AuthTokens> = runSuspendCatching {
         val telegramUser = verifier.verify(request.initData)
-        val account = transactionManager.transactionOrThrow {
-            telegramIdentityDataSource.getAccountByTelegramUser(telegramUser.id)
+        val known = transactionManager.transactionOrThrow {
+            telegramIdentityDataSource.getAccountByTelegramUser(telegramUser.id)?.let { account ->
+                KnownAccount(account, telegramIdentityDataSource.isUsernameSynced(account.id, telegramUser.username))
+            }
         }
-        if (account != null) {
-            signIn(account, request.deviceInfo, language)
-                .also { storeUsername(account, telegramUser) }
+        if (known != null) {
+            signIn(known.account, request.deviceInfo, language)
+                .also { if (!known.usernameSynced) storeUsername(known.account, telegramUser) }
         } else {
             register(telegramUser, request, language)
         }
@@ -77,10 +79,20 @@ internal class SignInWithTelegramImpl(
     }
 
     private suspend fun storeUsername(account: Authentication, telegramUser: TelegramUser) {
-        userClient.changeTelegramUsername(account.userId, telegramUser.username).onFailure {
-            signInWithTelegramLogger.warn("Telegram username of user ${account.userId} not stored", it)
-        }
+        if (telegramUser.usernameRejected) return
+        userClient.changeTelegramUsername(account.userId, telegramUser.username)
+            .onSuccess { rememberSyncedUsername(account, telegramUser.username) }
+            .onFailure { signInWithTelegramLogger.warn("Telegram username of user ${account.userId} not stored", it) }
     }
+
+    private suspend fun rememberSyncedUsername(account: Authentication, username: String?) {
+        transactionManager.transaction { telegramIdentityDataSource.markUsernameSynced(account.id, username) }
+            .onFailure {
+                signInWithTelegramLogger.warn("Synced Telegram username of user ${account.userId} not remembered", it)
+            }
+    }
+
+    private class KnownAccount(val account: Authentication, val usernameSynced: Boolean)
 
     private suspend fun register(
         telegramUser: TelegramUser,
@@ -93,7 +105,7 @@ internal class SignInWithTelegramImpl(
             val account = accountDataSource.createAuthorization(
                 Authentication(id = Uuid.random(), userId = userId, uuid = Uuid.random()),
             )
-            telegramIdentityDataSource.link(account.id, telegramUser.id)
+            telegramIdentityDataSource.link(account.id, telegramUser.id, telegramUser.username)
             deviceDataSource.insertDevice(
                 authId = account.id,
                 uuid = deviceUuid,

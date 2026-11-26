@@ -1,1 +1,4 @@
 CREATE TABLE IF NOT EXISTS telegram_identity (id BINARY(16) PRIMARY KEY, auth_id BINARY(16) NOT NULL, telegram_id_index CHAR(44) NOT NULL, created_at TIMESTAMP(6) NOT NULL, CONSTRAINT telegram_identity_auth_id_unique UNIQUE (auth_id), CONSTRAINT telegram_identity_telegram_id_index_unique UNIQUE (telegram_id_index), CONSTRAINT fk_telegram_identity_auth_id__id FOREIGN KEY (auth_id) REFERENCES authentication(id) ON DELETE CASCADE ON UPDATE RESTRICT);
+ALTER TABLE telegram_identity ADD COLUMN IF NOT EXISTS username_index CHAR(44) NULL;
+CREATE TABLE IF NOT EXISTS account_deletion (auth_id BINARY(16) PRIMARY KEY, requested_at TIMESTAMP(6) NOT NULL, deletes_at TIMESTAMP(6) NOT NULL, reminder VARCHAR(16) DEFAULT 'NONE' NOT NULL, CONSTRAINT fk_account_deletion_auth_id__id FOREIGN KEY (auth_id) REFERENCES authentication(id) ON DELETE CASCADE ON UPDATE RESTRICT);
+CREATE INDEX IF NOT EXISTS account_deletion_deletes_at ON account_deletion (deletes_at);

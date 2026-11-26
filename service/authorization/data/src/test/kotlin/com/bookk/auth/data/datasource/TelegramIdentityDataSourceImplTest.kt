@@ -13,11 +13,13 @@ import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
+import org.jetbrains.exposed.v1.jdbc.update
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import kotlin.uuid.Uuid
 
 internal class TelegramIdentityDataSourceImplTest {
 
@@ -33,6 +35,16 @@ internal class TelegramIdentityDataSourceImplTest {
         suspend fun storedIndexes(): List<String> = suspendTransaction {
             TelegramIdentityTable.selectAll().map { it[TelegramIdentityTable.telegramIdIndex] }
         }
+
+        suspend fun storedUsernameIndexes(): List<String?> = suspendTransaction {
+            TelegramIdentityTable.selectAll().map { it[TelegramIdentityTable.usernameIndex] }
+        }
+
+        suspend fun forgetSyncedUsername(authId: Uuid) = suspendTransaction {
+            TelegramIdentityTable.update(where = { TelegramIdentityTable.authId eq authId }) {
+                it[usernameIndex] = null
+            }
+        }
     }
 
     @Test
@@ -40,7 +52,7 @@ internal class TelegramIdentityDataSourceImplTest {
         given()
         val fixture = SutFixture()
         val account = fixture.account()
-        suspendTransaction { fixture.sut.link(account.id, TELEGRAM_USER_ID) }
+        suspendTransaction { fixture.sut.link(account.id, TELEGRAM_USER_ID, USERNAME) }
 
         whenn()
         val found = suspendTransaction { fixture.sut.getAccountByTelegramUser(TELEGRAM_USER_ID) }
@@ -54,7 +66,7 @@ internal class TelegramIdentityDataSourceImplTest {
         given()
         val fixture = SutFixture()
         val account = fixture.account()
-        suspendTransaction { fixture.sut.link(account.id, TELEGRAM_USER_ID) }
+        suspendTransaction { fixture.sut.link(account.id, TELEGRAM_USER_ID, USERNAME) }
 
         whenn()
         val found = suspendTransaction { fixture.sut.getAccountByTelegramUser(TELEGRAM_USER_ID + 1) }
@@ -70,7 +82,7 @@ internal class TelegramIdentityDataSourceImplTest {
         val account = fixture.account()
 
         whenn()
-        suspendTransaction { fixture.sut.link(account.id, TELEGRAM_USER_ID) }
+        suspendTransaction { fixture.sut.link(account.id, TELEGRAM_USER_ID, USERNAME) }
 
         then()
         val indexes = fixture.storedIndexes()
@@ -84,10 +96,10 @@ internal class TelegramIdentityDataSourceImplTest {
         val fixture = SutFixture()
         val first = fixture.account()
         val second = fixture.account()
-        suspendTransaction { fixture.sut.link(first.id, TELEGRAM_USER_ID) }
+        suspendTransaction { fixture.sut.link(first.id, TELEGRAM_USER_ID, USERNAME) }
 
         whenn()
-        val result = runCatching { suspendTransaction { fixture.sut.link(second.id, TELEGRAM_USER_ID) } }
+        val result = runCatching { suspendTransaction { fixture.sut.link(second.id, TELEGRAM_USER_ID, USERNAME) } }
 
         then()
         assertTrue(result.isFailure)
@@ -99,7 +111,7 @@ internal class TelegramIdentityDataSourceImplTest {
         given()
         val fixture = SutFixture()
         val account = fixture.account()
-        suspendTransaction { fixture.sut.link(account.id, TELEGRAM_USER_ID) }
+        suspendTransaction { fixture.sut.link(account.id, TELEGRAM_USER_ID, USERNAME) }
 
         whenn()
         suspendTransaction { AuthenticationTable.deleteWhere { AuthenticationTable.id eq account.id } }
@@ -109,7 +121,88 @@ internal class TelegramIdentityDataSourceImplTest {
         assertNull(suspendTransaction { fixture.sut.getAccountByTelegramUser(TELEGRAM_USER_ID) })
     }
 
+    @Test
+    fun `should remember the username the account was linked with`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val account = fixture.account()
+        suspendTransaction { fixture.sut.link(account.id, TELEGRAM_USER_ID, USERNAME) }
+
+        whenn()
+        val same = suspendTransaction { fixture.sut.isUsernameSynced(account.id, USERNAME) }
+        val renamed = suspendTransaction { fixture.sut.isUsernameSynced(account.id, "ann_renamed") }
+        val removed = suspendTransaction { fixture.sut.isUsernameSynced(account.id, null) }
+
+        then()
+        assertTrue(same)
+        assertFalse(renamed)
+        assertFalse(removed)
+    }
+
+    @Test
+    fun `should tell an account linked without a username from one never synced`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val withoutUsername = fixture.account()
+        val neverSynced = fixture.account()
+        suspendTransaction {
+            fixture.sut.link(withoutUsername.id, TELEGRAM_USER_ID, null)
+            fixture.sut.link(neverSynced.id, TELEGRAM_USER_ID + 1, null)
+        }
+        fixture.forgetSyncedUsername(neverSynced.id)
+
+        whenn()
+        val withoutUsernameSynced = suspendTransaction { fixture.sut.isUsernameSynced(withoutUsername.id, null) }
+        val neverSyncedSynced = suspendTransaction { fixture.sut.isUsernameSynced(neverSynced.id, null) }
+
+        then()
+        assertTrue(withoutUsernameSynced)
+        assertFalse(neverSyncedSynced)
+    }
+
+    @Test
+    fun `should remember the last synced username`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val account = fixture.account()
+        suspendTransaction { fixture.sut.link(account.id, TELEGRAM_USER_ID, USERNAME) }
+
+        whenn()
+        suspendTransaction { fixture.sut.markUsernameSynced(account.id, "ann_renamed") }
+
+        then()
+        assertTrue(suspendTransaction { fixture.sut.isUsernameSynced(account.id, "ann_renamed") })
+        assertFalse(suspendTransaction { fixture.sut.isUsernameSynced(account.id, USERNAME) })
+    }
+
+    @Test
+    fun `should store only the blind index of the synced username`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val account = fixture.account()
+
+        whenn()
+        suspendTransaction { fixture.sut.link(account.id, TELEGRAM_USER_ID, USERNAME) }
+
+        then()
+        assertEquals(listOf(UnkeyedBlindIndex().of(USERNAME)), fixture.storedUsernameIndexes())
+    }
+
+    @Test
+    fun `should report a username as not synced for an account without a Telegram link`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val account = fixture.account()
+
+        whenn()
+        val synced = suspendTransaction { fixture.sut.isUsernameSynced(account.id, null) }
+
+        then()
+        assertFalse(synced)
+    }
+
     private companion object {
         const val TELEGRAM_USER_ID = 123456789L
+        const val USERNAME = "ann_lee"
     }
 }

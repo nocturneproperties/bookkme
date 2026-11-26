@@ -1,5 +1,6 @@
 package com.bookk.auth.microservice.route
 
+import com.bookk.auth.microservice.route.api.accountDeletion
 import com.bookk.auth.microservice.route.api.confirmAction
 import com.bookk.auth.microservice.route.api.deleteAccount
 import com.bookk.auth.microservice.route.api.emailChange
@@ -23,6 +24,7 @@ fun Routing.authRoute() {
     postRefreshToken()
     logOut()
     deleteAccount()
+    accountDeletion()
     confirmAction()
     exportAccountData()
 }

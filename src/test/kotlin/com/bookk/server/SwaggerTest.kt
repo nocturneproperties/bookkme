@@ -328,7 +328,24 @@ internal class SwaggerTest {
                 setOf("confirmationToken"),
                 resolveSchema(document, deletionSchema).getValue("properties").jsonObject.keys,
             )
-            assertTrue(deletion.getValue("responses").jsonObject.keys.containsAll(setOf("204", "403", "422")))
+            val deletionResponses = deletion.getValue("responses").jsonObject
+            assertTrue(deletionResponses.keys.containsAll(setOf("200", "403", "422")))
+            val scheduledSchema = deletionResponses.getValue("200").jsonObject.getValue("content").jsonObject
+                .getValue("application/x-protobuf").jsonObject.getValue("schema").jsonObject
+            assertEquals(
+                setOf("deletesAt"),
+                resolveSchema(document, scheduledSchema).getValue("properties").jsonObject.keys,
+            )
+            val status = operations.getValue("get /api/auth/account/deletion")
+            val statusSchema = status.getValue("responses").jsonObject.getValue("200").jsonObject
+                .getValue("content").jsonObject.getValue("application/x-protobuf").jsonObject
+                .getValue("schema").jsonObject
+            assertEquals(
+                "#/components/schemas/AccountDeletionStatus",
+                statusSchema.getValue("\$ref").jsonPrimitive.content,
+            )
+            val cancel = operations.getValue("delete /api/auth/account/deletion")
+            assertTrue("204" in cancel.getValue("responses").jsonObject)
         }
     }
 

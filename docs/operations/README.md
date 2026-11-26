@@ -70,6 +70,7 @@ Reactions to cross-service events:
 | `POST /api/auth/refresh` | [Refresh access token](authorization/refresh-token.md) |
 | `DELETE /api/auth/session` | [Sign out](authorization/sign-out.md) |
 | `DELETE /api/auth/account` | [Delete account](authorization/delete-account.md) |
+| `DELETE /api/auth/account/deletion` | [Cancel account deletion](authorization/cancel-account-deletion.md) |
 | `POST /api/auth/passkey/confirm_action` | [Confirm a sensitive action with a passkey](authorization/action-confirmation.md) |
 | `POST /api/auth/passkey/add/finish` | [Add passkey to account](authorization/add-passkey.md) |
 | `DELETE /api/auth/passkey/{id}` | [Delete passkey](authorization/delete-passkey.md) |
@@ -125,6 +126,8 @@ Reactions to cross-service events (all handled by the same
 | `AuthEvent.UserDeleted` | [React to user deletion](notifications/on-user-deleted.md) |
 | `AuthEvent.DeviceLanguageUpdated` | [React to device language change](notifications/on-device-language-updated.md) |
 | `AuthEvent.AccountDormancyWarning` | [React to a dormancy warning](notifications/on-account-dormancy-warning.md) |
+| `AuthEvent.AccountDeletionScheduled` | [React to a scheduled account deletion](notifications/on-account-deletion-scheduled.md) |
+| `AuthEvent.AccountDeletionCancelled` | [React to a cancelled account deletion](notifications/on-account-deletion-cancelled.md) |
 | `UserEvent.DataExportReady` | [React to a ready personal data export](notifications/on-data-export-ready.md) |
 | `BusinessEvent.ExportReady` | [React to a ready business data export](notifications/on-business-export-ready.md) |
 | `AuthEvent.DeviceDeleted` | [React to device deletion](notifications/on-device-deleted.md) |
@@ -170,12 +173,14 @@ the operation committed, and reaches its consumers at least once. See
 
 | Event | Producer | Consumer(s) |
 |---|---|---|
-| `AuthEvent.UserDeleted` | [Delete account](authorization/delete-account.md), [sign-up compensation](authorization/sign-up.md), [Telegram sign-up compensation](authorization/telegram-sign-in.md), [`auth-handleDormantAccounts` job](scheduled-jobs.md), [`auth-reapplyErasures` job](scheduled-jobs.md) | [appointments](appointments/on-user-deleted.md), [business](business/on-user-deleted.md), [notifications](notifications/on-user-deleted.md), [user](user/on-user-deleted.md) |
-| `AuthEvent.DeviceDeleted` | [Delete account](authorization/delete-account.md), [`auth-deleteInactiveDevices`, `auth-handleDormantAccounts` and `auth-reapplyErasures` jobs](scheduled-jobs.md) | [notifications](notifications/on-device-deleted.md) |
+| `AuthEvent.UserDeleted` | [`auth-handleScheduledDeletions` job](scheduled-jobs.md) (requested by [Delete account](authorization/delete-account.md)), [sign-up compensation](authorization/sign-up.md), [Telegram sign-up compensation](authorization/telegram-sign-in.md), [`auth-handleDormantAccounts` job](scheduled-jobs.md), [`auth-reapplyErasures` job](scheduled-jobs.md) | [appointments](appointments/on-user-deleted.md), [business](business/on-user-deleted.md), [notifications](notifications/on-user-deleted.md), [user](user/on-user-deleted.md) |
+| `AuthEvent.DeviceDeleted` | [`auth-deleteInactiveDevices`, `auth-handleScheduledDeletions`, `auth-handleDormantAccounts` and `auth-reapplyErasures` jobs](scheduled-jobs.md) | [notifications](notifications/on-device-deleted.md) |
 | `AuthEvent.DeviceCreated` | [Verify sign-up](authorization/sign-up.md), [Verify sign-in](authorization/sign-in.md), [Sign in with Telegram](authorization/telegram-sign-in.md) | [notifications](notifications/on-device-created.md) |
 | `AuthEvent.DeviceLanguageUpdated` | [Verify sign-in](authorization/sign-in.md), [Sign in with Telegram](authorization/telegram-sign-in.md) | [notifications](notifications/on-device-language-updated.md) |
 | `AuthEvent.DeviceSignedOut` | [Sign out](authorization/sign-out.md), [Refresh access token](authorization/refresh-token.md) (reused refresh token) | [notifications](notifications/on-device-signed-out.md) |
 | `AuthEvent.AccountDormancyWarning` | [`auth-handleDormantAccounts` job](scheduled-jobs.md) | [notifications](notifications/on-account-dormancy-warning.md) |
+| `AuthEvent.AccountDeletionScheduled` | [Delete account](authorization/delete-account.md), [`auth-handleScheduledDeletions` job](scheduled-jobs.md) (reminders) | [notifications](notifications/on-account-deletion-scheduled.md) |
+| `AuthEvent.AccountDeletionCancelled` | [Cancel account deletion](authorization/cancel-account-deletion.md) | [notifications](notifications/on-account-deletion-cancelled.md) |
 | `BusinessEvent.Updated` | [Update business](business/update-business.md) | [appointments](appointments/on-business-updated.md) |
 | `BusinessEvent.Deleted` | [React to user deletion (business)](business/on-user-deleted.md) | [appointments](appointments/on-business-deleted.md) |
 | `BusinessEvent.EmployeeInvitationRedeemed` | [Join business](business/join-business.md) | [notifications](notifications/on-employee-invitation-redeemed.md) |

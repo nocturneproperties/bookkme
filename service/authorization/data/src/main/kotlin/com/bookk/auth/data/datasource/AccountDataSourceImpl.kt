@@ -7,6 +7,7 @@ import com.bookk.auth.domain.api.authentication.entity.AccountActivity
 import com.bookk.auth.domain.api.authentication.entity.Authentication
 import com.bookk.auth.domain.api.authentication.entity.DormancyStage
 import com.bookk.auth.domain.api.authentication.entity.DormantAccount
+import com.bookk.auth.domain.api.authentication.entity.LockedAccount
 import com.bookk.auth.domain.datasource.AccountDataSource
 import com.bookk.core.data.DataSource
 import org.jetbrains.exposed.v1.core.ResultRow
@@ -49,6 +50,14 @@ internal class AccountDataSourceImpl : DataSource(), AccountDataSource {
             .where { AuthenticationTable.id eq id }
             .forUpdate()
             .any()
+    }
+
+    override suspend fun lockAccountOfUser(userId: Uuid): LockedAccount? = dbQuery {
+        AuthenticationTable.select(AuthenticationTable.id, AuthenticationTable.deletionHold)
+            .where { AuthenticationTable.userId eq userId }
+            .forUpdate()
+            .singleOrNull()
+            ?.let { LockedAccount(it[AuthenticationTable.id].value, it[AuthenticationTable.deletionHold]) }
     }
 
     override suspend fun getAuthRecordByUUID(uuid: Uuid): Authentication? = dbQuery {

@@ -59,7 +59,7 @@ internal class TelegramIdentityMariaDbTest {
         given()
         val fixture = SutFixture()
         val account = fixture.account()
-        suspendTransaction(db = database) { fixture.sut.link(account.id, fixture.telegramUserId) }
+        suspendTransaction(db = database) { fixture.sut.link(account.id, fixture.telegramUserId, null) }
 
         whenn()
         val found = suspendTransaction(db = database) { fixture.sut.getAccountByTelegramUser(fixture.telegramUserId) }
@@ -74,11 +74,11 @@ internal class TelegramIdentityMariaDbTest {
         val fixture = SutFixture()
         val first = fixture.account()
         val second = fixture.account()
-        suspendTransaction(db = database) { fixture.sut.link(first.id, fixture.telegramUserId) }
+        suspendTransaction(db = database) { fixture.sut.link(first.id, fixture.telegramUserId, null) }
 
         whenn()
         val result = runCatching {
-            suspendTransaction(db = database) { fixture.sut.link(second.id, fixture.telegramUserId) }
+            suspendTransaction(db = database) { fixture.sut.link(second.id, fixture.telegramUserId, null) }
         }
 
         then()
@@ -90,7 +90,7 @@ internal class TelegramIdentityMariaDbTest {
         given()
         val fixture = SutFixture()
         val account = fixture.account()
-        suspendTransaction(db = database) { fixture.sut.link(account.id, fixture.telegramUserId) }
+        suspendTransaction(db = database) { fixture.sut.link(account.id, fixture.telegramUserId, null) }
 
         whenn()
         suspendTransaction(db = database) { fixture.accounts.deleteAuthorization(account.id) }

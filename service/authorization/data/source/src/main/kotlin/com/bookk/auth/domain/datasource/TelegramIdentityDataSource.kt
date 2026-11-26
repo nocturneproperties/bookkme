@@ -5,5 +5,7 @@ import kotlin.uuid.Uuid
 
 interface TelegramIdentityDataSource {
     suspend fun getAccountByTelegramUser(telegramUserId: Long): Authentication?
-    suspend fun link(authId: Uuid, telegramUserId: Long)
+    suspend fun link(authId: Uuid, telegramUserId: Long, username: String?)
+    suspend fun isUsernameSynced(authId: Uuid, username: String?): Boolean
+    suspend fun markUsernameSynced(authId: Uuid, username: String?)
 }

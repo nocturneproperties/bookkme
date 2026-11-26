@@ -78,14 +78,16 @@ internal class SignInWithTelegramImplTest {
 
         fun existingAccount(account: Authentication) {
             coEvery { telegramIdentityDataSource.getAccountByTelegramUser(telegramUser.id) } returns account
+            coEvery { telegramIdentityDataSource.isUsernameSynced(account.id, any()) } returns false
             coEvery { userClient.changeTelegramUsername(account.userId, any()) } returns Result.success(Unit)
+            coEvery { telegramIdentityDataSource.markUsernameSynced(account.id, any()) } just runs
         }
 
         fun newAccount(userId: Uuid) {
             coEvery { telegramIdentityDataSource.getAccountByTelegramUser(telegramUser.id) } returns null
             coEvery { userClient.createUser(any()) } returns Result.success(userId)
             coEvery { accountDataSource.createAuthorization(any()) } answers { firstArg() }
-            coEvery { telegramIdentityDataSource.link(any(), telegramUser.id) } just runs
+            coEvery { telegramIdentityDataSource.link(any(), telegramUser.id, any()) } just runs
             coEvery { deviceDataSource.insertDevice(any(), deviceUuid, any(), any()) } returns Uuid.random()
         }
     }
@@ -169,6 +171,107 @@ internal class SignInWithTelegramImplTest {
     }
 
     @Test
+    fun `should not call the user service when the Telegram username is already synced`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val account = Authentication.stub()
+        with(fixture) {
+            existingAccount(account)
+            coEvery { telegramIdentityDataSource.isUsernameSynced(account.id, telegramUser.username) } returns true
+            coEvery { deviceDataSource.insertDevice(account.id, deviceUuid, any(), any()) } returns Uuid.random()
+        }
+
+        whenn()
+        val result = fixture.sut.invoke(fixture.request, Language.EN)
+
+        then()
+        assertEquals(fixture.tokens, result.getOrThrow())
+        coVerify(exactly = 0) { fixture.userClient.changeTelegramUsername(any(), any()) }
+        coVerify(exactly = 0) { fixture.telegramIdentityDataSource.markUsernameSynced(any(), any()) }
+    }
+
+    @Test
+    fun `should remember the Telegram username once the user service stored it`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val account = Authentication.stub()
+        val markedInTransaction = mutableListOf<Boolean>()
+        with(fixture) {
+            every { verifier.verify(request.initData) } returns TelegramUser.stub(username = "ann_renamed")
+            existingAccount(account)
+            coEvery { telegramIdentityDataSource.markUsernameSynced(account.id, "ann_renamed") } coAnswers {
+                markedInTransaction += transactionManager.isInTransaction()
+            }
+            coEvery { deviceDataSource.insertDevice(account.id, deviceUuid, any(), any()) } returns Uuid.random()
+        }
+
+        whenn()
+        fixture.sut.invoke(fixture.request, Language.EN)
+
+        then()
+        coVerify(exactly = 1) { fixture.userClient.changeTelegramUsername(account.userId, "ann_renamed") }
+        assertEquals(listOf(true), markedInTransaction)
+    }
+
+    @Test
+    fun `should not remember a Telegram username the user service did not store`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val account = Authentication.stub()
+        with(fixture) {
+            existingAccount(account)
+            coEvery { userClient.changeTelegramUsername(account.userId, any()) } returns
+                Result.failure(IllegalStateException("user service down"))
+            coEvery { deviceDataSource.insertDevice(account.id, deviceUuid, any(), any()) } returns Uuid.random()
+        }
+
+        whenn()
+        fixture.sut.invoke(fixture.request, Language.EN)
+
+        then()
+        coVerify(exactly = 0) { fixture.telegramIdentityDataSource.markUsernameSynced(any(), any()) }
+    }
+
+    @Test
+    fun `should still sign in when the synced Telegram username can't be remembered`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val account = Authentication.stub()
+        with(fixture) {
+            existingAccount(account)
+            coEvery { telegramIdentityDataSource.markUsernameSynced(account.id, any()) } throws
+                IllegalStateException("database down")
+            coEvery { deviceDataSource.insertDevice(account.id, deviceUuid, any(), any()) } returns Uuid.random()
+        }
+
+        whenn()
+        val result = fixture.sut.invoke(fixture.request, Language.EN)
+
+        then()
+        assertEquals(fixture.tokens, result.getOrThrow())
+    }
+
+    @Test
+    fun `should keep the stored Telegram username when Telegram sent one it does not accept`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val account = Authentication.stub()
+        with(fixture) {
+            every { verifier.verify(request.initData) } returns
+                TelegramUser.stub(username = null, usernameRejected = true)
+            existingAccount(account)
+            coEvery { deviceDataSource.insertDevice(account.id, deviceUuid, any(), any()) } returns Uuid.random()
+        }
+
+        whenn()
+        val result = fixture.sut.invoke(fixture.request, Language.EN)
+
+        then()
+        assertTrue(result.isSuccess) { result.toString() }
+        coVerify(exactly = 0) { fixture.userClient.changeTelegramUsername(any(), any()) }
+    }
+
+    @Test
     fun `should still sign in when the Telegram username can't be stored`() = runUnitTest {
         given()
         val fixture = SutFixture()
@@ -233,7 +336,7 @@ internal class SignInWithTelegramImplTest {
         assertEquals("ann_lee", created.captured.telegramUsername)
         coVerify(exactly = 0) { fixture.userClient.changeTelegramUsername(any(), any()) }
         assertEquals(userId, account.captured.userId)
-        coVerify(exactly = 1) { fixture.telegramIdentityDataSource.link(account.captured.id, 123456789) }
+        coVerify(exactly = 1) { fixture.telegramIdentityDataSource.link(account.captured.id, 123456789, "ann_lee") }
         coVerify(exactly = 1) { fixture.eventProducer.send(any(AuthEvent.DeviceCreated::class), any()) }
         coVerify(exactly = 1) {
             fixture.generateAuthToken(with(fixture) { initialAuthentication(account.captured.id) })
@@ -331,7 +434,8 @@ internal class SignInWithTelegramImplTest {
         val userId = Uuid.random()
         with(fixture) {
             newAccount(userId)
-            coEvery { telegramIdentityDataSource.link(any(), telegramUser.id) } throws IllegalStateException("taken")
+            coEvery { telegramIdentityDataSource.link(any(), telegramUser.id, any()) } throws
+                IllegalStateException("taken")
         }
 
         whenn()

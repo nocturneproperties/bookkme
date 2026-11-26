@@ -70,7 +70,10 @@ object AuthRouting {
             class SignOut(val parent: Auth = Auth())
 
             @Resource("/account")
-            class Account(val parent: Auth = Auth())
+            class Account(val parent: Auth = Auth()) {
+                @Resource("/deletion")
+                class Deletion(val parent: Account = Account())
+            }
         }
     }
 }

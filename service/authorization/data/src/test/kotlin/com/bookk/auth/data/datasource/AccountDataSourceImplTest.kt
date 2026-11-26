@@ -5,6 +5,7 @@ import com.bookk.auth.domain.api.authentication.entity.AccountActivity
 import com.bookk.auth.domain.api.authentication.entity.Authentication
 import com.bookk.auth.domain.api.authentication.entity.DormancyStage
 import com.bookk.auth.domain.api.authentication.entity.DormantAccount
+import com.bookk.auth.domain.api.authentication.entity.LockedAccount
 import com.bookk.core.data.test.createTestDatabase
 import com.bookk.core.test.given
 import com.bookk.core.test.runUnitTest
@@ -85,6 +86,35 @@ internal class AccountDataSourceImplTest {
 
         then()
         assertFalse(locked)
+    }
+
+    @Test
+    fun `should lock the account of a user and return its id and hold`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val auth = suspendTransaction { fixture.sut.createAuthorization(Authentication.stub()) }
+        val held = suspendTransaction { fixture.sut.createAuthorization(Authentication.stub()) }
+        fixture.hold(held.id)
+
+        whenn()
+        val locked = suspendTransaction { fixture.sut.lockAccountOfUser(auth.userId) }
+        val lockedHeld = suspendTransaction { fixture.sut.lockAccountOfUser(held.userId) }
+
+        then()
+        assertEquals(LockedAccount(auth.id, deletionHold = false), locked)
+        assertEquals(LockedAccount(held.id, deletionHold = true), lockedHeld)
+    }
+
+    @Test
+    fun `should return no id when the user has no account to lock`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+
+        whenn()
+        val locked = suspendTransaction { fixture.sut.lockAccountOfUser(Uuid.random()) }
+
+        then()
+        assertNull(locked)
     }
 
     @Test

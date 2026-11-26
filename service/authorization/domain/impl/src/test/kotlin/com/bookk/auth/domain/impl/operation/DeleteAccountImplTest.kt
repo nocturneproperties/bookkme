@@ -1,12 +1,10 @@
 package com.bookk.auth.domain.impl.operation
 
-import com.bookk.auth.domain.api.authentication.entity.Authentication
+import com.bookk.auth.domain.api.authentication.entity.LockedAccount
+import com.bookk.auth.domain.api.delete_account.entity.PendingAccountDeletion
 import com.bookk.auth.domain.api.delete_account.operation.DeleteAccount
-import com.bookk.auth.domain.api.identification.entity.Device
-import com.bookk.auth.domain.api.identification.entity.DeviceInfo
 import com.bookk.auth.domain.datasource.AccountDataSource
-import com.bookk.auth.domain.datasource.DeviceDataSource
-import com.bookk.auth.domain.datasource.ErasedAccountDataSource
+import com.bookk.auth.domain.datasource.AccountDeletionDataSource
 import com.bookk.core.data.eventstreaming.StandardEventProducer
 import com.bookk.core.domain.datasource.transaction.TransactionManager
 import com.bookk.core.domain.datasource.transaction.mockTransaction
@@ -25,119 +23,143 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import kotlin.time.Clock
+import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.seconds
+import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
 internal class DeleteAccountImplTest {
 
     private class SutFixture {
         val userId = Uuid.random()
-        val authRecord = Authentication.stub(userId = userId)
+        val authId = Uuid.random()
         val confirmationTokens = ActionConfirmationTestTokens()
         val accountDataSource = mockk<AccountDataSource>()
-        val deviceDataSource = mockk<DeviceDataSource>()
-        val erasedAccountDataSource = mockk<ErasedAccountDataSource>()
-        val eventProducer = mockk<StandardEventProducer>(relaxed = true)
+        val accountDeletionDataSource = mockk<AccountDeletionDataSource>()
+        val eventProducer = mockk<StandardEventProducer>()
         val transactionManager = mockk<TransactionManager>()
-        val tokenSpentWhenReading = mutableListOf<Boolean>()
-        val recordedInTransaction = mutableListOf<Boolean>()
+        val calls = mutableListOf<String>()
+        val tokenSpentWhenLocking = mutableListOf<Boolean>()
+        val scheduled = mutableListOf<Pair<Instant, Instant>>()
+        val events = mutableListOf<AuthEvent.AccountDeletionScheduled>()
+        val sentInTransaction = mutableListOf<Boolean>()
         val sut =
             DeleteAccountImpl(
                 confirmationTokens.gate,
                 accountDataSource,
-                AccountEraser(accountDataSource, deviceDataSource, erasedAccountDataSource, eventProducer),
+                accountDeletionDataSource,
+                eventProducer,
                 transactionManager,
             )
 
         init {
             transactionManager.mockTransaction()
-            coEvery { accountDataSource.getAuthRecordByUserId(userId) } coAnswers {
-                tokenSpentWhenReading += confirmationTokens.isSpent(TOKEN_ID)
-                authRecord
+            coEvery { accountDataSource.lockAccountOfUser(userId) } coAnswers {
+                calls += "lock"
+                tokenSpentWhenLocking += confirmationTokens.isSpent(TOKEN_ID)
+                LockedAccount(authId, deletionHold = false)
             }
-            coEvery { deviceDataSource.getDevices(authRecord.id) } returns emptyList()
-            coEvery { erasedAccountDataSource.record(userId) } coAnswers {
-                recordedInTransaction += transactionManager.isInTransaction()
+            coEvery { accountDeletionDataSource.get(authId) } coAnswers {
+                calls += "get"
+                null
             }
-            coEvery { accountDataSource.deleteAuthorization(authRecord.id) } returns Unit
+            coEvery { accountDeletionDataSource.schedule(authId, any(), any()) } coAnswers {
+                calls += "schedule"
+                scheduled += secondArg<Instant>() to thirdArg<Instant>()
+            }
+            coEvery { eventProducer.send(any<AuthEvent.AccountDeletionScheduled>(), any()) } coAnswers {
+                events += firstArg<AuthEvent.AccountDeletionScheduled>()
+                sentInTransaction += transactionManager.isInTransaction()
+            }
         }
 
-        fun token(
-            grant: ActionConfirmationGrant = ActionConfirmationGrant.accountDeletion(
-                userId,
-            ),
-        ) = confirmationTokens.tokenFor(grant, tokenId = TOKEN_ID)
+        fun token(grant: ActionConfirmationGrant = ActionConfirmationGrant.accountDeletion(userId)): String {
+            return confirmationTokens.tokenFor(grant, tokenId = TOKEN_ID)
+        }
     }
 
-    private fun makeDevice(authRecord: Authentication, deviceUUID: Uuid = Uuid.random()): Device = Device(
-        authRecord = authRecord,
-        deviceInfo = DeviceInfo(
-            id = Uuid.random(),
-            deviceUUID = deviceUUID,
-            refreshToken = null,
-            previousRefreshToken = null,
-            deviceName = "Test Device",
-            isSignedIn = true,
-        ),
-    )
-
     @Test
-    fun `should delete the account record by its own id and emit user and device deleted events`() = runUnitTest {
+    fun `should schedule the deletion 7 days ahead and tell the user`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        val deviceUUID = Uuid.random()
-        coEvery { fixture.deviceDataSource.getDevices(fixture.authRecord.id) } returns
-            listOf(makeDevice(fixture.authRecord, deviceUUID))
+        val startedAt = Clock.System.now()
 
         whenn()
         val result = fixture.sut(fixture.userId, fixture.token())
 
         then()
-        assertTrue(result.isSuccess)
-        coVerify(exactly = 1) { fixture.accountDataSource.deleteAuthorization(fixture.authRecord.id) }
-        coVerify(exactly = 1) {
-            fixture.eventProducer.send(match<AuthEvent.UserDeleted> { it.userId == fixture.userId }, any())
-        }
-        coVerify(exactly = 1) {
-            fixture.eventProducer.send(
-                match<AuthEvent.DeviceDeleted> {
-                    it.authId ==
-                        fixture.authRecord.id &&
-                        it.deviceUuid == deviceUUID
-                },
-                any(),
-            )
-        }
-        assertEquals(listOf(true), fixture.recordedInTransaction)
-        assertEquals(listOf(true), fixture.tokenSpentWhenReading)
+        val finishedAt = Clock.System.now()
+        val deletesAt = result.getOrThrow().deletesAt
+        assertTrue(deletesAt in (startedAt + 7.days)..(finishedAt + 7.days))
+        val (requestedAt, scheduledDeletesAt) = fixture.scheduled.single()
+        assertEquals(requestedAt + 7.days, scheduledDeletesAt)
+        assertEquals(deletesAt, scheduledDeletesAt)
+        val event = fixture.events.single()
+        assertEquals(fixture.userId, event.userId)
+        assertEquals(deletesAt, event.deletesAt)
+        assertFalse(event.reminder)
+        assertEquals(listOf(true), fixture.sentInTransaction)
+        assertEquals(listOf(true), fixture.tokenSpentWhenLocking)
         assertTrue(fixture.confirmationTokens.isSpent(TOKEN_ID))
     }
 
     @Test
-    fun `should emit DeviceDeleted event for each device when account has multiple devices`() = runUnitTest {
+    fun `should lock the account before reading its pending deletion`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        val devices = List(3) { makeDevice(fixture.authRecord) }
-        coEvery { fixture.deviceDataSource.getDevices(fixture.authRecord.id) } returns devices
+
+        whenn()
+        fixture.sut(fixture.userId, fixture.token())
+
+        then()
+        assertEquals(listOf("lock", "get", "schedule"), fixture.calls)
+    }
+
+    @Test
+    fun `should not erase anything when the deletion is requested`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+
+        whenn()
+        fixture.sut(fixture.userId, fixture.token())
+
+        then()
+        coVerify(exactly = 0) { fixture.accountDataSource.deleteAuthorization(any()) }
+        coVerify(exactly = 0) { fixture.eventProducer.send(any<AuthEvent.UserDeleted>(), any()) }
+    }
+
+    @Test
+    fun `should return the pending date without rescheduling or notifying again`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val pending = PendingAccountDeletion.stub(authId = fixture.authId, userId = fixture.userId)
+        coEvery { fixture.accountDeletionDataSource.get(fixture.authId) } returns pending
 
         whenn()
         val result = fixture.sut(fixture.userId, fixture.token())
 
         then()
-        assertTrue(result.isSuccess)
-        coVerify(exactly = 1) { fixture.eventProducer.send(any<AuthEvent.UserDeleted>(), any()) }
-        devices.forEach { device ->
-            coVerify(exactly = 1) {
-                fixture.eventProducer.send(
-                    match<AuthEvent.DeviceDeleted> {
-                        it.authId ==
-                            fixture.authRecord.id &&
-                            it.deviceUuid == device.deviceInfo.deviceUUID
-                    },
-                    any(),
-                )
-            }
-        }
+        assertEquals(pending.deletesAt, result.getOrThrow().deletesAt)
+        coVerify(exactly = 0) { fixture.accountDeletionDataSource.schedule(any(), any(), any()) }
+        assertTrue(fixture.events.isEmpty())
+    }
+
+    @Test
+    fun `should refuse the deletion of an account on hold and release the token`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        coEvery { fixture.accountDataSource.lockAccountOfUser(fixture.userId) } returns
+            LockedAccount(fixture.authId, deletionHold = true)
+
+        whenn()
+        val result = fixture.sut(fixture.userId, fixture.token())
+
+        then()
+        assertTrue(result.exceptionOrNull() is DeleteAccount.Error.DeletionOnHold)
+        coVerify(exactly = 0) { fixture.accountDeletionDataSource.schedule(any(), any(), any()) }
+        assertTrue(fixture.events.isEmpty())
+        assertFalse(fixture.confirmationTokens.isSpent(TOKEN_ID))
     }
 
     @Test
@@ -157,9 +179,9 @@ internal class DeleteAccountImplTest {
 
         then()
         results.forEach { assertTrue(it.exceptionOrNull() is DeleteAccount.Error.ActionConfirmationInvalid) }
-        coVerify(exactly = 0) { fixture.transactionManager.transaction<Unit>(any()) }
-        coVerify(exactly = 0) { fixture.accountDataSource.getAuthRecordByUserId(any()) }
-        coVerify(exactly = 0) { fixture.eventProducer.send(any(), any()) }
+        coVerify(exactly = 0) { fixture.transactionManager.transaction<Any>(any()) }
+        coVerify(exactly = 0) { fixture.accountDataSource.lockAccountOfUser(any()) }
+        assertTrue(fixture.events.isEmpty())
         assertFalse(fixture.confirmationTokens.isSpent(TOKEN_ID))
     }
 
@@ -177,8 +199,8 @@ internal class DeleteAccountImplTest {
 
         then()
         results.forEach { assertTrue(it.exceptionOrNull() is DeleteAccount.Error.ActionConfirmationInvalid) }
-        coVerify(exactly = 0) { fixture.accountDataSource.getAuthRecordByUserId(any()) }
-        coVerify(exactly = 0) { fixture.accountDataSource.deleteAuthorization(any()) }
+        coVerify(exactly = 0) { fixture.accountDataSource.lockAccountOfUser(any()) }
+        coVerify(exactly = 0) { fixture.accountDeletionDataSource.schedule(any(), any(), any()) }
     }
 
     @Test
@@ -193,8 +215,8 @@ internal class DeleteAccountImplTest {
 
         then()
         assertTrue(result.exceptionOrNull() is DeleteAccount.Error.ActionConfirmationInvalid)
-        coVerify(exactly = 1) { fixture.accountDataSource.deleteAuthorization(fixture.authRecord.id) }
-        coVerify(exactly = 1) { fixture.eventProducer.send(any<AuthEvent.UserDeleted>(), any()) }
+        coVerify(exactly = 1) { fixture.accountDeletionDataSource.schedule(fixture.authId, any(), any()) }
+        assertEquals(1, fixture.events.size)
         assertTrue(fixture.confirmationTokens.isSpent(TOKEN_ID))
     }
 
@@ -202,7 +224,7 @@ internal class DeleteAccountImplTest {
     fun `should return InvalidCredentials and release the token when the account is missing`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        coEvery { fixture.accountDataSource.getAuthRecordByUserId(fixture.userId) } returns null
+        coEvery { fixture.accountDataSource.lockAccountOfUser(fixture.userId) } returns null
 
         whenn()
         val result = fixture.sut(fixture.userId, fixture.token())
@@ -210,9 +232,8 @@ internal class DeleteAccountImplTest {
         then()
         assertTrue(result.exceptionOrNull() is DeleteAccount.Error.InvalidCredentials)
         assertFalse(fixture.confirmationTokens.isSpent(TOKEN_ID))
-        coVerify(exactly = 0) { fixture.erasedAccountDataSource.record(any()) }
-        coVerify(exactly = 0) { fixture.eventProducer.send(any(), any()) }
-        coVerify(exactly = 0) { fixture.accountDataSource.deleteAuthorization(any()) }
+        coVerify(exactly = 0) { fixture.accountDeletionDataSource.schedule(any(), any(), any()) }
+        assertTrue(fixture.events.isEmpty())
     }
 
     @Test
@@ -220,13 +241,13 @@ internal class DeleteAccountImplTest {
         given()
         val fixture = SutFixture()
         val token = fixture.token()
-        val failure = IllegalStateException("deletion failed")
-        coEvery { fixture.accountDataSource.deleteAuthorization(fixture.authRecord.id) } throws failure
+        val failure = IllegalStateException("scheduling failed")
+        coEvery { fixture.accountDeletionDataSource.schedule(fixture.authId, any(), any()) } throws failure
 
         whenn()
         val failed = fixture.sut(fixture.userId, token)
         val spentAfterFailure = fixture.confirmationTokens.isSpent(TOKEN_ID)
-        coEvery { fixture.accountDataSource.deleteAuthorization(fixture.authRecord.id) } returns Unit
+        coEvery { fixture.accountDeletionDataSource.schedule(fixture.authId, any(), any()) } returns Unit
         val retried = fixture.sut(fixture.userId, token)
 
         then()
@@ -240,7 +261,7 @@ internal class DeleteAccountImplTest {
     fun `should release the token and propagate cancellation`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        coEvery { fixture.accountDataSource.getAuthRecordByUserId(fixture.userId) } throws
+        coEvery { fixture.accountDataSource.lockAccountOfUser(fixture.userId) } throws
             CancellationException("request cancelled")
 
         whenn()
@@ -249,7 +270,7 @@ internal class DeleteAccountImplTest {
         then()
         assertTrue(result.exceptionOrNull() is CancellationException)
         assertFalse(fixture.confirmationTokens.isSpent(TOKEN_ID))
-        coVerify(exactly = 0) { fixture.accountDataSource.deleteAuthorization(any()) }
+        coVerify(exactly = 0) { fixture.accountDeletionDataSource.schedule(any(), any(), any()) }
     }
 
     private companion object {

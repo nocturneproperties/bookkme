@@ -212,6 +212,44 @@ internal class NotificationEventHandlerTest {
     }
 
     @Test
+    fun `should tell the user when their account will be deleted at their request`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val event = AuthEvent.AccountDeletionScheduled(
+            userId = Uuid.random(),
+            deletesAt = Instant.parse("2026-12-03T10:00:00Z"),
+            reminder = false,
+        )
+        val params = slot<NotificationParameters>()
+        coEvery { fixture.sendNotification.invoke(any(), capture(params)) } returns Result.success(Unit)
+        fixture.start(this)
+
+        whenn()
+        fixture.dispatch(AuthEvent.AccountDeletionScheduled.TOPIC, event)
+
+        then()
+        coVerify(exactly = 1) { fixture.sendNotification.invoke(event.userId, any()) }
+        assertEquals(NotificationType.ACCOUNT, params.captured.type)
+    }
+
+    @Test
+    fun `should tell the user their account deletion was cancelled`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val event = AuthEvent.AccountDeletionCancelled(userId = Uuid.random())
+        val params = slot<NotificationParameters>()
+        coEvery { fixture.sendNotification.invoke(any(), capture(params)) } returns Result.success(Unit)
+        fixture.start(this)
+
+        whenn()
+        fixture.dispatch(AuthEvent.AccountDeletionCancelled.TOPIC, event)
+
+        then()
+        coVerify(exactly = 1) { fixture.sendNotification.invoke(event.userId, any()) }
+        assertEquals(NotificationType.ACCOUNT, params.captured.type)
+    }
+
+    @Test
     fun `should tell the user their personal data export is ready`() = runUnitTest {
         given()
         val fixture = SutFixture()

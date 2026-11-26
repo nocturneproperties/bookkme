@@ -2,7 +2,7 @@
 
 ## 0.21.0
 
-Changes since `monolith/0.20.0`. Takes the user's name as one field at sign-up, adds sign-in from a Telegram Mini App, which creates an account with a placeholder email on first use and keeps the Telegram username on the profile and on the user's business clients, sends notifications to those users through the Telegram bot, gives clients their upcoming bookings across businesses, a list of saved businesses, an employee's free slots and the business's note for clients, stops two bookings from taking the same employee at once, lets owners pick a booking link name for their business, stops push notifications to signed-out devices, pages and filters the appointment and request histories, gives clients paged histories of their own appointments and requests, and pages the client list with server-side client search.
+Changes since `monolith/0.20.0`. Takes the user's name as one field at sign-up, adds sign-in from a Telegram Mini App, which creates an account with a placeholder email on first use and keeps the Telegram username on the profile and on the user's business clients, sends notifications to those users through the Telegram bot, gives clients their upcoming bookings across businesses, a list of saved businesses, an employee's free slots and the business's note for clients, stops two bookings from taking the same employee at once, lets owners pick a booking link name for their business, stops push notifications to signed-out devices, pages and filters the appointment and request histories, gives clients paged histories of their own appointments and requests, pages the client list with server-side client search, and erases a deleted account 7 days after the request so the user can cancel.
 
 ### Clients
 
@@ -67,6 +67,10 @@ Changes since `monolith/0.20.0`. Takes the user's name as one field at sign-up, 
 - New `GET /api/appointments/mine` and `GET /api/appointments/request/mine` page the caller's own appointments (where they are the client) and the requests they sent, across all businesses, as `AppointmentPage` and `AppointmentRequestPage` with the same `limit`, `cursor` and page errors; each appointment's `note` is left empty.
 - Both take `period` (`UPCOMING`, soonest first, or `PAST`, newest first; without it everything newest first) and one or more `status`; an appointment counts as upcoming until it ends, a request until it starts.
 - These changes are not backwards compatible: release the app update that reads pages together with this version.
+- `DELETE /api/auth/account` now schedules the deletion 7 days ahead and answers 200 with `AccountDeletion` (`deletesAt`, field 1) instead of 204; the account keeps working until then, so don't sign the user out, and older apps will wrongly say the account is gone.
+- New `GET /api/auth/account/deletion` returns `AccountDeletionStatus` (`deletesAt`, field 1, empty when nothing is pending), and new `DELETE /api/auth/account/deletion` cancels with only an access token (204, also when nothing is pending); show the date and a Cancel button.
+- The user gets an account notification when the deletion is requested, 2 days and 1 day before it, and when it is cancelled; signing in does not cancel it.
+- An account staff have put on hold answers the deletion request with 422 `ACCOUNT_DELETION_ON_HOLD` (18); tell the user it can't be deleted right now and to contact support.
 
 ### Services
 
@@ -74,7 +78,9 @@ Changes since `monolith/0.20.0`. Takes the user's name as one field at sign-up, 
 - New optional secret `APPLICATION_TELEGRAM_BOT_TOKEN` (same bot) sends Telegram notifications; in prod set `vault_telegram_bot_token` the same way; `make deploy` refuses to run with the bot id set but no matching token.
 - Push notifications are now sent after the device lookup's transaction instead of inside it, so a retried transaction no longer sends the same push twice.
 - A standalone `auth` service now needs `APPLICATION_BLIND_INDEX_KEY`, with the same value as the other services; the monolith already has it.
-- Migration authorization `V6` adds the table `telegram_identity`, holding only a keyed hash of the Telegram user id per account.
+- Migration authorization `V6` adds the table `telegram_identity`, holding only keyed hashes of the Telegram user id and of the last synced username per account; a Telegram sign-in calls the user service only when the username changed.
+- The same authorization `V6` adds the table `account_deletion` (one row per pending deletion, deleted with the account); it cannot fail on existing data.
+- New hourly job `auth-handleScheduledDeletions` sends the deletion reminders and erases due accounts, skipping those with `deletion_hold`; new events `auth.account_deletion_scheduled` and `auth.account_deletion_cancelled` go to notifications.
 - Migration appointments `V14` adds `appointment_price_adjustment_services.count`, merges rows repeating a service in one adjustment into one row with that count, and adds a unique index on `(price_adjustment_id, service_id)`; data exports still list such a service once per count.
 - The same `V14` adds indexes on `appointment(business_id, date_start)`, `(employee_id, date_start)` and `(client_id, date_start)`, the last replacing the index on `client_id` alone, and on `appointment_request(business_id, date_start)` for the paged histories, plus `appointment(client_user_id, date_start)` replacing the index on `client_user_id` alone and `appointment_request(initiator_user_id, date_start)` for the clients' own histories.
 - The same `V14` adds `appointment.client_note_encrypted`, the table `saved_business` (erased with the account and with its business) and an index on `appointment(employee_id, date_end)`; existing double bookings of an employee stay and can still be edited as long as their time and employee don't change.
@@ -108,6 +114,7 @@ Changes since `monolith/0.20.0`. Takes the user's name as one field at sign-up, 
 - The BookkMe privacy policy, DPA Annex 1 and record of processing now describe booking link names and their 90-day hold; publish them with the next BookkMe document version.
 - The BookkMe privacy policy, DPA and record of processing, and the self-hosting privacy template, now say that clients are also found by a keyed hash of their full name; publish them with the same document version.
 - The next release removes `business-indexClientContacts`; deploy it only after this version has finished a pass in prod, when `SELECT COUNT(*) FROM business.client c WHERE NOT EXISTS (SELECT 1 FROM business.client_name_token t WHERE t.client_id = c.id)` counts only clients whose key was lost.
+- The BookkMe privacy policy, record of processing and the self-hosting privacy template still describe immediate account deletion; update them to the 7-day wait before publishing this version.
 - The renamed secret `monolith-mariadb-users-init-v5` restarts the database once on deploy, before the app creates `business_link` and `business_link_change`; after the deploy, run `docker --context swarm-manager service update --force monolith_database` once (a few seconds without database) so NocoDB can read them.
 
 ## 0.20.0

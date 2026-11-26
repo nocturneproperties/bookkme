@@ -84,11 +84,14 @@ internal class Ed25519TelegramInitDataVerifier(
 
     private fun parseUser(json: String): TelegramUser? {
         val user = runCatching { userJson.decodeFromString<TelegramWebAppUser>(json) }.getOrNull() ?: return null
+        val sentUsername = user.username?.takeIf { it.isNotEmpty() }
+        val username = sentUsername?.takeIf(TelegramUsernameValidator::isValid)
         return TelegramUser(
             id = user.id,
             firstName = user.firstName,
             lastName = user.lastName,
-            username = user.username?.takeIf(TelegramUsernameValidator::isValid),
+            username = username,
+            usernameRejected = sentUsername != null && username == null,
         )
     }
 

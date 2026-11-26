@@ -14,7 +14,15 @@ saves it as the user's Telegram target. The optional `username` of the signed
 user object goes along with it, kept only when it is 4 to 32 letters, digits
 or underscores. A new account gets it at creation; an existing one has it
 synced after every sign-in, since Telegram users can change or remove it, and a
-failure there is logged without failing the sign-in.
+failure there is logged without failing the sign-in. A username Telegram sends
+that fails that check is left out without clearing the stored one
+(`TelegramUser.usernameRejected`); only a missing or empty username clears it.
+Auth keeps a keyed hash of the last username the user service accepted
+(`telegram_identity.username_index`, written at linking and after each
+successful sync; an empty username stands for none, and a null column for
+never synced) and calls the user service only when the sign-in's username
+hashes differently, so a sign-in with an unchanged username makes no call. A
+failed sync leaves the hash as it was, so the next sign-in tries again.
 
 ```mermaid
 flowchart TD
@@ -30,9 +38,14 @@ flowchart TD
     UpdateLang --> LangEvt[eventProducer.send AuthEvent.DeviceLanguageUpdated deviceUuid language authId]
     DeviceCreatedEvt --> GenToken[GenerateAuthToken InitialAuthentication authId deviceUuid]
     LangEvt --> GenToken
-    GenToken --> SyncName[UserClient.changeTelegramUsername userId username or null]
-    SyncName -- failure logged, ignored --> R200a([200 AuthTokens])
-    SyncName -- ok --> R200a
+    GenToken --> Synced{"TelegramIdentityDataSource.isUsernameSynced authId username - read with the account lookup"}
+    Synced -- yes, no call --> R200a([200 AuthTokens])
+    Synced -- no --> Rejected{"username sent but rejected?"}
+    Rejected -- yes, stored one kept --> R200a
+    Rejected -- no --> SyncName[UserClient.changeTelegramUsername userId username or null]
+    SyncName -- failure logged, hash kept --> R200a
+    SyncName -- ok --> Remember["TelegramIdentityDataSource.markUsernameSynced authId username - own transaction, failure logged"]
+    Remember --> R200a
     Lookup -- no account --> Docs{acceptedDocuments sent?}
     Docs -- no --> R422f([422 LEGAL_DOCUMENTS_NOT_ACCEPTED 100004])
     Docs -- yes --> CreateUser[UserClient.createUser first_name, last_name or empty, telegramUserId at telegramundeliverable.org, acceptedDocuments, telegramUserId, username]
@@ -40,7 +53,7 @@ flowchart TD
     CreateUser -- version in effect not accepted --> R422d([422 LEGAL_DOCUMENTS_NOT_ACCEPTED 100004])
     CreateUser -- ok userId --> Tx[[Begin transaction]]
     Tx --> CreateAuth[AccountDataSource.createAuthorization userId, random passkey handle]
-    CreateAuth --> Link[TelegramIdentityDataSource.link authId telegramUserId]
+    CreateAuth --> Link[TelegramIdentityDataSource.link authId telegramUserId username - stores the username hash]
     Link --> NewDevice[DeviceDataSource.insertDevice authId uuid name language]
     NewDevice -- null - already exists --> Fail([throw ACCOUNT_CREATION_FAILED 5])
     NewDevice -- inserted --> NewDeviceEvt[eventProducer.send AuthEvent.DeviceCreated authId userId deviceUuid language]

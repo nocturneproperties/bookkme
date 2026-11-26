@@ -15,14 +15,16 @@ class UserSnapshot(
     @ProtoNumber(6) val telegramUsername: String?,
 ) {
     companion object {
-        internal fun fromUser(user: User): UserSnapshot = UserSnapshot(
-            id = user.id,
-            name = user.name,
-            lastName = user.lastName,
-            email = user.email,
-            phone = user.phone,
-            telegramUsername = user.telegramUsername,
-        )
+        internal fun fromUser(user: User): UserSnapshot {
+            return UserSnapshot(
+                id = user.id,
+                name = user.name,
+                lastName = user.lastName,
+                email = user.email,
+                phone = user.phone,
+                telegramUsername = user.telegramUsername,
+            )
+        }
 
         fun stub(
             id: Uuid = Uuid.random(),
