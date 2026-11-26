@@ -3,6 +3,7 @@ package com.bookk.appointments.domain.impl.event
 import com.bookk.appointments.domain.api.operation.DeleteBusinessAppointmentData
 import com.bookk.appointments.domain.api.operation.DeleteClientAppointmentData
 import com.bookk.appointments.domain.api.operation.DeleteUserAppointmentData
+import com.bookk.appointments.domain.api.operation.SeedDemoAppointments
 import com.bookk.appointments.domain.impl.operation.LinkClientUser
 import com.bookk.appointments.domain.impl.operation.SyncEmployeePermission
 import com.bookk.appointments.domain.impl.operation.UpdateBusinessInformation
@@ -58,6 +59,7 @@ internal class AppointmentEventHandlerEventTest {
             KafkaTestBroker.createTopic(BusinessEvent.EmployeePermissionsChanged.TOPIC, partitions = 3)
             KafkaTestBroker.createTopic(BusinessEvent.ClientLinked.TOPIC, partitions = 3)
             KafkaTestBroker.createTopic(BusinessEvent.ClientDeleted.TOPIC, partitions = 3)
+            KafkaTestBroker.createTopic(BusinessEvent.DemoBusinessSeeded.TOPIC, partitions = 3)
         }
     }
 
@@ -68,6 +70,7 @@ internal class AppointmentEventHandlerEventTest {
         val syncEmployeePermission = mockk<SyncEmployeePermission>()
         val linkClientUser = mockk<LinkClientUser>()
         val deleteClientAppointmentData = mockk<DeleteClientAppointmentData>()
+        val seedDemoAppointments = mockk<SeedDemoAppointments>()
         val transactionManager = mockedTransactionManager()
         val consumer = KafkaEventConsumer(
             servers = KafkaTestBroker.servers,
@@ -86,6 +89,7 @@ internal class AppointmentEventHandlerEventTest {
             syncEmployeePermission,
             linkClientUser,
             deleteClientAppointmentData,
+            seedDemoAppointments,
         )
         private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -340,5 +344,44 @@ internal class AppointmentEventHandlerEventTest {
 
         then()
         coVerify(exactly = 1) { fixture.deleteClientAppointmentData(businessId, clientId) }
+    }
+
+    @Test
+    fun `should seed sample bookings when the business service seeds a demo business`() = runIntegrationTest {
+        given()
+        val fixture = SutFixture()
+        val event = BusinessEvent.DemoBusinessSeeded(
+            businessId = Uuid.random(),
+            ownerUserId = Uuid.random(),
+            employeeId = Uuid.random(),
+            serviceIds = listOf(Uuid.random()),
+            clientIds = listOf(Uuid.random(), Uuid.random()),
+        )
+        val arrived = CountDownLatch(1)
+        coEvery {
+            fixture.seedDemoAppointments(event.businessId, event.ownerUserId, event.employeeId, any(), any())
+        } answers {
+            arrived.countDown()
+            Result.success(Unit)
+        }
+
+        whenn()
+        withContext(Dispatchers.IO) {
+            fixture.start()
+            producer().send(event)
+            arrived.await(20, TimeUnit.SECONDS)
+        }
+        fixture.stop()
+
+        then()
+        coVerify(exactly = 1) {
+            fixture.seedDemoAppointments(
+                event.businessId,
+                event.ownerUserId,
+                event.employeeId,
+                event.serviceIds,
+                event.clientIds,
+            )
+        }
     }
 }

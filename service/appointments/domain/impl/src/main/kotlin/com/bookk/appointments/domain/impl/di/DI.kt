@@ -32,6 +32,7 @@ import com.bookk.appointments.domain.api.operation.MarkAppointmentNoShow
 import com.bookk.appointments.domain.api.operation.MarkAppointmentsCompleted
 import com.bookk.appointments.domain.api.operation.RemoveSavedBusiness
 import com.bookk.appointments.domain.api.operation.SaveBusiness
+import com.bookk.appointments.domain.api.operation.SeedDemoAppointments
 import com.bookk.appointments.domain.api.operation.UpdateAppointment
 import com.bookk.appointments.domain.api.operation.WithdrawAppointmentRequest
 import com.bookk.appointments.domain.impl.event.AppointmentEventHandler
@@ -69,6 +70,7 @@ import com.bookk.appointments.domain.impl.operation.MarkAppointmentNoShowImpl
 import com.bookk.appointments.domain.impl.operation.MarkAppointmentsCompletedImpl
 import com.bookk.appointments.domain.impl.operation.RemoveSavedBusinessImpl
 import com.bookk.appointments.domain.impl.operation.SaveBusinessImpl
+import com.bookk.appointments.domain.impl.operation.SeedDemoAppointmentsImpl
 import com.bookk.appointments.domain.impl.operation.SyncEmployeePermission
 import com.bookk.appointments.domain.impl.operation.UpdateAppointmentImpl
 import com.bookk.appointments.domain.impl.operation.UpdateBusinessInformation
@@ -89,6 +91,7 @@ fun appointmentsDomainModule() = module {
     scope(AppointmentsScope) {
         scopedOf(::CreateAppointmentImpl) bind CreateAppointment::class
         scopedOf(::EnableAppointmentsForBusinessImpl) bind EnableAppointmentsForBusiness::class
+        scopedOf(::SeedDemoAppointmentsImpl) bind SeedDemoAppointments::class
         scopedOf(::AppointmentEventHandler) bind EventHandler::class
         scopedOf(::DeleteBusinessAppointmentDataImpl) bind DeleteBusinessAppointmentData::class
         scopedOf(::EditSettingsImpl) bind EditSettings::class

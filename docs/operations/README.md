@@ -56,6 +56,7 @@ Reactions to cross-service events:
 | `BusinessEvent.EmployeePermissionsChanged` | [React to an employee permissions change](appointments/on-employee-permissions-changed.md) |
 | `BusinessEvent.ClientLinked` | [React to a client getting an account](appointments/on-client-linked.md) |
 | `BusinessEvent.ClientDeleted` | [React to client deletion](appointments/on-client-deleted.md) |
+| `BusinessEvent.DemoBusinessSeeded` | [React to a seeded demo business](appointments/on-demo-business-seeded.md) |
 
 ## Authorization service
 
