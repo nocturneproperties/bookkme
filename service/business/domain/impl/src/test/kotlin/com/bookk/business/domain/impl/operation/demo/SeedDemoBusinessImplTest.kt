@@ -32,6 +32,7 @@ import io.mockk.coVerifyOrder
 import io.mockk.mockk
 import io.mockk.slot
 import kotlinx.datetime.TimeZone
+import library.email.PlaceholderEmail
 import org.joda.money.Money
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertSame
@@ -62,7 +63,7 @@ internal class SeedDemoBusinessImplTest {
             eventProducer,
             transactionManager,
         )
-        val owner = UserSnapshot.stub(name = "Demo", lastName = "")
+        val owner = UserSnapshot.stub(name = "Demo", lastName = "", email = PlaceholderEmail.forDemoUser(Uuid.random()))
         val business = Business.stub(ownerId = owner.id, demo = true)
         val createdServices = mutableListOf<Service>()
         val updatedEmployee = slot<EmployeeUpdateModel>()
@@ -245,5 +246,23 @@ internal class SeedDemoBusinessImplTest {
 
         then()
         assertSame(error, result.exceptionOrNull())
+    }
+
+    @Test
+    fun `should seed a regular business when the account was upgraded before the seed arrived`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val upgraded = UserSnapshot.stub(id = fixture.owner.id, email = "ann@example.com")
+        coEvery { fixture.userClient.getUserById(fixture.owner.id) } returns Result.success(upgraded)
+        coEvery { fixture.businessDataSource.createBusiness(upgraded.id, any(), any(), any(), false) } returns
+            fixture.business.copy(demo = false)
+
+        whenn()
+        val result = fixture.sut(fixture.owner.id, "UTC", Language.EN)
+
+        then()
+        assertTrue(result.isSuccess) { result.toString() }
+        coVerify(exactly = 1) { fixture.businessDataSource.createBusiness(any(), any(), any(), any(), false) }
+        coVerify(exactly = 0) { fixture.businessLinkDataSource.createLink(any(), any()) }
     }
 }

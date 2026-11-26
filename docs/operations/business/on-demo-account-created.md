@@ -18,6 +18,10 @@ The handler may run more than once, so it locks the owner's `user_limits` row
 first and seeds nothing when they already own a business: a redelivery, or a
 demo user who created a business before the event arrived, changes nothing.
 A demo user deleted in the meantime (the user service answers 404) is skipped.
+The events of a demo arrive in no fixed order, so a user who [upgraded](../authorization/demo-upgrade.md)
+before this event was handled (their profile no longer has a placeholder
+email) gets the same sample business as a regular one: not marked `demo`
+and without a `demo-` link, since the upgrade's flag clearing already ran.
 No email, push or other outside effect happens here.
 
 ```mermaid
@@ -29,7 +33,7 @@ flowchart TD
     Tx --> Lock[UserLimitsDataSource.lockForUser userId - first statement]
     Lock --> Owns{BusinessDataSource.countBusinessesOwnedBy userId > 0?}
     Owns -- Yes --> Done([Commit - already seeded])
-    Owns -- No --> Found[BusinessFounder.found - createBusiness Sample Studio, currency by language, time zone, demo = true; owner employee with FULL permissions; random demo- link]
+    Owns -- No --> Found[BusinessFounder.found - createBusiness Sample Studio, currency by language, time zone, demo = email still a placeholder; owner employee with FULL permissions; random demo- link]
     Found --> Services[ServiceDataSource.createServiceGroup x2, createService x4]
     Services --> Employee[EmployeeDataSource.updateEmployee - the owner provides every sample service]
     Employee --> Clients[ClientDataSource.createDetachedClients - 10 sample clients]

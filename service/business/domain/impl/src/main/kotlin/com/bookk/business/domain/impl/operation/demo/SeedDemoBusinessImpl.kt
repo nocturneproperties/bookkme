@@ -24,6 +24,7 @@ import com.bookk.server.user.client.UserClient
 import com.bookk.server.user.client.api.UserSnapshot
 import io.ktor.http.HttpStatusCode
 import kotlinx.datetime.TimeZone
+import library.email.PlaceholderEmail
 import kotlin.time.Clock
 import kotlin.uuid.Uuid
 
@@ -52,7 +53,7 @@ internal class SeedDemoBusinessImpl(
             name = DemoBusinessSample.BUSINESS_NAME,
             currencyCode = DemoBusinessSample.currencyFor(language).unit.code,
             timeZone = timeZoneOrUtc(timeZoneId),
-            demo = true,
+            demo = owner.isStillDemo(),
         )
         transactionManager.transactionOrThrow {
             userLimitsDataSource.lockForUser(ownerUserId)
@@ -121,6 +122,10 @@ internal class SeedDemoBusinessImpl(
 
     private fun timeZoneOrUtc(id: String): TimeZone {
         return runCatching { TimeZone.of(id) }.getOrDefault(TimeZone.UTC)
+    }
+
+    private fun UserSnapshot.isStillDemo(): Boolean {
+        return PlaceholderEmail.isPlaceholder(email)
     }
 
     private fun Throwable.isUserGone(): Boolean {
