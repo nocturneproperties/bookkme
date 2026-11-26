@@ -32,4 +32,5 @@ object AuthErrorCodes {
     const val DEMO_EXPIRED = BASE + 27
     const val DEMO_UNAVAILABLE = BASE + 28
     const val NOT_A_DEMO_ACCOUNT = BASE + 29
+    const val DEMO_UPGRADE_REQUIRED = BASE + 30
 }

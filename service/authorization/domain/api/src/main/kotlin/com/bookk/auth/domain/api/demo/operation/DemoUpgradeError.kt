@@ -13,6 +13,14 @@ sealed interface DemoUpgradeError {
         ),
         DemoUpgradeError
 
+    class UpgradeRequired :
+        BusinessError(
+            statusCode = HttpStatusCode.UnprocessableEntity.value,
+            code = AuthErrorCodes.DEMO_UPGRADE_REQUIRED,
+            message = "A demo account adds its email and passkey through the demo upgrade",
+        ),
+        DemoUpgradeError
+
     class EmailAlreadyExist :
         BusinessError(
             statusCode = HttpStatusCode.UnprocessableEntity.value,

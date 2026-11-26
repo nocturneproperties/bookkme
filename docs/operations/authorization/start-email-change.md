@@ -8,11 +8,15 @@ valid 10 minutes. Nothing is stored yet: the address changes only through
 [Confirm an email change](confirm-email-change.md). The code's owner is
 the caller's `userId`, and only their newest code works.
 
+A [demo account](demo-start.md) is sent to the [demo upgrade](demo-upgrade.md) instead (`DEMO_UPGRADE_REQUIRED`), since adding an email or a passkey here would not end the demo, and the account would still be erased with its data.
+
 ```mermaid
 flowchart TD
     Start([POST /api/auth/email<br/>body EmailChangeRequest email<br/>Accept-Language picks the email's language]) --> Auth{Signed in?}
     Auth -- No --> R401([401])
-    Auth -- Yes --> EmailFormat{EmailValidator.isValid email?}
+    Auth -- Yes --> DemoCheck{AppPrincipal.isDemo?}
+    DemoCheck -- Yes --> R422demo([422 DEMO_UPGRADE_REQUIRED 30 - use the demo upgrade])
+    DemoCheck -- No --> EmailFormat{EmailValidator.isValid email?}
     EmailFormat -- No --> R422a([422 INVALID_EMAIL_FORMAT 2])
     EmailFormat -- Yes --> Placeholder{PlaceholderEmail.isPlaceholder email?<br/>telegramundeliverable.org or a subdomain}
     Placeholder -- Yes --> R422d([422 EMAIL_DOMAIN_UNSUPPORTED 17])
