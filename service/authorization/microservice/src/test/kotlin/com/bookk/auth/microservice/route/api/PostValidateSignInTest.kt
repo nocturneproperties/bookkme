@@ -1,6 +1,7 @@
 package com.bookk.auth.microservice.route.api
 
 import com.bookk.auth.domain.api.authentication.entity.VerifySignInRequest
+import com.bookk.auth.domain.api.authentication.operation.FinishAssertion
 import com.bookk.auth.domain.api.authentication.operation.FinishAssertion.Error.ChallengeWindowExpired
 import com.bookk.auth.domain.api.authentication.operation.FinishAssertion.Error.PasskeyOwnerNotFound
 import com.bookk.auth.domain.api.authentication.operation.FinishAssertion.Error.VerificationFailed
@@ -92,6 +93,30 @@ internal class PostValidateSignInTest {
         assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
         assertEquals(AuthErrorCodes.PASSKEY_OWNER_NOT_FOUND, body.errorCode)
         assertEquals(PasskeyOwnerNotFound().message, body.message)
+    }
+
+    @Test
+    fun `should return unprocessable entity when the passkey is unknown`() = routeTest {
+        given()
+        val useCase: SignIn = mockk()
+        setupApplication(
+            diModule = module {
+                single { useCase }
+            },
+            routeUnderTest = { signIn() },
+        )
+        val client = createTestClient()
+        val request = createSimpleRequest()
+        coEvery { useCase.invoke(any(), any()) } returns Result.failure(FinishAssertion.Error.PasskeyUnknown())
+
+        whenn()
+        val response = client.post(AuthRouting.Api.Auth.SignIn()) {
+            setBody(request)
+        }
+
+        then()
+        assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
+        assertEquals(AuthErrorCodes.PASSKEY_UNKNOWN, response.body<SimpleServerError>().errorCode)
     }
 
     @Test

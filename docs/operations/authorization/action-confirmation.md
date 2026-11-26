@@ -28,6 +28,12 @@ action (`action`, `ActionConfirmationClaims.ACTION_DELETE_CLIENT` = `client.dele
 business (`business_id`) and the target (`target_id`), and its `jti` is
 unique. The service that checks it spends the `jti` once.
 
+An account without a passkey (one created through Telegram) gets the same
+token for its own account deletion or personal data export through the bot
+instead: [Start confirming an action through
+Telegram](telegram-confirm-action-start.md) and [Confirm an action through
+Telegram](telegram-confirm-action.md).
+
 The passkey must belong to the caller (`FinishAssertion.finishOwnedBy`). The
 sign-in challenge names no user, so without that check any valid passkey of
 any account would pass.
@@ -40,7 +46,8 @@ flowchart TD
     Challenge -- missing, expired or already taken --> R422a([422 CHALLENGE_WINDOW_EXPIRED 6])
     Challenge -- taken --> Verify["RelyingParty.finishAssertion"]
     Verify -- malformed assertion or lookup failure --> R422b([422 VERIFICATION_FAILED 4])
-    Verify -- no user handle, unknown credential, signature, challenge or origin invalid --> R422c([422 PASSKEY_OWNER_NOT_FOUND 7])
+    Verify -- no stored passkey for the credential id and user handle, checked before the signature --> R422cu([422 PASSKEY_UNKNOWN 26])
+    Verify -- no user handle, signature, challenge or origin invalid --> R422c([422 PASSKEY_OWNER_NOT_FOUND 7])
     Verify -- ok --> MarkUsed[PassKeyDataSource.markAsUsed credentialId]
     MarkUsed --> Owner{"credential.authInfo.userId == caller userId?"}
     Owner -- No --> R422d([422 PASSKEY_NOT_OWNED 11])

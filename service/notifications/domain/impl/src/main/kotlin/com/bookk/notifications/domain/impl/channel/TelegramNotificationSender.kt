@@ -34,7 +34,7 @@ internal class TelegramNotificationSender(
     private suspend fun deliver(userId: Uuid, params: NotificationParameters) {
         val recipient = transactionManager.transactionOrThrow { findRecipient(userId) } ?: return
         val delivery = telegramMessenger.send(recipient.chatId, params.text(recipient.language).text)
-        if (delivery != TelegramDelivery.CHAT_UNREACHABLE) return
+        if (delivery != TelegramDelivery.ChatUnreachable) return
         logger.info("User {} blocked the bot or never allowed it to write, so Telegram is turned off for them", userId)
         transactionManager.transactionOrThrow { turnTelegramOff(userId) }
     }

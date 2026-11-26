@@ -5,6 +5,7 @@ import com.bookk.auth.data.datasource.AccountDeletionDataSourceImpl
 import com.bookk.auth.data.datasource.DeviceDataSourceImpl
 import com.bookk.auth.data.datasource.ErasedAccountDataSourceImpl
 import com.bookk.auth.data.datasource.PassKeyDataSourceImpl
+import com.bookk.auth.data.datasource.TelegramConfirmationDataSourceImpl
 import com.bookk.auth.data.datasource.TelegramIdentityDataSourceImpl
 import com.bookk.auth.data.datasource.YubicoCredentialRepository
 import com.bookk.auth.domain.api.AUTH_SCHEMA
@@ -13,6 +14,7 @@ import com.bookk.auth.domain.datasource.AccountDeletionDataSource
 import com.bookk.auth.domain.datasource.DeviceDataSource
 import com.bookk.auth.domain.datasource.ErasedAccountDataSource
 import com.bookk.auth.domain.datasource.PassKeyDataSource
+import com.bookk.auth.domain.datasource.TelegramConfirmationDataSource
 import com.bookk.auth.domain.datasource.TelegramIdentityDataSource
 import com.bookk.auth.domain.repository.CacheableCredentialRepository
 import com.bookk.core.data.ExposedTransactionManager
@@ -40,6 +42,7 @@ fun authDataModule(environment: (String) -> String? = System::getenv) = module {
         scopedOf(::PassKeyDataSourceImpl) bind PassKeyDataSource::class
         blindIndex(environment)
         scopedOf(::TelegramIdentityDataSourceImpl) bind TelegramIdentityDataSource::class
+        scopedOf(::TelegramConfirmationDataSourceImpl) bind TelegramConfirmationDataSource::class
         scopedOf(::YubicoCredentialRepository) bind CacheableCredentialRepository::class
         scoped { createDatabase(schemaName = AUTH_SCHEMA) }
         scoped<TransactionManager> { ExposedTransactionManager(get()) }

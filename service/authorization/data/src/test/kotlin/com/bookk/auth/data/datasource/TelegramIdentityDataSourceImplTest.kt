@@ -62,6 +62,35 @@ internal class TelegramIdentityDataSourceImplTest {
     }
 
     @Test
+    fun `should tell that a user has a Telegram identity`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val account = fixture.account()
+        suspendTransaction { fixture.sut.link(account.id, TELEGRAM_USER_ID, USERNAME) }
+
+        whenn()
+        val linked = suspendTransaction { fixture.sut.hasIdentity(account.userId) }
+
+        then()
+        assertTrue(linked)
+    }
+
+    @Test
+    fun `should tell that a user without a Telegram link has no Telegram identity`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val linkedAccount = fixture.account()
+        val passkeyAccount = fixture.account()
+        suspendTransaction { fixture.sut.link(linkedAccount.id, TELEGRAM_USER_ID, USERNAME) }
+
+        whenn()
+        val linked = suspendTransaction { fixture.sut.hasIdentity(passkeyAccount.userId) }
+
+        then()
+        assertFalse(linked)
+    }
+
+    @Test
     fun `should find no account for a Telegram user that was never linked`() = runUnitTest {
         given()
         val fixture = SutFixture()

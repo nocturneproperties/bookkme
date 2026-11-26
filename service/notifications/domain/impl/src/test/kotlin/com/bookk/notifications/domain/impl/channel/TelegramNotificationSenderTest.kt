@@ -59,7 +59,7 @@ internal class TelegramNotificationSenderTest {
         with(fixture) {
             coEvery { targetDataSource.getTelegram(userId) } returns "123456789"
             coEvery { deviceDataSource.getLastUsedLanguage(userId) } returns Language.UK
-            coEvery { telegramMessenger.send(123456789, "Text UK") } returns TelegramDelivery.SENT
+            coEvery { telegramMessenger.send(123456789, "Text UK") } returns TelegramDelivery.Sent(messageId = 1)
         }
 
         whenn()
@@ -78,7 +78,7 @@ internal class TelegramNotificationSenderTest {
         with(fixture) {
             coEvery { targetDataSource.getTelegram(userId) } returns "123456789"
             coEvery { deviceDataSource.getLastUsedLanguage(userId) } returns null
-            coEvery { telegramMessenger.send(123456789, "Text EN") } returns TelegramDelivery.SENT
+            coEvery { telegramMessenger.send(123456789, "Text EN") } returns TelegramDelivery.Sent(messageId = 1)
         }
 
         whenn()
@@ -118,7 +118,7 @@ internal class TelegramNotificationSenderTest {
             coEvery { deviceDataSource.getLastUsedLanguage(userId) } returns Language.EN
             coEvery { telegramMessenger.send(any(), any()) } coAnswers {
                 sentInTransaction = transactionManager.isInTransaction()
-                TelegramDelivery.SENT
+                TelegramDelivery.Sent(messageId = 1)
             }
         }
 
@@ -140,7 +140,7 @@ internal class TelegramNotificationSenderTest {
         with(fixture) {
             coEvery { targetDataSource.getTelegram(userId) } returns "123456789"
             coEvery { deviceDataSource.getLastUsedLanguage(userId) } returns Language.EN
-            coEvery { telegramMessenger.send(any(), any()) } returns TelegramDelivery.CHAT_UNREACHABLE
+            coEvery { telegramMessenger.send(any(), any()) } returns TelegramDelivery.ChatUnreachable
             coEvery { notificationSettingsDataSource.getByUserId(userId) } returns
                 NotificationSettings.stub(userId = userId, channels = listOf(telegram))
             coEvery { notificationSettingsDataSource.upsert(any<NotificationChannelSettings>()) } coAnswers {
@@ -166,7 +166,7 @@ internal class TelegramNotificationSenderTest {
         with(fixture) {
             coEvery { targetDataSource.getTelegram(userId) } returns "123456789"
             coEvery { deviceDataSource.getLastUsedLanguage(userId) } returns Language.EN
-            coEvery { telegramMessenger.send(any(), any()) } returns TelegramDelivery.CHAT_UNREACHABLE
+            coEvery { telegramMessenger.send(any(), any()) } returns TelegramDelivery.ChatUnreachable
             coEvery { notificationSettingsDataSource.getByUserId(userId) } returns
                 NotificationSettings.stub(userId = userId, channels = listOf(telegram))
         }
@@ -187,7 +187,7 @@ internal class TelegramNotificationSenderTest {
         with(fixture) {
             coEvery { targetDataSource.getTelegram(userId) } returns "123456789"
             coEvery { deviceDataSource.getLastUsedLanguage(userId) } returns Language.EN
-            coEvery { telegramMessenger.send(any(), any()) } returns TelegramDelivery.SENT
+            coEvery { telegramMessenger.send(any(), any()) } returns TelegramDelivery.Sent(messageId = 1)
         }
 
         whenn()
@@ -206,7 +206,7 @@ internal class TelegramNotificationSenderTest {
         with(fixture) {
             coEvery { targetDataSource.getTelegram(userId) } returns "123456789"
             coEvery { deviceDataSource.getLastUsedLanguage(userId) } returns Language.EN
-            coEvery { telegramMessenger.send(any(), any()) } returns TelegramDelivery.DROPPED
+            coEvery { telegramMessenger.send(any(), any()) } returns TelegramDelivery.Dropped
         }
 
         whenn()

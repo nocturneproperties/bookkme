@@ -25,7 +25,7 @@ internal fun Route.confirmAction() {
          * Security: jwt
          * Body: application/x-protobuf [com.bookk.auth.domain.api.actionconfirmation.entity.ActionConfirmationRequest]
          * Response: 200 application/x-protobuf [com.bookk.auth.domain.api.actionconfirmation.entity.ActionConfirmationToken] Action confirmation token
-         * Response: 422 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Action confirmation errors<br>CHALLENGE_WINDOW_EXPIRED (6) Challenge window expired<br>VERIFICATION_FAILED (4) Passkey verification failed<br>PASSKEY_OWNER_NOT_FOUND (7) Passkey owner not found<br>PASSKEY_NOT_OWNED (11) Passkey belongs to another account
+         * Response: 422 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Action confirmation errors<br>CHALLENGE_WINDOW_EXPIRED (6) Challenge window expired<br>VERIFICATION_FAILED (4) Passkey verification failed<br>PASSKEY_OWNER_NOT_FOUND (7) Passkey owner not found<br>PASSKEY_UNKNOWN (26) Passkey is not registered to any account<br>PASSKEY_NOT_OWNED (11) Passkey belongs to another account
          * See: docs/operations/authorization/action-confirmation.md
          */
         post<Api.Auth.PassKey.ConfirmAction> {

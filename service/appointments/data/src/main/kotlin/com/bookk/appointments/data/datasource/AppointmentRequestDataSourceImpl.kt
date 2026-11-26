@@ -25,6 +25,7 @@ import com.bookk.core.domain.entity.toPage
 import org.jetbrains.exposed.v1.core.Op
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.and
+import org.jetbrains.exposed.v1.core.compoundAnd
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.greater
 import org.jetbrains.exposed.v1.core.greaterEq
@@ -88,15 +89,8 @@ internal class AppointmentRequestDataSourceImpl(
             filter.statuses.takeIf { it.isNotEmpty() }?.let { AppointmentRequestTable.status inList it },
             starts.from?.let { AppointmentRequestTable.dateStart greaterEq it },
             starts.until?.let { AppointmentRequestTable.dateStart less it },
-            keyset.after(page.after),
         )
-        val entities = AppointmentRequestEntity.find { conditions.reduce { acc, condition -> acc and condition } }
-            .orderBy(*keyset.orderBy())
-            .limit(page.fetchSize)
-            .toList()
-            .toPage(page) { PageCursor(after = it.dateStart, id = it.id.value) }
-        val requests = entities.items.withDetails().decrypted()
-        Page(requests, entities.next)
+        pageOf(conditions, keyset, page)
     }
 
     override suspend fun getPageOfInitiator(
@@ -114,15 +108,8 @@ internal class AppointmentRequestDataSourceImpl(
                 BookingPeriod.PAST -> AppointmentRequestTable.dateStart lessEq now
                 null -> null
             },
-            keyset.after(page.after),
         )
-        val entities = AppointmentRequestEntity.find { conditions.reduce { acc, condition -> acc and condition } }
-            .orderBy(*keyset.orderBy())
-            .limit(page.fetchSize)
-            .toList()
-            .toPage(page) { PageCursor(after = it.dateStart, id = it.id.value) }
-        val requests = entities.items.withDetails().decrypted()
-        Page(requests, entities.next)
+        pageOf(conditions, keyset, page)
     }
 
     override suspend fun getUpcomingPendingOfUser(
@@ -293,6 +280,19 @@ internal class AppointmentRequestDataSourceImpl(
         return AppointmentRequestTable.initiatorUserId.eq(userId)
             .and(AppointmentRequestTable.businessId.eq(businessId))
             .and(AppointmentRequestTable.status.eq(AppointmentRequestStatus.PENDING))
+    }
+
+    private suspend fun pageOf(
+        conditions: List<Op<Boolean>>,
+        keyset: Keyset,
+        page: PageRequest,
+    ): Page<AppointmentRequest> {
+        val entities = AppointmentRequestEntity.find { (conditions + keyset.after(page.after)).compoundAnd() }
+            .orderBy(*keyset.orderBy())
+            .limit(page.fetchSize)
+            .toList()
+            .toPage(page) { PageCursor(after = it.dateStart, id = it.id.value) }
+        return Page(entities.items.withDetails().decrypted(), entities.next)
     }
 
     private companion object {

@@ -41,6 +41,21 @@ interface AuthEvent : EventStreaming.Event<String> {
     }
 
     @Serializable
+    data class TelegramActionConfirmed(
+        @ProtoNumber(1) val userId: Uuid,
+        @ProtoNumber(2) val challengeId: String,
+        @ProtoNumber(3) override val idempotencyKey: String = Uuid.random().toString(),
+    ) : AuthEvent {
+        @ProtoNumber(4)
+        override val topic: String = TOPIC
+        override val partitionKey: String get() = userId.toString()
+
+        companion object {
+            const val TOPIC = "auth.telegram_action_confirmed"
+        }
+    }
+
+    @Serializable
     data class AccountDeletionCancelled(
         @ProtoNumber(1) val userId: Uuid,
         @ProtoNumber(2) override val idempotencyKey: String = Uuid.random().toString(),

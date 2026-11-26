@@ -40,6 +40,7 @@ internal class FinishAssertionImpl(
         val userHandle = response.response.userHandle.getOrNull() ?: throw Error.PasskeyOwnerNotFound()
         transactionManager.transactionOrThrow {
             cacheRepositoryData(response.id, userHandle)
+            if (!isRegistered(response.id, userHandle)) throw Error.PasskeyUnknown()
             val result: AssertionResult = runCatching {
                 createRelyingParty(credentialRepository)
                     .finishAssertion(
@@ -59,13 +60,18 @@ internal class FinishAssertionImpl(
                     userHandle = result.credential.userHandle.bytes.toUUID(),
                     credentialId = result.credential.credentialId.bytes,
                 )
-                if (credentials == null) throw Error.PasskeyOwnerNotFound()
+                if (credentials == null) throw Error.PasskeyUnknown()
                 passKeyDataSource.markAsUsed(credentials.id)
                 credentials
             } else {
                 throw Error.PasskeyOwnerNotFound()
             }
         }
+    }
+
+    private fun isRegistered(credentialId: YubicoByteArray, userHandle: YubicoByteArray): Boolean {
+        return runCatching { credentialRepository.lookup(credentialId, userHandle).isPresent }
+            .getOrElse { throw Error.VerificationFailed() }
     }
 
     private fun parseAssertion(json: String): AssertionCredential {

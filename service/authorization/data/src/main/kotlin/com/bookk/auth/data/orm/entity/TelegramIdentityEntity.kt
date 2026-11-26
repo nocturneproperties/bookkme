@@ -1,10 +1,12 @@
 package com.bookk.auth.data.orm.entity
 
+import com.bookk.auth.data.orm.table.AuthenticationTable
 import com.bookk.auth.data.orm.table.TelegramIdentityTable
 import com.bookk.core.data.DecoratorUuidEntityClass
 import org.jetbrains.exposed.v1.core.dao.id.EntityID
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.dao.UuidEntity
+import org.jetbrains.exposed.v1.jdbc.select
 import kotlin.uuid.Uuid
 
 internal class TelegramIdentityEntity(id: EntityID<Uuid>) : UuidEntity(id) {
@@ -24,6 +26,15 @@ internal class TelegramIdentityEntity(id: EntityID<Uuid>) : UuidEntity(id) {
 
         fun findByTelegramIdIndex(telegramIdIndex: String): TelegramIdentityEntity? {
             return find { TelegramIdentityTable.telegramIdIndex eq telegramIdIndex }.singleOrNull()
+        }
+
+        fun existsForUser(userId: Uuid): Boolean {
+            return TelegramIdentityTable
+                .innerJoin(AuthenticationTable)
+                .select(TelegramIdentityTable.id)
+                .where { AuthenticationTable.userId eq userId }
+                .empty()
+                .not()
         }
 
         fun findByAuthId(authId: Uuid): TelegramIdentityEntity? {

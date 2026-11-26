@@ -15,6 +15,7 @@ import java.security.Signature
 import java.security.spec.X509EncodedKeySpec
 import java.util.Base64
 import kotlin.time.Clock
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
@@ -25,13 +26,20 @@ internal class Ed25519TelegramInitDataVerifier(
     private val telegramPublicKey: PublicKey = publicKeyOf(TELEGRAM_PRODUCTION_PUBLIC_KEY),
 ) : TelegramInitDataVerifier {
 
+    override val isConfigured: Boolean = botId != null
+
     override fun verify(initData: String): TelegramUser {
+        return verifyLaunch(initData, SIGN_IN_MAX_AGE).user
+    }
+
+    override fun verifyLaunch(initData: String, maxAge: Duration): TelegramLaunch {
         val botId = botId ?: throw TelegramSignInUnavailable()
         val fields = parseFields(initData) ?: throw TelegramDataInvalid()
         val signature = fields[SIGNATURE]?.let(::decodeSignature) ?: throw TelegramDataInvalid()
         if (!isSignedByTelegram(checkString(botId, fields), signature)) throw TelegramDataInvalid()
-        requireFresh(fields[AUTH_DATE]?.toLongOrNull() ?: throw TelegramDataInvalid())
-        return fields[USER]?.let(::parseUser) ?: throw TelegramDataInvalid()
+        requireFresh(fields[AUTH_DATE]?.toLongOrNull() ?: throw TelegramDataInvalid(), maxAge)
+        val user = fields[USER]?.let(::parseUser) ?: throw TelegramDataInvalid()
+        return TelegramLaunch(user, fields[START_PARAM])
     }
 
     private fun parseFields(initData: String): Map<String, String>? {
@@ -75,11 +83,11 @@ internal class Ed25519TelegramInitDataVerifier(
         }.getOrDefault(false)
     }
 
-    private fun requireFresh(authDateSeconds: Long) {
+    private fun requireFresh(authDateSeconds: Long, maxAge: Duration) {
         val authDate = Instant.fromEpochSeconds(authDateSeconds)
         val now = clock.now()
         if (authDate > now + ALLOWED_CLOCK_SKEW) throw TelegramDataInvalid()
-        if (now - authDate > MAX_AGE) throw TelegramDataExpired()
+        if (now - authDate > maxAge) throw TelegramDataExpired()
     }
 
     private fun parseUser(json: String): TelegramUser? {
@@ -111,7 +119,8 @@ internal class Ed25519TelegramInitDataVerifier(
         const val SIGNATURE = "signature"
         const val AUTH_DATE = "auth_date"
         const val USER = "user"
-        val MAX_AGE = 1.hours
+        const val START_PARAM = "start_param"
+        val SIGN_IN_MAX_AGE = 1.hours
         val ALLOWED_CLOCK_SKEW = 1.minutes
         val userJson = Json { ignoreUnknownKeys = true }
 

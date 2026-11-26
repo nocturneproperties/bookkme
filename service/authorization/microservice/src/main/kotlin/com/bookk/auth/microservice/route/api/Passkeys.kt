@@ -25,10 +25,11 @@ internal fun Route.passkeyOperations() {
          * Get Passkeys
          *
          * Summary: Get Passkeys
-         * Description: Get list of all available passkeys for current auth method authId
+         * Description: Get list of all available passkeys for current auth method authId, with the relying party id, the account's base64url user handle and each passkey's base64url credential id, so the client can signal the accepted passkeys to the passkey provider after sign-in and after every passkey change
          * Tag: auth
          * Security: jwt
-         * Response: 200 application/x-protobuf [com.bookk.auth.domain.api.identification.entity.PasskeyResponse]
+         * Response: 200 application/x-protobuf [com.bookk.auth.domain.api.identification.entity.PasskeyList] Passkeys of the account
+         * Response: 404 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] The signed-in account no longer exists
          */
         get<Api.Auth.PassKey> {
             val principal = requireNotNull(call.principal<AppPrincipal>())

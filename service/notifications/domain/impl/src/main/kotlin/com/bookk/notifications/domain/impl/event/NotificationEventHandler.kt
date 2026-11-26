@@ -15,6 +15,7 @@ import com.bookk.notifications.domain.impl.notification.SendNotification
 import com.bookk.notifications.domain.impl.notification.renderer.account.notification
 import com.bookk.notifications.domain.impl.notification.renderer.appointment.notification
 import com.bookk.notifications.domain.impl.notification.renderer.employee.notification
+import com.bookk.notifications.domain.impl.telegram.TelegramConfirmationChat
 import com.bookk.server.appointments.client.api.event.AppointmentEvent
 import com.bookk.server.auth.client.AuthEvent
 import com.bookk.server.business.client.api.event.BusinessEvent
@@ -31,6 +32,7 @@ internal class NotificationEventHandler(
     private val clearPushNotificationToken: ClearPushNotificationToken,
     private val sendNotification: SendNotification,
     private val deleteUserNotificationData: DeleteUserNotificationData,
+    private val telegramConfirmationChat: TelegramConfirmationChat,
 ) : EventHandler {
     override fun start(scope: CoroutineScope) {
         consumer
@@ -50,6 +52,11 @@ internal class NotificationEventHandler(
             }
             .registerResultReceiver(AuthEvent.DeviceSignedOut.TOPIC) { event: AuthEvent.DeviceSignedOut ->
                 clearPushNotificationToken(event.authId, event.deviceUuid, event.signedOutAt)
+            }
+            .registerResultReceiver(
+                AuthEvent.TelegramActionConfirmed.TOPIC,
+            ) { event: AuthEvent.TelegramActionConfirmed ->
+                telegramConfirmationChat.markConfirmed(event.userId, event.challengeId)
             }
             .registerResultReceiver(AuthEvent.AccountDormancyWarning.TOPIC) { event: AuthEvent.AccountDormancyWarning ->
                 sendNotification(event.userId, event.notification)

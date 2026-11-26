@@ -7,6 +7,7 @@ import com.bookk.core.test.whenn
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respondOk
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
@@ -33,7 +34,7 @@ internal class TelegramMessengerFactoryTest {
         val messenger = telegramMessenger(environment::get, MockEngine { respondOk() })
 
         then()
-        assertEquals(TelegramDelivery.DROPPED, messenger.send(123456789, "Text"))
+        assertEquals(TelegramDelivery.Dropped, messenger.send(123456789, "Text"))
     }
 
     @Test
@@ -45,6 +46,21 @@ internal class TelegramMessengerFactoryTest {
         val messenger = telegramMessenger(environment::get, MockEngine { respondOk() })
 
         then()
-        assertEquals(TelegramDelivery.DROPPED, messenger.send(123456789, "Text"))
+        assertEquals(TelegramDelivery.Dropped, messenger.send(123456789, "Text"))
+    }
+
+    @Test
+    fun `should neither edit nor delete messages when no bot token is set`() = runUnitTest {
+        given()
+        val environment = emptyMap<String, String>()
+        val messenger = telegramMessenger(environment::get, MockEngine { respondOk() })
+
+        whenn()
+        val edited = messenger.edit(123456789, 77, "Confirmed")
+        val deleted = messenger.delete(123456789, 77)
+
+        then()
+        assertFalse(edited)
+        assertFalse(deleted)
     }
 }

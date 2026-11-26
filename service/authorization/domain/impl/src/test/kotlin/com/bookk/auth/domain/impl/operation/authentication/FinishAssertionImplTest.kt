@@ -119,7 +119,7 @@ internal class FinishAssertionImplTest {
     }
 
     @Test
-    fun `should return PasskeyOwnerNotFound when no account knows the passkey`() = runUnitTest {
+    fun `should return PasskeyUnknown when no account knows the passkey`() = runUnitTest {
         given()
         val fixture = SutFixture()
         fixture.stubKnownPasskey()
@@ -130,9 +130,31 @@ internal class FinishAssertionImplTest {
         val result = fixture.sut.invoke(fixture.request(assertion))
 
         then()
-        assertTrue(result.exceptionOrNull() is FinishAssertion.Error.PasskeyOwnerNotFound)
+        assertTrue(result.exceptionOrNull() is FinishAssertion.Error.PasskeyUnknown)
         coVerify(exactly = 0) { fixture.passKeyDataSource.markAsUsed(any()) }
     }
+
+    @Test
+    fun `should return PasskeyUnknown for a passkey of an erased account even when its signature is invalid`() =
+        runUnitTest {
+            given()
+            val fixture = SutFixture()
+            fixture.stubKnownPasskey()
+            every { fixture.credentialRepository.getUsernameForUserHandle(any()) } returns Optional.empty()
+            every { fixture.credentialRepository.lookup(any(), any()) } returns Optional.empty()
+            val assertion = fixture.authenticator.assertion(
+                challenge = fixture.challenge,
+                userHandle = fixture.userHandle,
+                signingKey = TestPasskeyAuthenticator.newKeyPair(),
+            )
+
+            whenn()
+            val result = fixture.sut.invoke(fixture.request(assertion))
+
+            then()
+            assertTrue(result.exceptionOrNull() is FinishAssertion.Error.PasskeyUnknown)
+            coVerify(exactly = 0) { fixture.passKeyDataSource.markAsUsed(any()) }
+        }
 
     @Test
     fun `should reject an assertion signed by another key`() = runUnitTest {
@@ -189,7 +211,7 @@ internal class FinishAssertionImplTest {
     }
 
     @Test
-    fun `should return PasskeyOwnerNotFound when the verified passkey is no longer stored`() = runUnitTest {
+    fun `should return PasskeyUnknown when the verified passkey is no longer stored`() = runUnitTest {
         given()
         val fixture = SutFixture()
         fixture.stubKnownPasskey()
@@ -200,7 +222,7 @@ internal class FinishAssertionImplTest {
         val result = fixture.sut.invoke(fixture.request(assertion))
 
         then()
-        assertTrue(result.exceptionOrNull() is FinishAssertion.Error.PasskeyOwnerNotFound)
+        assertTrue(result.exceptionOrNull() is FinishAssertion.Error.PasskeyUnknown)
         coVerify(exactly = 0) { fixture.passKeyDataSource.markAsUsed(any()) }
     }
 

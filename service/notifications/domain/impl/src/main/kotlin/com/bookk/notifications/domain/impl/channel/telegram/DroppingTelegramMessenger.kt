@@ -9,8 +9,16 @@ internal class DroppingTelegramMessenger : TelegramMessenger {
         logger.warn("$TELEGRAM_BOT_TOKEN is not set, so no notification is sent through Telegram")
     }
 
-    override suspend fun send(chatId: Long, text: String): TelegramDelivery {
-        return TelegramDelivery.DROPPED
+    override suspend fun send(chatId: Long, text: String, button: TelegramUrlButton?): TelegramDelivery {
+        return TelegramDelivery.Dropped
+    }
+
+    override suspend fun edit(chatId: Long, messageId: Long, text: String): Boolean {
+        return false
+    }
+
+    override suspend fun delete(chatId: Long, messageId: Long): Boolean {
+        return false
     }
 
     private companion object {

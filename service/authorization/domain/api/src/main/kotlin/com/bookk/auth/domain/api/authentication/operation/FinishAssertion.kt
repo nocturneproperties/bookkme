@@ -19,6 +19,13 @@ interface FinishAssertion {
                 "Passkey owner not found",
             ),
             Error
+        class PasskeyUnknown :
+            BusinessError(
+                HttpStatusCode.UnprocessableEntity.value,
+                AuthErrorCodes.PASSKEY_UNKNOWN,
+                "Passkey is not registered to any account",
+            ),
+            Error
         class ChallengeWindowExpired :
             BusinessError(
                 HttpStatusCode.UnprocessableEntity.value,

@@ -32,6 +32,7 @@ import kotlinx.datetime.toLocalDateTime
 import org.jetbrains.exposed.v1.core.Op
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.and
+import org.jetbrains.exposed.v1.core.compoundAnd
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.greater
 import org.jetbrains.exposed.v1.core.greaterEq
@@ -117,14 +118,8 @@ internal class AppointmentDataSourceImpl(
                 BookingPeriod.PAST -> AppointmentTable.dateEnd lessEq now
                 null -> null
             },
-            keyset.after(page.after),
         )
-        val entities = AppointmentEntity.find { conditions.reduce { acc, condition -> acc and condition } }
-            .orderBy(*keyset.orderBy())
-            .limit(page.fetchSize)
-            .toList()
-            .toPage(page) { PageCursor(after = it.dateStart, id = it.id.value) }
-        Page(entities.items.withDetails().decrypted(), entities.next)
+        pageOf(conditions, keyset, page)
     }
 
     override suspend fun getAllForDate(
@@ -161,14 +156,8 @@ internal class AppointmentDataSourceImpl(
             starts.from?.let { AppointmentTable.dateStart greaterEq it },
             starts.until?.let { AppointmentTable.dateStart less it },
             query?.let { matching(businessId, it) },
-            keyset.after(page.after),
         )
-        val entities = AppointmentEntity.find { conditions.reduce { acc, condition -> acc and condition } }
-            .orderBy(*keyset.orderBy())
-            .limit(page.fetchSize)
-            .toList()
-            .toPage(page) { PageCursor(after = it.dateStart, id = it.id.value) }
-        Page(entities.items.withDetails().decrypted(), entities.next)
+        pageOf(conditions, keyset, page)
     }
 
     private fun matching(businessId: Uuid, query: String): Op<Boolean> {
@@ -431,6 +420,15 @@ internal class AppointmentDataSourceImpl(
     private suspend fun List<AppointmentEntity>.decrypted(): List<Appointment> {
         val snapshots = snapshotCipher.decryptAll(map { it.storedSnapshot() }, AppointmentTable.tableName)
         return zip(snapshots) { entity, snapshot -> entity.domain(snapshot) }
+    }
+
+    private suspend fun pageOf(conditions: List<Op<Boolean>>, keyset: Keyset, page: PageRequest): Page<Appointment> {
+        val entities = AppointmentEntity.find { (conditions + keyset.after(page.after)).compoundAnd() }
+            .orderBy(*keyset.orderBy())
+            .limit(page.fetchSize)
+            .toList()
+            .toPage(page) { PageCursor(after = it.dateStart, id = it.id.value) }
+        return Page(entities.items.withDetails().decrypted(), entities.next)
     }
 
     private companion object {

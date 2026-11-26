@@ -59,6 +59,8 @@ internal class SwaggerTest {
                 "post /api/auth/telegram/sign_in",
                 "post /api/auth/passkey/add/finish",
                 "post /api/auth/passkey/confirm_action",
+                "post /api/auth/telegram/confirm_action/start",
+                "post /api/auth/telegram/confirm_action",
                 "delete /api/auth/account",
                 "post /api/auth/email",
                 "post /api/auth/email/confirm",
@@ -121,6 +123,7 @@ internal class SwaggerTest {
             setOf(
                 "put /api/notifications/{deviceUuid}/token",
                 "put /api/notifications/settings",
+                "post /api/internal/telegram/action_confirmation/{userId}",
             ),
         ),
     }

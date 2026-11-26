@@ -38,8 +38,8 @@ Jeśli dla nas pracujesz, korzystanie z {{SERVICE_NAME}} w pracy podlega równie
 
 - Musisz mieć co najmniej {{MINIMUM_AGE}} lat oraz zdolność do zawarcia umowy lub ważne upoważnienie przedstawiciela ustawowego wymagane przez właściwe prawo. Minimalny wiek sam w sobie nie nadaje zdolności do zawierania umów.
 - Jedno konto należy do jednej osoby. Podawaj prawdziwe imię i nazwisko i aktualizuj dane kontaktowe; używamy ich do kontaktu w sprawie wizyt.
-- Logujesz się kluczami dostępu przechowywanymi na urządzeniach. Zabezpiecz urządzenia i skontaktuj się z nami, jeśli stracisz do nich dostęp. Podejmuj rozsądne działania zapobiegające nieuprawnionemu użyciu. Odpowiedzialność za nieuprawnione działania określa właściwe prawo, w tym nasze obowiązki w zakresie bezpieczeństwa.
-- Możesz w każdej chwili usunąć konto w aplikacji. Jeśli jesteś właścicielem firmy, usuwa to firmę z pracownikami, klientami, usługami i wizytami, także po usunięciu nieużywanego konta właściciela. Najpierw wyeksportuj potrzebne rekordy.
+- Logujesz się kluczami dostępu przechowywanymi na urządzeniach[ lub przez naszą miniaplikację w Telegramie, który potwierdza nam Twoje konto w Telegramie; korzystanie z {{SERVICE_NAME}} w Telegramie podlega również regulaminowi Telegrama]. Zabezpiecz urządzenia i skontaktuj się z nami, jeśli stracisz do nich dostęp. Podejmuj rozsądne działania zapobiegające nieuprawnionemu użyciu. Odpowiedzialność za nieuprawnione działania określa właściwe prawo, w tym nasze obowiązki w zakresie bezpieczeństwa.
+- Możesz w każdej chwili usunąć konto w aplikacji; potwierdzasz to kluczem dostępu[ albo, w miniaplikacji, przez wiadomość od naszego bota w Telegramie]. Usunięcie zlecone w aplikacji następuje 7 dni później, a do tego czasu możesz je anulować w aplikacji; zlecone e-mailem następuje po Twoim potwierdzeniu ([Polityka prywatności]({{PRIVACY_POLICY_URL}}#section-9)). Jeśli jesteś właścicielem firmy, usuwa to firmę z pracownikami, klientami, usługami i wizytami, także po usunięciu nieużywanego konta właściciela. Najpierw wyeksportuj potrzebne rekordy.
 
 ---
 
@@ -95,7 +95,7 @@ Wyłącznie wobec użytkowników działających w ramach działalności gospodar
 
 ## <a id="section-9"></a>9. Zakończenie umowy
 
-Możesz zakończyć umowę w dowolnym momencie, usuwając konto. Możemy zakończyć umowę dla konta naruszającego regulamin lub nieużywanego przez 3 lata, jak opisano w [Polityce prywatności]({{PRIVACY_POLICY_URL}}#section-7). Po zakończeniu umowy usuwamy dane zgodnie z [Polityką prywatności]({{PRIVACY_POLICY_URL}}#section-7).
+Możesz zakończyć umowę w dowolnym momencie, usuwając konto; umowa wygasa, gdy usunięcie następuje: 7 dni po żądaniu złożonym w aplikacji albo po potwierdzeniu żądania wysłanego e-mailem. Możemy zakończyć umowę dla konta naruszającego regulamin lub nieużywanego przez 3 lata, jak opisano w [Polityce prywatności]({{PRIVACY_POLICY_URL}}#section-7). Po zakończeniu umowy usuwamy dane zgodnie z [Polityką prywatności]({{PRIVACY_POLICY_URL}}#section-7).
 
 ---
 
