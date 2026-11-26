@@ -1,5 +1,6 @@
 package com.bookk.server.auth.client
 
+import com.bookk.core.domain.entity.DemoBusinessKind
 import com.bookk.core.domain.entity.Language
 import com.bookk.core.test.given
 import com.bookk.core.test.runUnitTest
@@ -167,6 +168,7 @@ internal class AuthEventTest {
             expiresAt = Instant.fromEpochMilliseconds(1_700_000_000_123),
             timeZoneId = "Europe/Warsaw",
             language = Language.PL,
+            businessKind = DemoBusinessKind.HEALTH,
         )
         val protoBuf = ProtoBuf { encodeDefaults = true }
 

@@ -14,6 +14,7 @@ internal object BusinessLinkPolicy {
 
     private val NAME_PATTERN = Regex("^(?=.{3,32}$)[a-z0-9]+(-[a-z0-9]+)*$")
     private val RESERVED_NAMES = setOf(
+        DEMO_NAME,
         "about", "abuse", "account", "admin", "api", "app", "apps", "assets", "auth", "billing", "blog", "book",
         "booking", "bookk", "bookkme", "business", "businesses", "careers", "cdn", "contact", "contacts", "cookies",
         "dashboard", "delete", "dev", "docs", "download", "email", "en", "faq", "help", "home", "imprint", "index",
@@ -31,7 +32,7 @@ internal object BusinessLinkPolicy {
     }
 
     fun isReserved(name: String): Boolean {
-        return name in RESERVED_NAMES || name == DEMO_NAME || isDemoName(name)
+        return name in RESERVED_NAMES || isDemoName(name)
     }
 
     fun isDemoName(name: String): Boolean {

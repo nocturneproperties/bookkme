@@ -32,7 +32,7 @@ flowchart TD
     CreateAuth --> NewDevice[DeviceDataSource.insertDevice authId uuid name language]
     NewDevice -- null - already exists --> Fail([throw ACCOUNT_CREATION_FAILED 5])
     NewDevice -- inserted --> DeviceEvt[eventProducer.send AuthEvent.DeviceCreated authId userId deviceUuid language]
-    DeviceEvt --> DemoEvt[eventProducer.send AuthEvent.DemoAccountCreated userId expiresAt timeZoneId language]
+    DeviceEvt --> DemoEvt[eventProducer.send AuthEvent.DemoAccountCreated userId expiresAt timeZoneId language businessKind - GENERAL when not sent]
     DemoEvt --> Token[GenerateAuthToken InitialAuthentication authId deviceUuid - demo claim, refresh token kept until demo end + 7 days]
     Token --> TxEnd[[Commit transaction]] --> Count2[auth_demo_started_total + 1] --> R200([200 AuthTokens])
     Token -- failure --> Rollback

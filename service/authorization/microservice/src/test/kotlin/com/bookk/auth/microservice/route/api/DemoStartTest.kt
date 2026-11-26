@@ -5,6 +5,7 @@ import com.bookk.auth.domain.api.demo.operation.StartDemo
 import com.bookk.auth.domain.api.error.AuthErrorCodes
 import com.bookk.auth.domain.api.token.entity.AuthTokens
 import com.bookk.auth.microservice.route.AuthRouting
+import com.bookk.core.domain.entity.DemoBusinessKind
 import com.bookk.core.domain.entity.Language
 import com.bookk.core.domain.entity.SimpleServerError
 import com.bookk.core.service.test.createTestClient
@@ -52,6 +53,22 @@ internal class DemoStartTest {
         assertEquals(HttpStatusCode.OK, response.status)
         assertEquals(tokens, response.body<AuthTokens>())
         coVerify(exactly = 1) { useCase.invoke(request, Language.UK) }
+    }
+
+    @Test
+    fun `should pass the chosen sample business kind through`() = routeTest {
+        given()
+        val useCase: StartDemo = mockk()
+        val request = DemoStartRequest.stub(businessKind = DemoBusinessKind.FITNESS)
+        coEvery { useCase.invoke(request, Language.EN) } returns Result.success(AuthTokens("access", "refresh"))
+        setupApplication(diModule = module { single { useCase } }, routeUnderTest = { demo() })
+
+        whenn()
+        val response = createTestClient().post(AuthRouting.Api.Auth.Demo()) { setBody(request) }
+
+        then()
+        assertEquals(HttpStatusCode.OK, response.status)
+        coVerify(exactly = 1) { useCase.invoke(request, Language.EN) }
     }
 
     @Test

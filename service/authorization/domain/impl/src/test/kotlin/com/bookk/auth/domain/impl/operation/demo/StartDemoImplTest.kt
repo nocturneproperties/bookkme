@@ -12,6 +12,7 @@ import com.bookk.auth.domain.datasource.DeviceDataSource
 import com.bookk.core.data.eventstreaming.StandardEventProducer
 import com.bookk.core.domain.datasource.transaction.TransactionManager
 import com.bookk.core.domain.datasource.transaction.mockTransaction
+import com.bookk.core.domain.entity.DemoBusinessKind
 import com.bookk.core.domain.entity.Language
 import com.bookk.core.test.given
 import com.bookk.core.test.runUnitTest
@@ -136,6 +137,40 @@ internal class StartDemoImplTest {
                         it.language == Language.PL &&
                         it.expiresAt == fixture.createdAccount.captured.demoExpiresAt
                 },
+                any(),
+            )
+        }
+    }
+
+    @Test
+    fun `should announce the sample business kind the device chose`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+
+        whenn()
+        fixture.sut.invoke(fixture.request.copy(businessKind = DemoBusinessKind.TUTORING), Language.EN)
+
+        then()
+        coVerify(exactly = 1) {
+            fixture.eventProducer.send(
+                match<AuthEvent.DemoAccountCreated> { it.businessKind == DemoBusinessKind.TUTORING },
+                any(),
+            )
+        }
+    }
+
+    @Test
+    fun `should announce the general sample business when the device chose no kind`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+
+        whenn()
+        fixture.sut.invoke(fixture.request.copy(businessKind = null), Language.EN)
+
+        then()
+        coVerify(exactly = 1) {
+            fixture.eventProducer.send(
+                match<AuthEvent.DemoAccountCreated> { it.businessKind == DemoBusinessKind.GENERAL },
                 any(),
             )
         }

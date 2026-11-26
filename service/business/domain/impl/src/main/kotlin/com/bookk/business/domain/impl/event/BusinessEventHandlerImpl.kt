@@ -30,7 +30,7 @@ internal class BusinessEventHandlerImpl(
                 deleteUserBusinessData(event.userId)
             }
             .registerResultReceiver(AuthEvent.DemoAccountCreated.TOPIC) { event: AuthEvent.DemoAccountCreated ->
-                seedDemoBusiness(event.userId, event.timeZoneId, event.language)
+                seedDemoBusiness(event.userId, event.timeZoneId, event.language, event.businessKind)
             }
             .registerResultReceiver(AuthEvent.DemoUpgraded.TOPIC) { event: AuthEvent.DemoUpgraded ->
                 endBusinessDemo(event.userId)

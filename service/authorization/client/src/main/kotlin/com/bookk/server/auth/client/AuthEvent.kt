@@ -1,6 +1,7 @@
 package com.bookk.server.auth.client
 
 import com.bookk.core.data.eventstreaming.EventStreaming
+import com.bookk.core.domain.entity.DemoBusinessKind
 import com.bookk.core.domain.entity.Language
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.protobuf.ProtoNumber
@@ -76,6 +77,7 @@ interface AuthEvent : EventStreaming.Event<String> {
         @ProtoNumber(3) val timeZoneId: String,
         @ProtoNumber(4) val language: Language,
         @ProtoNumber(5) override val idempotencyKey: String = Uuid.random().toString(),
+        @ProtoNumber(7) val businessKind: DemoBusinessKind = DemoBusinessKind.GENERAL,
     ) : AuthEvent {
         @ProtoNumber(6)
         override val topic: String = TOPIC

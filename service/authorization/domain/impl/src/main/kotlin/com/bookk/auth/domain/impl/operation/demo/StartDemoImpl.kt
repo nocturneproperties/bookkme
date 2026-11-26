@@ -16,6 +16,7 @@ import com.bookk.core.data.eventstreaming.StandardEventProducer
 import com.bookk.core.data.eventstreaming.send
 import com.bookk.core.domain.datasource.transaction.TransactionManager
 import com.bookk.core.domain.datasource.transaction.transactionOrThrow
+import com.bookk.core.domain.entity.DemoBusinessKind
 import com.bookk.core.domain.entity.Language
 import com.bookk.core.domain.entity.runSuspendCatching
 import com.bookk.server.auth.client.AuthEvent
@@ -77,7 +78,15 @@ internal class StartDemoImpl(
                 language = language,
             ) ?: throw AccountCreationFailed()
             eventProducer.send(AuthEvent.DeviceCreated(account.id, userId, deviceUuid, language))
-            eventProducer.send(AuthEvent.DemoAccountCreated(userId, expiresAt, request.timeZone, language))
+            eventProducer.send(
+                AuthEvent.DemoAccountCreated(
+                    userId = userId,
+                    expiresAt = expiresAt,
+                    timeZoneId = request.timeZone,
+                    language = language,
+                    businessKind = request.businessKind ?: DemoBusinessKind.GENERAL,
+                ),
+            )
             generateAuthToken(Source.InitialAuthentication(account.id, deviceUuid)).getOrThrow()
         }.onFailure {
             transactionManager.transaction { eventProducer.send(AuthEvent.UserDeleted(userId)) }

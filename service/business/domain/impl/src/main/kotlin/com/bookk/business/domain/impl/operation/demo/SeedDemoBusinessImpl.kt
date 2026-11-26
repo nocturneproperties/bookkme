@@ -17,6 +17,7 @@ import com.bookk.core.data.eventstreaming.send
 import com.bookk.core.domain.datasource.transaction.TransactionManager
 import com.bookk.core.domain.datasource.transaction.transactionOrThrow
 import com.bookk.core.domain.entity.BusinessError
+import com.bookk.core.domain.entity.DemoBusinessKind
 import com.bookk.core.domain.entity.Language
 import com.bookk.core.domain.entity.runSuspendCatching
 import com.bookk.server.business.client.api.event.BusinessEvent
@@ -44,30 +45,32 @@ internal class SeedDemoBusinessImpl(
         ownerUserId: Uuid,
         timeZoneId: String,
         language: Language,
+        businessKind: DemoBusinessKind,
     ): Result<Unit> = runSuspendCatching {
         val owner = userClient.getUserById(ownerUserId).getOrElse { failure ->
             if (failure.isUserGone()) return@runSuspendCatching
             throw failure
         }
+        val sample = DemoBusinessSample.of(businessKind, language)
         val plan = BusinessPlan(
-            name = DemoBusinessSample.BUSINESS_NAME,
-            currencyCode = DemoBusinessSample.currencyFor(language).unit.code,
+            name = sample.name,
+            currencyCode = sample.currency.unit.code,
             timeZone = timeZoneOrUtc(timeZoneId),
             demo = owner.isStillDemo(),
         )
         transactionManager.transactionOrThrow {
             userLimitsDataSource.lockForUser(ownerUserId)
             if (businessDataSource.countBusinessesOwnedBy(ownerUserId) > 0) return@transactionOrThrow
-            seed(owner, plan, DemoBusinessSample.currencyFor(language))
+            seed(owner, plan, sample)
         }
     }
 
-    private suspend fun seed(owner: UserSnapshot, plan: BusinessPlan, currency: SampleCurrency) {
+    private suspend fun seed(owner: UserSnapshot, plan: BusinessPlan, sample: SampleBusiness) {
         val business = businessFounder.found(owner, plan)
         val employeeId = requireNotNull(business.employeeId)
-        val services = createServices(business.id, currency)
+        val services = createServices(business.id, sample)
         employeeDataSource.updateEmployee(ownerProvidingAll(owner, business, employeeId, services))
-        val clients = clientDataSource.createDetachedClients(business.id, DemoBusinessSample.clients())
+        val clients = clientDataSource.createDetachedClients(business.id, sample.clients())
         eventProducer.send(
             BusinessEvent.DemoBusinessSeeded(
                 businessId = business.id,
@@ -79,21 +82,21 @@ internal class SeedDemoBusinessImpl(
         )
     }
 
-    private suspend fun createServices(businessId: Uuid, currency: SampleCurrency): List<Service> {
+    private suspend fun createServices(businessId: Uuid, sample: SampleBusiness): List<Service> {
         val now = Clock.System.now()
-        return DemoBusinessSample.groups.flatMap { sampleGroup ->
+        return sample.groups.flatMap { sampleGroup ->
             val group = serviceDataSource.createServiceGroup(
                 ServiceGroup(Uuid.random(), businessId, sampleGroup.name, now),
             )
-            sampleGroup.services.map { sample ->
+            sampleGroup.services.map { service ->
                 serviceDataSource.createService(
                     Service(
                         id = Uuid.random(),
                         businessId = businessId,
                         group = group,
-                        name = sample.name,
-                        duration = sample.duration,
-                        price = currency.priceOf(sample),
+                        name = service.name,
+                        duration = service.duration,
+                        price = sample.currency.priceOf(service),
                         isAvailable = true,
                         createdAt = now,
                     ),

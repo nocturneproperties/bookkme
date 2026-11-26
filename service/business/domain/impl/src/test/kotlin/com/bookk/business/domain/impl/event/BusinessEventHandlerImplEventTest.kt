@@ -14,6 +14,7 @@ import com.bookk.core.data.eventstreaming.impl.kafka.KafkaTestBroker
 import com.bookk.core.data.eventstreaming.impl.kafka.NoopProducer
 import com.bookk.core.data.eventstreaming.send
 import com.bookk.core.domain.datasource.transaction.mockedTransactionManager
+import com.bookk.core.domain.entity.DemoBusinessKind
 import com.bookk.core.domain.entity.Language
 import com.bookk.core.test.given
 import com.bookk.core.test.runIntegrationTest
@@ -96,7 +97,7 @@ internal class BusinessEventHandlerImplEventTest {
         val fixture = SutFixture()
         val userId = Uuid.random()
         val arrived = CountDownLatch(1)
-        coEvery { fixture.seedDemoBusiness(userId, "Europe/Kyiv", Language.UK) } answers {
+        coEvery { fixture.seedDemoBusiness(userId, "Europe/Kyiv", Language.UK, DemoBusinessKind.FITNESS) } answers {
             arrived.countDown()
             Result.success(Unit)
         }
@@ -110,6 +111,7 @@ internal class BusinessEventHandlerImplEventTest {
                     expiresAt = Instant.fromEpochMilliseconds(1_700_000_000_000),
                     timeZoneId = "Europe/Kyiv",
                     language = Language.UK,
+                    businessKind = DemoBusinessKind.FITNESS,
                 ),
             )
             arrived.await(20, TimeUnit.SECONDS)
@@ -117,7 +119,7 @@ internal class BusinessEventHandlerImplEventTest {
         fixture.stop()
 
         then()
-        coVerify(exactly = 1) { fixture.seedDemoBusiness(userId, "Europe/Kyiv", Language.UK) }
+        coVerify(exactly = 1) { fixture.seedDemoBusiness(userId, "Europe/Kyiv", Language.UK, DemoBusinessKind.FITNESS) }
     }
 
     @Test

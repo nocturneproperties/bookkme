@@ -17,6 +17,7 @@ import com.bookk.business.domain.impl.operation.business.BusinessFounder
 import com.bookk.core.data.eventstreaming.StandardEventProducer
 import com.bookk.core.domain.datasource.transaction.TransactionManager
 import com.bookk.core.domain.datasource.transaction.mockTransaction
+import com.bookk.core.domain.entity.DemoBusinessKind
 import com.bookk.core.domain.entity.Language
 import com.bookk.core.test.given
 import com.bookk.core.test.runUnitTest
@@ -98,14 +99,14 @@ internal class SeedDemoBusinessImplTest {
         val fixture = SutFixture()
 
         whenn()
-        val result = fixture.sut(fixture.owner.id, "Europe/Warsaw", Language.EN)
+        val result = fixture.sut(fixture.owner.id, "Europe/Warsaw", Language.EN, DemoBusinessKind.GENERAL)
 
         then()
         assertTrue(result.isSuccess) { result.toString() }
         coVerify(exactly = 1) {
             fixture.businessDataSource.createBusiness(
                 fixture.owner.id,
-                DemoBusinessSample.BUSINESS_NAME,
+                "Sample Studio",
                 "EUR",
                 TimeZone.of("Europe/Warsaw"),
                 true,
@@ -120,12 +121,12 @@ internal class SeedDemoBusinessImplTest {
         val fixture = SutFixture()
 
         whenn()
-        fixture.sut(fixture.owner.id, "UTC", Language.EN)
+        fixture.sut(fixture.owner.id, "UTC", Language.EN, DemoBusinessKind.BEAUTY)
 
         then()
-        val sampleServices = DemoBusinessSample.groups.sumOf { it.services.size }
-        assertEquals(sampleServices, fixture.createdServices.size)
-        coVerify(exactly = DemoBusinessSample.groups.size) {
+        val sample = DemoBusinessSample.of(DemoBusinessKind.BEAUTY, Language.EN)
+        assertEquals(sample.groups.sumOf { it.services.size }, fixture.createdServices.size)
+        coVerify(exactly = sample.groups.size) {
             fixture.serviceDataSource.createServiceGroup(any<ServiceGroup>())
         }
         assertEquals(fixture.createdServices, fixture.updatedEmployee.captured.services)
@@ -138,11 +139,86 @@ internal class SeedDemoBusinessImplTest {
         val fixture = SutFixture()
 
         whenn()
-        fixture.sut(fixture.owner.id, "UTC", Language.PL)
+        fixture.sut(fixture.owner.id, "UTC", Language.PL, DemoBusinessKind.BEAUTY)
 
         then()
         assertEquals(Money.parse("PLN 120.00"), fixture.createdServices.first().price)
         coVerify(exactly = 1) { fixture.businessDataSource.createBusiness(any(), any(), "PLN", any(), true) }
+    }
+
+    @Test
+    fun `should name the business, groups and services in Ukrainian for a Ukrainian device`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val groups = mutableListOf<ServiceGroup>()
+        coEvery { fixture.serviceDataSource.createServiceGroup(capture(groups)) } answers { firstArg() }
+
+        whenn()
+        fixture.sut(fixture.owner.id, "UTC", Language.UK, DemoBusinessKind.BEAUTY)
+
+        then()
+        coVerify(exactly = 1) {
+            fixture.businessDataSource.createBusiness(any(), "Зразкова студія краси", "UAH", any(), true)
+        }
+        assertEquals(listOf("Волосся", "Нігті"), groups.map { it.name })
+        assertEquals("Стрижка", fixture.createdServices.first().name)
+        assertEquals(Money.parse("UAH 1200.00"), fixture.createdServices.first().price)
+    }
+
+    @Test
+    fun `should name the business, groups and services in Polish for a Polish device`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val groups = mutableListOf<ServiceGroup>()
+        coEvery { fixture.serviceDataSource.createServiceGroup(capture(groups)) } answers { firstArg() }
+
+        whenn()
+        fixture.sut(fixture.owner.id, "UTC", Language.PL, DemoBusinessKind.BEAUTY)
+
+        then()
+        coVerify(exactly = 1) {
+            fixture.businessDataSource.createBusiness(any(), "Przykładowe Studio Urody", "PLN", any(), true)
+        }
+        assertEquals(listOf("Włosy", "Paznokcie"), groups.map { it.name })
+        assertEquals("Strzyżenie", fixture.createdServices.first().name)
+    }
+
+    @Test
+    fun `should seed the services of the business kind the device chose`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val groups = mutableListOf<ServiceGroup>()
+        coEvery { fixture.serviceDataSource.createServiceGroup(capture(groups)) } answers { firstArg() }
+
+        whenn()
+        fixture.sut(fixture.owner.id, "UTC", Language.EN, DemoBusinessKind.FITNESS)
+
+        then()
+        coVerify(exactly = 1) {
+            fixture.businessDataSource.createBusiness(any(), "Sample Fitness Studio", "EUR", any(), true)
+        }
+        assertEquals(listOf("Training", "Wellness"), groups.map { it.name })
+        assertEquals(
+            listOf("Personal training", "Stretching", "Yoga", "Massage"),
+            fixture.createdServices.map {
+                it.name
+            },
+        )
+    }
+
+    @Test
+    fun `should add clients with local names for the device language`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+
+        whenn()
+        fixture.sut(fixture.owner.id, "UTC", Language.UK, DemoBusinessKind.BEAUTY)
+
+        then()
+        val first = fixture.createdClients.captured.first()
+        assertEquals("Олена", first.name)
+        assertEquals("Коваленко", first.lastName)
+        assertEquals("olena.kovalenko@example.com", first.email)
     }
 
     @Test
@@ -151,7 +227,7 @@ internal class SeedDemoBusinessImplTest {
         val fixture = SutFixture()
 
         whenn()
-        fixture.sut(fixture.owner.id, "UTC", Language.EN)
+        fixture.sut(fixture.owner.id, "UTC", Language.EN, DemoBusinessKind.BEAUTY)
 
         then()
         val clients = fixture.createdClients.captured
@@ -165,7 +241,7 @@ internal class SeedDemoBusinessImplTest {
         val fixture = SutFixture()
 
         whenn()
-        fixture.sut(fixture.owner.id, "UTC", Language.EN)
+        fixture.sut(fixture.owner.id, "UTC", Language.EN, DemoBusinessKind.BEAUTY)
 
         then()
         val event = fixture.sent.captured
@@ -183,7 +259,7 @@ internal class SeedDemoBusinessImplTest {
         val fixture = SutFixture()
 
         whenn()
-        fixture.sut(fixture.owner.id, "UTC", Language.EN)
+        fixture.sut(fixture.owner.id, "UTC", Language.EN, DemoBusinessKind.BEAUTY)
 
         then()
         coVerifyOrder {
@@ -199,7 +275,7 @@ internal class SeedDemoBusinessImplTest {
         coEvery { fixture.businessDataSource.countBusinessesOwnedBy(fixture.owner.id) } returns 1
 
         whenn()
-        val result = fixture.sut(fixture.owner.id, "UTC", Language.EN)
+        val result = fixture.sut(fixture.owner.id, "UTC", Language.EN, DemoBusinessKind.BEAUTY)
 
         then()
         assertTrue(result.isSuccess) { result.toString() }
@@ -213,7 +289,7 @@ internal class SeedDemoBusinessImplTest {
         val fixture = SutFixture()
 
         whenn()
-        fixture.sut(fixture.owner.id, "Mars/Olympus", Language.EN)
+        fixture.sut(fixture.owner.id, "Mars/Olympus", Language.EN, DemoBusinessKind.BEAUTY)
 
         then()
         coVerify(exactly = 1) { fixture.businessDataSource.createBusiness(any(), any(), any(), TimeZone.UTC, true) }
@@ -227,7 +303,7 @@ internal class SeedDemoBusinessImplTest {
             Result.failure(GetUserById.Error.UserNotFound())
 
         whenn()
-        val result = fixture.sut(fixture.owner.id, "UTC", Language.EN)
+        val result = fixture.sut(fixture.owner.id, "UTC", Language.EN, DemoBusinessKind.BEAUTY)
 
         then()
         assertTrue(result.isSuccess) { result.toString() }
@@ -242,7 +318,7 @@ internal class SeedDemoBusinessImplTest {
         coEvery { fixture.userClient.getUserById(fixture.owner.id) } returns Result.failure(error)
 
         whenn()
-        val result = fixture.sut(fixture.owner.id, "UTC", Language.EN)
+        val result = fixture.sut(fixture.owner.id, "UTC", Language.EN, DemoBusinessKind.BEAUTY)
 
         then()
         assertSame(error, result.exceptionOrNull())
@@ -258,7 +334,7 @@ internal class SeedDemoBusinessImplTest {
             fixture.business.copy(demo = false)
 
         whenn()
-        val result = fixture.sut(fixture.owner.id, "UTC", Language.EN)
+        val result = fixture.sut(fixture.owner.id, "UTC", Language.EN, DemoBusinessKind.BEAUTY)
 
         then()
         assertTrue(result.isSuccess) { result.toString() }
