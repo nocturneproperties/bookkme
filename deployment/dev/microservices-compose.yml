@@ -80,6 +80,7 @@ services:
       JAVA_TOOL_OPTIONS: "-agentlib:jdwp=transport=dt_socket,address=*:8000,server=y,suspend=n -ea"
       TZ: "UTC"
       APPLICATION_TELEGRAM_BOT_TOKEN: ${APPLICATION_TELEGRAM_BOT_TOKEN:-}
+      APPLICATION_TELEGRAM_BOT_USERNAME: ${APPLICATION_TELEGRAM_BOT_USERNAME:-}
     secrets:
       - firebase_key
     deploy:

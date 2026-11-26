@@ -126,3 +126,4 @@ monolith_env:
   APPLICATION_BLIND_INDEX_KEY: "{{ vault_blind_index_key }}"
   APPLICATION_TELEGRAM_BOT_ID: "{{ vault_telegram_bot_id | default('') }}"
   APPLICATION_TELEGRAM_BOT_TOKEN: "{{ vault_telegram_bot_token | default('') }}"
+  APPLICATION_TELEGRAM_BOT_USERNAME: "{{ vault_telegram_bot_username | default('') }}"

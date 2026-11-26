@@ -15,7 +15,11 @@ INVENTORY = DEPLOYMENT_DIR / "ansible/inventory/prod.yml"
 RETIRED_STACK_ENV = ["RUNNER_ACCESS_TOKEN", "MOBILE_RUNNER_ACCESS_TOKEN", "RUNNER_APP_ID", "RUNNER_APP_PRIVATE_KEY", "VPN_SUBNET"]
 RETIRED_STACK_ENV_PREFIXES = ["KAFKA_"]
 REQUIRED_KEYS = ["vault_vpn_password", "vault_hostinger_mail_token", "vault_hostinger_mailbox_id"]
-OPTIONAL_KEYS = {"vault_telegram_bot_id": "", "vault_telegram_bot_token": ""}
+OPTIONAL_KEYS = {
+    "vault_telegram_bot_id": "",
+    "vault_telegram_bot_token": "",
+    "vault_telegram_bot_username": "",
+}
 REQUIRED_STACK_ENV = ["CLOUDFLARE_DNS_API_TOKEN", "EMAIL_DOMAIN_NAME"]
 RETIRED_KEYS = ["vault_service_env", "vault_postmark_server_token"]
 RETIRED_SWARM_SECRETS = ["jwt_master_key", "jwt_quote_key"]
