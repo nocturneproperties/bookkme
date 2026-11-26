@@ -126,7 +126,7 @@ Changes since `monolith/0.20.0`. Takes the user's name as one field at sign-up, 
 - The same authorization `V6` adds the one-row table `demo_settings`; set `max_active_accounts` to change the cap of running demos at once (`NULL` means 1,000, `0` turns demos off).
 - New daily job `auth-deleteExpiredDemoAccounts` erases demo accounts 7 days after their demo ended, like an account deletion (`erased_account` record, `auth.user_deleted`), skipping those with `deletion_hold`.
 - New events `auth.demo_account_created` (business seeds the sample business) and `business.demo_business_seeded` (appointments turns appointments on for it and books about a week of samples), and `auth.demo_upgraded` (business clears the demo flag); in the monolith they stay in-process.
-- The internal `POST /api/internal/user/{id}/email` takes an optional `name` (field 2) that replaces the profile's first and last name; when running separate services, update user before auth.
+- New internal `POST /api/internal/user/{id}/demo_upgrade` replaces a demo profile's placeholder email and name in one write; when running separate services, update user before auth.
 - New metrics `auth_demo_started_total`, `auth_demo_upgraded_total` and `auth_demo_erased_total` show demo conversion.
 - A demo device's refresh token is kept until 7 days after its demo ends, and `auth-deleteInactiveDevices` leaves demo accounts' devices alone; the demo erasure removes them.
 - nginx now allows browser calls to every `/api/` route from the website's domain (`SITE_DOMAIN_NAME` and its `www.`) through CORS, answering preflight requests itself and accepting the request headers the client apps send (`User-Agent`, `X-Debug`, `X-App-Version`, `X-Platform`, `Idempotency-Key`); other origins get no CORS headers.

@@ -21,6 +21,9 @@ object UserRouting {
 
                 @Resource("/{id}/telegram_username")
                 class ChangeTelegramUsername(val parent: User = User(), val id: Uuid)
+
+                @Resource("/{id}/demo_upgrade")
+                class UpgradeDemoProfile(val parent: User = User(), val id: Uuid)
             }
         }
 

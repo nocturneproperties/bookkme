@@ -121,7 +121,7 @@ internal class UserDataSourceImplTest {
             whenn()
             val edited = suspendTransaction { fixture.sut.updateUser(user.id, nameEdit("Alicia"), Clock.System.now()) }
             val changed = suspendTransaction {
-                fixture.sut.changeEmail(user.id, "new@example.com", null, Clock.System.now())
+                fixture.sut.changeEmail(user.id, "new@example.com", Clock.System.now())
             }
 
             then()
@@ -224,7 +224,7 @@ internal class UserDataSourceImplTest {
 
         whenn()
         suspendTransaction { fixture.sut.updateUser(user.id, nameEdit("Alicia"), Clock.System.now()) }
-        suspendTransaction { fixture.sut.changeEmail(user.id, "new@example.com", null, Clock.System.now()) }
+        suspendTransaction { fixture.sut.changeEmail(user.id, "new@example.com", Clock.System.now()) }
 
         then()
         val row = fixture.storedRow(user.id)
@@ -654,7 +654,7 @@ internal class UserDataSourceImplTest {
         val updatedAt = Instant.parse("2026-11-08T10:00:00Z")
 
         whenn()
-        val changed = suspendTransaction { fixture.sut.changeEmail(created.id, "new@example.com", null, updatedAt) }
+        val changed = suspendTransaction { fixture.sut.changeEmail(created.id, "new@example.com", updatedAt) }
         val found = suspendTransaction { fixture.uncached.getUserById(created.id) }
 
         then()
@@ -663,18 +663,53 @@ internal class UserDataSourceImplTest {
     }
 
     @Test
-    fun `should replace the name together with the email when a name is given`() = runUnitTest {
+    fun `should replace the name together with the email`() = runUnitTest {
         given()
         val fixture = SutFixture()
         val created = suspendTransaction { fixture.sut.insertNewUser(User.stub(name = "Demo", lastName = "")) }
         val name = ProfileName.stub(name = "Ann", lastName = "Lee")
 
         whenn()
-        suspendTransaction { fixture.sut.changeEmail(created.id, "ann@example.com", name, Clock.System.now()) }
+        suspendTransaction { fixture.sut.changeEmailAndName(created.id, "ann@example.com", name, Clock.System.now()) }
         val found = suspendTransaction { fixture.uncached.getUserById(created.id) }
 
         then()
         assertEquals(listOf("Ann", "Lee", "ann@example.com"), listOf(found?.name, found?.lastName, found?.email))
+    }
+
+    @Test
+    fun `should keep the name when another user already holds the new email`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        suspendTransaction { fixture.sut.insertNewUser(User.stub(email = "taken@example.com")) }
+        val created = suspendTransaction { fixture.sut.insertNewUser(User.stub(name = "Demo", lastName = "")) }
+        val name = ProfileName.stub(name = "Ann", lastName = "Lee")
+
+        whenn()
+        val result = runCatching {
+            suspendTransaction {
+                fixture.sut.changeEmailAndName(created.id, "taken@example.com", name, Clock.System.now())
+            }
+        }
+        val found = suspendTransaction { fixture.uncached.getUserById(created.id) }
+
+        then()
+        assertTrue(result.exceptionOrNull()?.toDomain() is Error.UniqueConstraintFailed) { result.toString() }
+        assertEquals("Demo", found?.name)
+    }
+
+    @Test
+    fun `should return null when changing the email and name of a missing user`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+
+        whenn()
+        val changed = suspendTransaction {
+            fixture.sut.changeEmailAndName(Uuid.random(), "ann@example.com", ProfileName.stub(), Clock.System.now())
+        }
+
+        then()
+        assertNull(changed)
     }
 
     @Test
@@ -685,7 +720,7 @@ internal class UserDataSourceImplTest {
         suspendTransaction { fixture.sut.getUserById(created.id) }
 
         whenn()
-        suspendTransaction { fixture.sut.changeEmail(created.id, "new@example.com", null, Clock.System.now()) }
+        suspendTransaction { fixture.sut.changeEmail(created.id, "new@example.com", Clock.System.now()) }
         val found = suspendTransaction { fixture.sut.getUserById(created.id) }
 
         then()
@@ -701,7 +736,7 @@ internal class UserDataSourceImplTest {
 
         whenn()
         val result = runCatching {
-            suspendTransaction { fixture.sut.changeEmail(other.id, "taken@example.com", null, Clock.System.now()) }
+            suspendTransaction { fixture.sut.changeEmail(other.id, "taken@example.com", Clock.System.now()) }
         }
 
         then()
@@ -715,7 +750,7 @@ internal class UserDataSourceImplTest {
 
         whenn()
         val changed =
-            suspendTransaction { fixture.sut.changeEmail(Uuid.random(), "new@example.com", null, Clock.System.now()) }
+            suspendTransaction { fixture.sut.changeEmail(Uuid.random(), "new@example.com", Clock.System.now()) }
 
         then()
         assertNull(changed)

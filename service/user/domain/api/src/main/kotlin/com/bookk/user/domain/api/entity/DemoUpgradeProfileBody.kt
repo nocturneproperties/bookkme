@@ -4,7 +4,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.protobuf.ProtoNumber
 
 @Serializable
-data class VerifiedEmailBody(
+data class DemoUpgradeProfileBody(
     @ProtoNumber(1) val email: String,
-    @ProtoNumber(2) val name: ProfileName?,
+    @ProtoNumber(2) val name: ProfileName,
 )

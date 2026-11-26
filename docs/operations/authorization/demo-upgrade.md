@@ -49,7 +49,7 @@ flowchart TD
     Redeem -- wrong, expired, too many attempts, other purpose --> FR422b([422 EMAIL_CODE_* 910001-910003])
     Redeem -- verified email --> Verify[FinishPasskeyRegistration.verifyRequest]
     Verify -- invalid, or created for another handle --> FR422c([422 VERIFICATION_FAILED 4])
-    Verify -- ok --> Profile[UserClient.changeEmailAndName userId email name - user service publishes UserEvent.Updated]
+    Verify -- ok --> Profile[UserClient.upgradeDemoProfile userId email name<br/>internal POST /api/internal/user/id/demo_upgrade - publishes UserEvent.Updated]
     Profile -- USER_CONTACT_TAKEN --> FR422d([422 EMAIL_EXIST 1])
     Profile -- ok --> Tx[[Begin transaction]]
     Tx --> Lock[AccountDataSource.getDemoAccountForUpdate authId - locks the account first]
@@ -63,7 +63,7 @@ flowchart TD
 ```
 
 The profile is stored before the transaction, since it is a call to another
-service. When the transaction then fails, the account keeps the real email
+service ([Replace a demo profile](../user/upgrade-demo-profile-internal.md)). When the transaction then fails, the account keeps the real email
 and stays a demo; the next attempt may use that same email, which the start
 step accepts because it already belongs to this user.
 

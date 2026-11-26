@@ -53,16 +53,30 @@ internal class UserDataSourceImpl(
         cacheClient.deleteUser(id)
     }
 
-    override suspend fun changeEmail(
+    override suspend fun changeEmail(id: Uuid, verifiedEmail: String, updatedAt: Instant): User? {
+        return writeEmail(id, verifiedEmail, updatedAt) { it.copy(email = verifiedEmail) }
+    }
+
+    override suspend fun changeEmailAndName(
         id: Uuid,
         verifiedEmail: String,
-        name: ProfileName?,
+        name: ProfileName,
         updatedAt: Instant,
+    ): User? {
+        return writeEmail(id, verifiedEmail, updatedAt) {
+            it.copy(email = verifiedEmail, name = name.name, lastName = name.lastName)
+        }
+    }
+
+    private suspend fun writeEmail(
+        id: Uuid,
+        verifiedEmail: String,
+        updatedAt: Instant,
+        change: (User) -> User,
     ): User? = dbQuery {
         val entity = UserEntity.findByIdForUpdate(id) ?: return@dbQuery null
         val read = profileCipher.decrypt(id, entity.profile)
-        val renamed = name?.let { read.user.copy(name = it.name, lastName = it.lastName) } ?: read.user
-        val changed = renamed.copy(email = verifiedEmail)
+        val changed = change(read.user)
         val encrypted = profileCipher.encryptChanges(read, changed) ?: return@dbQuery null
         UserEntity.findByIdAndUpdateEmail(id, encrypted, profileCipher.indexOf(verifiedEmail), updatedAt)
         changed

@@ -73,7 +73,7 @@ internal class FinishDemoUpgradeImplTest {
             transactionManager.mockTransaction()
             coEvery { demoCallerResolver.resolve(caller) } returns DemoSession(account, deviceUuid)
             coEvery { finishPasskeyRegistration.verifyRequest(any()) } returns Result.success(passkey)
-            coEvery { userClient.changeEmailAndName(any(), any(), any()) } returns Result.success(Unit)
+            coEvery { userClient.upgradeDemoProfile(any(), any(), any()) } returns Result.success(Unit)
             coEvery {
                 accountDataSource.getDemoAccountForUpdate(account.id)
             } returns
@@ -133,7 +133,7 @@ internal class FinishDemoUpgradeImplTest {
 
         then()
         coVerify(exactly = 1) {
-            fixture.userClient.changeEmailAndName(fixture.account.userId, EMAIL, ProfileName("Jane", "Smith"))
+            fixture.userClient.upgradeDemoProfile(fixture.account.userId, EMAIL, ProfileName("Jane", "Smith"))
         }
     }
 
@@ -197,14 +197,14 @@ internal class FinishDemoUpgradeImplTest {
 
         then()
         assertTrue(result.exceptionOrNull() is FinishPasskeyRegistration.Error.VerificationFailed) { result.toString() }
-        coVerify(exactly = 0) { fixture.userClient.changeEmailAndName(any(), any(), any()) }
+        coVerify(exactly = 0) { fixture.userClient.upgradeDemoProfile(any(), any(), any()) }
     }
 
     @Test
     fun `should answer EMAIL_EXIST when another account took the address meanwhile`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        coEvery { fixture.userClient.changeEmailAndName(any(), any(), any()) } returns Result.failure(
+        coEvery { fixture.userClient.upgradeDemoProfile(any(), any(), any()) } returns Result.failure(
             object : BusinessError(422, UserErrorCodes.USER_CONTACT_TAKEN, "taken") {},
         )
 

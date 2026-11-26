@@ -1,13 +1,12 @@
 package com.bookk.user.domain.api.operation
 
 import com.bookk.core.domain.entity.BusinessError
-import com.bookk.user.domain.api.entity.ProfileName
 import com.bookk.user.domain.api.error.UserErrorCodes
 import io.ktor.http.HttpStatusCode
 import kotlin.uuid.Uuid
 
 interface ChangeUserEmail {
-    suspend operator fun invoke(userId: Uuid, verifiedEmail: String, name: ProfileName?): Result<Unit>
+    suspend operator fun invoke(userId: Uuid, verifiedEmail: String): Result<Unit>
 
     sealed interface Error {
         class UserNotFound :

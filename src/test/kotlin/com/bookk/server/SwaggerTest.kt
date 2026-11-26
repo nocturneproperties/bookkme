@@ -74,6 +74,7 @@ internal class SwaggerTest {
             setOf(
                 "post /api/internal/user/{id}/email",
                 "post /api/internal/user/{id}/telegram_username",
+                "post /api/internal/user/{id}/demo_upgrade",
                 "get /api/internal/user/email",
                 "post /api/internal/user",
                 "patch /api/user/me",

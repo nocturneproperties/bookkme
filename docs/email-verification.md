@@ -82,7 +82,9 @@ Diagrams: [sign-up challenge](operations/authorization/sign-up-challenge.md),
    the caller.
 2. `POST /api/auth/email/confirm` (`ConfirmEmailChange`, `EmailConfirmation`)
    redeems it and calls user's internal `POST /api/internal/user/{id}/email`
-   (`ChangeUserEmail`), the only writer of an email after sign-up. An
+   (`ChangeUserEmail`), which with the demo upgrade's
+   `POST /api/internal/user/{id}/demo_upgrade` (`UpgradeDemoProfile`) is the
+   only writer of an email after sign-up. An
    address taken in the meantime is `EMAIL_EXIST` (1), and the code can be
    used again for another try.
 3. User publishes `UserEvent.Updated`; business merges the user's clients by

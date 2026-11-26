@@ -71,7 +71,7 @@ internal class FinishDemoUpgradeImpl(
 
     private suspend fun storeProfile(userId: Uuid, email: String, name: String) {
         val personName = PersonName.of(name)
-        userClient.changeEmailAndName(userId, email, ProfileName(personName.name, personName.lastName))
+        userClient.upgradeDemoProfile(userId, email, ProfileName(personName.name, personName.lastName))
             .getOrElse { failure -> throw if (failure.isAddressTaken()) EmailAlreadyExist() else failure }
     }
 

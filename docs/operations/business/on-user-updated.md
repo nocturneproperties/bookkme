@@ -3,8 +3,9 @@
 Kafka topic `UserEvent.Updated` → `BusinessEventHandlerImpl` → `SyncUserProfile`
 
 Produced by [Create user (internal)](../user/create-user-internal.md),
-[Update user](../user/update-user.md), [Store a verified email](../user/change-user-email-internal.md)
-and [Store the Telegram username](../user/change-telegram-username-internal.md).
+[Update user](../user/update-user.md), [Store a verified email](../user/change-user-email-internal.md),
+[Store the Telegram username](../user/change-telegram-username-internal.md)
+and [Replace a demo profile](../user/upgrade-demo-profile-internal.md).
 A new user has no integrated client or employee rows yet, so the event
 from sign-up finds nothing to merge or update. Business keeps
 denormalized copies of a user's name/last name/email/phone on any
