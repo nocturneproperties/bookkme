@@ -18,6 +18,7 @@ import com.bookk.business.domain.api.business.operation.GetBusinessesByIds
 import com.bookk.business.domain.api.business.operation.GetDashboardBusiness
 import com.bookk.business.domain.api.business.operation.GetUserBusinesses
 import com.bookk.business.domain.api.business.operation.ResolveBusinessLink
+import com.bookk.business.domain.api.business.operation.SeedDemoBusiness
 import com.bookk.business.domain.api.business.operation.SetBusinessLink
 import com.bookk.business.domain.api.business.operation.SetDashboardBusiness
 import com.bookk.business.domain.api.business.operation.UpdateBusiness
@@ -88,6 +89,7 @@ import com.bookk.business.domain.impl.operation.client.ImportClientsImpl
 import com.bookk.business.domain.impl.operation.client.IndexClientContactsImpl
 import com.bookk.business.domain.impl.operation.client.RecordClientVisitImpl
 import com.bookk.business.domain.impl.operation.client.UpdateClientImpl
+import com.bookk.business.domain.impl.operation.demo.SeedDemoBusinessImpl
 import com.bookk.business.domain.impl.operation.employee.CreateEmployeeInvitationImpl
 import com.bookk.business.domain.impl.operation.employee.DeleteProcessedEmployeeInvitationsImpl
 import com.bookk.business.domain.impl.operation.employee.ExpireEmployeeInvitationsImpl
@@ -142,6 +144,7 @@ fun businessDomainModule() = module {
         scopedOf(::BusinessFounder)
         scopedOf(::CreateBusinessImpl) bind CreateBusiness::class
         scopedOf(::EndBusinessDemoImpl) bind EndBusinessDemo::class
+        scopedOf(::SeedDemoBusinessImpl) bind SeedDemoBusiness::class
         scopedOf(::DeleteBusinessImpl) bind DeleteBusiness::class
         scopedOf(::GetBusinessPermissionImpl) bind GetBusinessPermission::class
         scopedOf(::GetDashboardBusinessImpl) bind GetDashboardBusiness::class

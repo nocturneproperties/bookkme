@@ -110,6 +110,7 @@ Reactions to cross-service events:
 | Event | Diagram |
 |---|---|
 | `AuthEvent.UserDeleted` | [React to user deletion](business/on-user-deleted.md) |
+| `AuthEvent.DemoAccountCreated` | [React to a new demo account](business/on-demo-account-created.md) |
 | `AuthEvent.DemoUpgraded` | [React to a demo upgrade](business/on-demo-upgraded.md) |
 | `UserEvent.Updated` | [React to user profile update](business/on-user-updated.md) |
 | `AppointmentEvent.ClientVisitBooked` | [React to a booked client visit](business/on-client-visit-booked.md) |
@@ -180,6 +181,8 @@ the operation committed, and reaches its consumers at least once. See
 |---|---|---|
 | `AuthEvent.UserDeleted` | [`auth-handleScheduledDeletions` job](scheduled-jobs.md) (requested by [Delete account](authorization/delete-account.md)), [sign-up compensation](authorization/sign-up.md), [Telegram sign-up compensation](authorization/telegram-sign-in.md), [`auth-handleDormantAccounts` job](scheduled-jobs.md), [`auth-reapplyErasures` job](scheduled-jobs.md) | [appointments](appointments/on-user-deleted.md), [business](business/on-user-deleted.md), [notifications](notifications/on-user-deleted.md), [user](user/on-user-deleted.md) |
 | `AuthEvent.DeviceDeleted` | [`auth-deleteInactiveDevices`, `auth-handleScheduledDeletions`, `auth-handleDormantAccounts` and `auth-reapplyErasures` jobs](scheduled-jobs.md) | [notifications](notifications/on-device-deleted.md) |
+| `AuthEvent.DemoAccountCreated` | [Start a demo account](authorization/demo-start.md) | [business](business/on-demo-account-created.md) |
+| `BusinessEvent.DemoBusinessSeeded` | [React to a new demo account](business/on-demo-account-created.md) | [appointments](appointments/on-demo-business-seeded.md) |
 | `AuthEvent.DemoUpgraded` | [Upgrade a demo account](authorization/demo-upgrade.md) | [business](business/on-demo-upgraded.md) |
 | `AuthEvent.DeviceCreated` | [Verify sign-up](authorization/sign-up.md), [Verify sign-in](authorization/sign-in.md), [Sign in with Telegram](authorization/telegram-sign-in.md), [Start a demo account](authorization/demo-start.md) | [notifications](notifications/on-device-created.md) |
 | `AuthEvent.DeviceLanguageUpdated` | [Verify sign-in](authorization/sign-in.md), [Sign in with Telegram](authorization/telegram-sign-in.md) | [notifications](notifications/on-device-language-updated.md) |
