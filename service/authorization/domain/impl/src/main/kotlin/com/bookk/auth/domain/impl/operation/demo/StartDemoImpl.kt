@@ -22,6 +22,7 @@ import com.bookk.server.user.client.UserClient
 import com.bookk.server.user.client.api.CreateUserRequest
 import io.micrometer.core.instrument.Counter
 import io.micrometer.core.instrument.MeterRegistry
+import kotlinx.datetime.TimeZone
 import library.email.PlaceholderEmail
 import kotlin.time.Clock
 import kotlin.time.Instant
@@ -45,11 +46,12 @@ internal class StartDemoImpl(
         request: DemoStartRequest,
         language: Language,
     ): Result<AuthTokens> = runSuspendCatching {
+        val timeZoneId = knownTimeZoneOrUtc(request.timeZone)
         val now = Clock.System.now()
         val activeDemos = transactionManager.transactionOrThrow { accountDataSource.countDemoAccountsActiveAt(now) }
         if (activeDemos >= DemoAccountPolicy.MAX_ACTIVE_ACCOUNTS) throw DemoUnavailable()
         val userId = userClient.createUser(placeholderUser(request)).getOrThrow()
-        createAccount(userId, request, language, expiresAt = now + DemoAccountPolicy.LENGTH)
+        createAccount(userId, request.copy(timeZone = timeZoneId), language, expiresAt = now + DemoAccountPolicy.LENGTH)
             .also { startedDemos.increment() }
     }
 
@@ -76,6 +78,10 @@ internal class StartDemoImpl(
         }.onFailure {
             transactionManager.transaction { eventProducer.send(AuthEvent.UserDeleted(userId)) }
         }.getOrThrow()
+    }
+
+    private fun knownTimeZoneOrUtc(id: String): String {
+        return runCatching { TimeZone.of(id).id }.getOrDefault(TimeZone.UTC.id)
     }
 
     private fun placeholderUser(request: DemoStartRequest): CreateUserRequest {

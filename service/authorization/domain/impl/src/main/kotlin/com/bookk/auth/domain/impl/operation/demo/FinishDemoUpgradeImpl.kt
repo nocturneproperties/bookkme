@@ -77,14 +77,16 @@ internal class FinishDemoUpgradeImpl(
 
     private suspend fun endDemo(demo: DemoSession, passkey: PasskeyCredential): AuthTokens {
         val locked = accountDataSource.getDemoAccountForUpdate(demo.account.id) ?: throw NotDemoAccount()
-        if (Clock.System.now() >= locked.expiresAt + DemoAccountPolicy.UPGRADE_GRACE_PERIOD) throw DemoExpired()
+        if (Clock.System.now() >= DemoAccountPolicy.upgradeDeadline(locked.expiresAt)) throw DemoExpired()
         accountDataSource.endDemo(locked.authId)
         finishPasskeyRegistration.attachOwner(locked.authId, passkey)
         eventProducer.send(AuthEvent.DemoUpgraded(locked.userId))
         return generateAuthToken(Source.InitialAuthentication(locked.authId, demo.deviceUuid)).getOrThrow()
     }
 
-    private fun Throwable.isAddressTaken(): Boolean = this is BusinessError && code == UserErrorCodes.USER_CONTACT_TAKEN
+    private fun Throwable.isAddressTaken(): Boolean {
+        return this is BusinessError && code == UserErrorCodes.USER_CONTACT_TAKEN
+    }
 
     companion object {
         const val DEMO_UPGRADED_METRIC = "auth.demo.upgraded"

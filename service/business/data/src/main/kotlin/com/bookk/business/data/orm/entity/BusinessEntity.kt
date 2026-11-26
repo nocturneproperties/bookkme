@@ -11,7 +11,9 @@ import kotlinx.datetime.TimeZone
 import library.schedule.Schedule
 import library.schedule.toWorkingDays
 import library.schedule.toWorkingDaysMask
+import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.dao.id.EntityID
+import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.dao.UuidEntity
 import org.jetbrains.exposed.v1.dao.with
 import kotlin.time.Instant
@@ -106,6 +108,15 @@ internal class BusinessEntity(id: EntityID<Uuid>) : UuidEntity(id) {
             address = ""
             timezone = timeZone.id
         }.apply { replaceSchedule(Schedule()) }
+
+        fun endDemoOfBusinessesOwnedBy(ownerId: Uuid, updatedAt: Instant) {
+            find { (BusinessTable.userId eq ownerId) and (BusinessTable.demo eq true) }
+                .forUpdate()
+                .forEach {
+                    it.demo = false
+                    it.updatedAt = updatedAt
+                }
+        }
 
         fun findByIdAndUpdate(model: BusinessUpdateModel, updatedAt: Instant) = findByIdAndUpdate(model.id) {
             model.name?.let { name -> it.name = name }

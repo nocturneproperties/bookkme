@@ -173,12 +173,14 @@ internal class AccountDataSourceImpl : DataSource(), AccountDataSource {
         AuthenticationTable.deletionHold,
     )
 
-    private fun ResultRow.toDemoAccount() = DemoAccount(
-        authId = this[AuthenticationTable.id].value,
-        userId = this[AuthenticationTable.userId],
-        expiresAt = requireNotNull(this[AuthenticationTable.demoExpiresAt]),
-        deletionHold = this[AuthenticationTable.deletionHold],
-    )
+    private fun ResultRow.toDemoAccount(): DemoAccount {
+        return DemoAccount(
+            authId = this[AuthenticationTable.id].value,
+            userId = this[AuthenticationTable.userId],
+            expiresAt = requireNotNull(this[AuthenticationTable.demoExpiresAt]),
+            deletionHold = this[AuthenticationTable.deletionHold],
+        )
+    }
 
     private fun ResultRow.toDormantAccount() = DormantAccount(
         authId = this[AuthenticationTable.id].value,

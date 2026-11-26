@@ -200,4 +200,18 @@ internal class StartDemoImplTest {
             fixture.eventProducer.send(match<AuthEvent.UserDeleted> { it.userId == fixture.userId }, any())
         }
     }
+
+    @Test
+    fun `should announce UTC for a time zone the server does not know`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+
+        whenn()
+        fixture.sut.invoke(DemoStartRequest.stub(timeZone = "Mars/Olympus"), Language.EN)
+
+        then()
+        coVerify(exactly = 1) {
+            fixture.eventProducer.send(match<AuthEvent.DemoAccountCreated> { it.timeZoneId == "UTC" }, any())
+        }
+    }
 }

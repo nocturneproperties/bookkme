@@ -27,7 +27,7 @@ internal class DemoCallerResolver(
         }
         val account = device.authRecord
         val demoEnd = account.demoExpiresAt ?: throw NotDemoAccount()
-        if (Clock.System.now() >= demoEnd + DemoAccountPolicy.UPGRADE_GRACE_PERIOD) throw DemoExpired()
+        if (Clock.System.now() >= DemoAccountPolicy.upgradeDeadline(demoEnd)) throw DemoExpired()
         return DemoSession(account, device.deviceInfo.deviceUUID)
     }
 

@@ -6,6 +6,8 @@ import com.bookk.appointments.domain.api.entity.AppointmentRequest
 import com.bookk.appointments.domain.api.entity.AppointmentRequestStatus
 import com.bookk.appointments.domain.api.entity.AppointmentSettings
 import com.bookk.appointments.domain.api.entity.AppointmentStatus
+import com.bookk.appointments.domain.api.entity.BookingConflictError
+import com.bookk.appointments.domain.api.entity.BookingScheduleError
 import com.bookk.appointments.domain.api.entity.BusinessSnapshot
 import com.bookk.appointments.domain.api.entity.RequestedService
 import com.bookk.appointments.domain.api.operation.SeedDemoAppointments
@@ -112,12 +114,15 @@ internal class SeedDemoAppointmentsImpl(
     }
 
     private suspend fun isBookable(booking: AppointmentRepresentation, seed: DemoSeed): Boolean {
-        val violation = runSuspendCatching {
+        try {
             seed.settings.requireBookable(booking.date, booking.dateEnd, seed.employeeSchedule)
             employeeBookings.requireFree(booking, seed.settings)
-        }.exceptionOrNull() ?: return true
-        if (violation !is BusinessError) throw violation
-        return false
+            return true
+        } catch (_: BookingScheduleError) {
+            return false
+        } catch (_: BookingConflictError) {
+            return false
+        }
     }
 
     private class DemoSeed(

@@ -107,7 +107,7 @@ internal class GenerateAuthTokenImpl(
 
     private fun Authentication.refreshExpiryAt(now: Instant): Instant {
         val end = demoExpiresAt ?: return now + REFRESH_TTL
-        return end + DemoAccountPolicy.UPGRADE_GRACE_PERIOD
+        return DemoAccountPolicy.upgradeDeadline(end)
     }
 
     private suspend fun Source.check(): DeviceCheck {
