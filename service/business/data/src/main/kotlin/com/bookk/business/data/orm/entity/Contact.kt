@@ -8,6 +8,7 @@ internal data class Contact(
     val phone: String?,
     val email: String?,
     val description: String? = null,
+    val telegramUsername: String? = null,
 ) {
     companion object {
         val UNREADABLE = Contact(name = "", lastName = "", phone = null, email = null)
@@ -20,6 +21,7 @@ internal class EncryptedContact(
     val phone: ByteArray?,
     val email: ByteArray?,
     val description: ByteArray? = null,
+    val telegramUsername: ByteArray? = null,
 )
 
 internal class StoredContact(val subjectId: Uuid, val encrypted: EncryptedContact)

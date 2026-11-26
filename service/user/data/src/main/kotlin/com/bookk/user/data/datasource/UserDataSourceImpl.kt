@@ -8,6 +8,7 @@ import com.bookk.user.data.cache.UserCacheStrategy.getUser
 import com.bookk.user.data.cache.UserCacheStrategy.save
 import com.bookk.user.data.orm.entity.UserEntity
 import com.bookk.user.data.orm.table.UserTable
+import com.bookk.user.domain.api.entity.TelegramUsernameChange
 import com.bookk.user.domain.api.entity.User
 import com.bookk.user.domain.api.entity.UserEditModel
 import com.bookk.user.domain.datasource.UserDataSource
@@ -60,6 +61,22 @@ internal class UserDataSourceImpl(
         changed
     }?.also {
         cacheClient.deleteUser(id)
+    }
+
+    override suspend fun changeTelegramUsername(
+        id: Uuid,
+        username: String?,
+        updatedAt: Instant,
+    ): TelegramUsernameChange? = dbQuery {
+        val entity = UserEntity.findByIdForUpdate(id) ?: return@dbQuery null
+        val read = profileCipher.decrypt(id, entity.profile)
+        if (read.user.telegramUsername == username) return@dbQuery TelegramUsernameChange(read.user, changed = false)
+        val changed = read.user.copy(telegramUsername = username)
+        val encrypted = profileCipher.encryptChanges(read, changed) ?: return@dbQuery null
+        UserEntity.findByIdAndUpdateProfile(id, encrypted, updatedAt)
+        TelegramUsernameChange(changed, changed = true)
+    }?.also {
+        if (it.changed) cacheClient.deleteUser(id)
     }
 
     override suspend fun getUserById(id: Uuid): User? = dbQuery {

@@ -339,6 +339,7 @@ internal class ClientDataSourceImplEncryptionTest {
                 lastName = "Name",
                 email = "new@example.com",
                 phone = null,
+                telegramUsername = null,
                 updatedAt = Instant.fromEpochSeconds(1_000),
             )
         }
@@ -466,6 +467,7 @@ internal class ClientDataSourceImplEncryptionTest {
                 lastName = "Name",
                 email = "new@example.com",
                 phone = null,
+                telegramUsername = null,
                 updatedAt = Instant.fromEpochSeconds(1_000),
             )
         }
@@ -497,6 +499,7 @@ internal class ClientDataSourceImplEncryptionTest {
                 lastName = "Name",
                 email = "new@example.com",
                 phone = null,
+                telegramUsername = null,
                 updatedAt = Instant.fromEpochSeconds(1_000),
             )
         }

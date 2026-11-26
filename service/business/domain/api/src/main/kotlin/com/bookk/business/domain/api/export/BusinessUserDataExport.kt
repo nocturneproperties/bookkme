@@ -144,6 +144,7 @@ data class BusinessUserDataExport(
         @ProtoNumber(6) val email: String?,
         @ProtoNumber(7) val description: String?,
         @ProtoNumber(8) val lastActivityAt: Instant,
+        @ProtoNumber(9) val telegramUsername: String?,
     ) {
         companion object {
             fun stub(
@@ -155,7 +156,20 @@ data class BusinessUserDataExport(
                 email: String? = null,
                 description: String? = null,
                 lastActivityAt: Instant = Instant.fromEpochMilliseconds(0),
-            ) = ClientRecordExport(businessId, businessName, name, lastName, phone, email, description, lastActivityAt)
+                telegramUsername: String? = null,
+            ): ClientRecordExport {
+                return ClientRecordExport(
+                    businessId,
+                    businessName,
+                    name,
+                    lastName,
+                    phone,
+                    email,
+                    description,
+                    lastActivityAt,
+                    telegramUsername,
+                )
+            }
         }
     }
 

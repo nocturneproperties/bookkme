@@ -24,6 +24,7 @@ internal class UserEventTest {
             phone = null,
             updatedAt = Instant.fromEpochMilliseconds(1000),
             telegramUserId = null,
+            telegramUsername = null,
         )
     }
 

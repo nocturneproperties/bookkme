@@ -127,6 +127,7 @@ internal class NotificationEventHandlerEventTest {
                     phone = null,
                     updatedAt = updatedAt,
                     telegramUserId = null,
+                    telegramUsername = null,
                 ),
             )
             arrived.await(20, TimeUnit.SECONDS)

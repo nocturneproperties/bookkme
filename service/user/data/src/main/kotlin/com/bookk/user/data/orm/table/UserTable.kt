@@ -13,6 +13,7 @@ object UserTable : UuidTable("profile") {
     val emailEncrypted = binary("email_encrypted", 1320)
     val phoneEncrypted = binary("phone_encrypted", 2080).nullable()
     val telegramUserIdEncrypted = binary("telegram_user_id_encrypted", 128).nullable()
+    val telegramUsernameEncrypted = binary("telegram_username_encrypted", 256).nullable()
     val emailIndex = char("email_index", BLIND_INDEX_LENGTH).uniqueIndex()
     val phoneIndex = char("phone_index", BLIND_INDEX_LENGTH).nullable().uniqueIndex()
     val createdAt = timestamp("created_at").clientDefault { System.now() }

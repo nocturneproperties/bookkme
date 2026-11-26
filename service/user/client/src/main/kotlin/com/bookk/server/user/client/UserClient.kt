@@ -9,4 +9,5 @@ interface UserClient {
     suspend fun getUserByEmail(email: String): Result<UserSnapshot>
     suspend fun createUser(request: CreateUserRequest): Result<Uuid>
     suspend fun changeEmail(userId: Uuid, verifiedEmail: String): Result<Unit>
+    suspend fun changeTelegramUsername(userId: Uuid, username: String?): Result<Unit>
 }

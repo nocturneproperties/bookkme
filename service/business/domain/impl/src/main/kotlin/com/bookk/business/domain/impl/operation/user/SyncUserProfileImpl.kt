@@ -24,6 +24,7 @@ internal class SyncUserProfileImpl(
         lastName: String,
         email: String,
         phone: String?,
+        telegramUsername: String?,
         updatedAt: Instant,
     ): Result<Unit> = transactionManager.transaction {
         val merges = clientDataSource.findClientMergesForUser(userId, email, updatedAt)
@@ -40,7 +41,7 @@ internal class SyncUserProfileImpl(
                 ),
             )
         }
-        clientDataSource.updateIntegratedClients(userId, name, lastName, email, phone, updatedAt)
+        clientDataSource.updateIntegratedClients(userId, name, lastName, email, phone, telegramUsername, updatedAt)
         employeeDataSource.updateIntegratedEmployees(userId, name, lastName, email, phone, updatedAt)
         subjectKeys.shredAll(mergedClientIds)
     }

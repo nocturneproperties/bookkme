@@ -14,6 +14,7 @@ data class BusinessClientExport(
     val description: String?,
     val hasAccount: Boolean,
     val lastActivityAt: Instant,
+    val telegramUsername: String?,
 ) {
     companion object {
         fun stub(
@@ -25,6 +26,19 @@ data class BusinessClientExport(
             description: String? = null,
             hasAccount: Boolean = false,
             lastActivityAt: Instant = Instant.fromEpochMilliseconds(0),
-        ) = BusinessClientExport(id, name, lastName, phone, email, description, hasAccount, lastActivityAt)
+            telegramUsername: String? = null,
+        ): BusinessClientExport {
+            return BusinessClientExport(
+                id,
+                name,
+                lastName,
+                phone,
+                email,
+                description,
+                hasAccount,
+                lastActivityAt,
+                telegramUsername,
+            )
+        }
     }
 }

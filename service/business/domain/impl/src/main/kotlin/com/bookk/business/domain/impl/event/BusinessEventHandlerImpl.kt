@@ -32,6 +32,7 @@ internal class BusinessEventHandlerImpl(
                     lastName = event.lastName,
                     email = event.email,
                     phone = event.phone,
+                    telegramUsername = event.telegramUsername,
                     updatedAt = event.updatedAt,
                 )
             }

@@ -87,6 +87,7 @@ internal class FinishRegistrationImpl(
             email = verifiedEmail,
             acceptedDocuments = request.acceptedDocuments,
             telegramUserId = null,
+            telegramUsername = null,
         )
     }
 }

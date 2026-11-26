@@ -3,10 +3,12 @@ package com.bookk.server.user.client.di
 import com.bookk.core.client.internalHttpClient
 import com.bookk.server.user.client.UserClient
 import com.bookk.server.user.client.impl.UserClientImpl
+import com.bookk.server.user.client.impl.operation.ChangeTelegramUsernameClientImpl
 import com.bookk.server.user.client.impl.operation.ChangeUserEmailClientImpl
 import com.bookk.server.user.client.impl.operation.CreateUserClientImpl
 import com.bookk.server.user.client.impl.operation.GetUserByEmailClientImpl
 import com.bookk.server.user.client.impl.operation.GetUserByIdClientImpl
+import com.bookk.user.domain.api.operation.ChangeTelegramUsername
 import com.bookk.user.domain.api.operation.ChangeUserEmail
 import com.bookk.user.domain.api.operation.CreateUser
 import com.bookk.user.domain.api.operation.GetUserByEmail
@@ -21,6 +23,7 @@ fun userClientModule(qualifier: Qualifier, clientTag: String) = module {
         scoped<CreateUser> { CreateUserClientImpl(get()) }
         scoped<GetUserByEmail> { GetUserByEmailClientImpl(get()) }
         scoped<ChangeUserEmail> { ChangeUserEmailClientImpl(get()) }
-        scoped<UserClient> { UserClientImpl(get(), get(), get(), get()) }
+        scoped<ChangeTelegramUsername> { ChangeTelegramUsernameClientImpl(get()) }
+        scoped<UserClient> { UserClientImpl(get(), get(), get(), get(), get()) }
     }
 }

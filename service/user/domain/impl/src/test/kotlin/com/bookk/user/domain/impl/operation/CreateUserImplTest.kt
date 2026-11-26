@@ -56,7 +56,7 @@ internal class CreateUserImplTest {
 
         whenn()
         val result = fixture.sut.invoke(
-            NewUser("Ann", "Lee", "ann@example.com", AcceptedLegalDocuments(null, null), null),
+            NewUser("Ann", "Lee", "ann@example.com", AcceptedLegalDocuments(null, null), null, null),
         )
 
         then()
@@ -68,10 +68,10 @@ internal class CreateUserImplTest {
     }
 
     @Test
-    fun `should store and publish the Telegram user id of a user signing up with Telegram`() = runUnitTest {
+    fun `should store and publish the Telegram id and username of a user signing up with Telegram`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        val created = User.stub(telegramUserId = 123456789)
+        val created = User.stub(telegramUserId = 123456789, telegramUsername = "ann_lee")
         val inserted = slot<User>()
         val published = slot<UserEvent.Updated>()
         with(fixture) {
@@ -82,12 +82,15 @@ internal class CreateUserImplTest {
         }
 
         whenn()
-        val result = fixture.sut.invoke(newUser(AcceptedLegalDocuments(null, null)).copy(telegramUserId = 123456789))
+        val newUser = newUser(AcceptedLegalDocuments(null, null))
+        val result = fixture.sut.invoke(newUser.copy(telegramUserId = 123456789, telegramUsername = "ann_lee"))
 
         then()
         assertTrue(result.isSuccess) { result.toString() }
         assertEquals(123456789L, inserted.captured.telegramUserId)
         assertEquals(123456789L, published.captured.telegramUserId)
+        assertEquals("ann_lee", inserted.captured.telegramUsername)
+        assertEquals("ann_lee", published.captured.telegramUsername)
     }
 
     @Test
@@ -135,7 +138,7 @@ internal class CreateUserImplTest {
 
         whenn()
         val result = fixture.sut.invoke(
-            NewUser("Ann", "Lee", "ann@example.com", AcceptedLegalDocuments(null, null), null),
+            NewUser("Ann", "Lee", "ann@example.com", AcceptedLegalDocuments(null, null), null, null),
         )
 
         then()
@@ -251,5 +254,6 @@ internal class CreateUserImplTest {
         email = "user@example.com",
         acceptedDocuments = acceptedDocuments,
         telegramUserId = null,
+        telegramUsername = null,
     )
 }

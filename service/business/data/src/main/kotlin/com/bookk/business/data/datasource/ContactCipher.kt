@@ -12,7 +12,9 @@ import library.encryption.Encryptor
 import library.encryption.MissingKeys
 import library.encryption.SubjectKeys
 import library.encryption.decryptText
+import library.encryption.encryptOptionalTextIfChanged
 import library.encryption.encryptText
+import library.encryption.encryptTextIfChanged
 import library.encryption.ofCaseInsensitive
 import library.encryption.valueOrNull
 import kotlin.io.encoding.Base64
@@ -32,6 +34,7 @@ internal class ContactCipher(
             phone = contact.phone?.let(encryptor::encryptText),
             email = contact.email?.let(encryptor::encryptText),
             description = contact.description?.let(encryptor::encryptText),
+            telegramUsername = contact.telegramUsername?.let(encryptor::encryptText),
         )
     }
 
@@ -110,16 +113,17 @@ internal class ContactCipher(
         val current = read.contact
         val stored = read.stored.encrypted
         return EncryptedContact(
-            name = if (edited.name == current.name) stored.name else encryptText(edited.name),
-            lastName = if (edited.lastName == current.lastName) stored.lastName else encryptText(edited.lastName),
-            phone = changed(stored.phone, current.phone, edited.phone),
-            email = changed(stored.email, current.email, edited.email),
-            description = changed(stored.description, current.description, edited.description),
+            name = encryptTextIfChanged(stored.name, current.name, edited.name),
+            lastName = encryptTextIfChanged(stored.lastName, current.lastName, edited.lastName),
+            phone = encryptOptionalTextIfChanged(stored.phone, current.phone, edited.phone),
+            email = encryptOptionalTextIfChanged(stored.email, current.email, edited.email),
+            description = encryptOptionalTextIfChanged(stored.description, current.description, edited.description),
+            telegramUsername = encryptOptionalTextIfChanged(
+                stored.telegramUsername,
+                current.telegramUsername,
+                edited.telegramUsername,
+            ),
         )
-    }
-
-    private fun Encryptor.changed(stored: ByteArray?, current: String?, edited: String?): ByteArray? {
-        return if (edited == current) stored else edited?.let(::encryptText)
     }
 
     private fun Decryptor.decryptContact(stored: StoredContact, source: String): Contact {
@@ -127,11 +131,10 @@ internal class ContactCipher(
         val encrypted = stored.encrypted
         val name = decryptText(subjectId, encrypted.name)
         val lastName = decryptText(subjectId, encrypted.lastName)
-        val optional = listOf(encrypted.phone, encrypted.email, encrypted.description).map { ciphertext ->
-            ciphertext?.let { decryptText(subjectId, it) }
-        }
-        val (phone, email, description) = optional
-        val fields = listOfNotNull(name, lastName, phone, email, description)
+        val optional = listOf(encrypted.phone, encrypted.email, encrypted.description, encrypted.telegramUsername)
+            .map { ciphertext -> ciphertext?.let { decryptText(subjectId, it) } }
+        val (phone, email, description, telegramUsername) = optional
+        val fields = listOfNotNull(name, lastName, phone, email, description, telegramUsername)
         if (fields.any { it is Decrypted.Missing }) missingKeys.report(source)
         return Contact(
             name = name.valueOrNull().orEmpty(),
@@ -139,6 +142,7 @@ internal class ContactCipher(
             phone = phone?.valueOrNull(),
             email = email?.valueOrNull(),
             description = description?.valueOrNull(),
+            telegramUsername = telegramUsername?.valueOrNull(),
         )
     }
 

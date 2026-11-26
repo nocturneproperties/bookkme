@@ -46,6 +46,7 @@ internal class InternalUserTest {
             email = email,
             acceptedDocuments = AcceptedLegalDocuments(privacyPolicy = "2026-01-01", termsOfService = null),
             telegramUserId = 123456789,
+            telegramUsername = "ann_lee",
         )
 
         coEvery { useCase.invoke(newUser) } returns Result.success(UserId(userId))
@@ -108,7 +109,14 @@ internal class InternalUserTest {
         val client = createTestClient()
         val response = client.post(UserRouting.Api.Internal.User()) {
             setBody(
-                NewUser("Ann", "Lee", email, AcceptedLegalDocuments(privacyPolicy = null, termsOfService = null), null),
+                NewUser(
+                    "Ann",
+                    "Lee",
+                    email,
+                    AcceptedLegalDocuments(privacyPolicy = null, termsOfService = null),
+                    null,
+                    null,
+                ),
             )
         }
 
@@ -139,6 +147,7 @@ internal class InternalUserTest {
                     "Lee",
                     email,
                     AcceptedLegalDocuments(privacyPolicy = "unpublished", termsOfService = null),
+                    null,
                     null,
                 ),
             )

@@ -9,4 +9,5 @@ object UserErrorCodes {
     const val LEGAL_DOCUMENTS_NOT_ACCEPTED = BASE + 4
     const val USER_ACTION_CONFIRMATION_INVALID = BASE + 5
     const val EMAIL_CHANGE_REQUIRES_VERIFICATION = BASE + 6
+    const val TELEGRAM_USERNAME_INVALID = BASE + 7
 }

@@ -5,11 +5,12 @@ import com.bookk.user.data.orm.entity.EncryptedProfile
 import com.bookk.user.domain.api.entity.User
 import library.encryption.BlindIndex
 import library.encryption.Decrypted
-import library.encryption.Encryptor
 import library.encryption.MissingKeys
 import library.encryption.SubjectKeys
 import library.encryption.decryptText
+import library.encryption.encryptOptionalTextIfChanged
 import library.encryption.encryptText
+import library.encryption.encryptTextIfChanged
 import library.encryption.ofCaseInsensitive
 import library.encryption.valueOrNull
 import kotlin.uuid.Uuid
@@ -28,6 +29,7 @@ internal class ProfileCipher(
             email = encryptor.encryptText(user.email),
             phone = user.phone?.let(encryptor::encryptText),
             telegramUserId = user.telegramUserId?.let { encryptor.encryptText(it.toString()) },
+            telegramUsername = user.telegramUsername?.let(encryptor::encryptText),
         )
     }
 
@@ -36,14 +38,19 @@ internal class ProfileCipher(
         val current = read.user
         val stored = read.stored
         return EncryptedProfile(
-            name = encryptor.changed(stored.name, current.name, edited.name),
-            lastName = encryptor.changed(stored.lastName, current.lastName, edited.lastName),
-            email = encryptor.changed(stored.email, current.email, edited.email),
-            phone = encryptor.changedOptional(stored.phone, current.phone, edited.phone),
-            telegramUserId = encryptor.changedOptional(
+            name = encryptor.encryptTextIfChanged(stored.name, current.name, edited.name),
+            lastName = encryptor.encryptTextIfChanged(stored.lastName, current.lastName, edited.lastName),
+            email = encryptor.encryptTextIfChanged(stored.email, current.email, edited.email),
+            phone = encryptor.encryptOptionalTextIfChanged(stored.phone, current.phone, edited.phone),
+            telegramUserId = encryptor.encryptOptionalTextIfChanged(
                 stored.telegramUserId,
                 current.telegramUserId?.toString(),
                 edited.telegramUserId?.toString(),
+            ),
+            telegramUsername = encryptor.encryptOptionalTextIfChanged(
+                stored.telegramUsername,
+                current.telegramUsername,
+                edited.telegramUsername,
             ),
         )
     }
@@ -55,7 +62,8 @@ internal class ProfileCipher(
         val email = decryptor.decryptText(userId, profile.email)
         val phone = profile.phone?.let { decryptor.decryptText(userId, it) }
         val telegramUserId = profile.telegramUserId?.let { decryptor.decryptText(userId, it) }
-        val fields = listOfNotNull(name, lastName, email, phone, telegramUserId)
+        val telegramUsername = profile.telegramUsername?.let { decryptor.decryptText(userId, it) }
+        val fields = listOfNotNull(name, lastName, email, phone, telegramUserId, telegramUsername)
         if (fields.any { it is Decrypted.Missing }) missingKeys.report(SOURCE)
         val user = User(
             id = userId,
@@ -64,6 +72,7 @@ internal class ProfileCipher(
             email = email.valueOrNull().orEmpty(),
             phone = phone?.valueOrNull(),
             telegramUserId = telegramUserId?.valueOrNull()?.toLong(),
+            telegramUsername = telegramUsername?.valueOrNull(),
         )
         return ReadProfile(user = user, stored = profile, isReadable = fields.all { it is Decrypted.Plain })
     }
@@ -74,14 +83,6 @@ internal class ProfileCipher(
 
     fun indexOf(contact: String): String {
         return blindIndex.ofCaseInsensitive(contact)
-    }
-
-    private fun Encryptor.changed(stored: ByteArray, current: String, edited: String): ByteArray {
-        return if (edited == current) stored else encryptText(edited)
-    }
-
-    private fun Encryptor.changedOptional(stored: ByteArray?, current: String?, edited: String?): ByteArray? {
-        return if (edited == current) stored else edited?.let(::encryptText)
     }
 
     private companion object {

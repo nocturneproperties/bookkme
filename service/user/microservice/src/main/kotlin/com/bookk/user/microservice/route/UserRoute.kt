@@ -4,6 +4,7 @@ import com.bookk.user.microservice.route.api.getCurrentUser
 import com.bookk.user.microservice.route.api.getHealthCheck
 import com.bookk.user.microservice.route.api.internal.getUserByEmail
 import com.bookk.user.microservice.route.api.internal.getUserById
+import com.bookk.user.microservice.route.api.internal.postChangeTelegramUsername
 import com.bookk.user.microservice.route.api.internal.postChangeUserEmail
 import com.bookk.user.microservice.route.api.internal.postCreateUser
 import com.bookk.user.microservice.route.api.legalDocuments
@@ -17,6 +18,7 @@ fun Routing.userRoute() {
     getUserByEmail()
     postCreateUser()
     postChangeUserEmail()
+    postChangeTelegramUsername()
     getCurrentUser()
     patchUser()
     legalDocuments()

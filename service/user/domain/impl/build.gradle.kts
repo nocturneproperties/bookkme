@@ -18,6 +18,7 @@ dependencies {
     implementation(projects.library.actionconfirmation.api)
     implementation(projects.library.export.api)
     implementation(projects.library.encryption.api)
+    implementation(projects.library.validation)
     testImplementation(testFixtures(projects.core))
     testImplementation(projects.core.data.eventstreaming.impl)
     testImplementation(testFixtures(projects.core.data.eventstreaming.impl))

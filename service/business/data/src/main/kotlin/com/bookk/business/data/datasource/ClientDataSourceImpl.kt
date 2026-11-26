@@ -139,6 +139,7 @@ internal class ClientDataSourceImpl(private val contactCipher: ContactCipher) : 
             lastName = profile.lastName.trim(),
             phone = profile.phone?.trim() ?: current.phone,
             email = profileEmail ?: current.email,
+            telegramUsername = profile.telegramUsername,
         )
         val reindex = ContactReindex(email = profileEmail != null, name = true, phone = profile.phone != null)
         if (!entity.write(read, takenOver, reindex)) return@dbQuery null
@@ -192,6 +193,7 @@ internal class ClientDataSourceImpl(private val contactCipher: ContactCipher) : 
             phone = model.phone ?: current.phone,
             email = model.email ?: current.email,
             description = model.description ?: current.description,
+            telegramUsername = current.telegramUsername,
         )
         val reindex = ContactReindex(
             email = model.email != null,
@@ -209,6 +211,7 @@ internal class ClientDataSourceImpl(private val contactCipher: ContactCipher) : 
         lastName: String,
         email: String,
         phone: String?,
+        telegramUsername: String?,
         updatedAt: Instant,
     ): Int = dbQuery {
         val clients = ClientEntity.find {
@@ -222,6 +225,7 @@ internal class ClientDataSourceImpl(private val contactCipher: ContactCipher) : 
                 lastName = lastName.trim(),
                 email = email.trim(),
                 phone = phone?.trim() ?: read.contact.phone,
+                telegramUsername = telegramUsername,
             )
             val reindex = ContactReindex(email = true, name = true, phone = phone != null)
             entity.write(read, synced, reindex).also { written ->
@@ -412,6 +416,7 @@ internal class ClientDataSourceImpl(private val contactCipher: ContactCipher) : 
             phone = phone?.trim(),
             email = email?.trim(),
             description = description?.trim(),
+            telegramUsername = (this as? Client.Integrated)?.telegramUsername,
         )
     }
 

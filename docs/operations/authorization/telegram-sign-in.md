@@ -10,7 +10,11 @@ id; an unknown Telegram user gets a new account whose email is the placeholder
 `<telegram user id>@telegramundeliverable.org`, which no email is ever sent to.
 The Telegram user id also goes to the user service, which stores it encrypted
 with the profile and publishes it in `UserEvent.Updated`, so notifications
-saves it as the user's Telegram target.
+saves it as the user's Telegram target. The optional `username` of the signed
+user object goes along with it, kept only when it is 4 to 32 letters, digits
+or underscores. A new account gets it at creation; an existing one has it
+synced after every sign-in, since Telegram users can change or remove it, and a
+failure there is logged without failing the sign-in.
 
 ```mermaid
 flowchart TD
@@ -26,10 +30,12 @@ flowchart TD
     UpdateLang --> LangEvt[eventProducer.send AuthEvent.DeviceLanguageUpdated deviceUuid language authId]
     DeviceCreatedEvt --> GenToken[GenerateAuthToken InitialAuthentication authId deviceUuid]
     LangEvt --> GenToken
-    GenToken --> R200a([200 AuthTokens])
+    GenToken --> SyncName[UserClient.changeTelegramUsername userId username or null]
+    SyncName -- failure logged, ignored --> R200a([200 AuthTokens])
+    SyncName -- ok --> R200a
     Lookup -- no account --> Docs{acceptedDocuments sent?}
     Docs -- no --> R422f([422 LEGAL_DOCUMENTS_NOT_ACCEPTED 100004])
-    Docs -- yes --> CreateUser[UserClient.createUser first_name, last_name or empty, telegramUserId at telegramundeliverable.org, acceptedDocuments, telegramUserId]
+    Docs -- yes --> CreateUser[UserClient.createUser first_name, last_name or empty, telegramUserId at telegramundeliverable.org, acceptedDocuments, telegramUserId, username]
     CreateUser -- version not published --> R422c([422 LEGAL_DOCUMENT_VERSION_UNKNOWN 100003])
     CreateUser -- version in effect not accepted --> R422d([422 LEGAL_DOCUMENTS_NOT_ACCEPTED 100004])
     CreateUser -- ok userId --> Tx[[Begin transaction]]
@@ -54,6 +60,9 @@ An existing account ignores `acceptedDocuments`; a client sends them after a
 effect. A user deleted with their account, or by dormancy, leaves no
 `telegram_identity` row (`ON DELETE CASCADE`), so signing in again creates a new
 account.
+
+The username sync is [Store the Telegram username](../user/change-telegram-username-internal.md),
+which publishes `UserEvent.Updated` only when the username changed.
 
 **Consumed by:** `AuthEvent.DeviceCreated` → [notifications: mirror the new
 device](../notifications/on-device-created.md). `AuthEvent.DeviceLanguageUpdated`

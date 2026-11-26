@@ -431,6 +431,7 @@ internal class ClientDataSourceImplTest {
                 "Surname",
                 "new@test.com",
                 null,
+                null,
                 Instant.fromEpochMilliseconds(1000),
             )
         }
@@ -463,6 +464,7 @@ internal class ClientDataSourceImplTest {
                 "Surname",
                 "new@test.com",
                 "+2222222222",
+                null,
                 Instant.fromEpochMilliseconds(1000),
             )
         }
@@ -500,6 +502,7 @@ internal class ClientDataSourceImplTest {
                 "Surname",
                 "new@test.com",
                 "+2222",
+                null,
                 Instant.fromEpochMilliseconds(1000),
             )
         }
@@ -527,6 +530,7 @@ internal class ClientDataSourceImplTest {
                 "Surname",
                 "new@test.com",
                 null,
+                null,
                 Instant.fromEpochMilliseconds(1000),
             )
         }
@@ -548,12 +552,12 @@ internal class ClientDataSourceImplTest {
         val newer = Instant.fromEpochMilliseconds(2000)
         val older = Instant.fromEpochMilliseconds(1000)
         suspendTransaction {
-            fixture.sut.updateIntegratedClients(userId, "Newer", "Surname", "newer@test.com", null, newer)
+            fixture.sut.updateIntegratedClients(userId, "Newer", "Surname", "newer@test.com", null, null, newer)
         }
 
         whenn()
         val updated = suspendTransaction {
-            fixture.sut.updateIntegratedClients(userId, "Older", "Surname", "older@test.com", null, older)
+            fixture.sut.updateIntegratedClients(userId, "Older", "Surname", "older@test.com", null, null, older)
         }
         val found = suspendTransaction { fixture.sut.getClientByUserId(fixture.businessId, userId) }
 
@@ -578,6 +582,7 @@ internal class ClientDataSourceImplTest {
                 "Surname",
                 "first@test.com",
                 null,
+                null,
                 Instant.fromEpochMilliseconds(1000),
             )
         }
@@ -589,6 +594,7 @@ internal class ClientDataSourceImplTest {
                 "Second",
                 "Surname",
                 "second@test.com",
+                null,
                 null,
                 Instant.fromEpochMilliseconds(2000),
             )
@@ -617,6 +623,7 @@ internal class ClientDataSourceImplTest {
                 "New",
                 "Surname",
                 "new@test.com",
+                null,
                 null,
                 Instant.fromEpochMilliseconds(1000),
             )
@@ -783,6 +790,131 @@ internal class ClientDataSourceImplTest {
         assertEquals("Henry", result.name)
         val clients = fixture.clients()
         assertEquals(1, clients.size)
+    }
+
+    @Test
+    fun `should store the Telegram username of a new integrated client`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val userId = Uuid.random()
+        val client = Client.Integrated.stub(userId = userId, telegramUsername = "henry_t")
+
+        whenn()
+        val created = suspendTransaction { fixture.sut.getOrCreateIntegratedClient(fixture.businessId, client) }
+
+        then()
+        assertEquals("henry_t", (created as Client.Integrated).telegramUsername)
+        val found = suspendTransaction { fixture.sut.getClientByUserId(fixture.businessId, userId) }
+        assertEquals("henry_t", (found as Client.Integrated).telegramUsername)
+    }
+
+    @Test
+    fun `should sync a changed Telegram username to the user's clients`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val userId = Uuid.random()
+        val client = Client.Integrated.stub(userId = userId, email = "henry@test.com", telegramUsername = "henry_t")
+        suspendTransaction { fixture.sut.getOrCreateIntegratedClient(fixture.businessId, client) }
+
+        whenn()
+        suspendTransaction {
+            fixture.sut.updateIntegratedClients(
+                userId,
+                name = client.name,
+                lastName = client.lastName,
+                email = "henry@test.com",
+                phone = null,
+                telegramUsername = "henry_renamed",
+                updatedAt = Instant.fromEpochMilliseconds(1000),
+            )
+        }
+
+        then()
+        val found = suspendTransaction { fixture.sut.getClientByUserId(fixture.businessId, userId) }
+        assertEquals("henry_renamed", (found as Client.Integrated).telegramUsername)
+    }
+
+    @Test
+    fun `should clear the Telegram username the user removed from their clients`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val userId = Uuid.random()
+        val client = Client.Integrated.stub(userId = userId, email = "henry@test.com", telegramUsername = "henry_t")
+        suspendTransaction { fixture.sut.getOrCreateIntegratedClient(fixture.businessId, client) }
+
+        whenn()
+        suspendTransaction {
+            fixture.sut.updateIntegratedClients(
+                userId,
+                name = client.name,
+                lastName = client.lastName,
+                email = "henry@test.com",
+                phone = null,
+                telegramUsername = null,
+                updatedAt = Instant.fromEpochMilliseconds(1000),
+            )
+        }
+
+        then()
+        val found = suspendTransaction { fixture.sut.getClientByUserId(fixture.businessId, userId) }
+        assertNull((found as Client.Integrated).telegramUsername)
+    }
+
+    @Test
+    fun `should keep the Telegram username when staff edit the client`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val userId = Uuid.random()
+        val client = suspendTransaction {
+            fixture.sut.getOrCreateIntegratedClient(
+                fixture.businessId,
+                Client.Integrated.stub(userId = userId, telegramUsername = "henry_t"),
+            )
+        }
+
+        whenn()
+        val updated = suspendTransaction {
+            fixture.sut.updateClient(
+                fixture.businessId,
+                ClientUpdateModel(
+                    id = client.id,
+                    name = null,
+                    lastName = null,
+                    phone = null,
+                    email = null,
+                    description = "Prefers mornings",
+                ),
+            )
+        }
+
+        then()
+        assertEquals("henry_t", (updated as Client.Integrated).telegramUsername)
+        val found = suspendTransaction { fixture.sut.getClientByUserId(fixture.businessId, userId) }
+        assertEquals("henry_t", (found as Client.Integrated).telegramUsername)
+    }
+
+    @Test
+    fun `should give a detached client taken over by a Telegram user their username`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val detached = suspendTransaction {
+            fixture.sut.createDetachedClient(fixture.businessId, Client.Detached.stub(email = "user@client.com"))
+        }
+        val userId = Uuid.random()
+        val profile = Client.Integrated.stub(email = "user@client.com", userId = userId, telegramUsername = "user_t")
+
+        whenn()
+        val taken = suspendTransaction { fixture.sut.takeOverClient(fixture.businessId, detached.id, profile) }
+
+        then()
+        assertEquals("user_t", (taken as Client.Integrated).telegramUsername)
+        val found = suspendTransaction { fixture.sut.getClientByUserId(fixture.businessId, userId) }
+        assertEquals("user_t", (found as Client.Integrated).telegramUsername)
     }
 
     @Test
@@ -1205,6 +1337,7 @@ internal class ClientDataSourceImplTest {
                 "Last",
                 "user@client.com",
                 "+1000",
+                null,
                 Instant.fromEpochMilliseconds(2000),
             )
         }

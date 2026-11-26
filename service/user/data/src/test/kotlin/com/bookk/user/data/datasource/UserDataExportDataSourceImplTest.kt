@@ -35,7 +35,7 @@ internal class UserDataExportDataSourceImplTest {
     }
 
     @Test
-    fun `should export the user's profile with its creation time and Telegram user id`() = runUnitTest {
+    fun `should export the user's profile with its creation time and Telegram user id and username`() = runUnitTest {
         given()
         val fixture = SutFixture()
         val user = fixture.user(
@@ -45,6 +45,7 @@ internal class UserDataExportDataSourceImplTest {
                 email = "olena@example.com",
                 phone = "+380501112233",
                 telegramUserId = 123456789,
+                telegramUsername = "olena_k",
             ),
         )
         val createdAt = Instant.fromEpochMilliseconds(1_700_000_000_000)
@@ -62,6 +63,7 @@ internal class UserDataExportDataSourceImplTest {
             phone = "+380501112233",
             createdAt = createdAt,
             telegramUserId = 123456789,
+            telegramUsername = "olena_k",
         )
         assertEquals(expected, profile)
     }

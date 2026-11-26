@@ -18,6 +18,9 @@ object UserRouting {
 
                 @Resource("/{id}/email")
                 class ChangeEmail(val parent: User = User(), val id: Uuid)
+
+                @Resource("/{id}/telegram_username")
+                class ChangeTelegramUsername(val parent: User = User(), val id: Uuid)
             }
         }
     }

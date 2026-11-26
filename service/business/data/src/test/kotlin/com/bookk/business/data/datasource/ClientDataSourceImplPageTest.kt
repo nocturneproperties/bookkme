@@ -523,6 +523,7 @@ internal class ClientDataSourceImplPageTest {
                 lastName = "Brown",
                 email = "dave@example.com",
                 phone = "+16666666666",
+                telegramUsername = null,
                 updatedAt = Clock.System.now(),
             )
         }
