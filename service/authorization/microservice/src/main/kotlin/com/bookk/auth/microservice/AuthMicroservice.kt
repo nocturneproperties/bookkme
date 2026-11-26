@@ -4,6 +4,7 @@ import com.bookk.auth.data.di.authDataModule
 import com.bookk.auth.domain.api.AUTH_SERVICE_NAME
 import com.bookk.auth.domain.api.authentication.operation.HandleDormantAccounts
 import com.bookk.auth.domain.api.delete_account.operation.HandleScheduledAccountDeletions
+import com.bookk.auth.domain.api.demo.operation.DeleteExpiredDemoAccounts
 import com.bookk.auth.domain.api.device.operation.DeleteInactiveDevices
 import com.bookk.auth.domain.api.erasure.operation.DeleteExpiredErasureRecords
 import com.bookk.auth.domain.api.erasure.operation.ReapplyAccountErasures
@@ -92,6 +93,9 @@ fun Application.registerAuthJobs(scheduler: SchedulerConfiguration) {
     }
     scheduler.job("$AUTH_SERVICE_NAME-handleScheduledDeletions", interval = 1.hours) {
         scope.get<HandleScheduledAccountDeletions>().invoke().getOrThrow()
+    }
+    scheduler.job("$AUTH_SERVICE_NAME-deleteExpiredDemoAccounts", interval = 1.days) {
+        scope.get<DeleteExpiredDemoAccounts>().invoke().getOrThrow()
     }
     scheduler.job("$AUTH_SERVICE_NAME-reapplyErasures", interval = 1.minutes, logSuccessfulRuns = false) {
         scope.get<ReapplyAccountErasures>().invoke().getOrThrow()

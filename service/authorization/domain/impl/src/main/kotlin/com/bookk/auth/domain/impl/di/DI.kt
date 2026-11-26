@@ -11,6 +11,7 @@ import com.bookk.auth.domain.api.delete_account.operation.CancelAccountDeletion
 import com.bookk.auth.domain.api.delete_account.operation.DeleteAccount
 import com.bookk.auth.domain.api.delete_account.operation.GetAccountDeletion
 import com.bookk.auth.domain.api.delete_account.operation.HandleScheduledAccountDeletions
+import com.bookk.auth.domain.api.demo.operation.DeleteExpiredDemoAccounts
 import com.bookk.auth.domain.api.demo.operation.FinishDemoUpgrade
 import com.bookk.auth.domain.api.demo.operation.StartDemo
 import com.bookk.auth.domain.api.demo.operation.StartDemoUpgrade
@@ -45,6 +46,7 @@ import com.bookk.auth.domain.impl.operation.authentication.FinishAssertionImpl
 import com.bookk.auth.domain.impl.operation.authentication.HandleDormantAccountsImpl
 import com.bookk.auth.domain.impl.operation.authentication.SignInImpl
 import com.bookk.auth.domain.impl.operation.authentication.StartAssertionImpl
+import com.bookk.auth.domain.impl.operation.demo.DeleteExpiredDemoAccountsImpl
 import com.bookk.auth.domain.impl.operation.demo.DemoCallerResolver
 import com.bookk.auth.domain.impl.operation.demo.FinishDemoUpgradeImpl
 import com.bookk.auth.domain.impl.operation.demo.StartDemoImpl
@@ -125,6 +127,7 @@ fun authDomainModule(environment: (String) -> String? = System::getenv) = module
         scopedOf(::DemoCallerResolver)
         scopedOf(::StartDemoUpgradeImpl) bind StartDemoUpgrade::class
         scopedOf(::FinishDemoUpgradeImpl) bind FinishDemoUpgrade::class
+        scopedOf(::DeleteExpiredDemoAccountsImpl) bind DeleteExpiredDemoAccounts::class
     }
 }
 
