@@ -8,6 +8,7 @@ limit_req_zone $binary_remote_addr zone=email_code_send:10m rate=2r/m;
 limit_req_zone $binary_remote_addr zone=email_code_redeem:10m rate=10r/m;
 limit_req_zone $binary_remote_addr zone=sign_in_challenge:10m rate=10r/m;
 limit_req_zone $binary_remote_addr zone=business_link_resolve:10m rate=30r/m;
+limit_req_zone $binary_remote_addr zone=auth_demo:10m rate=1r/m;
 limit_req_status 429;
 limit_req_log_level warn;
 
@@ -400,6 +401,18 @@ server {
       proxy_pass http://authorization.service;
   }
   location = /api/auth/email/confirm {
+      limit_req zone=email_code_redeem burst=10 nodelay;
+      proxy_pass http://authorization.service;
+  }
+  location = /api/auth/demo {
+      limit_req zone=auth_demo burst=3 nodelay;
+      proxy_pass http://authorization.service;
+  }
+  location = /api/auth/demo/upgrade/challenge {
+      limit_req zone=email_code_send burst=5 nodelay;
+      proxy_pass http://authorization.service;
+  }
+  location = /api/auth/demo/upgrade {
       limit_req zone=email_code_redeem burst=10 nodelay;
       proxy_pass http://authorization.service;
   }

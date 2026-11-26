@@ -163,7 +163,7 @@ Someone who isn't ready to sign up can start a demo with `POST /api/auth/demo`: 
 
 The device's sign-in is the demo's only credential: signing out or reinstalling the app ends it for good. To keep the account and everything in it, the user adds an email address, confirmed with a code, and a passkey, while the demo runs or within 7 days after it ended. A demo that was not kept is deleted 7 days after it ended, like a deleted account, and its businesses and bookings with it.
 
-Demos need no setup. Creation is anonymous, so the server allows at most 1,000 demos running at once and refuses more with a 429 error until older ones end; put a per-address rate limit on `POST /api/auth/demo` in your reverse proxy as well.
+Demos need no setup. Creation is anonymous, so the server allows at most 1,000 demos running at once and refuses more with a 429 error until older ones end; the bundled nginx configuration also lets each address start one demo a minute (bursts of 3), so keep a similar limit on `POST /api/auth/demo` if you use another reverse proxy.
 
 ### Creation limits
 
@@ -270,7 +270,7 @@ The single server uses exactly the same producers, outbox and consumers, with an
 
 - **Idempotency keys** on requests, so a retried request never takes effect twice.
 - **Single-use tokens** that are claimed atomically, so two concurrent requests cannot both use one.
-- **Rate limits** in the nginx configuration for sending and checking email codes and for passkey sign-in.
+- **Rate limits** in the nginx configuration for sending and checking email codes, passkey sign-in and creating demo accounts.
 - **Creation limits** on staff, clients, services, businesses, pending booking requests, saved businesses and passkeys, so one account can't fill the database (see [Creation limits](#creation-limits)).
 
 **Infrastructure** (the production setup in `deployment/`)
