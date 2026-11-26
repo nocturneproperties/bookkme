@@ -66,7 +66,7 @@ internal class CreateAppointmentRequestTest {
     }
 
     @Test
-    fun `should answer APPOINTMENTS_DEMO_RESTRICTED to a demo account at a business it does not belong to`() =
+    fun `should answer APPOINTMENTS_DEMO_RESTRICTED to a demo account`() =
         routeTest {
             given()
             val useCase: CreateAppointmentRequest = mockk()

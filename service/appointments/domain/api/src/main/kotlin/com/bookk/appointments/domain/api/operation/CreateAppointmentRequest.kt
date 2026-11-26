@@ -30,7 +30,7 @@ interface CreateAppointmentRequest {
             BusinessError(
                 statusCode = HttpStatusCode.UnprocessableEntity.value,
                 code = AppointmentErrorCodes.APPOINTMENTS_DEMO_RESTRICTED,
-                message = "A demo account can only book at businesses it belongs to, upgrade the account first",
+                message = "A demo account can't book appointments, upgrade the account first",
             ),
             Error
     }

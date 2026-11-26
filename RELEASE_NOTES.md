@@ -93,7 +93,7 @@ Changes since `monolith/0.20.0`. Takes the user's name as one field at sign-up, 
 - A demo account's business gets a link named `demo-` plus 8 random letters and digits; `demo` and every `demo-…` name now answer 422 `BUSINESS_LINK_RESERVED` (200050) for everyone, and `PUT /api/business/{id}/link` answers 422 `BUSINESS_DEMO_RESTRICTED` (200055) to a demo account.
 - After the upgrade, the first link name the owner sets replaces the `demo-` name at once, without the 90-day hold and without counting as one of the 3 changes.
 - `POST /api/business` lets a demo account own only one business (422 `BUSINESS_OWNED_BUSINESSES_LIMIT_REACHED`, 200045).
-- `POST /api/appointments/request` answers 422 `APPOINTMENTS_DEMO_RESTRICTED` (300035) to a demo account at a business it doesn't belong to; at its own business, or one it joined, it books as usual, and real clients can book into a demo business.
+- `POST /api/appointments/request` answers 422 `APPOINTMENTS_DEMO_RESTRICTED` (300035) to every demo account, at its own business too; hide booking until the upgrade, while real clients can still book into a demo business.
 - The seeded business's two pending requests carry the demo owner's own account as the requesting user.
 
 ### Services

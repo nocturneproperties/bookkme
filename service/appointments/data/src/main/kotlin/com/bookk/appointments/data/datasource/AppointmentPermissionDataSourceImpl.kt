@@ -55,16 +55,6 @@ internal class AppointmentPermissionDataSourceImpl : DataSource(), AppointmentPe
         )
     }
 
-    override suspend fun isMember(userId: Uuid, businessId: Uuid): Boolean = dbQuery {
-        AppointmentPermissionGrantsTable
-            .select(AppointmentPermissionGrantsTable.userId)
-            .where {
-                (AppointmentPermissionGrantsTable.userId eq userId) and
-                    (AppointmentPermissionGrantsTable.businessId eq businessId)
-            }
-            .any()
-    }
-
     override suspend fun deleteForUser(userId: Uuid) = dbQuery<Unit> {
         AppointmentPermissionGrantsTable.deleteWhere { AppointmentPermissionGrantsTable.userId eq userId }
     }
