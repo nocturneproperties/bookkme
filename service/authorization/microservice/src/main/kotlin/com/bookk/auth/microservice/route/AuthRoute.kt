@@ -3,6 +3,7 @@ package com.bookk.auth.microservice.route
 import com.bookk.auth.microservice.route.api.accountDeletion
 import com.bookk.auth.microservice.route.api.confirmAction
 import com.bookk.auth.microservice.route.api.deleteAccount
+import com.bookk.auth.microservice.route.api.demo
 import com.bookk.auth.microservice.route.api.emailChange
 import com.bookk.auth.microservice.route.api.healthCheck
 import com.bookk.auth.microservice.route.api.internal.exportAccountData
@@ -20,6 +21,7 @@ fun Routing.authRoute() {
     passkeyOperations()
     signIn()
     telegramSignIn()
+    demo()
     registration()
     emailChange()
     postRefreshToken()

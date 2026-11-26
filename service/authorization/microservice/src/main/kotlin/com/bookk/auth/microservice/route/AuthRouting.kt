@@ -39,6 +39,15 @@ object AuthRouting {
                 }
             }
 
+            @Resource("/demo")
+            class Demo(val parent: Auth = Auth()) {
+                @Resource("/upgrade/challenge")
+                class UpgradeChallenge(val parent: Demo = Demo())
+
+                @Resource("/upgrade")
+                class Upgrade(val parent: Demo = Demo())
+            }
+
             @Resource("/email")
             class Email(val parent: Auth = Auth()) {
                 @Resource("/confirm")
