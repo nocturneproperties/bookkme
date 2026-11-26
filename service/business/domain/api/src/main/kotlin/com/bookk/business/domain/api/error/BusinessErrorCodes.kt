@@ -70,4 +70,5 @@ object BusinessErrorCodes {
     const val BUSINESS_LINK_CHANGE_LIMIT_REACHED = BASE + 52
     const val BUSINESS_LINK_NOT_FOUND = BASE + 53
     const val BUSINESS_BULK_READ_TOO_LARGE = BASE + 54
+    const val BUSINESS_DEMO_RESTRICTED = BASE + 55
 }

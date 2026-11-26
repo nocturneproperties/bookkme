@@ -1,10 +1,16 @@
 package com.bookk.business.domain.impl.operation.business
 
+import java.security.SecureRandom
 import kotlin.time.Duration.Companion.days
 
 internal object BusinessLinkPolicy {
     val HOLD_PERIOD = 90.days
     const val MAX_CHANGES = 3
+    private const val DEMO_NAME = "demo"
+    private const val DEMO_PREFIX = "$DEMO_NAME-"
+    private const val DEMO_SUFFIX_LENGTH = 8
+    private const val DEMO_SUFFIX_ALPHABET = "abcdefghijklmnopqrstuvwxyz0123456789"
+    private val random = SecureRandom()
 
     private val NAME_PATTERN = Regex("^(?=.{3,32}$)[a-z0-9]+(-[a-z0-9]+)*$")
     private val RESERVED_NAMES = setOf(
@@ -25,6 +31,17 @@ internal object BusinessLinkPolicy {
     }
 
     fun isReserved(name: String): Boolean {
-        return name in RESERVED_NAMES
+        return name in RESERVED_NAMES || name == DEMO_NAME || isDemoName(name)
+    }
+
+    fun isDemoName(name: String): Boolean {
+        return name.startsWith(DEMO_PREFIX)
+    }
+
+    fun randomDemoName(): String {
+        val suffix = (1..DEMO_SUFFIX_LENGTH)
+            .map { DEMO_SUFFIX_ALPHABET[random.nextInt(DEMO_SUFFIX_ALPHABET.length)] }
+            .joinToString("")
+        return DEMO_PREFIX + suffix
     }
 }
