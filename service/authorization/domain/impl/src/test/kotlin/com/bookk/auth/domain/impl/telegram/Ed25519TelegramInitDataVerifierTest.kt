@@ -85,10 +85,10 @@ internal class Ed25519TelegramInitDataVerifierTest {
     }
 
     @Test
-    fun `should leave out a username that is not a Telegram username`() = runUnitTest {
+    fun `should leave out and flag a username that is not a Telegram username`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        val usernames = listOf("ann", "a".repeat(33), "ann lee", "ann-lee", "")
+        val usernames = listOf("ann", "a".repeat(33), "ann lee", "ann-lee")
         val initData = usernames.map { username ->
             fixture.signer.signed(
                 authDate = fixture.now,
@@ -101,6 +101,25 @@ internal class Ed25519TelegramInitDataVerifierTest {
 
         then()
         assertEquals(usernames.map { null }, results.map { it.getOrThrow().username })
+        assertEquals(usernames.map { true }, results.map { it.getOrThrow().usernameRejected })
+    }
+
+    @Test
+    fun `should treat a missing or empty username as no username`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val users = listOf(
+            """{"id":42,"first_name":"Ann"}""",
+            """{"id":42,"first_name":"Ann","username":""}""",
+        )
+        val initData = users.map { fixture.signer.signed(authDate = fixture.now, user = it) }
+
+        whenn()
+        val results = initData.map { fixture.verify(it).getOrThrow() }
+
+        then()
+        assertEquals(listOf(null, null), results.map { it.username })
+        assertEquals(listOf(false, false), results.map { it.usernameRejected })
     }
 
     @Test

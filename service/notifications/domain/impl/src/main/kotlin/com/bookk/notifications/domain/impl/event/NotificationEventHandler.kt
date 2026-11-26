@@ -54,6 +54,16 @@ internal class NotificationEventHandler(
             .registerResultReceiver(AuthEvent.AccountDormancyWarning.TOPIC) { event: AuthEvent.AccountDormancyWarning ->
                 sendNotification(event.userId, event.notification)
             }
+            .registerResultReceiver(
+                AuthEvent.AccountDeletionScheduled.TOPIC,
+            ) { event: AuthEvent.AccountDeletionScheduled ->
+                sendNotification(event.userId, event.notification)
+            }
+            .registerResultReceiver(
+                AuthEvent.AccountDeletionCancelled.TOPIC,
+            ) { event: AuthEvent.AccountDeletionCancelled ->
+                sendNotification(event.userId, event.notification)
+            }
             .registerResultReceiver(UserEvent.DataExportReady.TOPIC) { event: UserEvent.DataExportReady ->
                 sendNotification(event.userId, event.notification)
             }

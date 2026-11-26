@@ -1,6 +1,7 @@
 package com.bookk.auth.microservice
 
 import com.bookk.auth.domain.api.authentication.operation.HandleDormantAccounts
+import com.bookk.auth.domain.api.delete_account.operation.HandleScheduledAccountDeletions
 import com.bookk.auth.domain.api.device.operation.DeleteInactiveDevices
 import com.bookk.auth.domain.api.erasure.operation.DeleteExpiredErasureRecords
 import com.bookk.auth.domain.api.erasure.operation.ReapplyAccountErasures
@@ -24,6 +25,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Test
 import kotlin.time.Duration.Companion.days
+import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
 
 internal class AuthJobsTest {
@@ -32,6 +34,7 @@ internal class AuthJobsTest {
         val rotateSigningKeys = mockk<RotateSigningKeys>()
         val deleteInactiveDevices = mockk<DeleteInactiveDevices>()
         val handleDormantAccounts = mockk<HandleDormantAccounts>()
+        val handleScheduledAccountDeletions = mockk<HandleScheduledAccountDeletions>()
         val reapplyAccountErasures = mockk<ReapplyAccountErasures>()
         val deleteExpiredErasureRecords = mockk<DeleteExpiredErasureRecords>()
         val deleteExpiredSentEmails = mockk<DeleteExpiredSentEmails>()
@@ -42,6 +45,7 @@ internal class AuthJobsTest {
                 scoped { rotateSigningKeys }
                 scoped { deleteInactiveDevices }
                 scoped { handleDormantAccounts }
+                scoped { handleScheduledAccountDeletions }
                 scoped { reapplyAccountErasures }
                 scoped { deleteExpiredErasureRecords }
                 scoped { deleteExpiredSentEmails }
@@ -64,6 +68,7 @@ internal class AuthJobsTest {
                 "auth-rotateSigningKeys" to 1.days,
                 "auth-deleteInactiveDevices" to 1.days,
                 "auth-handleDormantAccounts" to 1.days,
+                "auth-handleScheduledDeletions" to 1.hours,
                 "auth-reapplyErasures" to 1.minutes,
                 "auth-deleteExpiredErasureRecords" to 1.days,
                 "auth-deleteExpiredSentEmails" to 7.days,
@@ -166,6 +171,35 @@ internal class AuthJobsTest {
 
         whenn()
         val result = runCatching { fixture.scheduler.runJob("auth-handleDormantAccounts") }
+
+        then()
+        assertSame(error, result.exceptionOrNull())
+    }
+
+    @Test
+    fun `should remind about and erase accounts whose deletion was requested`() = routeTest {
+        given()
+        val fixture = SutFixture()
+        coEvery { fixture.handleScheduledAccountDeletions.invoke() } returns Result.success(Unit)
+        fixture.registerJobs(this)
+
+        whenn()
+        fixture.scheduler.runJob("auth-handleScheduledDeletions")
+
+        then()
+        coVerify(exactly = 1) { fixture.handleScheduledAccountDeletions.invoke() }
+    }
+
+    @Test
+    fun `should surface a failed scheduled deletion run`() = routeTest {
+        given()
+        val fixture = SutFixture()
+        val error = RuntimeException("scheduled deletions failed")
+        coEvery { fixture.handleScheduledAccountDeletions.invoke() } returns Result.failure(error)
+        fixture.registerJobs(this)
+
+        whenn()
+        val result = runCatching { fixture.scheduler.runJob("auth-handleScheduledDeletions") }
 
         then()
         assertSame(error, result.exceptionOrNull())

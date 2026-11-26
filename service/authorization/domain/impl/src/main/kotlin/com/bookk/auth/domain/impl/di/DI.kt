@@ -7,7 +7,10 @@ import com.bookk.auth.domain.api.authentication.operation.FinishAssertion
 import com.bookk.auth.domain.api.authentication.operation.HandleDormantAccounts
 import com.bookk.auth.domain.api.authentication.operation.SignIn
 import com.bookk.auth.domain.api.authentication.operation.StartAssertion
+import com.bookk.auth.domain.api.delete_account.operation.CancelAccountDeletion
 import com.bookk.auth.domain.api.delete_account.operation.DeleteAccount
+import com.bookk.auth.domain.api.delete_account.operation.GetAccountDeletion
+import com.bookk.auth.domain.api.delete_account.operation.HandleScheduledAccountDeletions
 import com.bookk.auth.domain.api.device.operation.DeleteInactiveDevices
 import com.bookk.auth.domain.api.email.operation.ConfirmEmailChange
 import com.bookk.auth.domain.api.email.operation.StartEmailChange
@@ -26,8 +29,11 @@ import com.bookk.auth.domain.api.telegram.operation.SignInWithTelegram
 import com.bookk.auth.domain.api.token.operation.GenerateAuthToken
 import com.bookk.auth.domain.api.token.operation.RefreshToken
 import com.bookk.auth.domain.impl.operation.AccountEraser
+import com.bookk.auth.domain.impl.operation.CancelAccountDeletionImpl
 import com.bookk.auth.domain.impl.operation.DeleteAccountImpl
 import com.bookk.auth.domain.impl.operation.DeviceSignOut
+import com.bookk.auth.domain.impl.operation.GetAccountDeletionImpl
+import com.bookk.auth.domain.impl.operation.HandleScheduledAccountDeletionsImpl
 import com.bookk.auth.domain.impl.operation.SignOutImpl
 import com.bookk.auth.domain.impl.operation.actionconfirmation.ConfirmActionImpl
 import com.bookk.auth.domain.impl.operation.authentication.FinishAssertionImpl
@@ -76,6 +82,9 @@ fun authDomainModule(environment: (String) -> String? = System::getenv) = module
         scopedOf(::DeviceSignOut)
         scopedOf(::HandleDormantAccountsImpl) bind HandleDormantAccounts::class
         scopedOf(::DeleteAccountImpl) bind DeleteAccount::class
+        scopedOf(::GetAccountDeletionImpl) bind GetAccountDeletion::class
+        scopedOf(::CancelAccountDeletionImpl) bind CancelAccountDeletion::class
+        scopedOf(::HandleScheduledAccountDeletionsImpl) bind HandleScheduledAccountDeletions::class
         scopedOf(::ReapplyAccountErasuresImpl) bind ReapplyAccountErasures::class
         scopedOf(::DeleteExpiredErasureRecordsImpl) bind DeleteExpiredErasureRecords::class
         scopedOf(::ConfirmActionImpl) bind ConfirmAction::class

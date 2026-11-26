@@ -5,6 +5,7 @@ data class TelegramUser(
     val firstName: String,
     val lastName: String?,
     val username: String?,
+    val usernameRejected: Boolean = false,
 ) {
     companion object {
         fun stub(
@@ -12,8 +13,9 @@ data class TelegramUser(
             firstName: String = "Ann",
             lastName: String? = "Lee",
             username: String? = "ann_lee",
+            usernameRejected: Boolean = false,
         ): TelegramUser {
-            return TelegramUser(id, firstName, lastName, username)
+            return TelegramUser(id, firstName, lastName, username, usernameRejected)
         }
     }
 }

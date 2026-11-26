@@ -16,11 +16,23 @@ internal class TelegramIdentityDataSourceImpl(
         TelegramIdentityEntity.findByTelegramIdIndex(indexOf(telegramUserId))?.account?.toDomain()
     }
 
-    override suspend fun link(authId: Uuid, telegramUserId: Long) = dbQuery<Unit> {
-        TelegramIdentityEntity.new(authId, indexOf(telegramUserId))
+    override suspend fun link(authId: Uuid, telegramUserId: Long, username: String?): Unit = dbQuery {
+        TelegramIdentityEntity.new(authId, indexOf(telegramUserId), usernameIndexOf(username))
+    }
+
+    override suspend fun isUsernameSynced(authId: Uuid, username: String?): Boolean = dbQuery {
+        TelegramIdentityEntity.findByAuthId(authId)?.usernameIndex == usernameIndexOf(username)
+    }
+
+    override suspend fun markUsernameSynced(authId: Uuid, username: String?): Unit = dbQuery {
+        TelegramIdentityEntity.findByAuthIdAndUpdateUsernameIndex(authId, usernameIndexOf(username))
     }
 
     private fun indexOf(telegramUserId: Long): String {
         return blindIndex.of(telegramUserId.toString())
+    }
+
+    private fun usernameIndexOf(username: String?): String {
+        return blindIndex.of(username.orEmpty())
     }
 }

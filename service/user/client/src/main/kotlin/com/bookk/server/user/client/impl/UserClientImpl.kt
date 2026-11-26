@@ -19,22 +19,25 @@ internal class UserClientImpl(
     private val changeUserEmail: ChangeUserEmail,
     private val changeTelegramUsername: ChangeTelegramUsername,
 ) : UserClient {
-    override suspend fun getUserById(userId: Uuid): Result<UserSnapshot> = getUserById.invoke(userId)
-        .map { UserSnapshot.fromUser(it) }
+    override suspend fun getUserById(userId: Uuid): Result<UserSnapshot> {
+        return getUserById.invoke(userId).map { UserSnapshot.fromUser(it) }
+    }
 
-    override suspend fun getUserByEmail(email: String): Result<UserSnapshot> = getUserByEmail.invoke(EmailBody(email))
-        .map { UserSnapshot.fromUser(it) }
+    override suspend fun getUserByEmail(email: String): Result<UserSnapshot> {
+        return getUserByEmail.invoke(EmailBody(email)).map { UserSnapshot.fromUser(it) }
+    }
 
-    override suspend fun createUser(request: CreateUserRequest): Result<Uuid> = createUser.invoke(
-        newUser = NewUser(
+    override suspend fun createUser(request: CreateUserRequest): Result<Uuid> {
+        val newUser = NewUser(
             name = request.name,
             lastName = request.lastName,
             email = request.email,
             acceptedDocuments = request.acceptedDocuments,
             telegramUserId = request.telegramUserId,
             telegramUsername = request.telegramUsername,
-        ),
-    ).map { it.id }
+        )
+        return createUser.invoke(newUser = newUser).map { it.id }
+    }
 
     override suspend fun changeEmail(userId: Uuid, verifiedEmail: String): Result<Unit> {
         return changeUserEmail.invoke(userId, verifiedEmail)

@@ -25,6 +25,36 @@ interface AuthEvent : EventStreaming.Event<String> {
     }
 
     @Serializable
+    data class AccountDeletionScheduled(
+        @ProtoNumber(1) val userId: Uuid,
+        @ProtoNumber(2) val deletesAt: Instant,
+        @ProtoNumber(3) val reminder: Boolean,
+        @ProtoNumber(4) override val idempotencyKey: String = Uuid.random().toString(),
+    ) : AuthEvent {
+        @ProtoNumber(5)
+        override val topic: String = TOPIC
+        override val partitionKey: String get() = userId.toString()
+
+        companion object {
+            const val TOPIC = "auth.account_deletion_scheduled"
+        }
+    }
+
+    @Serializable
+    data class AccountDeletionCancelled(
+        @ProtoNumber(1) val userId: Uuid,
+        @ProtoNumber(2) override val idempotencyKey: String = Uuid.random().toString(),
+    ) : AuthEvent {
+        @ProtoNumber(3)
+        override val topic: String = TOPIC
+        override val partitionKey: String get() = userId.toString()
+
+        companion object {
+            const val TOPIC = "auth.account_deletion_cancelled"
+        }
+    }
+
+    @Serializable
     data class UserDeleted(
         @ProtoNumber(1) val userId: Uuid,
         @ProtoNumber(2) override val idempotencyKey: String = Uuid.random().toString(),

@@ -3,6 +3,7 @@ package com.bookk.auth.microservice
 import com.bookk.auth.data.di.authDataModule
 import com.bookk.auth.domain.api.AUTH_SERVICE_NAME
 import com.bookk.auth.domain.api.authentication.operation.HandleDormantAccounts
+import com.bookk.auth.domain.api.delete_account.operation.HandleScheduledAccountDeletions
 import com.bookk.auth.domain.api.device.operation.DeleteInactiveDevices
 import com.bookk.auth.domain.api.erasure.operation.DeleteExpiredErasureRecords
 import com.bookk.auth.domain.api.erasure.operation.ReapplyAccountErasures
@@ -32,6 +33,7 @@ import library.signing.impl.di.signingModule
 import library.signing.route.jwks
 import org.koin.dsl.module
 import kotlin.time.Duration.Companion.days
+import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
 
 fun authModule(environment: (String) -> String? = System::getenv) = module {
@@ -87,6 +89,9 @@ fun Application.registerAuthJobs(scheduler: SchedulerConfiguration) {
     }
     scheduler.job("$AUTH_SERVICE_NAME-handleDormantAccounts", interval = 1.days) {
         scope.get<HandleDormantAccounts>().invoke().getOrThrow()
+    }
+    scheduler.job("$AUTH_SERVICE_NAME-handleScheduledDeletions", interval = 1.hours) {
+        scope.get<HandleScheduledAccountDeletions>().invoke().getOrThrow()
     }
     scheduler.job("$AUTH_SERVICE_NAME-reapplyErasures", interval = 1.minutes, logSuccessfulRuns = false) {
         scope.get<ReapplyAccountErasures>().invoke().getOrThrow()
