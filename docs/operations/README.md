@@ -132,6 +132,7 @@ Reactions to cross-service events (all handled by the same
 | `BusinessEvent.ExportReady` | [React to a ready business data export](notifications/on-business-export-ready.md) |
 | `AuthEvent.DeviceDeleted` | [React to device deletion](notifications/on-device-deleted.md) |
 | `AuthEvent.DeviceSignedOut` | [React to device sign-out](notifications/on-device-signed-out.md) |
+| `AuthEvent.TelegramActionConfirmed` | [React to a Telegram action confirmation](notifications/on-telegram-action-confirmed.md) |
 | `UserEvent.Updated` | [React to user profile update](notifications/on-user-updated.md) |
 | `AppointmentEvent.RequestCreated` | [React to appointment request creation](notifications/on-appointment-request-created.md) |
 | `AppointmentEvent.RequestApproved` | [React to appointment request approval](notifications/on-appointment-request-approved.md) |
@@ -181,6 +182,7 @@ the operation committed, and reaches its consumers at least once. See
 | `AuthEvent.AccountDormancyWarning` | [`auth-handleDormantAccounts` job](scheduled-jobs.md) | [notifications](notifications/on-account-dormancy-warning.md) |
 | `AuthEvent.AccountDeletionScheduled` | [Delete account](authorization/delete-account.md), [`auth-handleScheduledDeletions` job](scheduled-jobs.md) (reminders) | [notifications](notifications/on-account-deletion-scheduled.md) |
 | `AuthEvent.AccountDeletionCancelled` | [Cancel account deletion](authorization/cancel-account-deletion.md) | [notifications](notifications/on-account-deletion-cancelled.md) |
+| `AuthEvent.TelegramActionConfirmed` | [Confirm an action through Telegram](authorization/telegram-confirm-action.md) | [notifications](notifications/on-telegram-action-confirmed.md) |
 | `BusinessEvent.Updated` | [Update business](business/update-business.md) | [appointments](appointments/on-business-updated.md) |
 | `BusinessEvent.Deleted` | [React to user deletion (business)](business/on-user-deleted.md) | [appointments](appointments/on-business-deleted.md) |
 | `BusinessEvent.EmployeeInvitationRedeemed` | [Join business](business/join-business.md) | [notifications](notifications/on-employee-invitation-redeemed.md) |

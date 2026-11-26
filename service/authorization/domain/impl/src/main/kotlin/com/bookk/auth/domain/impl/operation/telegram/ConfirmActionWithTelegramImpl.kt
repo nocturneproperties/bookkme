@@ -12,9 +12,14 @@ import com.bookk.auth.domain.impl.operation.actionconfirmation.ActionConfirmatio
 import com.bookk.auth.domain.impl.telegram.TelegramConfirmationLaunch
 import com.bookk.auth.domain.impl.telegram.TelegramInitDataVerifier
 import com.bookk.auth.domain.impl.telegram.TelegramLaunchParameter
+import com.bookk.core.data.eventstreaming.StandardEventProducer
+import com.bookk.core.data.eventstreaming.send
 import com.bookk.core.domain.datasource.transaction.TransactionManager
 import com.bookk.core.domain.datasource.transaction.transactionOrThrow
 import com.bookk.core.domain.entity.runSuspendCatching
+import com.bookk.server.auth.client.AuthEvent
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 import kotlin.time.Duration.Companion.minutes
 import kotlin.uuid.Uuid
 
@@ -23,6 +28,7 @@ internal class ConfirmActionWithTelegramImpl(
     private val confirmationDataSource: TelegramConfirmationDataSource,
     private val telegramIdentityDataSource: TelegramIdentityDataSource,
     private val tokenIssuer: ActionConfirmationTokenIssuer,
+    private val eventProducer: StandardEventProducer,
     private val transactionManager: TransactionManager,
 ) : ConfirmActionWithTelegram {
 
@@ -40,7 +46,16 @@ internal class ConfirmActionWithTelegramImpl(
             val challenge = confirmationDataSource.takeChallenge(confirmation.challengeId)
                 ?: throw TelegramConfirmationExpired()
             tokenIssuer.issue(userId, challenge.action, challenge.businessId, challenge.targetId)
+                .also { publishConfirmed(userId, confirmation.challengeId) }
         }
+    }
+
+    private suspend fun publishConfirmed(userId: Uuid, challengeId: String) {
+        runSuspendCatching {
+            transactionManager.transactionOrThrow {
+                eventProducer.send(AuthEvent.TelegramActionConfirmed(userId = userId, challengeId = challengeId))
+            }
+        }.onFailure { logger.warn("Failed to publish the Telegram action confirmation of user {}", userId, it) }
     }
 
     private suspend fun requireOwnChallenge(userId: Uuid, confirmation: TelegramConfirmationLaunch) {
@@ -59,5 +74,6 @@ internal class ConfirmActionWithTelegramImpl(
 
     private companion object {
         val LAUNCH_MAX_AGE = 5.minutes
+        val logger: Logger = LoggerFactory.getLogger(ConfirmActionWithTelegramImpl::class.java)
     }
 }

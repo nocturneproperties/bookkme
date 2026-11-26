@@ -39,10 +39,9 @@ flowchart TD
     Identity -- Yes --> Cooldown{"claimStartCooldown caller - setIfAbsent, 60 s"}
     Cooldown -- already claimed --> R429([429 TELEGRAM_CONFIRMATION_TOO_FREQUENT 23])
     Cooldown -- claimed --> Save["saveChallenge 32 hex - user, action, business, target, 5 minutes"]
-    Save --> Send["notifications SendTelegramActionConfirmation - action, op_kind_challenge, Accept-Language, no retry"]
+    Save --> Send["notifications SendTelegramActionConfirmation - action, op_kind_challenge, challenge id, Accept-Language, no retry"]
     Send -- SENT --> R204([204 No Content])
     Send -- other outcome or failure --> GiveBack["deleteChallenge, releaseStartCooldown"]
     GiveBack -- CHAT_UNREACHABLE --> R422c([422 TELEGRAM_CHAT_UNREACHABLE 22])
-    GiveBack -- NO_CHAT, UNAVAILABLE or FAILED --> R503
-    GiveBack -- notifications unreachable --> R500([500])
+    GiveBack -- NO_CHAT, UNAVAILABLE, FAILED or notifications unreachable --> R503
 ```

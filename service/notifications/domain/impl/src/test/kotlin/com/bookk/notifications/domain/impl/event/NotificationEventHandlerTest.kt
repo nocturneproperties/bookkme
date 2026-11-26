@@ -17,6 +17,7 @@ import com.bookk.notifications.domain.impl.UpdateTargetInformation
 import com.bookk.notifications.domain.impl.notification.NotificationParameters
 import com.bookk.notifications.domain.impl.notification.NotificationType
 import com.bookk.notifications.domain.impl.notification.SendNotification
+import com.bookk.notifications.domain.impl.telegram.TelegramConfirmationChat
 import com.bookk.server.appointments.client.api.event.AppointmentEvent
 import com.bookk.server.auth.client.AuthEvent
 import com.bookk.server.business.client.api.event.BusinessEvent
@@ -46,6 +47,7 @@ internal class NotificationEventHandlerTest {
         val clearPushNotificationToken = mockk<ClearPushNotificationToken>()
         val sendNotification = mockk<SendNotification>()
         val deleteUserNotificationData = mockk<DeleteUserNotificationData>()
+        val telegramConfirmationChat = mockk<TelegramConfirmationChat>()
         val receivers = mutableMapOf<String, suspend (Any) -> Unit>()
         val sut = NotificationEventHandler(
             consumer,
@@ -56,6 +58,7 @@ internal class NotificationEventHandlerTest {
             clearPushNotificationToken,
             sendNotification,
             deleteUserNotificationData,
+            telegramConfirmationChat,
         )
 
         @Suppress("UNCHECKED_CAST")
@@ -355,5 +358,21 @@ internal class NotificationEventHandlerTest {
         coVerify(exactly = 1) {
             fixture.clearPushNotificationToken(event.authId, event.deviceUuid, event.signedOutAt)
         }
+    }
+
+    @Test
+    fun `should mark the Telegram message confirmed when the user confirms the action`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val event = AuthEvent.TelegramActionConfirmed(userId = Uuid.random(), challengeId = "0123456789abcdef")
+        coEvery { fixture.telegramConfirmationChat.markConfirmed(event.userId, event.challengeId) } returns
+            Result.success(Unit)
+        fixture.start(this)
+
+        whenn()
+        fixture.dispatch(AuthEvent.TelegramActionConfirmed.TOPIC, event)
+
+        then()
+        coVerify(exactly = 1) { fixture.telegramConfirmationChat.markConfirmed(event.userId, event.challengeId) }
     }
 }

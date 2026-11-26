@@ -14,12 +14,14 @@ import com.bookk.auth.domain.datasource.TelegramIdentityDataSource
 import com.bookk.auth.domain.impl.operation.actionconfirmation.ActionConfirmationTokenIssuer
 import com.bookk.auth.domain.impl.telegram.Ed25519TelegramInitDataVerifier
 import com.bookk.auth.domain.impl.telegram.TelegramInitDataSigner
+import com.bookk.core.data.eventstreaming.StandardEventProducer
 import com.bookk.core.domain.datasource.transaction.mockedTransactionManager
 import com.bookk.core.domain.entity.runSuspendCatching
 import com.bookk.core.test.given
 import com.bookk.core.test.runUnitTest
 import com.bookk.core.test.then
 import com.bookk.core.test.whenn
+import com.bookk.server.auth.client.AuthEvent
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -47,6 +49,9 @@ internal class ConfirmActionWithTelegramImplTest {
         val confirmationDataSource = mockk<TelegramConfirmationDataSource>()
         val tokens = ActionConfirmationTestTokens()
         val tokenIssuer = mockk<TokenIssuer>()
+        val transactionManager = mockedTransactionManager()
+        val eventProducer = mockk<StandardEventProducer>()
+        val publishedInTransaction = mutableListOf<Boolean>()
         private val clock = object : Clock {
             override fun now(): Instant {
                 return this@SutFixture.now
@@ -57,10 +62,14 @@ internal class ConfirmActionWithTelegramImplTest {
             confirmationDataSource,
             telegramIdentityDataSource,
             ActionConfirmationTokenIssuer(tokenIssuer),
-            mockedTransactionManager(),
+            eventProducer,
+            transactionManager,
         )
 
         init {
+            coEvery { eventProducer.send(any<AuthEvent.TelegramActionConfirmed>(), any()) } coAnswers {
+                publishedInTransaction += transactionManager.isInTransaction()
+            }
             coEvery { tokenIssuer.issue(any(), any()) } coAnswers {
                 val claims = secondArg<JWTCreator.Builder.() -> JWTCreator.Builder>()
                 val expiresAt = Clock.System.now() + ActionConfirmationTokenIssuer.ACTION_CONFIRMATION_TTL
@@ -377,6 +386,59 @@ internal class ConfirmActionWithTelegramImplTest {
         }
         coVerify(exactly = 0) { fixture.tokenIssuer.issue(any(), any()) }
         coVerify(exactly = 0) { fixture.confirmationDataSource.takeChallenge(any()) }
+    }
+
+    @Test
+    fun `should publish the confirmed challenge so notifications can mark the Telegram message`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.challengeStored(fixture.ownChallenge())
+        fixture.telegramAccountOf(fixture.userId)
+
+        whenn()
+        val result = fixture.sut(fixture.userId, fixture.launch("op_delete-account_$CHALLENGE"))
+
+        then()
+        assertTrue(result.isSuccess)
+        coVerify(exactly = 1) {
+            fixture.eventProducer.send(
+                match<AuthEvent.TelegramActionConfirmed> { it.userId == fixture.userId && it.challengeId == CHALLENGE },
+                any(),
+            )
+        }
+        assertEquals(listOf(true), fixture.publishedInTransaction)
+    }
+
+    @Test
+    fun `should still return the token when the confirmation can't be published`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.challengeStored(fixture.ownChallenge())
+        fixture.telegramAccountOf(fixture.userId)
+        coEvery { fixture.eventProducer.send(any<AuthEvent.TelegramActionConfirmed>(), any()) } throws
+            IllegalStateException("outbox down")
+
+        whenn()
+        val result = fixture.sut(fixture.userId, fixture.launch("op_delete-account_$CHALLENGE"))
+
+        then()
+        val token = result.getOrThrow().token
+        assertEquals("done", fixture.spend(token, ActionConfirmationGrant.accountDeletion(fixture.userId)).getOrThrow())
+    }
+
+    @Test
+    fun `should publish nothing when the confirmation is refused`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.challengeStored(fixture.ownChallenge())
+        fixture.telegramAccountOf(Uuid.random())
+
+        whenn()
+        val result = fixture.sut(fixture.userId, fixture.launch("op_delete-account_$CHALLENGE"))
+
+        then()
+        assertTrue(result.isFailure)
+        coVerify(exactly = 0) { fixture.eventProducer.send(any<AuthEvent.TelegramActionConfirmed>(), any()) }
     }
 
     private companion object {

@@ -43,5 +43,11 @@ flowchart TD
     Account -- Yes --> Take{"takeChallenge - setIfAbsent marker, single use"}
     Take -- another request took it first --> R422c
     Take -- taken --> Issue["ActionConfirmationTokenIssuer.issue 2 minutes - claims from the taken challenge"]
-    Issue --> R200([200 ActionConfirmationToken])
+    Issue --> Publish["transaction - outbox: AuthEvent.TelegramActionConfirmed userId challengeId"]
+    Publish -- committed or failed, failure only logged --> R200([200 ActionConfirmationToken])
 ```
+
+**Consumed by:** `AuthEvent.TelegramActionConfirmed` → [notifications: mark the
+bot's message confirmed](../notifications/on-telegram-action-confirmed.md). The
+event only changes the chat message, so a failure to store it is logged and the
+token is still returned.

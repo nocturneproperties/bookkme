@@ -92,6 +92,7 @@ internal class StartTelegramActionConfirmationImplTest {
                 action = TelegramConfirmedAction.DELETE_ACCOUNT,
                 startParameter = "op_delete-account_$challengeId",
                 language = Language.UK,
+                challengeId = challengeId,
             ),
             fixture.sentMessage.captured,
         )
@@ -308,19 +309,20 @@ internal class StartTelegramActionConfirmationImplTest {
     }
 
     @Test
-    fun `should give back the cooldown and the challenge when notifications can't be reached`() = runUnitTest {
-        given()
-        val fixture = SutFixture()
-        fixture.linkedToTelegram()
-        coEvery { fixture.sendTelegramActionConfirmation(fixture.userId, any()) } returns
-            Result.failure(IOException("connection refused"))
+    fun `should answer unavailable and give back the cooldown and the challenge when notifications can't be reached`() =
+        runUnitTest {
+            given()
+            val fixture = SutFixture()
+            fixture.linkedToTelegram()
+            coEvery { fixture.sendTelegramActionConfirmation(fixture.userId, any()) } returns
+                Result.failure(IOException("connection refused"))
 
-        whenn()
-        val result = fixture.sut(fixture.userId, fixture.ownRequest(), Language.EN)
+            whenn()
+            val result = fixture.sut(fixture.userId, fixture.ownRequest(), Language.EN)
 
-        then()
-        assertTrue(result.exceptionOrNull() is IOException) { result.toString() }
-        coVerify(exactly = 1) { fixture.confirmationDataSource.releaseStartCooldown(fixture.userId) }
-        coVerify(exactly = 1) { fixture.confirmationDataSource.deleteChallenge(fixture.savedChallengeId.captured) }
-    }
+            then()
+            assertTrue(result.exceptionOrNull() is TelegramConfirmationUnavailable) { result.toString() }
+            coVerify(exactly = 1) { fixture.confirmationDataSource.releaseStartCooldown(fixture.userId) }
+            coVerify(exactly = 1) { fixture.confirmationDataSource.deleteChallenge(fixture.savedChallengeId.captured) }
+        }
 }

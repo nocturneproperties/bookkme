@@ -19,6 +19,8 @@ import com.bookk.notifications.client.api.telegram.SendTelegramActionConfirmatio
 import com.bookk.notifications.client.api.telegram.TelegramActionConfirmationDelivery.Outcome
 import com.bookk.notifications.client.api.telegram.TelegramActionConfirmationMessage
 import com.bookk.notifications.client.api.telegram.TelegramConfirmedAction
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 import kotlin.uuid.Uuid
 
 internal class StartTelegramActionConfirmationImpl(
@@ -67,8 +69,13 @@ internal class StartTelegramActionConfirmationImpl(
             action = action.toTelegramConfirmedAction(),
             startParameter = TelegramLaunchParameter.confirmation(action, challengeId),
             language = language,
+            challengeId = challengeId,
         )
-        when (sendTelegramActionConfirmation(userId, message).getOrThrow().outcome) {
+        val delivery = sendTelegramActionConfirmation(userId, message).getOrElse {
+            logger.warn("Failed to reach notifications for the Telegram action confirmation of user {}", userId, it)
+            throw TelegramConfirmationUnavailable()
+        }
+        when (delivery.outcome) {
             Outcome.SENT -> Unit
             Outcome.CHAT_UNREACHABLE -> throw Error.TelegramChatUnreachable()
             Outcome.NO_CHAT, Outcome.UNAVAILABLE, Outcome.FAILED -> throw TelegramConfirmationUnavailable()
@@ -89,5 +96,9 @@ internal class StartTelegramActionConfirmationImpl(
             ConfirmableAction.DELETE_CLIENT, ConfirmableAction.EXPORT_BUSINESS_DATA ->
                 throw Error.ActionNotConfirmableThroughTelegram()
         }
+    }
+
+    private companion object {
+        val logger: Logger = LoggerFactory.getLogger(StartTelegramActionConfirmationImpl::class.java)
     }
 }

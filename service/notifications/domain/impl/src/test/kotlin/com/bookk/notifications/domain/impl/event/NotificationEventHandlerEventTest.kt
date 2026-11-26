@@ -21,6 +21,7 @@ import com.bookk.notifications.domain.impl.ClearPushNotificationToken
 import com.bookk.notifications.domain.impl.UpdateDeviceLanguage
 import com.bookk.notifications.domain.impl.UpdateTargetInformation
 import com.bookk.notifications.domain.impl.notification.SendNotification
+import com.bookk.notifications.domain.impl.telegram.TelegramConfirmationChat
 import com.bookk.server.appointments.client.api.event.AppointmentEvent
 import com.bookk.server.auth.client.AuthEvent
 import com.bookk.server.business.client.api.event.BusinessEvent
@@ -72,6 +73,7 @@ internal class NotificationEventHandlerEventTest {
         val clearPushNotificationToken = mockk<ClearPushNotificationToken>()
         val sendNotification = mockk<SendNotification>()
         val deleteUserNotificationData = mockk<DeleteUserNotificationData>()
+        val telegramConfirmationChat = mockk<TelegramConfirmationChat>()
         val transactionManager = mockedTransactionManager()
         val consumer = KafkaEventConsumer(
             servers = KafkaTestBroker.servers,
@@ -91,6 +93,7 @@ internal class NotificationEventHandlerEventTest {
             clearPushNotificationToken,
             sendNotification,
             deleteUserNotificationData,
+            telegramConfirmationChat,
         )
         private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 

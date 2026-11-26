@@ -7,11 +7,13 @@ import com.bookk.notifications.data.datasource.DeviceDataSourceImpl
 import com.bookk.notifications.data.datasource.NotificationSettingsDataSourceImpl
 import com.bookk.notifications.data.datasource.NotificationTargetDataSourceImpl
 import com.bookk.notifications.data.datasource.TargetCipher
+import com.bookk.notifications.data.datasource.TelegramConfirmationMessageDataSourceImpl
 import com.bookk.notifications.domain.api.NOTIFICATIONS_SCHEMA
 import com.bookk.notifications.domain.api.NOTIFICATIONS_SHORT_RETENTION_SCHEMA
 import com.bookk.notifications.domain.datasource.DeviceDataSource
 import com.bookk.notifications.domain.datasource.NotificationSettingsDataSource
 import com.bookk.notifications.domain.datasource.NotificationTargetDataSource
+import com.bookk.notifications.domain.datasource.TelegramConfirmationMessageDataSource
 import library.encryption.impl.di.subjectKeys
 import library.outbox.di.exhaustedEventDataSource
 import library.outbox.di.personalDataCipher
@@ -32,5 +34,6 @@ fun notificationsDataModule(environment: (String) -> String? = System::getenv) =
         scopedOf(::NotificationSettingsDataSourceImpl) bind NotificationSettingsDataSource::class
         scopedOf(::TargetCipher)
         scopedOf(::NotificationTargetDataSourceImpl) bind NotificationTargetDataSource::class
+        scopedOf(::TelegramConfirmationMessageDataSourceImpl) bind TelegramConfirmationMessageDataSource::class
     }
 }

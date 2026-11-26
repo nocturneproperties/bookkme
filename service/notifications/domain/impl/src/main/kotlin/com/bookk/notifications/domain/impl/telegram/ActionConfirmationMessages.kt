@@ -15,3 +15,7 @@ internal fun actionConfirmationText(action: TelegramConfirmedAction, language: L
 internal fun actionConfirmationButton(language: Language): String {
     return message(language, "telegram.action_confirmation.button")
 }
+
+internal fun actionConfirmedText(language: Language): String {
+    return message(language, "telegram.action_confirmation.confirmed")
+}

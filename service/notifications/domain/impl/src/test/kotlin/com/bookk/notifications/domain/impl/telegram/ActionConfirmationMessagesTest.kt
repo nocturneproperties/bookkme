@@ -16,11 +16,11 @@ internal class ActionConfirmationMessagesTest {
         given()
         val expected = mapOf(
             Language.EN to "You asked to delete your BookkMe account. Tap the button below and confirm in " +
-                "BookkMe within 5 minutes. If this wasn't you, ignore this message.",
+                "the mini app within 5 minutes. If this wasn't you, ignore this message.",
             Language.UK to "Ви попросили видалити свій акаунт BookkMe. Натисніть кнопку нижче й підтвердьте " +
-                "в BookkMe протягом 5 хвилин. Якщо це були не ви, просто проігноруйте це повідомлення.",
+                "в міні-застосунку протягом 5 хвилин. Якщо це були не ви, просто проігноруйте це повідомлення.",
             Language.PL to "Otrzymaliśmy prośbę o usunięcie Twojego konta BookkMe. Naciśnij przycisk poniżej i " +
-                "potwierdź w BookkMe w ciągu 5 minut. Jeśli to nie Ty, zignoruj tę wiadomość.",
+                "potwierdź w miniaplikacji w ciągu 5 minut. Jeśli to nie Ty, zignoruj tę wiadomość.",
         )
 
         whenn()
@@ -37,11 +37,11 @@ internal class ActionConfirmationMessagesTest {
         given()
         val expected = mapOf(
             Language.EN to "You asked for a copy of your BookkMe data. Tap the button below and confirm in " +
-                "BookkMe within 5 minutes. If this wasn't you, ignore this message.",
+                "the mini app within 5 minutes. If this wasn't you, ignore this message.",
             Language.UK to "Ви попросили копію своїх даних у BookkMe. Натисніть кнопку нижче й підтвердьте " +
-                "в BookkMe протягом 5 хвилин. Якщо це були не ви, просто проігноруйте це повідомлення.",
+                "в міні-застосунку протягом 5 хвилин. Якщо це були не ви, просто проігноруйте це повідомлення.",
             Language.PL to "Otrzymaliśmy prośbę o kopię Twoich danych w BookkMe. Naciśnij przycisk poniżej i " +
-                "potwierdź w BookkMe w ciągu 5 minut. Jeśli to nie Ty, zignoruj tę wiadomość.",
+                "potwierdź w miniaplikacji w ciągu 5 minut. Jeśli to nie Ty, zignoruj tę wiadomość.",
         )
 
         whenn()
@@ -57,9 +57,9 @@ internal class ActionConfirmationMessagesTest {
     fun `should label the button in every language`() = runUnitTest {
         given()
         val expected = mapOf(
-            Language.EN to "Confirm in BookkMe",
-            Language.UK to "Підтвердити в BookkMe",
-            Language.PL to "Potwierdź w BookkMe",
+            Language.EN to "Confirm in the mini app",
+            Language.UK to "Підтвердити в міні-застосунку",
+            Language.PL to "Potwierdź w miniaplikacji",
         )
 
         whenn()
@@ -68,4 +68,21 @@ internal class ActionConfirmationMessagesTest {
         then()
         assertEquals(expected, labels)
     }
+
+    @Test
+    fun `should say the confirmation was used and the request continues in the app in every language`() =
+        runUnitTest {
+            given()
+            val expected = mapOf(
+                Language.EN to "Confirmed. Finish your request in the mini app.",
+                Language.UK to "Підтверджено. Завершіть запит у міні-застосунку.",
+                Language.PL to "Potwierdzono. Dokończ prośbę w miniaplikacji.",
+            )
+
+            whenn()
+            val texts = Language.entries.associateWith { actionConfirmedText(it) }
+
+            then()
+            assertEquals(expected, texts)
+        }
 }

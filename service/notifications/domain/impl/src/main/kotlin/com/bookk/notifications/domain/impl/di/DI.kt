@@ -31,7 +31,7 @@ import com.bookk.notifications.domain.impl.channel.telegram.telegramMessenger
 import com.bookk.notifications.domain.impl.channel.telegram.telegramMiniAppLink
 import com.bookk.notifications.domain.impl.event.NotificationEventHandler
 import com.bookk.notifications.domain.impl.notification.SendNotification
-import com.bookk.notifications.domain.impl.telegram.SendTelegramActionConfirmationImpl
+import com.bookk.notifications.domain.impl.telegram.TelegramConfirmationChat
 import com.google.firebase.messaging.FirebaseMessaging
 import io.ktor.client.engine.cio.CIO
 import org.koin.core.module.Module
@@ -77,8 +77,7 @@ private fun notificationsDomainModule(
         }
         scoped { FirebaseMessaging.getInstance() }
         scoped<TelegramMessenger> { telegramMessenger(environment, CIO.create()) }
-        scoped<SendTelegramActionConfirmation> {
-            SendTelegramActionConfirmationImpl(get(), get(), get(), miniAppLink)
-        }
+        scoped { TelegramConfirmationChat(get(), get(), get(), get(), miniAppLink) } bind
+            SendTelegramActionConfirmation::class
     }
 }

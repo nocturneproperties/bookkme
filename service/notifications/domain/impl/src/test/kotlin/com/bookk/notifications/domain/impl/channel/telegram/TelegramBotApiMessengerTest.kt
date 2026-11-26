@@ -66,7 +66,7 @@ internal class TelegramBotApiMessengerTest {
         val delivery = fixture.sut.send(123456789, "Your appointment is confirmed")
 
         then()
-        assertEquals(TelegramDelivery.SENT, delivery)
+        assertEquals(TelegramDelivery.Sent(messageId = 1), delivery)
         val request = fixture.requests.single()
         assertEquals(HttpMethod.Post, request.method)
         assertEquals("https://api.telegram.org/bot$BOT_TOKEN/sendMessage", request.url.toString())
@@ -91,16 +91,16 @@ internal class TelegramBotApiMessengerTest {
     fun `should attach a URL button below the text as a one-button inline keyboard`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        val button = TelegramUrlButton(text = "Confirm in BookkMe", url = "https://t.me/bookkme_bot?startapp=op_x")
+        val button = TelegramUrlButton(text = "Confirm in the mini app", url = "https://t.me/bookkme_bot?startapp=op_x")
 
         whenn()
         val delivery = fixture.sut.send(123456789, "Confirm the action", button)
 
         then()
-        assertEquals(TelegramDelivery.SENT, delivery)
+        assertEquals(TelegramDelivery.Sent(messageId = 1), delivery)
         val keyboard = fixture.sentJson()["reply_markup"]?.jsonObject?.get("inline_keyboard")?.jsonArray
         val sentButton = keyboard?.single()?.jsonArray?.single()?.jsonObject
-        assertEquals("Confirm in BookkMe", sentButton?.get("text")?.jsonPrimitive?.content)
+        assertEquals("Confirm in the mini app", sentButton?.get("text")?.jsonPrimitive?.content)
         assertEquals("https://t.me/bookkme_bot?startapp=op_x", sentButton?.get("url")?.jsonPrimitive?.content)
     }
 
@@ -137,7 +137,7 @@ internal class TelegramBotApiMessengerTest {
         val delivery = fixture.sut.send(123456789, "Text")
 
         then()
-        assertEquals(TelegramDelivery.CHAT_UNREACHABLE, delivery)
+        assertEquals(TelegramDelivery.ChatUnreachable, delivery)
         assertEquals(1, fixture.requests.size)
     }
 
@@ -165,7 +165,7 @@ internal class TelegramBotApiMessengerTest {
         val delivery = fixture.sut.send(123456789, "Text")
 
         then()
-        assertEquals(TelegramDelivery.SENT, delivery)
+        assertEquals(TelegramDelivery.Sent(messageId = 1), delivery)
         assertEquals(2, fixture.requests.size)
         assertEquals(1, fixture.retryDelays.size)
     }
@@ -179,7 +179,7 @@ internal class TelegramBotApiMessengerTest {
         val delivery = fixture.sut.send(123456789, "Text")
 
         then()
-        assertEquals(TelegramDelivery.SENT, delivery)
+        assertEquals(TelegramDelivery.Sent(messageId = 1), delivery)
         assertEquals(2, fixture.requests.size)
     }
 
@@ -209,6 +209,80 @@ internal class TelegramBotApiMessengerTest {
         val messages = generateSequence(failure) { it.cause }.mapNotNull { it.message }.toList()
         assertTrue(messages.isNotEmpty())
         assertTrue(messages.none { it.contains(BOT_TOKEN) }) { messages.toString() }
+    }
+
+    @Test
+    fun `should return the id Telegram gave the sent message`() = runUnitTest {
+        given()
+        val fixture = SutFixture(responses = listOf(HttpStatusCode.OK to """{"ok":true,"result":{"message_id":77}}"""))
+
+        whenn()
+        val delivery = fixture.sut.send(123456789, "Text")
+
+        then()
+        assertEquals(TelegramDelivery.Sent(messageId = 77), delivery)
+    }
+
+    @Test
+    fun `should replace the text and remove the buttons through editMessageText`() = runUnitTest {
+        given()
+        val fixture = SutFixture(responses = listOf(HttpStatusCode.OK to """{"ok":true,"result":{"message_id":77}}"""))
+
+        whenn()
+        val edited = fixture.sut.edit(123456789, 77, "Confirmed")
+
+        then()
+        assertTrue(edited)
+        val request = fixture.requests.single()
+        assertEquals("https://api.telegram.org/bot$BOT_TOKEN/editMessageText", request.url.toString())
+        assertEquals(123456789, fixture.sentJson()["chat_id"]?.jsonPrimitive?.long)
+        assertEquals(77, fixture.sentJson()["message_id"]?.jsonPrimitive?.long)
+        assertEquals("Confirmed", fixture.sentJson()["text"]?.jsonPrimitive?.content)
+        val keyboard = fixture.sentJson()["reply_markup"]?.jsonObject?.get("inline_keyboard")?.jsonArray
+        assertEquals(0, keyboard?.size)
+    }
+
+    @Test
+    fun `should delete the message through deleteMessage`() = runUnitTest {
+        given()
+        val fixture = SutFixture(responses = listOf(HttpStatusCode.OK to """{"ok":true,"result":true}"""))
+
+        whenn()
+        val deleted = fixture.sut.delete(123456789, 77)
+
+        then()
+        assertTrue(deleted)
+        val request = fixture.requests.single()
+        assertEquals("https://api.telegram.org/bot$BOT_TOKEN/deleteMessage", request.url.toString())
+        assertEquals(123456789, fixture.sentJson()["chat_id"]?.jsonPrimitive?.long)
+        assertEquals(77, fixture.sentJson()["message_id"]?.jsonPrimitive?.long)
+    }
+
+    @Test
+    fun `should report false when the message to edit or delete is gone or the chat is blocked`() = runUnitTest {
+        given()
+        val fixture = SutFixture(responses = listOf(BAD_REQUEST, FORBIDDEN))
+
+        whenn()
+        val edited = fixture.sut.edit(123456789, 77, "Confirmed")
+        val deleted = fixture.sut.delete(123456789, 77)
+
+        then()
+        assertFalse(edited)
+        assertFalse(deleted)
+    }
+
+    @Test
+    fun `should fail an edit when the Bot API keeps failing`() = runUnitTest {
+        given()
+        val fixture = SutFixture(responses = listOf(BAD_GATEWAY, BAD_GATEWAY, BAD_GATEWAY))
+
+        whenn()
+        val result = runSuspendCatching { fixture.sut.edit(123456789, 77, "Confirmed") }
+
+        then()
+        assertTrue(result.isFailure)
+        assertFalse(result.exceptionOrNull()?.message.orEmpty().contains(BOT_TOKEN))
     }
 
     private companion object {

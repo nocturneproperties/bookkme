@@ -10,7 +10,15 @@ internal class DroppingTelegramMessenger : TelegramMessenger {
     }
 
     override suspend fun send(chatId: Long, text: String, button: TelegramUrlButton?): TelegramDelivery {
-        return TelegramDelivery.DROPPED
+        return TelegramDelivery.Dropped
+    }
+
+    override suspend fun edit(chatId: Long, messageId: Long, text: String): Boolean {
+        return false
+    }
+
+    override suspend fun delete(chatId: Long, messageId: Long): Boolean {
+        return false
     }
 
     private companion object {
