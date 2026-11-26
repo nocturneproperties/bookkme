@@ -4,6 +4,17 @@
 
 `BookingQuoteVerifier` validates the offer with `ValidationType.SERVICE_QUOTE`, fetching the business signing key by the token's `kid` from `/jwks.json`. In the monolith this endpoint publishes auth and business verification keys together, including retiring keys; standalone business publishes its own keys.
 
+A [demo account](../authorization/demo-start.md) (the access token's `demo`
+claim) can only request at a business it belongs to, its own sample business
+or one it joined, which appointments knows from its permission grants
+(`appointment_permission_grants`). Anywhere else the request is refused with
+`APPOINTMENTS_DEMO_RESTRICTED` before the offer is used, since a demo takes one
+anonymous tap to create and would otherwise let anyone flood real businesses
+with requests from throwaway clients. Real clients may still book into a demo
+business through its link. Staff bookings (`POST /api/appointments`,
+`POST /api/appointments/instant`) already require a grant, so a demo account
+can only make them at a business it belongs to.
+
 A client submits an `AppointmentRequestDraft` carrying the signed
 `offerToken` produced earlier by the business service's
 `POST /api/service/quote` (`IssueServiceQuote`, read-only — not diagrammed
@@ -105,7 +116,11 @@ The employee can hold only one appointment at a time. `EmployeeBookings.requireF
 flowchart TD
     Start([POST /api/appointments/request]) --> Auth{JWT valid?}
     Auth -- No --> R401([401 Unauthorized])
-    Auth -- Yes --> Reserve{requestDataSource.reserveOfferToken offerToken - atomic SET NX EX 10m}
+    Auth -- Yes --> Demo{AppPrincipal.isDemo?}
+    Demo -- Yes --> Member[[Transaction]] --> IsMember{AppointmentPermissionDataSource.isMember userId businessId - any grant row, suspended included}
+    IsMember -- No --> R422demo([422 APPOINTMENTS_DEMO_RESTRICTED 300035 - offer token untouched])
+    IsMember -- Yes --> Reserve
+    Demo -- No --> Reserve{requestDataSource.reserveOfferToken offerToken - atomic SET NX EX 10m}
     Reserve -- already reserved --> R422a([422 TOKEN_ALREADY_USED 300016 - reservation left untouched])
     Reserve -- reserved --> CountCheck{every RequestedService.count > 0?}
     CountCheck -- No --> R422i([422 SERVICES_VALIDATION_FAILED 300014])

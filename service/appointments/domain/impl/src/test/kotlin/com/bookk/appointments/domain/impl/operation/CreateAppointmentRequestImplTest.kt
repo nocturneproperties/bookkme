@@ -15,6 +15,7 @@ import com.bookk.appointments.domain.api.entity.RequestedService
 import com.bookk.appointments.domain.api.operation.CreateAppointment
 import com.bookk.appointments.domain.api.operation.CreateAppointmentRequest
 import com.bookk.appointments.domain.datasource.AppointmentDataSource
+import com.bookk.appointments.domain.datasource.AppointmentPermissionDataSource
 import com.bookk.appointments.domain.datasource.AppointmentRequestDataSource
 import com.bookk.appointments.domain.datasource.AppointmentSettingsDataSource
 import com.bookk.appointments.domain.datasource.AppointmentSubscriptionDataSource
@@ -100,6 +101,7 @@ internal class CreateAppointmentRequestImplTest {
                     false
             }
 
+        val appointmentPermissionDataSource = mockk<AppointmentPermissionDataSource>()
         val sut = CreateAppointmentRequestImpl(
             requestDataSource,
             appointmentDataSource,
@@ -112,6 +114,7 @@ internal class CreateAppointmentRequestImplTest {
             businessClient,
             deletedUserDataSource,
             deletedClientDataSource,
+            appointmentPermissionDataSource,
         )
 
         fun mockValidToken(draft: AppointmentRequestDraft, totalAmount: String, totalDuration: String) {
@@ -213,7 +216,7 @@ internal class CreateAppointmentRequestImplTest {
         }
 
         whenn()
-        val result = fixture.sut.invoke(userId, draft)
+        val result = fixture.sut.invoke(userId, draft, isDemo = false)
 
         then()
         assertTrue(result.isSuccess)
@@ -231,6 +234,78 @@ internal class CreateAppointmentRequestImplTest {
         assertEquals(context.services.map { it.id }, created.services.map { it.id })
         assertEquals(draft.date, created.date)
         assertEquals(draft.note, created.note)
+    }
+
+    @Test
+    fun `should refuse a demo account at a business it does not belong to before using the offer`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val businessId = Uuid.random()
+        val context = bookingContext(businessId, Uuid.random(), Uuid.random(), Uuid.random())
+        val draft = draftFor(context, businessId, futureDate)
+        with(fixture) {
+            coEvery { appointmentPermissionDataSource.isMember(userId, businessId) } returns false
+            transactionManager.mockTransaction()
+        }
+
+        whenn()
+        val result = fixture.sut.invoke(userId, draft, isDemo = true)
+
+        then()
+        assertTrue(result.exceptionOrNull() is CreateAppointmentRequest.Error.DemoRestricted) { result.toString() }
+        coVerify(exactly = 0) { fixture.requestDataSource.reserveOfferToken(any()) }
+        coVerify(exactly = 0) { fixture.businessClient.getAppointmentBookingContext(any(), any(), any(), any()) }
+    }
+
+    @Test
+    fun `should let a demo account book at a business it belongs to`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val businessId = Uuid.random()
+        val context = bookingContext(businessId, Uuid.random(), Uuid.random(), Uuid.random())
+        val draft = draftFor(context, businessId, futureDate)
+        val settings = mockk<AppointmentSettings> { every { inBetweenBreakInMinutes } returns 0 }
+
+        with(fixture) {
+            coEvery { appointmentPermissionDataSource.isMember(userId, businessId) } returns true
+            coEvery {
+                businessClient.getAppointmentBookingContext(businessId, draft.employeeId, userId, distinctIds(draft))
+            } returns Result.success(context)
+            coEvery { settingsDataSource.getForUpdate(businessId) } returns settings
+            coEvery { settings.automaticApproval } returns false
+            every { settings.maxPendingRequestsPerClient } returns 10
+            every { settings.requireBookable(any(), any(), any()) } just Runs
+            coEvery { requestDataSource.create(any()) } answers { firstArg() }
+            coEvery { subscriptionDataSource.getBusinessSnapshot(any()) } returns BusinessSnapshot.stub()
+            coEvery { eventProducer.send(any(), any()) } returns Unit
+            mockValidToken(draft, totalOf(expand(context, draft)), durationOf(expand(context, draft)))
+            transactionManager.mockTransaction()
+        }
+
+        whenn()
+        val result = fixture.sut.invoke(userId, draft, isDemo = true)
+
+        then()
+        assertTrue(result.isSuccess) { result.toString() }
+        coVerify(exactly = 1) { fixture.requestDataSource.create(any()) }
+    }
+
+    @Test
+    fun `should not look up membership for an account that is not a demo`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val businessId = Uuid.random()
+        val context = bookingContext(businessId, Uuid.random(), Uuid.random(), Uuid.random())
+        val draft = draftFor(context, businessId, futureDate)
+        coEvery { fixture.requestDataSource.reserveOfferToken(any()) } returns false
+
+        whenn()
+        fixture.sut.invoke(Uuid.random(), draft, isDemo = false)
+
+        then()
+        coVerify(exactly = 0) { fixture.appointmentPermissionDataSource.isMember(any(), any()) }
     }
 
     @Test
@@ -262,7 +337,7 @@ internal class CreateAppointmentRequestImplTest {
         }
 
         whenn()
-        val result = fixture.sut.invoke(userId, draft)
+        val result = fixture.sut.invoke(userId, draft, isDemo = false)
 
         then()
         assertTrue(result.isSuccess)
@@ -286,7 +361,7 @@ internal class CreateAppointmentRequestImplTest {
         coEvery { fixture.requestDataSource.releaseOfferToken("token") } returns Unit
 
         whenn()
-        val result = fixture.sut.invoke(userId, draft)
+        val result = fixture.sut.invoke(userId, draft, isDemo = false)
 
         then()
         assertTrue(result.isFailure)
@@ -310,7 +385,7 @@ internal class CreateAppointmentRequestImplTest {
         coEvery { fixture.requestDataSource.releaseOfferToken("token") } returns Unit
 
         whenn()
-        val result = fixture.sut.invoke(userId, draft)
+        val result = fixture.sut.invoke(userId, draft, isDemo = false)
 
         then()
         assertTrue(result.isFailure)
@@ -341,7 +416,7 @@ internal class CreateAppointmentRequestImplTest {
         }
 
         whenn()
-        val result = fixture.sut.invoke(userId, draft)
+        val result = fixture.sut.invoke(userId, draft, isDemo = false)
 
         then()
         assertTrue(result.isSuccess)
@@ -373,7 +448,7 @@ internal class CreateAppointmentRequestImplTest {
         }
 
         whenn()
-        val result = fixture.sut.invoke(userId, draft)
+        val result = fixture.sut.invoke(userId, draft, isDemo = false)
 
         then()
         assertTrue(result.isFailure)
@@ -403,7 +478,7 @@ internal class CreateAppointmentRequestImplTest {
         }
 
         whenn()
-        val result = fixture.sut.invoke(userId, draft)
+        val result = fixture.sut.invoke(userId, draft, isDemo = false)
 
         then()
         assertTrue(result.isFailure)
@@ -432,7 +507,7 @@ internal class CreateAppointmentRequestImplTest {
             transactionManager.mockTransaction()
         }
         whenn()
-        val result = fixture.sut.invoke(userId, draft)
+        val result = fixture.sut.invoke(userId, draft, isDemo = false)
 
         then()
         assertTrue(result.isFailure)
@@ -462,7 +537,7 @@ internal class CreateAppointmentRequestImplTest {
         }
 
         whenn()
-        val result = fixture.sut.invoke(userId, draft)
+        val result = fixture.sut.invoke(userId, draft, isDemo = false)
 
         then()
         assertTrue(result.isFailure)
@@ -495,7 +570,7 @@ internal class CreateAppointmentRequestImplTest {
             transactionManager.mockTransaction()
         }
         whenn()
-        val result = fixture.sut.invoke(userId, draft)
+        val result = fixture.sut.invoke(userId, draft, isDemo = false)
 
         then()
         assertTrue(result.isFailure)
@@ -533,7 +608,7 @@ internal class CreateAppointmentRequestImplTest {
             }
 
             whenn()
-            val result = fixture.sut.invoke(userId, draft)
+            val result = fixture.sut.invoke(userId, draft, isDemo = false)
 
             then()
             assertTrue(result.exceptionOrNull() is CreateAppointmentRequest.Error.PendingRequestsLimitReached)
@@ -563,7 +638,7 @@ internal class CreateAppointmentRequestImplTest {
         }
 
         whenn()
-        val result = fixture.sut.invoke(userId, draft)
+        val result = fixture.sut.invoke(userId, draft, isDemo = false)
 
         then()
         assertTrue(result.exceptionOrNull() is CreateAppointmentRequest.Error.DateInThePastNotAllowed)
@@ -602,7 +677,7 @@ internal class CreateAppointmentRequestImplTest {
             }
 
             whenn()
-            val result = fixture.sut.invoke(userId, draft)
+            val result = fixture.sut.invoke(userId, draft, isDemo = false)
 
             then()
             assertTrue(result.isSuccess)
@@ -638,7 +713,7 @@ internal class CreateAppointmentRequestImplTest {
         }
 
         whenn()
-        val result = fixture.sut.invoke(userId, draft)
+        val result = fixture.sut.invoke(userId, draft, isDemo = false)
 
         then()
         assertTrue(result.isSuccess)
@@ -671,7 +746,7 @@ internal class CreateAppointmentRequestImplTest {
             transactionManager.mockTransaction()
         }
         whenn()
-        val result = fixture.sut.invoke(userId, draft)
+        val result = fixture.sut.invoke(userId, draft, isDemo = false)
 
         then()
         assertTrue(result.isSuccess)
@@ -696,7 +771,7 @@ internal class CreateAppointmentRequestImplTest {
         }
 
         whenn()
-        val result = fixture.sut.invoke(userId, draft)
+        val result = fixture.sut.invoke(userId, draft, isDemo = false)
 
         then()
         assertTrue(result.isFailure)
@@ -721,7 +796,7 @@ internal class CreateAppointmentRequestImplTest {
         }
 
         whenn()
-        val result = fixture.sut.invoke(userId, draft)
+        val result = fixture.sut.invoke(userId, draft, isDemo = false)
 
         then()
         assertTrue(result.isFailure)
@@ -762,7 +837,7 @@ internal class CreateAppointmentRequestImplTest {
         }
 
         whenn()
-        val result = fixture.sut.invoke(userId, draft)
+        val result = fixture.sut.invoke(userId, draft, isDemo = false)
 
         then()
         assertTrue(result.isFailure)
@@ -805,7 +880,7 @@ internal class CreateAppointmentRequestImplTest {
         }
 
         whenn()
-        val result = fixture.sut.invoke(userId, draft)
+        val result = fixture.sut.invoke(userId, draft, isDemo = false)
 
         then()
         assertTrue(result.isFailure)
@@ -825,7 +900,7 @@ internal class CreateAppointmentRequestImplTest {
         }
 
         whenn()
-        val result = fixture.sut.invoke(userId, draft)
+        val result = fixture.sut.invoke(userId, draft, isDemo = false)
 
         then()
         assertTrue(result.isFailure)
@@ -861,7 +936,7 @@ internal class CreateAppointmentRequestImplTest {
         }
 
         whenn()
-        val result = fixture.sut.invoke(userId, draft)
+        val result = fixture.sut.invoke(userId, draft, isDemo = false)
 
         then()
         assertTrue(result.isSuccess)
@@ -898,7 +973,7 @@ internal class CreateAppointmentRequestImplTest {
         }
 
         whenn()
-        val result = fixture.sut.invoke(userId, draft)
+        val result = fixture.sut.invoke(userId, draft, isDemo = false)
 
         then()
         assertTrue(result.isSuccess)
@@ -935,7 +1010,7 @@ internal class CreateAppointmentRequestImplTest {
         }
 
         whenn()
-        val result = fixture.sut.invoke(userId, draft)
+        val result = fixture.sut.invoke(userId, draft, isDemo = false)
 
         then()
         assertTrue(result.isSuccess)
@@ -972,7 +1047,7 @@ internal class CreateAppointmentRequestImplTest {
         }
 
         whenn()
-        val result = fixture.sut.invoke(userId, draft)
+        val result = fixture.sut.invoke(userId, draft, isDemo = false)
 
         then()
         assertTrue(result.isSuccess)
@@ -1009,7 +1084,7 @@ internal class CreateAppointmentRequestImplTest {
         }
 
         whenn()
-        val result = fixture.sut.invoke(userId, draft)
+        val result = fixture.sut.invoke(userId, draft, isDemo = false)
 
         then()
         assertTrue(result.isSuccess)
@@ -1050,7 +1125,7 @@ internal class CreateAppointmentRequestImplTest {
         }
 
         whenn()
-        val result = fixture.sut.invoke(userId, draft)
+        val result = fixture.sut.invoke(userId, draft, isDemo = false)
 
         then()
         assertTrue(result.exceptionOrNull() is Error.OperationNotAllowed)
@@ -1088,7 +1163,7 @@ internal class CreateAppointmentRequestImplTest {
         }
 
         whenn()
-        val result = fixture.sut.invoke(userId, draft)
+        val result = fixture.sut.invoke(userId, draft, isDemo = false)
 
         then()
         assertTrue(result.isSuccess)
@@ -1115,7 +1190,7 @@ internal class CreateAppointmentRequestImplTest {
         }
 
         whenn()
-        val result = fixture.sut.invoke(userId, draft)
+        val result = fixture.sut.invoke(userId, draft, isDemo = false)
 
         then()
         assertTrue(result.isFailure)
@@ -1140,7 +1215,7 @@ internal class CreateAppointmentRequestImplTest {
         }
 
         whenn()
-        val result = fixture.sut.invoke(userId, draft)
+        val result = fixture.sut.invoke(userId, draft, isDemo = false)
 
         then()
         assertTrue(result.isFailure)
@@ -1159,7 +1234,7 @@ internal class CreateAppointmentRequestImplTest {
         coEvery { fixture.requestDataSource.reserveOfferToken("token") } throws cacheFailure
 
         whenn()
-        val result = fixture.sut.invoke(Uuid.random(), draft)
+        val result = fixture.sut.invoke(Uuid.random(), draft, isDemo = false)
 
         then()
         assertSame(cacheFailure, result.exceptionOrNull())
@@ -1182,7 +1257,7 @@ internal class CreateAppointmentRequestImplTest {
         }
 
         whenn()
-        val result = fixture.sut.invoke(userId, draft)
+        val result = fixture.sut.invoke(userId, draft, isDemo = false)
 
         then()
         assertTrue(result.isFailure)
@@ -1209,7 +1284,7 @@ internal class CreateAppointmentRequestImplTest {
         }
 
         whenn()
-        val result = fixture.sut.invoke(userId, draft)
+        val result = fixture.sut.invoke(userId, draft, isDemo = false)
 
         then()
         assertSame(bookingFailure, result.exceptionOrNull())
@@ -1230,7 +1305,7 @@ internal class CreateAppointmentRequestImplTest {
                 businessClient.getAppointmentBookingContext(businessId, draft.employeeId, userId, distinctIds(draft))
             } coAnswers { awaitCancellation() }
         }
-        val call = launch { fixture.sut.invoke(userId, draft) }
+        val call = launch { fixture.sut.invoke(userId, draft, isDemo = false) }
         runCurrent()
 
         whenn()
@@ -1273,7 +1348,7 @@ internal class CreateAppointmentRequestImplTest {
         }
 
         whenn()
-        val result = fixture.sut.invoke(userId, draft)
+        val result = fixture.sut.invoke(userId, draft, isDemo = false)
 
         then()
         assertTrue(result.exceptionOrNull() is Error.OperationNotAllowed)
@@ -1311,7 +1386,7 @@ internal class CreateAppointmentRequestImplTest {
         }
 
         whenn()
-        val result = fixture.sut.invoke(userId, draft)
+        val result = fixture.sut.invoke(userId, draft, isDemo = false)
 
         then()
         assertTrue(result.isSuccess)
@@ -1349,7 +1424,7 @@ internal class CreateAppointmentRequestImplTest {
             transactionManager.mockTransaction()
         }
         whenn()
-        val result = fixture.sut.invoke(userId, draft)
+        val result = fixture.sut.invoke(userId, draft, isDemo = false)
 
         then()
         assertTrue(result.isSuccess)
@@ -1395,7 +1470,7 @@ internal class CreateAppointmentRequestImplTest {
         }
 
         whenn()
-        val result = fixture.sut.invoke(userId, draft)
+        val result = fixture.sut.invoke(userId, draft, isDemo = false)
 
         then()
         assertTrue(result.exceptionOrNull() is BookingScheduleError.EmployeeTimeNotAllowed)
@@ -1428,7 +1503,7 @@ internal class CreateAppointmentRequestImplTest {
         }
 
         whenn()
-        val result = fixture.sut.invoke(userId, draft)
+        val result = fixture.sut.invoke(userId, draft, isDemo = false)
 
         then()
         assertTrue(result.exceptionOrNull() is BookingScheduleError.EmployeeDateNotAllowed)
@@ -1463,7 +1538,7 @@ internal class CreateAppointmentRequestImplTest {
         }
 
         whenn()
-        val result = fixture.sut.invoke(userId, draft)
+        val result = fixture.sut.invoke(userId, draft, isDemo = false)
 
         then()
         assertTrue(result.isSuccess)
@@ -1494,7 +1569,7 @@ internal class CreateAppointmentRequestImplTest {
         }
 
         whenn()
-        val result = fixture.sut.invoke(userId, draft)
+        val result = fixture.sut.invoke(userId, draft, isDemo = false)
 
         then()
         assertTrue(result.exceptionOrNull() is BookingConflictError.EmployeeBusy)
@@ -1525,7 +1600,7 @@ internal class CreateAppointmentRequestImplTest {
         }
 
         whenn()
-        val result = fixture.sut.invoke(userId, draft)
+        val result = fixture.sut.invoke(userId, draft, isDemo = false)
 
         then()
         assertTrue(result.exceptionOrNull() is BookingConflictError.EmployeeBusy)

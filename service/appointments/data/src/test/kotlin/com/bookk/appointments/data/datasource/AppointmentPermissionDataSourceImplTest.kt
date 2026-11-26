@@ -160,4 +160,44 @@ internal class AppointmentPermissionDataSourceImplTest {
         then()
         assertEquals(ResourcePermission.FULL, stored)
     }
+
+    @Test
+    fun `should count a user with any grant as a member, a suspended one included`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val employee = Uuid.random()
+        val suspended = Uuid.random()
+        suspendTransaction {
+            fixture.sut.setPermission(employee, fixture.businessId, ResourcePermission.NONE, suspended = false)
+            fixture.sut.setPermission(suspended, fixture.businessId, ResourcePermission.FULL, suspended = true)
+        }
+
+        whenn()
+        val members = suspendTransaction {
+            listOf(employee, suspended).map { fixture.sut.isMember(it, fixture.businessId) }
+        }
+
+        then()
+        assertEquals(listOf(true, true), members)
+    }
+
+    @Test
+    fun `should not count a user without a grant at the business as a member`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val elsewhere = Uuid.random()
+        val otherBusiness = BusinessSnapshot.stub()
+        suspendTransaction {
+            fixture.subscriptionSut.attachBusiness(otherBusiness)
+            fixture.sut.setPermission(elsewhere, otherBusiness.id, ResourcePermission.FULL, suspended = false)
+        }
+
+        whenn()
+        val member = suspendTransaction { fixture.sut.isMember(elsewhere, fixture.businessId) }
+
+        then()
+        assertEquals(false, member)
+    }
 }

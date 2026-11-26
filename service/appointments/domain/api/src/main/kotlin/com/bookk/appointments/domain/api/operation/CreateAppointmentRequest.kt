@@ -7,7 +7,7 @@ import io.ktor.http.HttpStatusCode
 import kotlin.uuid.Uuid
 
 interface CreateAppointmentRequest {
-    suspend operator fun invoke(userId: Uuid, draft: AppointmentRequestDraft): Result<Unit>
+    suspend operator fun invoke(userId: Uuid, draft: AppointmentRequestDraft, isDemo: Boolean): Result<Unit>
 
     sealed interface Error {
         class DateInThePastNotAllowed :
@@ -23,6 +23,14 @@ interface CreateAppointmentRequest {
                 statusCode = HttpStatusCode.UnprocessableEntity.value,
                 code = AppointmentErrorCodes.PENDING_REQUESTS_LIMIT_REACHED,
                 message = "You already have the maximum number of pending requests at this business",
+            ),
+            Error
+
+        class DemoRestricted :
+            BusinessError(
+                statusCode = HttpStatusCode.UnprocessableEntity.value,
+                code = AppointmentErrorCodes.APPOINTMENTS_DEMO_RESTRICTED,
+                message = "A demo account can only book at businesses it belongs to, upgrade the account first",
             ),
             Error
     }

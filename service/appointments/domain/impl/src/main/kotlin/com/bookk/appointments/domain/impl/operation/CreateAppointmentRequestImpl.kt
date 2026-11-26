@@ -8,8 +8,10 @@ import com.bookk.appointments.domain.api.entity.BookingQuoteError
 import com.bookk.appointments.domain.api.operation.CreateAppointment
 import com.bookk.appointments.domain.api.operation.CreateAppointmentRequest
 import com.bookk.appointments.domain.api.operation.CreateAppointmentRequest.Error.DateInThePastNotAllowed
+import com.bookk.appointments.domain.api.operation.CreateAppointmentRequest.Error.DemoRestricted
 import com.bookk.appointments.domain.api.operation.CreateAppointmentRequest.Error.PendingRequestsLimitReached
 import com.bookk.appointments.domain.datasource.AppointmentDataSource
+import com.bookk.appointments.domain.datasource.AppointmentPermissionDataSource
 import com.bookk.appointments.domain.datasource.AppointmentRequestDataSource
 import com.bookk.appointments.domain.datasource.AppointmentSettingsDataSource
 import com.bookk.appointments.domain.datasource.AppointmentSubscriptionDataSource
@@ -19,6 +21,7 @@ import com.bookk.business.domain.api.appointment.entity.AppointmentBookingContex
 import com.bookk.core.data.eventstreaming.StandardEventProducer
 import com.bookk.core.data.eventstreaming.send
 import com.bookk.core.domain.datasource.transaction.TransactionManager
+import com.bookk.core.domain.datasource.transaction.transactionOrThrow
 import com.bookk.core.domain.entity.Error
 import com.bookk.core.domain.entity.runCleaningUpOnFailure
 import com.bookk.core.domain.entity.runSuspendCatching
@@ -45,17 +48,30 @@ internal class CreateAppointmentRequestImpl(
     private val businessClient: BusinessClient,
     private val deletedUserDataSource: DeletedUserDataSource,
     private val deletedClientDataSource: DeletedClientDataSource,
+    private val appointmentPermissionDataSource: AppointmentPermissionDataSource,
 ) : CreateAppointmentRequest {
 
     private val quoteVerifier = BookingQuoteVerifier(tokenValidatorFactory)
     private val employeeBookings = EmployeeBookings(appointmentDataSource)
 
-    override suspend fun invoke(userId: Uuid, draft: AppointmentRequestDraft): Result<Unit> = runSuspendCatching {
+    override suspend fun invoke(
+        userId: Uuid,
+        draft: AppointmentRequestDraft,
+        isDemo: Boolean,
+    ): Result<Unit> = runSuspendCatching {
+        if (isDemo) requireMembership(userId, draft.businessId)
         if (!requestDataSource.reserveOfferToken(draft.offerToken)) throw BookingQuoteError.TokenAlreadyUsed()
         runCleaningUpOnFailure(
             action = { book(userId, draft) },
             cleanUp = { releaseOfferTokenBestEffort(draft.offerToken) },
         )
+    }
+
+    private suspend fun requireMembership(userId: Uuid, businessId: Uuid) {
+        val isMember = transactionManager.transactionOrThrow {
+            appointmentPermissionDataSource.isMember(userId, businessId)
+        }
+        if (!isMember) throw DemoRestricted()
     }
 
     private suspend fun book(userId: Uuid, draft: AppointmentRequestDraft) {
