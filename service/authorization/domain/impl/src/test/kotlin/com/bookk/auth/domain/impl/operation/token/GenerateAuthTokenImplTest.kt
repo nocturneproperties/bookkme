@@ -1,10 +1,16 @@
 package com.bookk.auth.domain.impl.operation.token
 
+import com.auth0.jwt.JWT
+import com.auth0.jwt.JWTCreator
+import com.auth0.jwt.algorithms.Algorithm
+import com.auth0.jwt.interfaces.DecodedJWT
 import com.bookk.auth.domain.api.authentication.entity.Authentication
+import com.bookk.auth.domain.api.demo.entity.DemoAccountPolicy
 import com.bookk.auth.domain.api.identification.entity.Device
 import com.bookk.auth.domain.api.identification.entity.DeviceInfo
 import com.bookk.auth.domain.api.token.entity.SafeRefreshToken
 import com.bookk.auth.domain.api.token.entity.UnsafeRefreshToken
+import com.bookk.auth.domain.api.token.operation.GenerateAuthToken.Error.DemoExpired
 import com.bookk.auth.domain.api.token.operation.GenerateAuthToken.Error.InvalidCredentials
 import com.bookk.auth.domain.api.token.operation.GenerateAuthToken.Source
 import com.bookk.auth.domain.datasource.AccountDataSource
@@ -17,6 +23,7 @@ import com.bookk.core.test.given
 import com.bookk.core.test.runUnitTest
 import com.bookk.core.test.then
 import com.bookk.core.test.whenn
+import com.bookk.server.auth.client.AuthClaim
 import com.bookk.server.auth.client.AuthEvent
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import io.mockk.coEvery
@@ -26,10 +33,13 @@ import io.mockk.mockk
 import io.mockk.slot
 import library.signing.TokenIssuer
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import kotlin.time.Clock
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.days
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
@@ -60,8 +70,9 @@ internal class GenerateAuthTokenImplTest {
     private fun device(
         refreshToken: SafeRefreshToken?,
         previousRefreshToken: SafeRefreshToken? = null,
+        demoExpiresAt: Instant? = null,
     ): Device = Device(
-        authRecord = Authentication(id = Uuid.random(), userId = Uuid.random(), uuid = Uuid.random()),
+        authRecord = Authentication.stub(demoExpiresAt = demoExpiresAt),
         deviceInfo = DeviceInfo(
             id = Uuid.random(),
             deviceUUID = Uuid.random(),
@@ -371,5 +382,125 @@ internal class GenerateAuthTokenImplTest {
         coVerify(exactly = 0) { fixture.tokenIssuer.issue(any(), any()) }
         coVerify(exactly = 0) { fixture.deviceDataSource.attachRefreshTokenToDevice(any(), any(), any(), any()) }
         coVerify(exactly = 0) { fixture.accountDataSource.recordActivity(any(), any(), any()) }
+    }
+
+    private fun SutFixture.stubRefreshOf(deviceRecord: Device, refreshToken: UnsafeRefreshToken) {
+        coEvery { deviceDataSource.getDeviceByRefreshTokenIdForUpdate(refreshToken.id) } returns deviceRecord
+        coEvery { deviceDataSource.rotateRefreshToken(any(), any(), any(), any()) } returns Unit
+        transactionManager.mockTransaction()
+    }
+
+    private fun claimsOf(modifier: JWTCreator.Builder.() -> JWTCreator.Builder): DecodedJWT {
+        return JWT.decode(JWT.create().modifier().sign(Algorithm.none()))
+    }
+
+    @Test
+    fun `should refuse to refresh a demo account whose demo has ended`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val refreshToken = OpaqueRefreshToken.generate()
+        val deviceRecord = device(refreshToken.toSafe(), demoExpiresAt = Clock.System.now() - 1.minutes)
+        fixture.stubRefreshOf(deviceRecord, refreshToken)
+
+        whenn()
+        val result = fixture.sut.invoke(Source.RefreshToken(refreshToken.token))
+
+        then()
+        assertTrue(result.exceptionOrNull() is DemoExpired) { result.toString() }
+        coVerify(exactly = 0) { fixture.deviceDataSource.rotateRefreshToken(any(), any(), any(), any()) }
+        coVerify(exactly = 0) { fixture.tokenIssuer.issue(any(), any()) }
+    }
+
+    @Test
+    fun `should not let an access token of a demo account outlive the demo`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val refreshToken = OpaqueRefreshToken.generate()
+        val deviceRecord = device(refreshToken.toSafe(), demoExpiresAt = Clock.System.now() + 2.minutes)
+        val ttl = slot<Duration>()
+        fixture.stubRefreshOf(deviceRecord, refreshToken)
+        coEvery { fixture.tokenIssuer.issue(capture(ttl), any()) } returns "access-token"
+
+        whenn()
+        val result = fixture.sut.invoke(Source.RefreshToken(refreshToken.token))
+
+        then()
+        assertTrue(result.isSuccess)
+        assertTrue(ttl.captured <= 2.minutes) { ttl.captured.toString() }
+    }
+
+    @Test
+    fun `should issue the usual access token lifetime to a demo far from its end`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val refreshToken = OpaqueRefreshToken.generate()
+        val deviceRecord = device(refreshToken.toSafe(), demoExpiresAt = Clock.System.now() + 10.days)
+        val ttl = slot<Duration>()
+        fixture.stubRefreshOf(deviceRecord, refreshToken)
+        coEvery { fixture.tokenIssuer.issue(capture(ttl), any()) } returns "access-token"
+
+        whenn()
+        fixture.sut.invoke(Source.RefreshToken(refreshToken.token))
+
+        then()
+        assertEquals(5.minutes, ttl.captured)
+    }
+
+    @Test
+    fun `should mark the access token of a demo account with the demo claim`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val refreshToken = OpaqueRefreshToken.generate()
+        val deviceRecord = device(refreshToken.toSafe(), demoExpiresAt = Clock.System.now() + 10.days)
+        val modifier = slot<JWTCreator.Builder.() -> JWTCreator.Builder>()
+        fixture.stubRefreshOf(deviceRecord, refreshToken)
+        coEvery { fixture.tokenIssuer.issue(any(), capture(modifier)) } returns "access-token"
+
+        whenn()
+        fixture.sut.invoke(Source.RefreshToken(refreshToken.token))
+
+        then()
+        assertEquals(true, claimsOf(modifier.captured).getClaim(AuthClaim.DEMO.key).asBoolean())
+    }
+
+    @Test
+    fun `should not mark the access token of a regular account as demo`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val refreshToken = OpaqueRefreshToken.generate()
+        val deviceRecord = device(refreshToken.toSafe())
+        val modifier = slot<JWTCreator.Builder.() -> JWTCreator.Builder>()
+        fixture.stubRefreshOf(deviceRecord, refreshToken)
+        coEvery { fixture.tokenIssuer.issue(any(), capture(modifier)) } returns "access-token"
+
+        whenn()
+        fixture.sut.invoke(Source.RefreshToken(refreshToken.token))
+
+        then()
+        assertFalse(claimsOf(modifier.captured).getClaim(AuthClaim.DEMO.key).asBoolean() == true)
+    }
+
+    @Test
+    fun `should keep a demo device's refresh token until the upgrade grace period ends`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val refreshToken = OpaqueRefreshToken.generate()
+        val demoExpiresAt = Clock.System.now() + 10.days
+        val deviceRecord = device(refreshToken.toSafe(), demoExpiresAt = demoExpiresAt)
+        fixture.stubRefreshOf(deviceRecord, refreshToken)
+        coEvery { fixture.tokenIssuer.issue(any(), any()) } returns "access-token"
+
+        whenn()
+        fixture.sut.invoke(Source.RefreshToken(refreshToken.token))
+
+        then()
+        coVerify(exactly = 1) {
+            fixture.deviceDataSource.rotateRefreshToken(
+                deviceRecord.deviceInfo.id,
+                any(),
+                any(),
+                demoExpiresAt + DemoAccountPolicy.UPGRADE_GRACE_PERIOD,
+            )
+        }
     }
 }

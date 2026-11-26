@@ -29,4 +29,7 @@ object AuthErrorCodes {
     const val ACTION_NOT_CONFIRMABLE_THROUGH_TELEGRAM = BASE + 24
     const val TELEGRAM_CONFIRMATION_UNAVAILABLE = BASE + 25
     const val PASSKEY_UNKNOWN = BASE + 26
+    const val DEMO_EXPIRED = BASE + 27
+    const val DEMO_UNAVAILABLE = BASE + 28
+    const val NOT_A_DEMO_ACCOUNT = BASE + 29
 }

@@ -13,15 +13,24 @@ flowchart TD
     HeaderCheck -- No --> R401a([401 Unauthorized])
     HeaderCheck -- Yes --> Lock[DeviceDataSource.getDeviceByRefreshTokenIdForUpdate - locks the device row first]
     Lock --> Gen[GenerateAuthToken checks the token against the locked device]
-    Gen -- token invalid/expired/mismatched hash --> R422([422 INVALID_CREDENTIALS 8])
+    Gen -- token invalid/expired/mismatched hash --> R401([401 INVALID_CREDENTIALS 8])
+    Gen -- demo account, now at or after authentication.demo_expires_at --> R401demo([401 DEMO_EXPIRED 27 - nothing written])
     Gen -- token matches the device's previous refresh token --> Revoke[DeviceDataSource.deleteTokenFromDevice - device signed out]
     Revoke --> SignedOut["outbox: AuthEvent.DeviceSignedOut - committed with the revocation"]
     SignedOut --> Count[auth_refresh_token_reused_total + 1, after the commit]
-    Count --> R422
+    Count --> R401
     Gen -- valid --> Activity[AccountDataSource.recordActivity authId - last_active_at = now and dormancy_stage = ACTIVE, written at most once a day unless a dormancy warning is pending]
     Activity --> Rotate[Rotate device refresh_token_hash + previous_refresh_token_hash]
     Rotate --> R200([200 AuthTokens - new access/refresh pair])
 ```
+
+A demo account (`authentication.demo_expires_at` set) refreshes like any
+other until its demo ends, with three differences: its access token carries
+the `demo` claim and expires no later than the demo, its refresh token is
+stored with `refresh_token_expires_at` = the demo's end + 7 days (so the
+[demo upgrade](demo-upgrade.md) can still find the device in the grace
+period), and from the demo's end on the refresh answers `DEMO_EXPIRED`
+without rotating anything.
 
 Refreshing counts as activity for [dormant-account deletion](../scheduled-jobs.md)
 (`auth-handleDormantAccounts`): the app refreshes almost every time it opens,
