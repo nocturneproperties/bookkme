@@ -19,7 +19,7 @@ internal fun Route.demo() {
      * Start a demo account
      *
      * Summary: Start a demo account
-     * Description: Create a 30-day demo account without signing up and sign the device in. The account gets the name Demo and a placeholder email on demoundeliverable.org, which is never emailed, and a sample business in timeZone (an IANA id, UTC when unknown) is created for it shortly after. The device's refresh token is the account's only credential until the upgrade, so signing out or reinstalling loses the demo. acceptedDocuments must name the version in effect of every published legal document (GET /api/user/legal). Device language comes from Accept-Language.
+     * Description: Create a 14-day demo account without signing up and sign the device in. The account gets the name Demo and a placeholder email on demoundeliverable.org, which is never emailed, and a sample business in timeZone (an IANA id, UTC when unknown) is created for it shortly after. The device's refresh token is the account's only credential until the upgrade, so signing out or reinstalling loses the demo. acceptedDocuments must name the version in effect of every published legal document (GET /api/user/legal). Device language comes from Accept-Language.
      * Tag: auth
      * Body: application/x-protobuf [com.bookk.auth.domain.api.demo.entity.DemoStartRequest] Device, accepted legal documents and the time zone of the sample business
      * Response: 200 application/x-protobuf [com.bookk.auth.domain.api.token.entity.AuthTokens] Authentication tokens of the demo account

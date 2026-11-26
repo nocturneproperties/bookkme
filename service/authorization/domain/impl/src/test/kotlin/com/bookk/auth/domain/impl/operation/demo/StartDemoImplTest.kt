@@ -30,6 +30,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import kotlin.time.Clock
+import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.minutes
 import kotlin.uuid.Uuid
 
@@ -87,7 +88,7 @@ internal class StartDemoImplTest {
         assertEquals(fixture.request.acceptedDocuments, fixture.createdUser.captured.acceptedDocuments)
         assertEquals(fixture.userId, fixture.createdAccount.captured.userId)
         val expiresAt = requireNotNull(fixture.createdAccount.captured.demoExpiresAt)
-        val earliest = before + DemoAccountPolicy.LENGTH
+        val earliest = before + 14.days
         assertTrue(expiresAt >= earliest && expiresAt <= earliest + 1.minutes) { expiresAt.toString() }
         assertEquals(1.0, fixture.startedDemos())
     }

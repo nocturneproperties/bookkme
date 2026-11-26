@@ -268,7 +268,7 @@ internal class DeviceDataSourceImplTest {
         val deviceId = suspendTransaction { fixture.sut.insertDevice(auth.id, Uuid.random(), "iPhone", Language.EN) }!!
         suspendTransaction { fixture.sut.attachRefreshTokenToDevice(deviceId, Uuid.random(), "first", fixture.later()) }
         val rotatedId = Uuid.random()
-        val demoGraceEnd = Clock.System.now() + 37.days
+        val demoGraceEnd = Clock.System.now() + 21.days
 
         whenn()
         suspendTransaction { fixture.sut.rotateRefreshToken(deviceId, rotatedId, "second", demoGraceEnd) }

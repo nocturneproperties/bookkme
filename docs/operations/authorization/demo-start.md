@@ -2,10 +2,10 @@
 
 `POST /api/auth/demo` → `StartDemo`
 
-Creates a 30-day demo account without signing up, like a Telegram sign-in
+Creates a 14-day demo account without signing up, like a Telegram sign-in
 creates an account: a placeholder user, the `authentication` row and the
 device, signed in with normal tokens. The account is a demo because
-`authentication.demo_expires_at` is set (now + 30 days); its access tokens
+`authentication.demo_expires_at` is set (now + 14 days); its access tokens
 carry the `demo` claim, and the refresh is refused from that date on
 ([Refresh access token](refresh-token.md)). The user is named `Demo` and gets
 the placeholder email `<random hex>@demoundeliverable.org`, which no email is
@@ -25,7 +25,7 @@ flowchart TD
     CreateUser -- version not published --> R422c([422 LEGAL_DOCUMENT_VERSION_UNKNOWN 100003])
     CreateUser -- version in effect not accepted --> R422d([422 LEGAL_DOCUMENTS_NOT_ACCEPTED 100004])
     CreateUser -- ok userId --> Tx[[Begin transaction]]
-    Tx --> CreateAuth[AccountDataSource.createAuthorization userId, random passkey handle, demo_expires_at = now + 30 days]
+    Tx --> CreateAuth[AccountDataSource.createAuthorization userId, random passkey handle, demo_expires_at = now + 14 days]
     CreateAuth --> NewDevice[DeviceDataSource.insertDevice authId uuid name language]
     NewDevice -- null - already exists --> Fail([throw ACCOUNT_CREATION_FAILED 5])
     NewDevice -- inserted --> DeviceEvt[eventProducer.send AuthEvent.DeviceCreated authId userId deviceUuid language]
