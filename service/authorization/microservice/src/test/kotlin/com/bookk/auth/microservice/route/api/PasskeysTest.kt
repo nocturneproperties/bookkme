@@ -2,9 +2,13 @@ package com.bookk.auth.microservice.route.api
 
 import com.bookk.auth.domain.api.error.AuthErrorCodes
 import com.bookk.auth.domain.api.identification.entity.AddPasskeyRequest
+import com.bookk.auth.domain.api.identification.entity.PasskeyList
+import com.bookk.auth.domain.api.identification.entity.PasskeyResponse
 import com.bookk.auth.domain.api.identification.operation.GetAttachPasskeyToAccountChallenge
+import com.bookk.auth.domain.api.identification.operation.GetAvailablePasskeys
 import com.bookk.auth.domain.api.registration.operation.AttachNewPasskeyToAccount
 import com.bookk.auth.microservice.route.AuthRouting
+import com.bookk.core.domain.entity.Error
 import com.bookk.core.domain.entity.SimpleServerError
 import com.bookk.core.service.test.createTestClient
 import com.bookk.core.service.test.routeTest
@@ -35,9 +39,12 @@ internal class PasskeysTest {
         authId: Uuid,
         challengeOutcome: Result<Nothing>? = null,
         attachOutcome: Result<Unit>? = null,
+        listOutcome: Result<PasskeyList>? = null,
     ) {
         val getChallenge: GetAttachPasskeyToAccountChallenge = mockk()
         val attachPasskey: AttachNewPasskeyToAccount = mockk()
+        val getPasskeys: GetAvailablePasskeys = mockk()
+        listOutcome?.let { coEvery { getPasskeys(authId) } returns it }
         challengeOutcome?.let { coEvery { getChallenge(authId, any(), any()) } returns it }
         attachOutcome?.let { coEvery { attachPasskey(authId, any()) } returns it }
         setupApplication(
@@ -53,6 +60,7 @@ internal class PasskeysTest {
             diModule = module {
                 single { getChallenge }
                 single { attachPasskey }
+                single { getPasskeys }
             },
             routeUnderTest = { passkeyOperations() },
         )
@@ -124,6 +132,55 @@ internal class PasskeysTest {
         val response = createTestClient().post(AuthRouting.Api.Auth.PassKey.AddFinish()) {
             setBody(AddPasskeyRequest(requestId = "req-id", publicKeyCredentialJson = "{}"))
         }
+
+        then()
+        assertEquals(HttpStatusCode.Unauthorized, response.status)
+    }
+
+    @Test
+    fun `should return the passkeys with what the client needs to signal accepted credentials`() = routeTest {
+        given()
+        val authId = Uuid.random()
+        val passkey = PasskeyResponse.stub(credentialId = "Y3JlZGVudGlhbA")
+        val list = PasskeyList.stub(rpId = "bookkme.app", userHandle = "dXNlci1oYW5kbGU", passkeys = listOf(passkey))
+        setupPasskeys(authId, listOutcome = Result.success(list))
+
+        whenn()
+        val response = createTestClient().get(AuthRouting.Api.Auth.PassKey())
+
+        then()
+        assertEquals(HttpStatusCode.OK, response.status)
+        val body = response.body<PasskeyList>()
+        assertEquals(list.rpId, body.rpId)
+        assertEquals(list.userHandle, body.userHandle)
+        assertEquals(listOf(passkey.id), body.passkeys.map { it.id })
+        assertEquals(listOf(passkey.credentialId), body.passkeys.map { it.credentialId })
+    }
+
+    @Test
+    fun `should return not found when the signed-in account no longer exists`() = routeTest {
+        given()
+        val authId = Uuid.random()
+        setupPasskeys(authId, listOutcome = Result.failure(Error.NotFound()))
+
+        whenn()
+        val response = createTestClient().get(AuthRouting.Api.Auth.PassKey())
+
+        then()
+        assertEquals(HttpStatusCode.NotFound, response.status)
+    }
+
+    @Test
+    fun `should return unauthorized when listing passkeys without authentication`() = routeTest {
+        given()
+        setupApplication(
+            extension = { install(Authentication) { bearer { authenticate { null } } } },
+            diModule = module { },
+            routeUnderTest = { passkeyOperations() },
+        )
+
+        whenn()
+        val response = createTestClient().get(AuthRouting.Api.Auth.PassKey())
 
         then()
         assertEquals(HttpStatusCode.Unauthorized, response.status)
