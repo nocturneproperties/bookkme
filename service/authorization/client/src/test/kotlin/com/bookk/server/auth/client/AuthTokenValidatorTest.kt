@@ -11,7 +11,9 @@ import io.ktor.server.application.ApplicationCall
 import io.ktor.server.auth.jwt.JWTCredential
 import io.mockk.mockk
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import kotlin.time.Clock
 import kotlin.time.Duration
@@ -104,5 +106,40 @@ internal class AuthTokenValidatorTest {
 
         then()
         assertNull(result)
+    }
+
+    @Test
+    fun `should mark the principal as demo when the token carries the demo claim`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val credential = fixture.credential {
+            withClaim(AuthClaim.AUTH_ID.key, Uuid.random().toString())
+                .withClaim(AuthClaim.USER_ID.key, Uuid.random().toString())
+                .withClaim(AuthClaim.DEVICE_ID.key, Uuid.random().toString())
+                .withClaim(AuthClaim.DEMO.key, true)
+        }
+
+        whenn()
+        val result = authTokenValidator(fixture.call, credential)
+
+        then()
+        assertTrue(result?.isDemo == true)
+    }
+
+    @Test
+    fun `should not mark the principal as demo when the token has no demo claim`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val credential = fixture.credential {
+            withClaim(AuthClaim.AUTH_ID.key, Uuid.random().toString())
+                .withClaim(AuthClaim.USER_ID.key, Uuid.random().toString())
+                .withClaim(AuthClaim.DEVICE_ID.key, Uuid.random().toString())
+        }
+
+        whenn()
+        val result = authTokenValidator(fixture.call, credential)
+
+        then()
+        assertFalse(requireNotNull(result).isDemo)
     }
 }

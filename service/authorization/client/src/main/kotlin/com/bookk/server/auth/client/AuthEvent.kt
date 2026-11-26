@@ -70,6 +70,37 @@ interface AuthEvent : EventStreaming.Event<String> {
     }
 
     @Serializable
+    data class DemoAccountCreated(
+        @ProtoNumber(1) val userId: Uuid,
+        @ProtoNumber(2) val expiresAt: Instant,
+        @ProtoNumber(3) val timeZoneId: String,
+        @ProtoNumber(4) val language: Language,
+        @ProtoNumber(5) override val idempotencyKey: String = Uuid.random().toString(),
+    ) : AuthEvent {
+        @ProtoNumber(6)
+        override val topic: String = TOPIC
+        override val partitionKey: String get() = userId.toString()
+
+        companion object {
+            const val TOPIC = "auth.demo_account_created"
+        }
+    }
+
+    @Serializable
+    data class DemoUpgraded(
+        @ProtoNumber(1) val userId: Uuid,
+        @ProtoNumber(2) override val idempotencyKey: String = Uuid.random().toString(),
+    ) : AuthEvent {
+        @ProtoNumber(3)
+        override val topic: String = TOPIC
+        override val partitionKey: String get() = userId.toString()
+
+        companion object {
+            const val TOPIC = "auth.demo_upgraded"
+        }
+    }
+
+    @Serializable
     data class UserDeleted(
         @ProtoNumber(1) val userId: Uuid,
         @ProtoNumber(2) override val idempotencyKey: String = Uuid.random().toString(),
