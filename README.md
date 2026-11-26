@@ -163,7 +163,7 @@ Someone who isn't ready to sign up can start a demo with `POST /api/auth/demo`: 
 
 The device's sign-in is the demo's only credential: signing out or reinstalling the app ends it for good. To keep the account and everything in it, the user adds an email address, confirmed with a code, and a passkey, while the demo runs or within 7 days after it ended. A demo that was not kept is deleted 7 days after it ended, like a deleted account, and its businesses and bookings with it.
 
-Demos need no setup. Creation is anonymous, so the server allows at most 1,000 demos running at once and refuses more with a 429 error until older ones end; the bundled nginx configuration also lets each address start one demo a minute (bursts of 3), so keep a similar limit on `POST /api/auth/demo` if you use another reverse proxy.
+Demos need no setup. Creation is anonymous, so the server allows at most 1,000 demos running at once and refuses more with a 429 error until older ones end. To change that number while the server runs, set it in the database (`UPDATE authorization.demo_settings SET max_active_accounts = 200;`): it applies to the next demo started, `0` turns demos off, and `NULL` returns to 1,000. Separately, the bundled nginx configuration lets each address start one demo a minute (bursts of 3), so keep a similar limit on `POST /api/auth/demo` if you use another reverse proxy.
 
 ### Creation limits
 

@@ -13,14 +13,17 @@ ever sent to and which sign-up and email change refuse. The device's refresh
 token is the only credential until the [upgrade](demo-upgrade.md).
 
 Creation is anonymous, so it is limited twice: nginx's `auth_demo` zone allows
-a few starts per hour from one address, and auth refuses a new demo while
-`DemoAccountPolicy.MAX_ACTIVE_ACCOUNTS` (1000) demos are unexpired. The count
-is not serialized, so concurrent starts can end a few over the cap.
+one start a minute from one address (bursts of 3), and auth refuses a new demo
+while as many demos are unexpired as `authorization.demo_settings.max_active_accounts`
+allows (`NULL` or no row: `DemoAccountPolicy.DEFAULT_MAX_ACTIVE_ACCOUNTS`, 1000;
+`0` turns demos off). The cap is read on every request, so an operator's change
+applies at once. The count is not serialized, so concurrent starts can end a
+few over the cap.
 
 ```mermaid
 flowchart TD
-    Start([POST /api/auth/demo]) --> CountTx[[Transaction]] --> Count[AccountDataSource.countDemoAccountsActiveAt now]
-    Count -- at least 1000 --> R429([429 DEMO_UNAVAILABLE 28])
+    Start([POST /api/auth/demo]) --> CountTx[[Transaction]] --> Count[AccountDataSource.countDemoAccountsActiveAt now, DemoSettingsDataSource.getMaxActiveAccounts - stored cap or 1000]
+    Count -- at or above the cap --> R429([429 DEMO_UNAVAILABLE 28])
     Count -- below the cap --> CreateUser[UserClient.createUser Demo, empty last name, random at demoundeliverable.org, acceptedDocuments]
     CreateUser -- version not published --> R422c([422 LEGAL_DOCUMENT_VERSION_UNKNOWN 100003])
     CreateUser -- version in effect not accepted --> R422d([422 LEGAL_DOCUMENTS_NOT_ACCEPTED 100004])

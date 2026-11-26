@@ -2,6 +2,7 @@ package com.bookk.auth.data.di
 
 import com.bookk.auth.data.datasource.AccountDataSourceImpl
 import com.bookk.auth.data.datasource.AccountDeletionDataSourceImpl
+import com.bookk.auth.data.datasource.DemoSettingsDataSourceImpl
 import com.bookk.auth.data.datasource.DeviceDataSourceImpl
 import com.bookk.auth.data.datasource.ErasedAccountDataSourceImpl
 import com.bookk.auth.data.datasource.PassKeyDataSourceImpl
@@ -11,6 +12,7 @@ import com.bookk.auth.data.datasource.YubicoCredentialRepository
 import com.bookk.auth.domain.api.AUTH_SCHEMA
 import com.bookk.auth.domain.datasource.AccountDataSource
 import com.bookk.auth.domain.datasource.AccountDeletionDataSource
+import com.bookk.auth.domain.datasource.DemoSettingsDataSource
 import com.bookk.auth.domain.datasource.DeviceDataSource
 import com.bookk.auth.domain.datasource.ErasedAccountDataSource
 import com.bookk.auth.domain.datasource.PassKeyDataSource
@@ -37,6 +39,7 @@ fun authDataModule(environment: (String) -> String? = System::getenv) = module {
         exhaustedEventDataSource()
         scopedOf(::AccountDataSourceImpl) bind AccountDataSource::class
         scopedOf(::AccountDeletionDataSourceImpl) bind AccountDeletionDataSource::class
+        scopedOf(::DemoSettingsDataSourceImpl) bind DemoSettingsDataSource::class
         scopedOf(::DeviceDataSourceImpl) bind DeviceDataSource::class
         scopedOf(::ErasedAccountDataSourceImpl) bind ErasedAccountDataSource::class
         scopedOf(::PassKeyDataSourceImpl) bind PassKeyDataSource::class

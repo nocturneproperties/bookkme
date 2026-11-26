@@ -7,6 +7,7 @@ import com.bookk.auth.domain.api.demo.operation.StartDemo
 import com.bookk.auth.domain.api.token.entity.AuthTokens
 import com.bookk.auth.domain.api.token.operation.GenerateAuthToken
 import com.bookk.auth.domain.datasource.AccountDataSource
+import com.bookk.auth.domain.datasource.DemoSettingsDataSource
 import com.bookk.auth.domain.datasource.DeviceDataSource
 import com.bookk.core.data.eventstreaming.StandardEventProducer
 import com.bookk.core.domain.datasource.transaction.TransactionManager
@@ -39,6 +40,7 @@ internal class StartDemoImplTest {
     private class SutFixture {
         val accountDataSource = mockk<AccountDataSource>()
         val deviceDataSource = mockk<DeviceDataSource>()
+        val demoSettingsDataSource = mockk<DemoSettingsDataSource>()
         val userClient = mockk<UserClient>()
         val generateAuthToken = mockk<GenerateAuthToken>()
         val eventProducer = mockk<StandardEventProducer>(relaxed = true)
@@ -47,6 +49,7 @@ internal class StartDemoImplTest {
         val sut = StartDemoImpl(
             accountDataSource,
             deviceDataSource,
+            demoSettingsDataSource,
             userClient,
             generateAuthToken,
             eventProducer,
@@ -62,6 +65,8 @@ internal class StartDemoImplTest {
         init {
             transactionManager.mockTransaction()
             coEvery { accountDataSource.countDemoAccountsActiveAt(any()) } returns 0
+            coEvery { demoSettingsDataSource.getMaxActiveAccounts() } returns
+                DemoAccountPolicy.DEFAULT_MAX_ACTIVE_ACCOUNTS
             coEvery { userClient.createUser(capture(createdUser)) } returns Result.success(userId)
             coEvery { accountDataSource.createAuthorization(capture(createdAccount)) } answers { firstArg() }
             coEvery { deviceDataSource.insertDevice(any(), any(), any(), any()) } returns Uuid.random()
@@ -137,12 +142,11 @@ internal class StartDemoImplTest {
     }
 
     @Test
-    fun `should refuse a new demo once the active demo accounts reach the cap`() = runUnitTest {
+    fun `should refuse a new demo once the active demo accounts reach the stored cap`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        coEvery {
-            fixture.accountDataSource.countDemoAccountsActiveAt(any())
-        } returns DemoAccountPolicy.MAX_ACTIVE_ACCOUNTS.toLong()
+        coEvery { fixture.demoSettingsDataSource.getMaxActiveAccounts() } returns 5
+        coEvery { fixture.accountDataSource.countDemoAccountsActiveAt(any()) } returns 5
 
         whenn()
         val result = fixture.sut.invoke(fixture.request, Language.EN)
@@ -151,6 +155,38 @@ internal class StartDemoImplTest {
         assertTrue(result.exceptionOrNull() is StartDemo.Error.DemoUnavailable) { result.toString() }
         coVerify(exactly = 0) { fixture.userClient.createUser(any()) }
         assertEquals(0.0, fixture.startedDemos())
+    }
+
+    @Test
+    fun `should start a demo while the active demo accounts stay under a stored cap above the default`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val storedCap = DemoAccountPolicy.DEFAULT_MAX_ACTIVE_ACCOUNTS * 2
+        coEvery { fixture.demoSettingsDataSource.getMaxActiveAccounts() } returns storedCap
+        coEvery {
+            fixture.accountDataSource.countDemoAccountsActiveAt(any())
+        } returns DemoAccountPolicy.DEFAULT_MAX_ACTIVE_ACCOUNTS.toLong()
+
+        whenn()
+        val result = fixture.sut.invoke(fixture.request, Language.EN)
+
+        then()
+        assertEquals(fixture.tokens, result.getOrNull())
+        assertEquals(1.0, fixture.startedDemos())
+    }
+
+    @Test
+    fun `should refuse every demo while the stored cap is zero`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        coEvery { fixture.demoSettingsDataSource.getMaxActiveAccounts() } returns 0
+
+        whenn()
+        val result = fixture.sut.invoke(fixture.request, Language.EN)
+
+        then()
+        assertTrue(result.exceptionOrNull() is StartDemo.Error.DemoUnavailable) { result.toString() }
+        coVerify(exactly = 0) { fixture.userClient.createUser(any()) }
     }
 
     @Test

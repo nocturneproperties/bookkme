@@ -6,7 +6,7 @@ import kotlin.time.Instant
 object DemoAccountPolicy {
     val LENGTH = 14.days
     val UPGRADE_GRACE_PERIOD = 7.days
-    const val MAX_ACTIVE_ACCOUNTS = 1000
+    const val DEFAULT_MAX_ACTIVE_ACCOUNTS = 1000
 
     fun upgradeDeadline(demoExpiresAt: Instant): Instant {
         return demoExpiresAt + UPGRADE_GRACE_PERIOD

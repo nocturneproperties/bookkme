@@ -19,7 +19,7 @@ secrets:
   firebase_key:
     external: true
   mariadb_users_init:
-    name: monolith-mariadb-users-init-v5
+    name: monolith-mariadb-users-init-v6
     file: ./db/users-init.sql
 
 configs:

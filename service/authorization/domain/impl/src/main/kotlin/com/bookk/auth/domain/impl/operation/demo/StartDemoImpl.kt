@@ -10,6 +10,7 @@ import com.bookk.auth.domain.api.token.entity.AuthTokens
 import com.bookk.auth.domain.api.token.operation.GenerateAuthToken
 import com.bookk.auth.domain.api.token.operation.GenerateAuthToken.Source
 import com.bookk.auth.domain.datasource.AccountDataSource
+import com.bookk.auth.domain.datasource.DemoSettingsDataSource
 import com.bookk.auth.domain.datasource.DeviceDataSource
 import com.bookk.core.data.eventstreaming.StandardEventProducer
 import com.bookk.core.data.eventstreaming.send
@@ -31,6 +32,7 @@ import kotlin.uuid.Uuid
 internal class StartDemoImpl(
     private val accountDataSource: AccountDataSource,
     private val deviceDataSource: DeviceDataSource,
+    private val demoSettingsDataSource: DemoSettingsDataSource,
     private val userClient: UserClient,
     private val generateAuthToken: GenerateAuthToken,
     private val eventProducer: StandardEventProducer,
@@ -48,8 +50,10 @@ internal class StartDemoImpl(
     ): Result<AuthTokens> = runSuspendCatching {
         val timeZoneId = knownTimeZoneOrUtc(request.timeZone)
         val now = Clock.System.now()
-        val activeDemos = transactionManager.transactionOrThrow { accountDataSource.countDemoAccountsActiveAt(now) }
-        if (activeDemos >= DemoAccountPolicy.MAX_ACTIVE_ACCOUNTS) throw DemoUnavailable()
+        val hasRoom = transactionManager.transactionOrThrow {
+            accountDataSource.countDemoAccountsActiveAt(now) < demoSettingsDataSource.getMaxActiveAccounts()
+        }
+        if (!hasRoom) throw DemoUnavailable()
         val userId = userClient.createUser(placeholderUser(request)).getOrThrow()
         createAccount(userId, request.copy(timeZone = timeZoneId), language, expiresAt = now + DemoAccountPolicy.LENGTH)
             .also { startedDemos.increment() }
