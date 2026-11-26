@@ -26,9 +26,8 @@ import com.bookk.notifications.domain.impl.channel.FirebaseNotificationSender
 import com.bookk.notifications.domain.impl.channel.NotificationSender
 import com.bookk.notifications.domain.impl.channel.TelegramNotificationSender
 import com.bookk.notifications.domain.impl.channel.telegram.TelegramMessenger
-import com.bookk.notifications.domain.impl.channel.telegram.TelegramMiniAppLink
+import com.bookk.notifications.domain.impl.channel.telegram.telegramBotUsername
 import com.bookk.notifications.domain.impl.channel.telegram.telegramMessenger
-import com.bookk.notifications.domain.impl.channel.telegram.telegramMiniAppLink
 import com.bookk.notifications.domain.impl.event.NotificationEventHandler
 import com.bookk.notifications.domain.impl.notification.SendNotification
 import com.bookk.notifications.domain.impl.telegram.TelegramConfirmationChat
@@ -44,13 +43,13 @@ import org.koin.dsl.module
 val NotificationsScope: Qualifier = named(NOTIFICATIONS_SCHEMA)
 
 fun notificationsDomainModule(environment: (String) -> String? = System::getenv): Module {
-    val miniAppLink = telegramMiniAppLink(environment)
-    return notificationsDomainModule(environment, miniAppLink)
+    val botUsername = telegramBotUsername(environment)
+    return notificationsDomainModule(environment, botUsername)
 }
 
 private fun notificationsDomainModule(
     environment: (String) -> String?,
-    miniAppLink: TelegramMiniAppLink?,
+    botUsername: String?,
 ): Module = module {
     scope(NotificationsScope) {
         scopedOf(::NotificationEventHandler) bind EventHandler::class
@@ -77,7 +76,7 @@ private fun notificationsDomainModule(
         }
         scoped { FirebaseMessaging.getInstance() }
         scoped<TelegramMessenger> { telegramMessenger(environment, CIO.create()) }
-        scoped { TelegramConfirmationChat(get(), get(), get(), get(), miniAppLink) } bind
+        scoped { TelegramConfirmationChat(get(), get(), get(), get(), botUsername) } bind
             SendTelegramActionConfirmation::class
     }
 }

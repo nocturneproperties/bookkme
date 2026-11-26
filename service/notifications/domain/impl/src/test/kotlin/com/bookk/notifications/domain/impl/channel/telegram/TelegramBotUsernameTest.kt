@@ -9,18 +9,18 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
-internal class TelegramMiniAppLinkTest {
+internal class TelegramBotUsernameTest {
 
     @Test
-    fun `should open the bot's main Mini App with the start parameter`() = runUnitTest {
+    fun `should read the bot username`() = runUnitTest {
         given()
         val environment = mapOf("APPLICATION_TELEGRAM_BOT_USERNAME" to "bookkme_bot")
 
         whenn()
-        val link = telegramMiniAppLink(environment::get)?.launching("op_delete-account_$CHALLENGE")
+        val username = telegramBotUsername(environment::get)
 
         then()
-        assertEquals("https://t.me/bookkme_bot?startapp=op_delete-account_$CHALLENGE", link)
+        assertEquals("bookkme_bot", username)
     }
 
     @Test
@@ -29,34 +29,34 @@ internal class TelegramMiniAppLinkTest {
         val environment = mapOf("APPLICATION_TELEGRAM_BOT_USERNAME" to " @bookkme_bot ")
 
         whenn()
-        val link = telegramMiniAppLink(environment::get)?.launching("op_x_1")
+        val username = telegramBotUsername(environment::get)
 
         then()
-        assertEquals("https://t.me/bookkme_bot?startapp=op_x_1", link)
+        assertEquals("bookkme_bot", username)
     }
 
     @Test
-    fun `should build no link when the bot username is not set`() = runUnitTest {
+    fun `should have no bot username when it is not set`() = runUnitTest {
         given()
         val environment = emptyMap<String, String>()
 
         whenn()
-        val link = telegramMiniAppLink(environment::get)
+        val username = telegramBotUsername(environment::get)
 
         then()
-        assertNull(link)
+        assertNull(username)
     }
 
     @Test
-    fun `should build no link when the bot username is blank`() = runUnitTest {
+    fun `should have no bot username when it is blank`() = runUnitTest {
         given()
         val environment = mapOf("APPLICATION_TELEGRAM_BOT_USERNAME" to " ")
 
         whenn()
-        val link = telegramMiniAppLink(environment::get)
+        val username = telegramBotUsername(environment::get)
 
         then()
-        assertNull(link)
+        assertNull(username)
     }
 
     @Test
@@ -65,13 +65,9 @@ internal class TelegramMiniAppLinkTest {
         val environment = mapOf("APPLICATION_TELEGRAM_BOT_USERNAME" to "bookkme/bot?x=")
 
         whenn()
-        val result = runCatching { telegramMiniAppLink(environment::get) }
+        val result = runCatching { telegramBotUsername(environment::get) }
 
         then()
         assertTrue(result.exceptionOrNull() is IllegalStateException)
-    }
-
-    private companion object {
-        const val CHALLENGE = "0123456789abcdef0123456789abcdef"
     }
 }

@@ -14,7 +14,6 @@ import com.bookk.notifications.domain.datasource.NotificationTargetDataSource
 import com.bookk.notifications.domain.datasource.TelegramConfirmationMessageDataSource
 import com.bookk.notifications.domain.impl.channel.telegram.TelegramDelivery
 import com.bookk.notifications.domain.impl.channel.telegram.TelegramMessenger
-import com.bookk.notifications.domain.impl.channel.telegram.TelegramMiniAppLink
 import com.bookk.notifications.domain.impl.channel.telegram.TelegramUrlButton
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -31,7 +30,7 @@ import kotlin.uuid.Uuid
 
 internal class TelegramConfirmationChatTest {
 
-    private class SutFixture(miniAppLink: TelegramMiniAppLink? = TelegramMiniAppLink("bookkme_bot")) {
+    private class SutFixture(botUsername: String? = "bookkme_bot") {
         val userId: Uuid = Uuid.random()
         val transactionManager = mockedTransactionManager()
         val targetDataSource = mockk<NotificationTargetDataSource>()
@@ -44,7 +43,7 @@ internal class TelegramConfirmationChatTest {
             targetDataSource,
             pendingDataSource,
             telegramMessenger,
-            miniAppLink,
+            botUsername,
         )
 
         init {
@@ -162,7 +161,7 @@ internal class TelegramConfirmationChatTest {
     @Test
     fun `should report unavailable without sending when the bot username is not set`() = runUnitTest {
         given()
-        val fixture = SutFixture(miniAppLink = null)
+        val fixture = SutFixture(botUsername = null)
         fixture.chat("123456789")
 
         whenn()

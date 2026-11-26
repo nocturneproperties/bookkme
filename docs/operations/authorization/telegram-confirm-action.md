@@ -42,7 +42,7 @@ flowchart TD
     Account -- No or none --> R422d([422 TELEGRAM_ACCOUNT_MISMATCH 21])
     Account -- Yes --> Take{"takeChallenge - setIfAbsent marker, single use"}
     Take -- another request took it first --> R422c
-    Take -- taken --> Issue["ActionConfirmationTokenIssuer.issue 2 minutes - claims from the taken challenge"]
+    Take -- taken --> Issue["TokenIssuer.issueActionConfirmation 2 minutes - claims from the taken challenge"]
     Issue --> Publish["transaction - outbox: AuthEvent.TelegramActionConfirmed userId challengeId"]
     Publish -- committed or failed, failure only logged --> R200([200 ActionConfirmationToken])
 ```

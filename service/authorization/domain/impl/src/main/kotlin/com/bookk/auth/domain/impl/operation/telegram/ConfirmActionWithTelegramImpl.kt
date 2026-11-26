@@ -8,7 +8,7 @@ import com.bookk.auth.domain.api.telegram.operation.ConfirmActionWithTelegram.Er
 import com.bookk.auth.domain.api.telegram.operation.TelegramConfirmationUnavailable
 import com.bookk.auth.domain.datasource.TelegramConfirmationDataSource
 import com.bookk.auth.domain.datasource.TelegramIdentityDataSource
-import com.bookk.auth.domain.impl.operation.actionconfirmation.ActionConfirmationTokenIssuer
+import com.bookk.auth.domain.impl.operation.actionconfirmation.issueActionConfirmation
 import com.bookk.auth.domain.impl.telegram.TelegramConfirmationLaunch
 import com.bookk.auth.domain.impl.telegram.TelegramInitDataVerifier
 import com.bookk.auth.domain.impl.telegram.TelegramLaunchParameter
@@ -18,6 +18,7 @@ import com.bookk.core.domain.datasource.transaction.TransactionManager
 import com.bookk.core.domain.datasource.transaction.transactionOrThrow
 import com.bookk.core.domain.entity.runSuspendCatching
 import com.bookk.server.auth.client.AuthEvent
+import library.signing.TokenIssuer
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import kotlin.time.Duration.Companion.minutes
@@ -27,7 +28,7 @@ internal class ConfirmActionWithTelegramImpl(
     private val verifier: TelegramInitDataVerifier,
     private val confirmationDataSource: TelegramConfirmationDataSource,
     private val telegramIdentityDataSource: TelegramIdentityDataSource,
-    private val tokenIssuer: ActionConfirmationTokenIssuer,
+    private val tokenIssuer: TokenIssuer,
     private val eventProducer: StandardEventProducer,
     private val transactionManager: TransactionManager,
 ) : ConfirmActionWithTelegram {
@@ -45,7 +46,7 @@ internal class ConfirmActionWithTelegramImpl(
             requireLinkedTelegramAccount(userId, launch.user.id)
             val challenge = confirmationDataSource.takeChallenge(confirmation.challengeId)
                 ?: throw TelegramConfirmationExpired()
-            tokenIssuer.issue(userId, challenge.action, challenge.businessId, challenge.targetId)
+            tokenIssuer.issueActionConfirmation(userId, challenge.action, challenge.businessId, challenge.targetId)
                 .also { publishConfirmed(userId, confirmation.challengeId) }
         }
     }

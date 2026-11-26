@@ -37,7 +37,6 @@ import com.bookk.auth.domain.impl.operation.DeviceSignOut
 import com.bookk.auth.domain.impl.operation.GetAccountDeletionImpl
 import com.bookk.auth.domain.impl.operation.HandleScheduledAccountDeletionsImpl
 import com.bookk.auth.domain.impl.operation.SignOutImpl
-import com.bookk.auth.domain.impl.operation.actionconfirmation.ActionConfirmationTokenIssuer
 import com.bookk.auth.domain.impl.operation.actionconfirmation.ConfirmActionImpl
 import com.bookk.auth.domain.impl.operation.authentication.FinishAssertionImpl
 import com.bookk.auth.domain.impl.operation.authentication.HandleDormantAccountsImpl
@@ -93,7 +92,6 @@ fun authDomainModule(environment: (String) -> String? = System::getenv) = module
         scopedOf(::HandleScheduledAccountDeletionsImpl) bind HandleScheduledAccountDeletions::class
         scopedOf(::ReapplyAccountErasuresImpl) bind ReapplyAccountErasures::class
         scopedOf(::DeleteExpiredErasureRecordsImpl) bind DeleteExpiredErasureRecords::class
-        scopedOf(::ActionConfirmationTokenIssuer)
         scopedOf(::ConfirmActionImpl) bind ConfirmAction::class
         scopedOf(::ExportAccountDataImpl) bind ExportAccountData::class
         scopedOf(::StartRegistrationImpl) bind StartRegistration::class

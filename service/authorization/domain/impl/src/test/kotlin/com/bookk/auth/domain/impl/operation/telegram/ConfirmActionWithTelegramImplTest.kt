@@ -11,7 +11,7 @@ import com.bookk.auth.domain.api.telegram.operation.SignInWithTelegram
 import com.bookk.auth.domain.api.telegram.operation.TelegramConfirmationUnavailable
 import com.bookk.auth.domain.datasource.TelegramConfirmationDataSource
 import com.bookk.auth.domain.datasource.TelegramIdentityDataSource
-import com.bookk.auth.domain.impl.operation.actionconfirmation.ActionConfirmationTokenIssuer
+import com.bookk.auth.domain.impl.operation.actionconfirmation.ACTION_CONFIRMATION_TTL
 import com.bookk.auth.domain.impl.telegram.Ed25519TelegramInitDataVerifier
 import com.bookk.auth.domain.impl.telegram.TelegramInitDataSigner
 import com.bookk.core.data.eventstreaming.StandardEventProducer
@@ -61,7 +61,7 @@ internal class ConfirmActionWithTelegramImplTest {
             Ed25519TelegramInitDataVerifier(botId = botId, clock = clock, telegramPublicKey = signer.publicKey),
             confirmationDataSource,
             telegramIdentityDataSource,
-            ActionConfirmationTokenIssuer(tokenIssuer),
+            tokenIssuer,
             eventProducer,
             transactionManager,
         )
@@ -72,7 +72,7 @@ internal class ConfirmActionWithTelegramImplTest {
             }
             coEvery { tokenIssuer.issue(any(), any()) } coAnswers {
                 val claims = secondArg<JWTCreator.Builder.() -> JWTCreator.Builder>()
-                val expiresAt = Clock.System.now() + ActionConfirmationTokenIssuer.ACTION_CONFIRMATION_TTL
+                val expiresAt = Clock.System.now() + ACTION_CONFIRMATION_TTL
                 tokens.sign { withExpiresAt(expiresAt.toJavaInstant()).claims() }
             }
         }
