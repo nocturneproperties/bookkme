@@ -68,6 +68,8 @@ Reactions to cross-service events:
 | `POST /api/auth/sign_in` | [Verify sign-in](authorization/sign-in.md) |
 | `POST /api/auth/telegram/sign_in` | [Sign in with Telegram](authorization/telegram-sign-in.md) |
 | `POST /api/auth/demo` | [Start a demo account](authorization/demo-start.md) |
+| `POST /api/auth/demo/upgrade/challenge` | [Upgrade a demo account (start)](authorization/demo-upgrade.md) |
+| `POST /api/auth/demo/upgrade` | [Upgrade a demo account (finish)](authorization/demo-upgrade.md) |
 | `POST /api/auth/refresh` | [Refresh access token](authorization/refresh-token.md) |
 | `DELETE /api/auth/session` | [Sign out](authorization/sign-out.md) |
 | `DELETE /api/auth/account` | [Delete account](authorization/delete-account.md) |

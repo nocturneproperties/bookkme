@@ -4,6 +4,7 @@ import com.bookk.auth.data.orm.table.AuthenticationTable
 import com.bookk.core.data.DecoratorUuidEntityClass
 import org.jetbrains.exposed.v1.core.dao.id.EntityID
 import org.jetbrains.exposed.v1.dao.UuidEntity
+import kotlin.time.Clock
 import kotlin.uuid.Uuid
 
 internal class AuthenticationEntity(id: EntityID<Uuid>) : UuidEntity(id) {
@@ -13,5 +14,10 @@ internal class AuthenticationEntity(id: EntityID<Uuid>) : UuidEntity(id) {
     var updatedAt by AuthenticationTable.updatedAt
     var demoExpiresAt by AuthenticationTable.demoExpiresAt
 
-    companion object : DecoratorUuidEntityClass<AuthenticationEntity>(AuthenticationTable)
+    companion object : DecoratorUuidEntityClass<AuthenticationEntity>(AuthenticationTable) {
+        fun findByIdAndEndDemo(id: Uuid): AuthenticationEntity? = findByIdAndUpdate(id) {
+            it.demoExpiresAt = null
+            it.updatedAt = Clock.System.now()
+        }
+    }
 }

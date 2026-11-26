@@ -11,7 +11,9 @@ import com.bookk.auth.domain.api.delete_account.operation.CancelAccountDeletion
 import com.bookk.auth.domain.api.delete_account.operation.DeleteAccount
 import com.bookk.auth.domain.api.delete_account.operation.GetAccountDeletion
 import com.bookk.auth.domain.api.delete_account.operation.HandleScheduledAccountDeletions
+import com.bookk.auth.domain.api.demo.operation.FinishDemoUpgrade
 import com.bookk.auth.domain.api.demo.operation.StartDemo
+import com.bookk.auth.domain.api.demo.operation.StartDemoUpgrade
 import com.bookk.auth.domain.api.device.operation.DeleteInactiveDevices
 import com.bookk.auth.domain.api.email.operation.ConfirmEmailChange
 import com.bookk.auth.domain.api.email.operation.StartEmailChange
@@ -43,7 +45,10 @@ import com.bookk.auth.domain.impl.operation.authentication.FinishAssertionImpl
 import com.bookk.auth.domain.impl.operation.authentication.HandleDormantAccountsImpl
 import com.bookk.auth.domain.impl.operation.authentication.SignInImpl
 import com.bookk.auth.domain.impl.operation.authentication.StartAssertionImpl
+import com.bookk.auth.domain.impl.operation.demo.DemoCallerResolver
+import com.bookk.auth.domain.impl.operation.demo.FinishDemoUpgradeImpl
 import com.bookk.auth.domain.impl.operation.demo.StartDemoImpl
+import com.bookk.auth.domain.impl.operation.demo.StartDemoUpgradeImpl
 import com.bookk.auth.domain.impl.operation.device.DeleteInactiveDevicesImpl
 import com.bookk.auth.domain.impl.operation.email.ConfirmEmailChangeImpl
 import com.bookk.auth.domain.impl.operation.email.StartEmailChangeImpl
@@ -117,6 +122,9 @@ fun authDomainModule(environment: (String) -> String? = System::getenv) = module
         scopedOf(::StartTelegramActionConfirmationImpl) bind StartTelegramActionConfirmation::class
         scopedOf(::ConfirmActionWithTelegramImpl) bind ConfirmActionWithTelegram::class
         scopedOf(::StartDemoImpl) bind StartDemo::class
+        scopedOf(::DemoCallerResolver)
+        scopedOf(::StartDemoUpgradeImpl) bind StartDemoUpgrade::class
+        scopedOf(::FinishDemoUpgradeImpl) bind FinishDemoUpgrade::class
     }
 }
 

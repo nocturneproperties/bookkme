@@ -163,10 +163,7 @@ internal class AccountDataSourceImpl : DataSource(), AccountDataSource {
     }
 
     override suspend fun endDemo(authId: Uuid) = dbQuery<Unit> {
-        AuthenticationTable.update(where = { AuthenticationTable.id eq authId }) {
-            it[demoExpiresAt] = null
-            it[updatedAt] = Clock.System.now()
-        }
+        AuthenticationEntity.findByIdAndEndDemo(authId)
     }
 
     private val demoAccountColumns = listOf(
