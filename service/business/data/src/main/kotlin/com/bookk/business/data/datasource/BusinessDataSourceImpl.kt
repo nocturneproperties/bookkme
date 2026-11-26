@@ -28,6 +28,7 @@ import org.jetbrains.exposed.v1.core.less
 import org.jetbrains.exposed.v1.core.or
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.select
+import org.jetbrains.exposed.v1.jdbc.update
 import org.jetbrains.exposed.v1.jdbc.upsert
 import kotlin.time.Clock
 import kotlin.time.Instant
@@ -39,13 +40,21 @@ internal class BusinessDataSourceImpl : DataSource(), BusinessDataSource {
         name: String,
         currencyCode: String,
         timeZone: TimeZone,
+        demo: Boolean,
     ): Business = dbQuery {
-        val entity = BusinessEntity.new(userId, name, currencyCode, timeZone)
+        val entity = BusinessEntity.new(userId, name, currencyCode, timeZone, demo)
         BusinessDashboardTable.upsert {
             it[this.userId] = userId
             it[businessId] = entity.id
         }
         entity.toDomain()
+    }
+
+    override suspend fun endDemoOfBusinessesOwnedBy(userId: Uuid) = dbQuery<Unit> {
+        BusinessTable.update(where = { (BusinessTable.userId eq userId) and (BusinessTable.demo eq true) }) {
+            it[demo] = false
+            it[updatedAt] = Clock.System.now()
+        }
     }
 
     override suspend fun updateBusiness(model: BusinessUpdateModel, updatedAt: Instant) = dbQuery<Business> {

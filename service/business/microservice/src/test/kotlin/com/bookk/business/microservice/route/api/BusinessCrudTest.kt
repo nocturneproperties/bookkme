@@ -122,7 +122,7 @@ internal class BusinessCrudTest {
         val timeZone = TimeZone.UTC
         val request = BusinessCreateRequest(name, currencyCode, timeZone)
 
-        coEvery { useCase.invoke(userId, request) } returns Result.success(business)
+        coEvery { useCase.invoke(userId, request, false) } returns Result.success(business)
 
         setupApplication(
             extension = {
@@ -303,10 +303,38 @@ internal class BusinessCrudTest {
     }
 
     @Test
+    fun `should create the business of a demo account as a demo`() = routeTest {
+        given()
+        val useCase: CreateBusiness = mockk()
+        val request = BusinessCreateRequest("Name", "USD", TimeZone.UTC)
+        val business = Business.stub(demo = true)
+        coEvery { useCase.invoke(userId, request, true) } returns Result.success(business)
+
+        setupApplication(
+            extension = {
+                install(Authentication) {
+                    provider {
+                        authenticate { it.principal(AppPrincipal(Uuid.random(), userId, Uuid.random(), isDemo = true)) }
+                    }
+                }
+            },
+            diModule = module { single { useCase } },
+            routeUnderTest = { businessCrud() },
+        )
+
+        whenn()
+        val response = createTestClient().post(BusinessRouting.Api.Business()) { setBody(request) }
+
+        then()
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertEquals(true, response.body<Business>().demo)
+    }
+
+    @Test
     fun `should return unprocessable entity when the user owns their maximum of businesses`() = routeTest {
         given()
         val useCase: CreateBusiness = mockk()
-        coEvery { useCase.invoke(userId, any()) } returns
+        coEvery { useCase.invoke(userId, any(), any()) } returns
             Result.failure(CreateBusiness.Error.OwnedBusinessesLimitReached())
 
         setupApplication(
@@ -339,7 +367,8 @@ internal class BusinessCrudTest {
     fun `should return unprocessable entity when business validation error`() = routeTest {
         given()
         val useCase: CreateBusiness = mockk()
-        coEvery { useCase.invoke(userId, any()) } returns Result.failure(CreateBusiness.Error.BusinessValidationError())
+        coEvery { useCase.invoke(userId, any(), any()) } returns
+            Result.failure(CreateBusiness.Error.BusinessValidationError())
 
         setupApplication(
             extension = {
@@ -849,7 +878,7 @@ internal class BusinessCrudTest {
     fun `should return unprocessable entity when creating a business with an unsupported currency`() = routeTest {
         given()
         val useCase: CreateBusiness = mockk()
-        coEvery { useCase.invoke(userId, any()) } returns Result.failure(CreateBusiness.Error.InvalidCurrency())
+        coEvery { useCase.invoke(userId, any(), any()) } returns Result.failure(CreateBusiness.Error.InvalidCurrency())
 
         setupApplication(
             extension = {

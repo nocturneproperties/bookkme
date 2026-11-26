@@ -88,6 +88,39 @@ internal class BusinessDataSourceImplTest {
     )
 
     @Test
+    fun `should store whether a business is a demo`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+
+        whenn()
+        val demo =
+            suspendTransaction { fixture.sut.createBusiness(Uuid.random(), "Demo", "EUR", TimeZone.UTC, demo = true) }
+        val regular = suspendTransaction { fixture.sut.createBusiness(Uuid.random(), "Salon", "EUR", TimeZone.UTC) }
+
+        then()
+        assertEquals(true, suspendTransaction { fixture.sut.getBusinessById(demo.id) }?.demo)
+        assertEquals(false, suspendTransaction { fixture.sut.getBusinessById(regular.id) }?.demo)
+    }
+
+    @Test
+    fun `should end the demo of only the given owner's businesses`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val ownerId = Uuid.random()
+        val owned = suspendTransaction { fixture.sut.createBusiness(ownerId, "Demo", "EUR", TimeZone.UTC, demo = true) }
+        val other = suspendTransaction {
+            fixture.sut.createBusiness(Uuid.random(), "Other demo", "EUR", TimeZone.UTC, demo = true)
+        }
+
+        whenn()
+        suspendTransaction { fixture.sut.endDemoOfBusinessesOwnedBy(ownerId) }
+
+        then()
+        assertEquals(false, suspendTransaction { fixture.sut.getBusinessById(owned.id) }?.demo)
+        assertEquals(true, suspendTransaction { fixture.sut.getBusinessById(other.id) }?.demo)
+    }
+
+    @Test
     fun `should lock a business with the default limits when none are stored`() = runUnitTest {
         given()
         val fixture = SutFixture()

@@ -9,6 +9,7 @@ import com.bookk.business.domain.api.business.operation.CreateBusiness
 import com.bookk.business.domain.api.business.operation.DeleteBusiness
 import com.bookk.business.domain.api.business.operation.DeleteDayOffsInThePast
 import com.bookk.business.domain.api.business.operation.DeleteReleasedBusinessLinks
+import com.bookk.business.domain.api.business.operation.EndBusinessDemo
 import com.bookk.business.domain.api.business.operation.GetBusinessById
 import com.bookk.business.domain.api.business.operation.GetBusinessDetails
 import com.bookk.business.domain.api.business.operation.GetBusinessLink
@@ -62,10 +63,12 @@ import com.bookk.business.domain.impl.export.BusinessDataExportAssembler
 import com.bookk.business.domain.impl.operation.appointment.GetAppointmentBookingContextImpl
 import com.bookk.business.domain.impl.operation.appointment.GetAppointmentRescheduleContextImpl
 import com.bookk.business.domain.impl.operation.appointment.GetStaffBookingContextImpl
+import com.bookk.business.domain.impl.operation.business.BusinessFounder
 import com.bookk.business.domain.impl.operation.business.CreateBusinessImpl
 import com.bookk.business.domain.impl.operation.business.DeleteBusinessImpl
 import com.bookk.business.domain.impl.operation.business.DeleteDayOffsInThePastImpl
 import com.bookk.business.domain.impl.operation.business.DeleteReleasedBusinessLinksImpl
+import com.bookk.business.domain.impl.operation.business.EndBusinessDemoImpl
 import com.bookk.business.domain.impl.operation.business.GetBusinessByIdImpl
 import com.bookk.business.domain.impl.operation.business.GetBusinessDetailsImpl
 import com.bookk.business.domain.impl.operation.business.GetBusinessLinkImpl
@@ -136,7 +139,9 @@ fun businessDomainModule() = module {
         scopedOf(::GetBusinessByIdImpl) bind GetBusinessById::class
         scopedOf(::GetBusinessesByIdsImpl) bind GetBusinessesByIds::class
         scopedOf(::GetBusinessDetailsImpl) bind GetBusinessDetails::class
+        scopedOf(::BusinessFounder)
         scopedOf(::CreateBusinessImpl) bind CreateBusiness::class
+        scopedOf(::EndBusinessDemoImpl) bind EndBusinessDemo::class
         scopedOf(::DeleteBusinessImpl) bind DeleteBusiness::class
         scopedOf(::GetBusinessPermissionImpl) bind GetBusinessPermission::class
         scopedOf(::GetDashboardBusinessImpl) bind GetDashboardBusiness::class

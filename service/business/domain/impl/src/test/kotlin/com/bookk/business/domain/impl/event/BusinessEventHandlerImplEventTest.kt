@@ -1,6 +1,7 @@
 package com.bookk.business.domain.impl.event
 
 import com.bookk.business.domain.api.business.operation.DeleteBusiness
+import com.bookk.business.domain.api.business.operation.EndBusinessDemo
 import com.bookk.business.domain.api.client.operation.RecordClientVisit
 import com.bookk.business.domain.api.user.operation.DeleteUserBusinessData
 import com.bookk.business.domain.api.user.operation.SyncUserProfile
@@ -44,6 +45,7 @@ internal class BusinessEventHandlerImplEventTest {
             KafkaTestBroker.servers
             KafkaTestBroker.createTopic(UserEvent.Updated.TOPIC, partitions = 3)
             KafkaTestBroker.createTopic(AuthEvent.UserDeleted.TOPIC, partitions = 3)
+            KafkaTestBroker.createTopic(AuthEvent.DemoUpgraded.TOPIC, partitions = 3)
             KafkaTestBroker.createTopic(AppointmentEvent.ClientVisitBooked.TOPIC, partitions = 3)
         }
     }
@@ -53,6 +55,7 @@ internal class BusinessEventHandlerImplEventTest {
         val syncUserProfile = mockk<SyncUserProfile>()
         val deleteUserBusinessData = mockk<DeleteUserBusinessData>()
         val recordClientVisit = mockk<RecordClientVisit>()
+        val endBusinessDemo = mockk<EndBusinessDemo>()
         val transactionManager = mockedTransactionManager()
         val consumer = KafkaEventConsumer(
             servers = KafkaTestBroker.servers,
@@ -70,6 +73,7 @@ internal class BusinessEventHandlerImplEventTest {
                 syncUserProfile,
                 deleteUserBusinessData,
                 recordClientVisit,
+                endBusinessDemo,
             )
 
         private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -80,6 +84,29 @@ internal class BusinessEventHandlerImplEventTest {
     }
 
     private fun producer() = KafkaEventProducer(KafkaTestBroker.servers, "handler-test", KafkaTestBroker.protoBuf)
+
+    @Test
+    fun `should end the demo of the businesses of an upgraded demo account`() = runIntegrationTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val arrived = CountDownLatch(1)
+        coEvery { fixture.endBusinessDemo(userId) } answers {
+            arrived.countDown()
+            Result.success(Unit)
+        }
+
+        whenn()
+        withContext(Dispatchers.IO) {
+            fixture.start()
+            producer().send(AuthEvent.DemoUpgraded(userId))
+            arrived.await(20, TimeUnit.SECONDS)
+        }
+        fixture.stop()
+
+        then()
+        coVerify(exactly = 1) { fixture.endBusinessDemo(userId) }
+    }
 
     @Test
     fun `should sync a user profile published by the user service`() = runIntegrationTest {

@@ -5,3 +5,4 @@ UPDATE client SET created_at = LEAST(last_activity_at, CURRENT_TIMESTAMP(6)) WHE
 ALTER TABLE client MODIFY COLUMN IF EXISTS created_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6), ADD INDEX IF NOT EXISTS client_business_id_created_at (business_id, created_at), ADD INDEX IF NOT EXISTS client_business_id_phone_index (business_id, phone_index), DROP INDEX IF EXISTS client_business_id_name_index, DROP COLUMN IF EXISTS name_index;
 CREATE TABLE IF NOT EXISTS client_name_token (business_id BINARY(16) NOT NULL, token BINARY(16) NOT NULL, client_id BINARY(16) NOT NULL, PRIMARY KEY (business_id, token, client_id), INDEX client_name_token_client_id (client_id), CONSTRAINT fk_client_name_token_client_id__id FOREIGN KEY (client_id) REFERENCES client(id) ON DELETE CASCADE ON UPDATE RESTRICT);
 ALTER TABLE client ADD COLUMN IF NOT EXISTS telegram_username_encrypted VARBINARY(256) NULL;
+ALTER TABLE business ADD COLUMN IF NOT EXISTS demo BOOLEAN DEFAULT FALSE NOT NULL;

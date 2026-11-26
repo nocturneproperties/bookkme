@@ -22,6 +22,7 @@ data class Business(
     @ProtoNumber(12) val employeeId: Uuid?,
     @ProtoNumber(13) val clientId: Uuid?,
     @ProtoNumber(14) val clientDataRetentionMonths: Int = DEFAULT_CLIENT_DATA_RETENTION_MONTHS,
+    @ProtoNumber(15) val demo: Boolean = false,
 ) {
     fun viewedBy(viewer: BusinessViewer): Business = copy(
         permissions = viewer.permissions,
@@ -72,6 +73,7 @@ data class Business(
             employeeId: Uuid? = null,
             clientId: Uuid? = null,
             clientDataRetentionMonths: Int = DEFAULT_CLIENT_DATA_RETENTION_MONTHS,
+            demo: Boolean = false,
         ) = Business(
             id = id,
             name = name,
@@ -87,6 +89,7 @@ data class Business(
             employeeId = employeeId,
             clientId = clientId,
             clientDataRetentionMonths = clientDataRetentionMonths,
+            demo = demo,
         )
     }
 }

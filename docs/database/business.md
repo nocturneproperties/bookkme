@@ -42,6 +42,7 @@ erDiagram
         int max_clients "nullable; operator override of the client limit, NULL means 20000"
         int max_services "nullable; operator override of the service limit, NULL means 300"
         int max_service_groups "nullable; operator override of the service group limit, NULL means 50"
+        boolean demo "default false; set when a demo account creates the business (or business seeds the sample one), cleared on AuthEvent.DemoUpgraded; exposed as Business.demo for a Demo badge"
         string instagram
         string telegram
         string viber
