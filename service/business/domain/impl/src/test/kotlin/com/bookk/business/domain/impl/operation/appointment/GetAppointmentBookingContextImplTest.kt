@@ -150,6 +150,63 @@ internal class GetAppointmentBookingContextImplTest {
     }
 
     @Test
+    fun `should give the new client of a Telegram user their Telegram username`() = runUnitTest {
+        given()
+        val businessId = Uuid.random()
+        val employeeId = Uuid.random()
+        val user = UserSnapshot.stub(id = Uuid.random(), telegramUsername = "bob_j")
+        val service = Service.stub(businessId = businessId)
+        val fixture = SutFixture()
+        with(fixture) {
+            bookingByNewClient(businessId, employeeId, user, service)
+            coEvery { clientDataSource.getClientsByEmails(businessId, listOf(user.email)) } returns emptyList()
+            coEvery { clientDataSource.getOrCreateIntegratedClient(businessId, any()) } answers { secondArg() }
+        }
+
+        whenn()
+        val result = fixture.sut.invoke(businessId, employeeId, user.id, listOf(service.id))
+
+        then()
+        assertEquals("bob_j", result.getOrThrow().client.telegramUsername)
+        coVerify(exactly = 1) {
+            fixture.clientDataSource.getOrCreateIntegratedClient(
+                businessId,
+                match<Client.Integrated> { it.telegramUsername == "bob_j" },
+            )
+        }
+    }
+
+    @Test
+    fun `should give the detached client a Telegram user takes over their Telegram username`() = runUnitTest {
+        given()
+        val businessId = Uuid.random()
+        val employeeId = Uuid.random()
+        val user = UserSnapshot.stub(id = Uuid.random(), email = "user@test.com", telegramUsername = "bob_j")
+        val service = Service.stub(businessId = businessId)
+        val detached = Client.Detached.stub(email = "user@test.com")
+        val fixture = SutFixture()
+        with(fixture) {
+            bookingByNewClient(businessId, employeeId, user, service)
+            coEvery { clientDataSource.getClientsByEmails(businessId, listOf("user@test.com")) } returns
+                listOf(detached)
+            coEvery { clientDataSource.takeOverClient(businessId, detached.id, any()) } answers { thirdArg() }
+        }
+
+        whenn()
+        val result = fixture.sut.invoke(businessId, employeeId, user.id, listOf(service.id))
+
+        then()
+        assertTrue(result.isSuccess) { result.toString() }
+        coVerify(exactly = 1) {
+            fixture.clientDataSource.takeOverClient(
+                businessId,
+                detached.id,
+                match { it.telegramUsername == "bob_j" },
+            )
+        }
+    }
+
+    @Test
     fun `should create an integrated client with no phone when the user profile has none`() = runUnitTest {
         given()
         val businessId = Uuid.random()

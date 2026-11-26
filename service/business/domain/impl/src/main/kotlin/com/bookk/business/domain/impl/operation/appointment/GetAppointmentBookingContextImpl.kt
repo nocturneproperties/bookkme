@@ -53,6 +53,7 @@ internal class GetAppointmentBookingContextImpl(
             phone = personalInformation.phone,
             email = personalInformation.email,
             userId = userId,
+            telegramUsername = personalInformation.telegramUsername,
         )
         val placeholder = clientDataSource.getClientsByEmails(businessId, listOf(personalInformation.email))
             .filterIsInstance<Client.Detached>()

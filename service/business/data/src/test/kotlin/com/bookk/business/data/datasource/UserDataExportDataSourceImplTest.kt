@@ -198,6 +198,7 @@ internal class UserDataExportDataSourceImplTest {
                     phone = "+380501112233",
                     email = "olena@example.com",
                     description = "allergic to latex",
+                    telegramUsername = "olena_k",
                 ),
             )
         }
@@ -230,6 +231,7 @@ internal class UserDataExportDataSourceImplTest {
                     email = "olena@example.com",
                     description = "allergic to latex",
                     lastActivityAt = lastActivityAt,
+                    telegramUsername = "olena_k",
                 ),
             ),
             export.clientRecords,

@@ -34,7 +34,7 @@ flowchart TD
     Emp -- suspended --> R422s([422 BUSINESS_EMPLOYEE_SUSPENDED 200033])
     Emp -- ok --> Own[ClientDataSource.getClientByUserId businessId userId]
     Own -- found --> Services
-    Own -- none --> Profile[UserClient.getUserById userId]
+    Own -- none --> Profile[UserClient.getUserById userId - name, email, phone, telegramUsername]
     Profile --> Match[ClientDataSource.getClientsByEmails businessId email - detached only]
     Match -- none --> Create[ClientDataSource.getOrCreateIntegratedClient businessId profile]
     Match -- found --> TakeOver[ClientDataSource.takeOverClient businessId detached.id profile]

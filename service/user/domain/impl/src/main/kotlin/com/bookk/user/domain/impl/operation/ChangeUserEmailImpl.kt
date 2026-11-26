@@ -35,5 +35,6 @@ internal fun User.updatedEvent(updatedAt: Instant): UserEvent.Updated {
         phone = phone,
         updatedAt = updatedAt,
         telegramUserId = telegramUserId,
+        telegramUsername = telegramUsername,
     )
 }

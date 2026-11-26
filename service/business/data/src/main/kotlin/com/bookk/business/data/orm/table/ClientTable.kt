@@ -16,6 +16,7 @@ internal object ClientTable : UuidTable("client") {
     val phoneEncrypted = binary("phone_encrypted", 2080).nullable()
     val emailEncrypted = binary("email_encrypted", 2080).nullable()
     val descriptionEncrypted = binary("description_encrypted", 4128).nullable()
+    val telegramUsernameEncrypted = binary("telegram_username_encrypted", 256).nullable()
     val emailIndex = char("email_index", BLIND_INDEX_LENGTH).nullable()
     val phoneIndex = char("phone_index", BLIND_INDEX_LENGTH).nullable()
     val createdAt = timestamp("created_at").clientDefault { Clock.System.now() }

@@ -43,7 +43,10 @@ internal class Ed25519TelegramInitDataVerifierTest {
         val result = fixture.verify(initData)
 
         then()
-        assertEquals(TelegramUser(id = 123456789, firstName = "Ann", lastName = "Lee"), result.getOrThrow())
+        assertEquals(
+            TelegramUser(id = 123456789, firstName = "Ann", lastName = "Lee", username = "ann_lee"),
+            result.getOrThrow(),
+        )
     }
 
     @Test
@@ -59,7 +62,45 @@ internal class Ed25519TelegramInitDataVerifierTest {
         val result = fixture.verify(initData)
 
         then()
-        assertEquals(TelegramUser(id = 42, firstName = "Ann & Co = \"best\"", lastName = null), result.getOrThrow())
+        assertEquals(
+            TelegramUser(id = 42, firstName = "Ann & Co = \"best\"", lastName = null, username = null),
+            result.getOrThrow(),
+        )
+    }
+
+    @Test
+    fun `should read a collectible four letter username`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val initData = fixture.signer.signed(
+            authDate = fixture.now,
+            user = """{"id":42,"first_name":"Ann","username":"Ann1"}""",
+        )
+
+        whenn()
+        val result = fixture.verify(initData)
+
+        then()
+        assertEquals("Ann1", result.getOrThrow().username)
+    }
+
+    @Test
+    fun `should leave out a username that is not a Telegram username`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val usernames = listOf("ann", "a".repeat(33), "ann lee", "ann-lee", "")
+        val initData = usernames.map { username ->
+            fixture.signer.signed(
+                authDate = fixture.now,
+                user = """{"id":42,"first_name":"Ann","username":"$username"}""",
+            )
+        }
+
+        whenn()
+        val results = initData.map { fixture.verify(it) }
+
+        then()
+        assertEquals(usernames.map { null }, results.map { it.getOrThrow().username })
     }
 
     @Test

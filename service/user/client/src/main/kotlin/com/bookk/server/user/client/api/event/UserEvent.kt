@@ -18,6 +18,7 @@ sealed interface UserEvent : EventStreaming.Event<String> {
         @ProtoNumber(5) val phone: String?,
         @ProtoNumber(6) val updatedAt: Instant,
         @ProtoNumber(9) val telegramUserId: Long?,
+        @ProtoNumber(10) val telegramUsername: String?,
         @ProtoNumber(7) override val idempotencyKey: String = Uuid.random().toString(),
     ) : UserEvent, PersonalEvent {
         @ProtoNumber(8)

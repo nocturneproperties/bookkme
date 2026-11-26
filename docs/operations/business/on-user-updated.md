@@ -3,11 +3,13 @@
 Kafka topic `UserEvent.Updated` → `BusinessEventHandlerImpl` → `SyncUserProfile`
 
 Produced by [Create user (internal)](../user/create-user-internal.md),
-[Update user](../user/update-user.md) and [Store a verified email](../user/change-user-email-internal.md).
+[Update user](../user/update-user.md), [Store a verified email](../user/change-user-email-internal.md)
+and [Store the Telegram username](../user/change-telegram-username-internal.md).
 A new user has no integrated client or employee rows yet, so the event
 from sign-up finds nothing to merge or update. Business keeps
 denormalized copies of a user's name/last name/email/phone on any
-`Client.Integrated` or `Employee` row linked to that `userId` (so listing
+`Client.Integrated` or `Employee` row (and the Telegram username on
+`Client.Integrated` rows only) linked to that `userId` (so listing
 clients/employees doesn't need a live call to the user service); this
 keeps those copies from going stale.
 
@@ -34,7 +36,7 @@ flowchart TD
     Dedup -- Yes --> Skip([Skip - already handled])
     Dedup -- No --> Find[ClientDataSource.findClientMergesForUser userId email updatedAt]
     Find --> Merge["ClientDataSource.deleteClients every fromClientId - one DELETE, none without merges; then per kept client - eventProducer.send BusinessEvent.ClientLinked businessId toClientId userId mergedClientIds"]
-    Merge --> UpdClients[ClientDataSource.updateIntegratedClients userId name lastName email phone updatedAt]
+    Merge --> UpdClients[ClientDataSource.updateIntegratedClients userId name lastName email phone telegramUsername updatedAt]
     UpdClients --> UpdEmployees[EmployeeDataSource.updateIntegratedEmployees userId name lastName email phone updatedAt]
     UpdEmployees --> Shred["SubjectKeys.shredAll the merged fromClientIds - last"]
     Shred -- throws --> Dlt([Sent to UserEvent.Updated_dlt topic, logged - no auto-retry])

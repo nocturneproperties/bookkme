@@ -121,6 +121,7 @@ internal class NotificationEventHandlerTest {
             phone = null,
             updatedAt = Instant.fromEpochMilliseconds(1_700_000_000_000),
             telegramUserId = telegramUserId,
+            telegramUsername = null,
         )
     }
 

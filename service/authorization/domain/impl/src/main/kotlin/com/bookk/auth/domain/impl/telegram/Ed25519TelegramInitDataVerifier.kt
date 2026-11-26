@@ -7,6 +7,7 @@ import com.bookk.auth.domain.api.telegram.operation.SignInWithTelegram.Error.Tel
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import library.validation.TelegramUsernameValidator
 import java.net.URLDecoder
 import java.security.KeyFactory
 import java.security.PublicKey
@@ -83,7 +84,12 @@ internal class Ed25519TelegramInitDataVerifier(
 
     private fun parseUser(json: String): TelegramUser? {
         val user = runCatching { userJson.decodeFromString<TelegramWebAppUser>(json) }.getOrNull() ?: return null
-        return TelegramUser(id = user.id, firstName = user.firstName, lastName = user.lastName)
+        return TelegramUser(
+            id = user.id,
+            firstName = user.firstName,
+            lastName = user.lastName,
+            username = user.username?.takeIf(TelegramUsernameValidator::isValid),
+        )
     }
 
     @Serializable
@@ -91,6 +97,7 @@ internal class Ed25519TelegramInitDataVerifier(
         @SerialName("id") val id: Long,
         @SerialName("first_name") val firstName: String,
         @SerialName("last_name") val lastName: String? = null,
+        @SerialName("username") val username: String? = null,
     )
 
     private companion object {

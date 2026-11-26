@@ -68,6 +68,7 @@ internal class SwaggerTest {
             Routing::userRoute,
             setOf(
                 "post /api/internal/user/{id}/email",
+                "post /api/internal/user/{id}/telegram_username",
                 "get /api/internal/user/email",
                 "post /api/internal/user",
                 "patch /api/user/me",

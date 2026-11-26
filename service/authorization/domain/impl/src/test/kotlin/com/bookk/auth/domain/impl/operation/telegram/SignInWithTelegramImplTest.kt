@@ -78,6 +78,7 @@ internal class SignInWithTelegramImplTest {
 
         fun existingAccount(account: Authentication) {
             coEvery { telegramIdentityDataSource.getAccountByTelegramUser(telegramUser.id) } returns account
+            coEvery { userClient.changeTelegramUsername(account.userId, any()) } returns Result.success(Unit)
         }
 
         fun newAccount(userId: Uuid) {
@@ -130,6 +131,82 @@ internal class SignInWithTelegramImplTest {
     }
 
     @Test
+    fun `should store the current Telegram username of an existing account on sign in`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val account = Authentication.stub()
+        with(fixture) {
+            every { verifier.verify(request.initData) } returns TelegramUser.stub(username = "ann_renamed")
+            existingAccount(account)
+            coEvery { deviceDataSource.insertDevice(account.id, deviceUuid, any(), any()) } returns Uuid.random()
+        }
+
+        whenn()
+        val result = fixture.sut.invoke(fixture.request, Language.EN)
+
+        then()
+        assertTrue(result.isSuccess) { result.toString() }
+        coVerify(exactly = 1) { fixture.userClient.changeTelegramUsername(account.userId, "ann_renamed") }
+    }
+
+    @Test
+    fun `should clear the stored Telegram username when the user removed it in Telegram`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val account = Authentication.stub()
+        with(fixture) {
+            every { verifier.verify(request.initData) } returns TelegramUser.stub(username = null)
+            existingAccount(account)
+            coEvery { deviceDataSource.insertDevice(account.id, deviceUuid, any(), any()) } returns Uuid.random()
+        }
+
+        whenn()
+        val result = fixture.sut.invoke(fixture.request, Language.EN)
+
+        then()
+        assertTrue(result.isSuccess) { result.toString() }
+        coVerify(exactly = 1) { fixture.userClient.changeTelegramUsername(account.userId, null) }
+    }
+
+    @Test
+    fun `should still sign in when the Telegram username can't be stored`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val account = Authentication.stub()
+        with(fixture) {
+            existingAccount(account)
+            coEvery { deviceDataSource.insertDevice(account.id, deviceUuid, any(), any()) } returns Uuid.random()
+            coEvery { userClient.changeTelegramUsername(account.userId, any()) } returns
+                Result.failure(IllegalStateException("user service down"))
+        }
+
+        whenn()
+        val result = fixture.sut.invoke(fixture.request, Language.EN)
+
+        then()
+        assertEquals(fixture.tokens, result.getOrThrow())
+    }
+
+    @Test
+    fun `should not store the Telegram username when the sign in fails`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val account = Authentication.stub()
+        with(fixture) {
+            existingAccount(account)
+            coEvery { deviceDataSource.insertDevice(account.id, deviceUuid, any(), any()) } returns Uuid.random()
+            coEvery { generateAuthToken(any()) } returns Result.failure(IllegalStateException("no key"))
+        }
+
+        whenn()
+        val result = fixture.sut.invoke(fixture.request, Language.EN)
+
+        then()
+        assertTrue(result.isFailure)
+        coVerify(exactly = 0) { fixture.userClient.changeTelegramUsername(any(), any()) }
+    }
+
+    @Test
     fun `should create an account with a placeholder email for an unknown Telegram user`() = runUnitTest {
         given()
         val fixture = SutFixture()
@@ -153,6 +230,8 @@ internal class SignInWithTelegramImplTest {
         )
         assertEquals(fixture.request.acceptedDocuments, created.captured.acceptedDocuments)
         assertEquals(123456789L, created.captured.telegramUserId)
+        assertEquals("ann_lee", created.captured.telegramUsername)
+        coVerify(exactly = 0) { fixture.userClient.changeTelegramUsername(any(), any()) }
         assertEquals(userId, account.captured.userId)
         coVerify(exactly = 1) { fixture.telegramIdentityDataSource.link(account.captured.id, 123456789) }
         coVerify(exactly = 1) { fixture.eventProducer.send(any(AuthEvent.DeviceCreated::class), any()) }

@@ -24,7 +24,10 @@ import com.bookk.server.user.client.UserClient
 import com.bookk.server.user.client.api.CreateUserRequest
 import com.bookk.user.domain.api.operation.CreateUser
 import library.email.PlaceholderEmail
+import org.slf4j.LoggerFactory
 import kotlin.uuid.Uuid
+
+private val signInWithTelegramLogger = LoggerFactory.getLogger(SignInWithTelegramImpl::class.java)
 
 internal class SignInWithTelegramImpl(
     private val verifier: TelegramInitDataVerifier,
@@ -47,6 +50,7 @@ internal class SignInWithTelegramImpl(
         }
         if (account != null) {
             signIn(account, request.deviceInfo, language)
+                .also { storeUsername(account, telegramUser) }
         } else {
             register(telegramUser, request, language)
         }
@@ -70,6 +74,12 @@ internal class SignInWithTelegramImpl(
             eventProducer.send(AuthEvent.DeviceLanguageUpdated(deviceInfo.deviceUUID, language, authId = account.id))
         }
         generateAuthToken(Source.InitialAuthentication(account.id, deviceInfo.deviceUUID)).getOrThrow()
+    }
+
+    private suspend fun storeUsername(account: Authentication, telegramUser: TelegramUser) {
+        userClient.changeTelegramUsername(account.userId, telegramUser.username).onFailure {
+            signInWithTelegramLogger.warn("Telegram username of user ${account.userId} not stored", it)
+        }
     }
 
     private suspend fun register(
@@ -104,6 +114,7 @@ internal class SignInWithTelegramImpl(
             email = PlaceholderEmail.forTelegramUser(telegramUser.id),
             acceptedDocuments = request.acceptedDocuments ?: throw CreateUser.Error.LegalDocumentsNotAccepted(),
             telegramUserId = telegramUser.id,
+            telegramUsername = telegramUser.username,
         )
     }
 }

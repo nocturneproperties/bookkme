@@ -15,7 +15,7 @@ internal class TelegramInitDataSigner(val botId: Long = 7000000001) {
 
     fun signed(
         authDate: Instant,
-        user: String? = """{"id":123456789,"first_name":"Ann","last_name":"Lee","username":"ann"}""",
+        user: String? = """{"id":123456789,"first_name":"Ann","last_name":"Lee","username":"ann_lee"}""",
         extra: Map<String, String> = mapOf("query_id" to "AAHdF6IQAAAAAN0XohDhrOrc"),
         signedForBotId: Long = botId,
     ): String {

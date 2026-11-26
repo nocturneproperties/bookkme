@@ -16,6 +16,7 @@ erDiagram
         bytes email_encrypted
         bytes phone_encrypted "nullable; blank stored as NULL"
         bytes telegram_user_id_encrypted "nullable; only for accounts created through Telegram sign-in"
+        bytes telegram_username_encrypted "nullable; Telegram username from the signed Mini App data, refreshed on every Telegram sign-in"
         string email_index UK "HMAC of the trimmed, lowercased email"
         string phone_index UK "nullable; HMAC of the trimmed, lowercased phone"
         timestamp created_at

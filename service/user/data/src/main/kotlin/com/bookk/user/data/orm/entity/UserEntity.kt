@@ -16,6 +16,7 @@ class UserEntity(id: EntityID<Uuid>) : UuidEntity(id) {
     var emailEncrypted by UserTable.emailEncrypted
     var phoneEncrypted by UserTable.phoneEncrypted
     var telegramUserIdEncrypted by UserTable.telegramUserIdEncrypted
+    var telegramUsernameEncrypted by UserTable.telegramUsernameEncrypted
     var emailIndex by UserTable.emailIndex
     var phoneIndex by UserTable.phoneIndex
     var createdAt by UserTable.createdAt
@@ -29,6 +30,7 @@ class UserEntity(id: EntityID<Uuid>) : UuidEntity(id) {
                 email = emailEncrypted,
                 phone = phoneEncrypted,
                 telegramUserId = telegramUserIdEncrypted,
+                telegramUsername = telegramUsernameEncrypted,
             )
         }
 
@@ -83,6 +85,7 @@ class UserEntity(id: EntityID<Uuid>) : UuidEntity(id) {
             emailEncrypted = profile.email
             phoneEncrypted = profile.phone
             telegramUserIdEncrypted = profile.telegramUserId
+            telegramUsernameEncrypted = profile.telegramUsername
             this.updatedAt = updatedAt
         }
     }
@@ -94,6 +97,7 @@ class EncryptedProfile(
     val email: ByteArray,
     val phone: ByteArray?,
     val telegramUserId: ByteArray?,
+    val telegramUsername: ByteArray?,
 )
 
 class ContactIndexes(val email: String, val phone: String?)

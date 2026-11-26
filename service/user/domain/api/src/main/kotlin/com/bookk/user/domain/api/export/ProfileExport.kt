@@ -13,6 +13,7 @@ data class ProfileExport(
     val phone: String?,
     val createdAt: Instant,
     val telegramUserId: Long?,
+    val telegramUsername: String?,
 ) {
     companion object {
         fun stub(
@@ -23,8 +24,9 @@ data class ProfileExport(
             phone: String? = null,
             createdAt: Instant = Instant.fromEpochMilliseconds(0),
             telegramUserId: Long? = null,
+            telegramUsername: String? = null,
         ): ProfileExport {
-            return ProfileExport(id, name, lastName, email, phone, createdAt, telegramUserId)
+            return ProfileExport(id, name, lastName, email, phone, createdAt, telegramUserId, telegramUsername)
         }
     }
 }

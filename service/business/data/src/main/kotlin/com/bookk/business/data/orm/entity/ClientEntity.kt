@@ -20,6 +20,7 @@ internal class ClientEntity(id: EntityID<Uuid>) : UuidEntity(id) {
     var phoneEncrypted by ClientTable.phoneEncrypted
     var emailEncrypted by ClientTable.emailEncrypted
     var descriptionEncrypted by ClientTable.descriptionEncrypted
+    var telegramUsernameEncrypted by ClientTable.telegramUsernameEncrypted
     var emailIndex by ClientTable.emailIndex
     var phoneIndex by ClientTable.phoneIndex
     val createdAt by ClientTable.createdAt
@@ -33,6 +34,7 @@ internal class ClientEntity(id: EntityID<Uuid>) : UuidEntity(id) {
             phone = phoneEncrypted,
             email = emailEncrypted,
             description = descriptionEncrypted,
+            telegramUsername = telegramUsernameEncrypted,
         )
         return StoredContact(subjectId = id.value, encrypted = encrypted)
     }
@@ -58,6 +60,7 @@ internal class ClientEntity(id: EntityID<Uuid>) : UuidEntity(id) {
                 userId = userId,
                 description = contact.description,
                 createdAt = createdAt,
+                telegramUsername = contact.telegramUsername,
             )
         }
     }
@@ -69,6 +72,7 @@ internal class ClientEntity(id: EntityID<Uuid>) : UuidEntity(id) {
             this[ClientTable.phoneEncrypted] = contact.phone
             this[ClientTable.emailEncrypted] = contact.email
             this[ClientTable.descriptionEncrypted] = contact.description
+            this[ClientTable.telegramUsernameEncrypted] = contact.telegramUsername
             this[ClientTable.emailIndex] = indexes.email
             this[ClientTable.phoneIndex] = indexes.phone
         }
@@ -79,6 +83,7 @@ internal class ClientEntity(id: EntityID<Uuid>) : UuidEntity(id) {
             phoneEncrypted = contact.phone
             emailEncrypted = contact.email
             descriptionEncrypted = contact.description
+            telegramUsernameEncrypted = contact.telegramUsername
             if (reindex.email) emailIndex = indexes.email
             if (reindex.phone) phoneIndex = indexes.phone
             if (reindex.name) replaceNameTokens(indexes.nameTokens)

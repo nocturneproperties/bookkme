@@ -15,6 +15,7 @@ class ClientRemote(
     @ProtoNumber(6) val userId: Uuid?,
     @ProtoNumber(7) val description: String?,
     @ProtoNumber(8) val createdAt: Instant?,
+    @ProtoNumber(9) val telegramUsername: String?,
 ) {
     companion object {
         fun stub(
@@ -26,6 +27,7 @@ class ClientRemote(
             userId: Uuid? = null,
             description: String? = null,
             createdAt: Instant? = Instant.fromEpochMilliseconds(0),
+            telegramUsername: String? = null,
         ): ClientRemote {
             return ClientRemote(
                 id = id,
@@ -36,6 +38,7 @@ class ClientRemote(
                 userId = userId,
                 description = description,
                 createdAt = createdAt,
+                telegramUsername = telegramUsername,
             )
         }
     }
@@ -91,6 +94,7 @@ sealed interface Client {
         val userId: Uuid,
         override val description: String? = null,
         override val createdAt: Instant? = null,
+        val telegramUsername: String? = null,
     ) : Client {
         companion object {
             fun stub(
@@ -102,6 +106,7 @@ sealed interface Client {
                 userId: Uuid = Uuid.random(),
                 description: String? = null,
                 createdAt: Instant? = null,
+                telegramUsername: String? = null,
             ): Integrated {
                 return Integrated(
                     id = id,
@@ -112,6 +117,7 @@ sealed interface Client {
                     userId = userId,
                     description = description,
                     createdAt = createdAt,
+                    telegramUsername = telegramUsername,
                 )
             }
         }
@@ -132,6 +138,7 @@ fun Client.toRemote(): ClientRemote {
         userId = (this as? Client.Integrated)?.userId,
         description = description,
         createdAt = createdAt,
+        telegramUsername = (this as? Client.Integrated)?.telegramUsername,
     )
 }
 

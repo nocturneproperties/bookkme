@@ -5,6 +5,7 @@ import com.bookk.server.user.client.api.CreateUserRequest
 import com.bookk.server.user.client.api.UserSnapshot
 import com.bookk.user.domain.api.entity.EmailBody
 import com.bookk.user.domain.api.entity.NewUser
+import com.bookk.user.domain.api.operation.ChangeTelegramUsername
 import com.bookk.user.domain.api.operation.ChangeUserEmail
 import com.bookk.user.domain.api.operation.CreateUser
 import com.bookk.user.domain.api.operation.GetUserByEmail
@@ -16,6 +17,7 @@ internal class UserClientImpl(
     private val getUserByEmail: GetUserByEmail,
     private val createUser: CreateUser,
     private val changeUserEmail: ChangeUserEmail,
+    private val changeTelegramUsername: ChangeTelegramUsername,
 ) : UserClient {
     override suspend fun getUserById(userId: Uuid): Result<UserSnapshot> = getUserById.invoke(userId)
         .map { UserSnapshot.fromUser(it) }
@@ -30,11 +32,15 @@ internal class UserClientImpl(
             email = request.email,
             acceptedDocuments = request.acceptedDocuments,
             telegramUserId = request.telegramUserId,
+            telegramUsername = request.telegramUsername,
         ),
     ).map { it.id }
 
-    override suspend fun changeEmail(userId: Uuid, verifiedEmail: String): Result<Unit> = changeUserEmail.invoke(
-        userId,
-        verifiedEmail,
-    )
+    override suspend fun changeEmail(userId: Uuid, verifiedEmail: String): Result<Unit> {
+        return changeUserEmail.invoke(userId, verifiedEmail)
+    }
+
+    override suspend fun changeTelegramUsername(userId: Uuid, username: String?): Result<Unit> {
+        return changeTelegramUsername.invoke(userId, username)
+    }
 }

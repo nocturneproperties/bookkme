@@ -89,7 +89,7 @@ internal class BusinessEventHandlerImplEventTest {
         val updatedAt = Instant.fromEpochMilliseconds(1_700_000_000_000)
         val arrived = CountDownLatch(1)
         coEvery {
-            fixture.syncUserProfile(userId, any(), any(), any(), any(), any())
+            fixture.syncUserProfile(userId, any(), any(), any(), any(), any(), any())
         } answers {
             arrived.countDown()
             Result.success(Unit)
@@ -106,7 +106,8 @@ internal class BusinessEventHandlerImplEventTest {
                     email = "jane@example.com",
                     phone = "+10000000000",
                     updatedAt = updatedAt,
-                    telegramUserId = null,
+                    telegramUserId = 42,
+                    telegramUsername = "jane_smith",
                 ),
             )
             arrived.await(20, TimeUnit.SECONDS)
@@ -115,7 +116,15 @@ internal class BusinessEventHandlerImplEventTest {
 
         then()
         coVerify(exactly = 1) {
-            fixture.syncUserProfile(userId, "Jane", "Smith", "jane@example.com", "+10000000000", updatedAt)
+            fixture.syncUserProfile(
+                userId,
+                "Jane",
+                "Smith",
+                "jane@example.com",
+                "+10000000000",
+                "jane_smith",
+                updatedAt,
+            )
         }
     }
 
@@ -127,7 +136,7 @@ internal class BusinessEventHandlerImplEventTest {
         val updatedAt = Instant.fromEpochMilliseconds(1_700_000_000_000)
         val arrived = CountDownLatch(1)
         coEvery {
-            fixture.syncUserProfile(userId, any(), any(), any(), any(), any())
+            fixture.syncUserProfile(userId, any(), any(), any(), any(), any(), any())
         } answers {
             arrived.countDown()
             Result.success(Unit)
@@ -145,6 +154,7 @@ internal class BusinessEventHandlerImplEventTest {
                     phone = null,
                     updatedAt = updatedAt,
                     telegramUserId = null,
+                    telegramUsername = null,
                 ),
             )
             arrived.await(20, TimeUnit.SECONDS)
@@ -153,7 +163,7 @@ internal class BusinessEventHandlerImplEventTest {
 
         then()
         coVerify(exactly = 1) {
-            fixture.syncUserProfile(userId, "Jane", "Smith", "jane@example.com", null, updatedAt)
+            fixture.syncUserProfile(userId, "Jane", "Smith", "jane@example.com", null, null, updatedAt)
         }
     }
 

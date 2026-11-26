@@ -41,8 +41,8 @@ internal class UserDataExportDataSourceImpl(
         val employeeContacts = contactCipher.decryptAll(employees.map { it.storedContact() }, EMPLOYEE_SOURCE)
         val clients = ClientEntity.find { ClientTable.userId eq userId }.toList()
         val clientContacts = contactCipher.decryptAll(clients.map { it.storedContact() }, CLIENT_SOURCE)
-        val businessNames =
-            businessNames(employees.map { it.businessId.value } + clients.map { it.businessId.value })
+        val businessIds = employees.map { it.businessId.value } + clients.map { it.businessId.value }
+        val businessNames = businessNames(businessIds)
         BusinessUserDataExport(
             ownedBusinesses = BusinessEntity.find { BusinessTable.userId eq userId }.map { it.toExport() },
             employments = employees.zip(employeeContacts) { entity, contact ->
@@ -110,6 +110,7 @@ internal class UserDataExportDataSourceImpl(
             email = contact.email,
             description = contact.description,
             lastActivityAt = lastActivityAt,
+            telegramUsername = contact.telegramUsername,
         )
     }
 

@@ -29,6 +29,7 @@ interface ClientDataSource {
         lastName: String,
         email: String,
         phone: String?,
+        telegramUsername: String?,
         updatedAt: Instant,
     ): Int
     suspend fun getClientsOfUserForUpdate(userId: Uuid): List<ErasedClient>

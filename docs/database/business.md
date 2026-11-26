@@ -117,6 +117,7 @@ erDiagram
         bytes phone_encrypted "nullable; not unique, several clients of a business may share it"
         bytes email_encrypted "nullable; at least one of phone/email required on create"
         bytes description_encrypted "nullable; business owner's notes about the client"
+        bytes telegram_username_encrypted "nullable; integrated clients only, copied from the user's profile and kept in sync"
         string email_index "nullable; HMAC of the trimmed, lowercased email; UK with business_id"
         string phone_index "nullable; HMAC of the phone's digits; indexed with business_id (search)"
         uuid user_id "logical FK -> user.profile.id, nullable; UK with business_id"
