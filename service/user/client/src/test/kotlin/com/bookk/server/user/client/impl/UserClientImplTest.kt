@@ -7,6 +7,7 @@ import com.bookk.core.test.whenn
 import com.bookk.server.user.client.api.CreateUserRequest
 import com.bookk.user.domain.api.entity.AcceptedLegalDocuments
 import com.bookk.user.domain.api.entity.NewUser
+import com.bookk.user.domain.api.entity.ProfileName
 import com.bookk.user.domain.api.entity.UserId
 import com.bookk.user.domain.api.operation.ChangeTelegramUsername
 import com.bookk.user.domain.api.operation.ChangeUserEmail
@@ -51,14 +52,14 @@ internal class UserClientImplTest {
         given()
         val fixture = SutFixture()
         val userId = Uuid.random()
-        coEvery { fixture.changeUserEmail.invoke(userId, "new@example.com") } returns Result.success(Unit)
+        coEvery { fixture.changeUserEmail.invoke(userId, "new@example.com", null) } returns Result.success(Unit)
 
         whenn()
         val result = fixture.sut.changeEmail(userId, "new@example.com")
 
         then()
         assertTrue(result.isSuccess)
-        coVerify(exactly = 1) { fixture.changeUserEmail.invoke(userId, "new@example.com") }
+        coVerify(exactly = 1) { fixture.changeUserEmail.invoke(userId, "new@example.com", null) }
     }
 
     @Test
@@ -74,5 +75,21 @@ internal class UserClientImplTest {
         then()
         assertTrue(result.isSuccess)
         coVerify(exactly = 1) { fixture.changeTelegramUsername.invoke(userId, "ann_lee") }
+    }
+
+    @Test
+    fun `should store a verified email together with a new name`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val name = ProfileName.stub()
+        coEvery { fixture.changeUserEmail.invoke(userId, "new@example.com", name) } returns Result.success(Unit)
+
+        whenn()
+        val result = fixture.sut.changeEmailAndName(userId, "new@example.com", name)
+
+        then()
+        assertTrue(result.isSuccess)
+        coVerify(exactly = 1) { fixture.changeUserEmail.invoke(userId, "new@example.com", name) }
     }
 }

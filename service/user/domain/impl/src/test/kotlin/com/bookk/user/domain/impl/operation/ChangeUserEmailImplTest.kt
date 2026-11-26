@@ -9,6 +9,7 @@ import com.bookk.core.test.runUnitTest
 import com.bookk.core.test.then
 import com.bookk.core.test.whenn
 import com.bookk.server.user.client.api.event.UserEvent
+import com.bookk.user.domain.api.entity.ProfileName
 import com.bookk.user.domain.api.entity.User
 import com.bookk.user.domain.api.operation.ChangeUserEmail
 import com.bookk.user.domain.datasource.UserDataSource
@@ -41,15 +42,15 @@ internal class ChangeUserEmailImplTest {
         given()
         val fixture = SutFixture()
         val userId = Uuid.random()
-        coEvery { fixture.userDataSource.changeEmail(userId, NEW_EMAIL, any()) } returns
+        coEvery { fixture.userDataSource.changeEmail(userId, NEW_EMAIL, null, any()) } returns
             User.stub(id = userId, email = NEW_EMAIL)
 
         whenn()
-        val result = fixture.sut.invoke(userId, NEW_EMAIL)
+        val result = fixture.sut.invoke(userId, NEW_EMAIL, null)
 
         then()
         assertTrue(result.isSuccess) { result.toString() }
-        coVerify(exactly = 1) { fixture.userDataSource.changeEmail(userId, NEW_EMAIL, any()) }
+        coVerify(exactly = 1) { fixture.userDataSource.changeEmail(userId, NEW_EMAIL, null, any()) }
     }
 
     @Test
@@ -65,10 +66,10 @@ internal class ChangeUserEmailImplTest {
             phone = "+10000000000",
             telegramUserId = 123456789,
         )
-        coEvery { fixture.userDataSource.changeEmail(userId, NEW_EMAIL, any()) } returns changed
+        coEvery { fixture.userDataSource.changeEmail(userId, NEW_EMAIL, null, any()) } returns changed
 
         whenn()
-        fixture.sut.invoke(userId, NEW_EMAIL)
+        fixture.sut.invoke(userId, NEW_EMAIL, null)
 
         then()
         coVerify(exactly = 1) {
@@ -92,10 +93,10 @@ internal class ChangeUserEmailImplTest {
         given()
         val fixture = SutFixture()
         val userId = Uuid.random()
-        coEvery { fixture.userDataSource.changeEmail(userId, NEW_EMAIL, any()) } returns null
+        coEvery { fixture.userDataSource.changeEmail(userId, NEW_EMAIL, null, any()) } returns null
 
         whenn()
-        val result = fixture.sut.invoke(userId, NEW_EMAIL)
+        val result = fixture.sut.invoke(userId, NEW_EMAIL, null)
 
         then()
         assertTrue(result.exceptionOrNull() is ChangeUserEmail.Error.UserNotFound) { result.toString() }
@@ -107,11 +108,11 @@ internal class ChangeUserEmailImplTest {
         given()
         val fixture = SutFixture()
         val userId = Uuid.random()
-        coEvery { fixture.userDataSource.changeEmail(userId, NEW_EMAIL, any()) } throws
+        coEvery { fixture.userDataSource.changeEmail(userId, NEW_EMAIL, null, any()) } throws
             Error.UniqueConstraintFailed("duplicate", IllegalStateException())
 
         whenn()
-        val result = fixture.sut.invoke(userId, NEW_EMAIL)
+        val result = fixture.sut.invoke(userId, NEW_EMAIL, null)
 
         then()
         assertTrue(result.exceptionOrNull() is ChangeUserEmail.Error.EmailTaken) { result.toString() }
@@ -119,5 +120,24 @@ internal class ChangeUserEmailImplTest {
 
     private companion object {
         const val NEW_EMAIL = "new@example.com"
+    }
+
+    @Test
+    fun `should store a new name together with the email when one is given`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val name = ProfileName.stub(name = "Ann", lastName = "Lee")
+        coEvery { fixture.userDataSource.changeEmail(userId, NEW_EMAIL, name, any()) } returns
+            User.stub(id = userId, name = "Ann", lastName = "Lee", email = NEW_EMAIL)
+
+        whenn()
+        val result = fixture.sut.invoke(userId, NEW_EMAIL, name)
+
+        then()
+        assertTrue(result.isSuccess) { result.toString() }
+        coVerify(exactly = 1) {
+            fixture.eventProducer.send(match<UserEvent.Updated> { it.name == "Ann" && it.lastName == "Lee" }, any())
+        }
     }
 }

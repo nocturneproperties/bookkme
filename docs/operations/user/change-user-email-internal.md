@@ -7,13 +7,16 @@ Called by auth once the user confirmed the code sent to their new address
 the only write of `profile.email` after sign-up, and sign-up itself only
 accepts a verified address, so every stored email has been verified, except
 the never-mailed placeholder of an account created by Telegram sign-in
-([Sign in with Telegram](../authorization/telegram-sign-in.md)). The
-cached profile is evicted.
+([Sign in with Telegram](../authorization/telegram-sign-in.md)) or by a
+demo ([Start a demo account](../authorization/demo-start.md)). The
+[demo upgrade](../authorization/demo-upgrade.md) also sends a name, which
+replaces the placeholder first and last name in the same write. The cached
+profile is evicted.
 
 ```mermaid
 flowchart TD
-    Start([POST /api/internal/user/id/email<br/>body EmailBody]) --> Tx[[Begin transaction]]
-    Tx --> Change[UserDataSource.changeEmail id email now]
+    Start([POST /api/internal/user/id/email<br/>body VerifiedEmailBody email, optional name]) --> Tx[[Begin transaction]]
+    Tx --> Change[UserDataSource.changeEmail id email name now - name and last name replaced only when a name is sent]
     Change -- not found --> R404([404 USER_NOT_EXIST 100001])
     Change -- email held by another account,<br/>profile_email_unique --> R422([422 USER_CONTACT_TAKEN 100002])
     Change -- changed --> Event[eventProducer.send UserEvent.Updated]

@@ -8,6 +8,8 @@ import com.bookk.core.test.given
 import com.bookk.core.test.then
 import com.bookk.core.test.whenn
 import com.bookk.user.domain.api.entity.EmailBody
+import com.bookk.user.domain.api.entity.ProfileName
+import com.bookk.user.domain.api.entity.VerifiedEmailBody
 import com.bookk.user.domain.api.error.UserErrorCodes
 import com.bookk.user.domain.api.operation.ChangeUserEmail
 import com.bookk.user.microservice.route.UserRouting
@@ -30,7 +32,7 @@ internal class InternalUserEmailTest {
         given()
         val useCase: ChangeUserEmail = mockk()
         val userId = Uuid.random()
-        coEvery { useCase.invoke(userId, EMAIL) } returns Result.success(Unit)
+        coEvery { useCase.invoke(userId, EMAIL, null) } returns Result.success(Unit)
         setupApplication(diModule = module { single { useCase } }, routeUnderTest = { postChangeUserEmail() })
 
         whenn()
@@ -40,7 +42,7 @@ internal class InternalUserEmailTest {
 
         then()
         assertEquals(HttpStatusCode.NoContent, response.status)
-        coVerify(exactly = 1) { useCase.invoke(userId, EMAIL) }
+        coVerify(exactly = 1) { useCase.invoke(userId, EMAIL, null) }
     }
 
     @Test
@@ -48,7 +50,7 @@ internal class InternalUserEmailTest {
         given()
         val useCase: ChangeUserEmail = mockk()
         val userId = Uuid.random()
-        coEvery { useCase.invoke(userId, EMAIL) } returns Result.failure(ChangeUserEmail.Error.UserNotFound())
+        coEvery { useCase.invoke(userId, EMAIL, null) } returns Result.failure(ChangeUserEmail.Error.UserNotFound())
         setupApplication(diModule = module { single { useCase } }, routeUnderTest = { postChangeUserEmail() })
 
         whenn()
@@ -66,7 +68,7 @@ internal class InternalUserEmailTest {
         given()
         val useCase: ChangeUserEmail = mockk()
         val userId = Uuid.random()
-        coEvery { useCase.invoke(userId, EMAIL) } returns Result.failure(ChangeUserEmail.Error.EmailTaken())
+        coEvery { useCase.invoke(userId, EMAIL, null) } returns Result.failure(ChangeUserEmail.Error.EmailTaken())
         setupApplication(diModule = module { single { useCase } }, routeUnderTest = { postChangeUserEmail() })
 
         whenn()
@@ -81,5 +83,24 @@ internal class InternalUserEmailTest {
 
     private companion object {
         const val EMAIL = "new@example.com"
+    }
+
+    @Test
+    fun `should store the name sent with the verified email`() = routeTest {
+        given()
+        val useCase: ChangeUserEmail = mockk()
+        val userId = Uuid.random()
+        val name = ProfileName.stub(name = "Ann", lastName = "Lee")
+        coEvery { useCase.invoke(userId, EMAIL, name) } returns Result.success(Unit)
+        setupApplication(diModule = module { single { useCase } }, routeUnderTest = { postChangeUserEmail() })
+
+        whenn()
+        val response = createTestClient().post(UserRouting.Api.Internal.User.ChangeEmail(id = userId)) {
+            setBody(VerifiedEmailBody(EMAIL, name))
+        }
+
+        then()
+        assertEquals(HttpStatusCode.NoContent, response.status)
+        coVerify(exactly = 1) { useCase.invoke(userId, EMAIL, name) }
     }
 }

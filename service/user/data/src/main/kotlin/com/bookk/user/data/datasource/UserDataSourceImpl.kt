@@ -8,6 +8,7 @@ import com.bookk.user.data.cache.UserCacheStrategy.getUser
 import com.bookk.user.data.cache.UserCacheStrategy.save
 import com.bookk.user.data.orm.entity.UserEntity
 import com.bookk.user.data.orm.table.UserTable
+import com.bookk.user.domain.api.entity.ProfileName
 import com.bookk.user.domain.api.entity.TelegramUsernameChange
 import com.bookk.user.domain.api.entity.User
 import com.bookk.user.domain.api.entity.UserEditModel
@@ -52,10 +53,16 @@ internal class UserDataSourceImpl(
         cacheClient.deleteUser(id)
     }
 
-    override suspend fun changeEmail(id: Uuid, verifiedEmail: String, updatedAt: Instant): User? = dbQuery {
+    override suspend fun changeEmail(
+        id: Uuid,
+        verifiedEmail: String,
+        name: ProfileName?,
+        updatedAt: Instant,
+    ): User? = dbQuery {
         val entity = UserEntity.findByIdForUpdate(id) ?: return@dbQuery null
         val read = profileCipher.decrypt(id, entity.profile)
-        val changed = read.user.copy(email = verifiedEmail)
+        val renamed = name?.let { read.user.copy(name = it.name, lastName = it.lastName) } ?: read.user
+        val changed = renamed.copy(email = verifiedEmail)
         val encrypted = profileCipher.encryptChanges(read, changed) ?: return@dbQuery null
         UserEntity.findByIdAndUpdateEmail(id, encrypted, profileCipher.indexOf(verifiedEmail), updatedAt)
         changed

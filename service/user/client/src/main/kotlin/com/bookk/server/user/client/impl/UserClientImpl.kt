@@ -5,6 +5,7 @@ import com.bookk.server.user.client.api.CreateUserRequest
 import com.bookk.server.user.client.api.UserSnapshot
 import com.bookk.user.domain.api.entity.EmailBody
 import com.bookk.user.domain.api.entity.NewUser
+import com.bookk.user.domain.api.entity.ProfileName
 import com.bookk.user.domain.api.operation.ChangeTelegramUsername
 import com.bookk.user.domain.api.operation.ChangeUserEmail
 import com.bookk.user.domain.api.operation.CreateUser
@@ -40,7 +41,11 @@ internal class UserClientImpl(
     }
 
     override suspend fun changeEmail(userId: Uuid, verifiedEmail: String): Result<Unit> {
-        return changeUserEmail.invoke(userId, verifiedEmail)
+        return changeUserEmail.invoke(userId, verifiedEmail, name = null)
+    }
+
+    override suspend fun changeEmailAndName(userId: Uuid, verifiedEmail: String, name: ProfileName): Result<Unit> {
+        return changeUserEmail.invoke(userId, verifiedEmail, name)
     }
 
     override suspend fun changeTelegramUsername(userId: Uuid, username: String?): Result<Unit> {
