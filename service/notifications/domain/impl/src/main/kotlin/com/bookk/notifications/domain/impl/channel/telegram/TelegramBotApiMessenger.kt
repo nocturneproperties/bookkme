@@ -18,8 +18,13 @@ internal class TelegramBotApiMessenger(
     private val botToken: String,
 ) : TelegramMessenger {
 
-    override suspend fun send(chatId: Long, text: String): TelegramDelivery {
-        val response = post(SendMessageRequest(chatId = chatId, text = text.take(MAX_TEXT_LENGTH)))
+    override suspend fun send(chatId: Long, text: String, button: TelegramUrlButton?): TelegramDelivery {
+        val request = SendMessageRequest(
+            chatId = chatId,
+            text = text.take(MAX_TEXT_LENGTH),
+            replyMarkup = button?.let(::keyboardOf),
+        )
+        val response = post(request)
         if (response.status.isSuccess()) return TelegramDelivery.SENT
         if (response.status == HttpStatusCode.Forbidden) return TelegramDelivery.CHAT_UNREACHABLE
         throw IllegalStateException(
@@ -39,6 +44,10 @@ internal class TelegramBotApiMessenger(
         }
     }
 
+    private fun keyboardOf(button: TelegramUrlButton): InlineKeyboardMarkup {
+        return InlineKeyboardMarkup(listOf(listOf(InlineKeyboardButton(text = button.text, url = button.url))))
+    }
+
     private suspend fun HttpResponse.description(): String? {
         return runSuspendCatching { body<TelegramBotApiRefusal>().description }.getOrNull()
     }
@@ -47,6 +56,18 @@ internal class TelegramBotApiMessenger(
     private class SendMessageRequest(
         @SerialName("chat_id") val chatId: Long,
         @SerialName("text") val text: String,
+        @SerialName("reply_markup") val replyMarkup: InlineKeyboardMarkup? = null,
+    )
+
+    @Serializable
+    private class InlineKeyboardMarkup(
+        @SerialName("inline_keyboard") val inlineKeyboard: List<List<InlineKeyboardButton>>,
+    )
+
+    @Serializable
+    private class InlineKeyboardButton(
+        @SerialName("text") val text: String,
+        @SerialName("url") val url: String,
     )
 
     @Serializable

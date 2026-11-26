@@ -18,6 +18,7 @@ import io.ktor.http.content.TextContent
 import io.ktor.http.headersOf
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.long
@@ -84,6 +85,35 @@ internal class TelegramBotApiMessengerTest {
         then()
         assertFalse(fixture.sentJson().containsKey("parse_mode"))
         assertEquals("<b>Barber_shop</b> *today*", fixture.sentJson()["text"]?.jsonPrimitive?.content)
+    }
+
+    @Test
+    fun `should attach a URL button below the text as a one-button inline keyboard`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val button = TelegramUrlButton(text = "Confirm in BookkMe", url = "https://t.me/bookkme_bot?startapp=op_x")
+
+        whenn()
+        val delivery = fixture.sut.send(123456789, "Confirm the action", button)
+
+        then()
+        assertEquals(TelegramDelivery.SENT, delivery)
+        val keyboard = fixture.sentJson()["reply_markup"]?.jsonObject?.get("inline_keyboard")?.jsonArray
+        val sentButton = keyboard?.single()?.jsonArray?.single()?.jsonObject
+        assertEquals("Confirm in BookkMe", sentButton?.get("text")?.jsonPrimitive?.content)
+        assertEquals("https://t.me/bookkme_bot?startapp=op_x", sentButton?.get("url")?.jsonPrimitive?.content)
+    }
+
+    @Test
+    fun `should send no reply markup without a button`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+
+        whenn()
+        fixture.sut.send(123456789, "Text")
+
+        then()
+        assertFalse(fixture.sentJson().containsKey("reply_markup"))
     }
 
     @Test

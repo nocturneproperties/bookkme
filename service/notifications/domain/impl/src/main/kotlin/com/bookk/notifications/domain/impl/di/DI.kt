@@ -2,6 +2,7 @@ package com.bookk.notifications.domain.impl.di
 
 import com.bookk.core.data.eventstreaming.EventHandler
 import com.bookk.notifications.client.api.export.ExportUserNotificationData
+import com.bookk.notifications.client.api.telegram.SendTelegramActionConfirmation
 import com.bookk.notifications.domain.api.CreateDeviceEntry
 import com.bookk.notifications.domain.api.DeleteDeviceByUUID
 import com.bookk.notifications.domain.api.DeleteUserNotificationData
@@ -25,11 +26,15 @@ import com.bookk.notifications.domain.impl.channel.FirebaseNotificationSender
 import com.bookk.notifications.domain.impl.channel.NotificationSender
 import com.bookk.notifications.domain.impl.channel.TelegramNotificationSender
 import com.bookk.notifications.domain.impl.channel.telegram.TelegramMessenger
+import com.bookk.notifications.domain.impl.channel.telegram.TelegramMiniAppLink
 import com.bookk.notifications.domain.impl.channel.telegram.telegramMessenger
+import com.bookk.notifications.domain.impl.channel.telegram.telegramMiniAppLink
 import com.bookk.notifications.domain.impl.event.NotificationEventHandler
 import com.bookk.notifications.domain.impl.notification.SendNotification
+import com.bookk.notifications.domain.impl.telegram.SendTelegramActionConfirmationImpl
 import com.google.firebase.messaging.FirebaseMessaging
 import io.ktor.client.engine.cio.CIO
+import org.koin.core.module.Module
 import org.koin.core.module.dsl.scopedOf
 import org.koin.core.qualifier.Qualifier
 import org.koin.core.qualifier.named
@@ -38,7 +43,15 @@ import org.koin.dsl.module
 
 val NotificationsScope: Qualifier = named(NOTIFICATIONS_SCHEMA)
 
-fun notificationsDomainModule(environment: (String) -> String? = System::getenv) = module {
+fun notificationsDomainModule(environment: (String) -> String? = System::getenv): Module {
+    val miniAppLink = telegramMiniAppLink(environment)
+    return notificationsDomainModule(environment, miniAppLink)
+}
+
+private fun notificationsDomainModule(
+    environment: (String) -> String?,
+    miniAppLink: TelegramMiniAppLink?,
+): Module = module {
     scope(NotificationsScope) {
         scopedOf(::NotificationEventHandler) bind EventHandler::class
         scopedOf(::CreateDeviceEntryImpl) bind CreateDeviceEntry::class
@@ -64,5 +77,8 @@ fun notificationsDomainModule(environment: (String) -> String? = System::getenv)
         }
         scoped { FirebaseMessaging.getInstance() }
         scoped<TelegramMessenger> { telegramMessenger(environment, CIO.create()) }
+        scoped<SendTelegramActionConfirmation> {
+            SendTelegramActionConfirmationImpl(get(), get(), get(), miniAppLink)
+        }
     }
 }

@@ -13,6 +13,12 @@ object NotificationsRouting {
                 @Resource("/notifications/{userId}")
                 class User(val parent: Export = Export(), val userId: Uuid)
             }
+
+            @Resource("/telegram")
+            class Telegram(val parent: Internal = Internal()) {
+                @Resource("/action_confirmation/{userId}")
+                class ActionConfirmation(val parent: Telegram = Telegram(), val userId: Uuid)
+            }
         }
 
         @Resource("/notifications")

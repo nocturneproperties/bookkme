@@ -121,6 +121,7 @@ internal class SwaggerTest {
             setOf(
                 "put /api/notifications/{deviceUuid}/token",
                 "put /api/notifications/settings",
+                "post /api/internal/telegram/action_confirmation/{userId}",
             ),
         ),
     }
