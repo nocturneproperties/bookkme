@@ -46,7 +46,8 @@ flowchart TD
     Challenge -- missing, expired or already taken --> R422a([422 CHALLENGE_WINDOW_EXPIRED 6])
     Challenge -- taken --> Verify["RelyingParty.finishAssertion"]
     Verify -- malformed assertion or lookup failure --> R422b([422 VERIFICATION_FAILED 4])
-    Verify -- no user handle, unknown credential, signature, challenge or origin invalid --> R422c([422 PASSKEY_OWNER_NOT_FOUND 7])
+    Verify -- no stored passkey for the credential id and user handle, checked before the signature --> R422cu([422 PASSKEY_UNKNOWN 26])
+    Verify -- no user handle, signature, challenge or origin invalid --> R422c([422 PASSKEY_OWNER_NOT_FOUND 7])
     Verify -- ok --> MarkUsed[PassKeyDataSource.markAsUsed credentialId]
     MarkUsed --> Owner{"credential.authInfo.userId == caller userId?"}
     Owner -- No --> R422d([422 PASSKEY_NOT_OWNED 11])

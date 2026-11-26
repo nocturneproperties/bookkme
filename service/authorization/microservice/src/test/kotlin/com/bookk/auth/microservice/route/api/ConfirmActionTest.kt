@@ -132,6 +132,19 @@ internal class ConfirmActionTest {
     }
 
     @Test
+    fun `should return unprocessable entity when the passkey is unknown`() = routeTest {
+        given()
+        val error = FinishAssertion.Error.PasskeyUnknown()
+
+        whenn()
+        val response = rejectedWith(error)
+
+        then()
+        assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
+        assertEquals(AuthErrorCodes.PASSKEY_UNKNOWN, response.body<SimpleServerError>().errorCode)
+    }
+
+    @Test
     fun `should return unprocessable entity when the passkey belongs to another account`() = routeTest {
         given()
         val error = FinishAssertion.Error.PasskeyNotOwned()
