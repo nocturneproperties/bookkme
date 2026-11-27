@@ -3,8 +3,9 @@
 Kafka topic `UserEvent.Updated` → `NotificationEventHandler` → `UpdateTargetInformation`
 
 Produced by [Create user (internal)](../user/create-user-internal.md) at
-sign-up, [Update user](../user/update-user.md) and [Store a verified
-email](../user/change-user-email-internal.md). Keeps the user's email
+sign-up, [Update user](../user/update-user.md), [Store a verified
+email](../user/change-user-email-internal.md) and [Replace a demo
+profile](../user/upgrade-demo-profile-internal.md). Keeps the user's email
 delivery target in sync with their profile email and, when the event
 carries a `telegramUserId` (an account created through Telegram sign-in),
 saves it as the user's Telegram target, creating default notification

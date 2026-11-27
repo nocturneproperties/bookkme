@@ -20,7 +20,8 @@ internal class SetBusinessLinkImpl(
     private val transactionManager: TransactionManager,
     private val clock: Clock,
 ) : SetBusinessLink {
-    override suspend fun invoke(userId: Uuid, businessId: Uuid, name: String): Result<BusinessLink> {
+    override suspend fun invoke(userId: Uuid, businessId: Uuid, name: String, isDemo: Boolean): Result<BusinessLink> {
+        if (isDemo) return Result.failure(SetBusinessLink.Error.DemoRestricted())
         val linkName = BusinessLinkPolicy.normalize(name)
         if (!BusinessLinkPolicy.isValid(linkName)) return Result.failure(SetBusinessLink.Error.LinkInvalid())
         if (BusinessLinkPolicy.isReserved(linkName)) return Result.failure(SetBusinessLink.Error.LinkReserved())
@@ -58,7 +59,8 @@ internal class SetBusinessLinkImpl(
     }
 
     private suspend fun releaseCurrent(businessId: Uuid, now: Instant) {
-        if (businessLinkDataSource.getCurrentLink(businessId) == null) return
+        val current = businessLinkDataSource.getCurrentLink(businessId) ?: return
+        if (BusinessLinkPolicy.isDemoName(current.name)) return businessLinkDataSource.deleteLink(current.name)
         val changes = businessLinkDataSource.countLinkChangesSince(businessId, now - BusinessLinkPolicy.HOLD_PERIOD)
         if (changes >= BusinessLinkPolicy.MAX_CHANGES) throw SetBusinessLink.Error.ChangeLimitReached()
         businessLinkDataSource.releaseCurrentLink(businessId, now)

@@ -13,6 +13,7 @@ This repository holds the BookkMe backend. You can run it yourself to take booki
 - [Self-hosting for your business](#self-hosting-for-your-business)
 - [Configuration](#configuration)
   - [Telegram sign-in](#telegram-sign-in)
+  - [Demo accounts](#demo-accounts)
   - [Creation limits](#creation-limits)
 - [Running as microservices](#running-as-microservices)
 - [How the services communicate](#how-the-services-communicate)
@@ -44,6 +45,7 @@ This repository holds the BookkMe backend. You can run it yourself to take booki
 
 - Passwordless sign-in with passkeys, with the email verified by a one-time code
 - Sign-in from a Telegram Mini App, which creates the account on first use (see [Telegram sign-in](#telegram-sign-in))
+- 14-day demo accounts with a sample business, started with one tap and kept by adding an email and a passkey (see [Demo accounts](#demo-accounts))
 - Booking, rescheduling and cancelling appointments, with the business's note for clients shown before booking and a choice of staff member showing each one's services, working hours and free time slots; a staff member can't be booked twice for the same time
 - A home screen with the nearest upcoming bookings across every business, and saved businesses to book again with the date of the last visit
 - A client's own history of appointments and booking requests across every business, split into upcoming and past
@@ -155,6 +157,14 @@ The first sign-in of a Telegram user creates an account with their Telegram firs
 
 With `APPLICATION_TELEGRAM_BOT_TOKEN` set, the bot sends notifications to these users' private chats as plain text, in the language of the device they last signed in on. Telegram appears in their notification settings, turned on when the account is created. A bot can only write to someone who allowed it, so the app asks for that permission (the Mini App's `requestWriteAccess()`) right after sign-in and before turning the channel back on; if the user never allows it, the first notification the bot can't deliver turns the channel off. Account notifications, such as the warnings before a dormant account is deleted and a finished data export, go to Telegram even with the channel off while the account has no real email address. If the user blocks the bot, the server turns their Telegram channel off. Telegram receives the text of each notification it delivers, such as a business name and appointment time, so list it among your providers.
 
+### Demo accounts
+
+Someone who isn't ready to sign up can start a demo with `POST /api/auth/demo`: one request creates an account without an email address, signs the device in and, within moments, fills a sample business for it with services, ten fictional clients and about a week of bookings around today. The app can say what kind of business the user runs (beauty, fitness, tutoring or health, otherwise a general one with consultations and sessions), and the sample is written in the app's language (English, Ukrainian or Polish, English for any other) and priced in a matching currency (EUR, UAH or PLN). The demo lasts 14 days. Its business is marked as a demo, so the app can show a badge, and gets a random `demo-…` link; nobody can pick a link starting with `demo-`, and demo accounts can't pick a link at all. Demo accounts can do everything else a business does, invite staff and join other businesses included, but they can't book appointments as a client anywhere, since a demo is for trying BookkMe as a business and only real clients book; this also keeps them from being used to flood real businesses with requests. A demo account can own one business.
+
+The device's sign-in is the demo's only credential: signing out or reinstalling the app ends it for good. To keep the account and everything in it, the user adds an email address, confirmed with a code, and a passkey, while the demo runs or within 7 days after it ended. A demo that was not kept is deleted 7 days after it ended, like a deleted account, and its businesses and bookings with it.
+
+Demos need no setup. Creation is anonymous, so the server allows at most 1,000 demos running at once and refuses more with a 429 error until older ones end. To change that number while the server runs, set it in the database (`UPDATE authorization.demo_settings SET max_active_accounts = 200;`): it applies to the next demo started, `0` turns demos off, and `NULL` returns to 1,000. Separately, the bundled nginx configuration lets each address start one demo a minute (bursts of 3), so keep a similar limit on `POST /api/auth/demo` if you use another reverse proxy.
+
 ### Creation limits
 
 The server caps how much one business or one person can create. A request over a limit is refused with a 422 error naming the limit; a client import creates clients up to the limit and reports the rest as rejected.
@@ -165,7 +175,7 @@ The server caps how much one business or one person can create. A request over a
 | Clients | 20,000 | each business | `business.business.max_clients` |
 | Services | 300 | each business | `business.business.max_services` |
 | Service groups | 50 | each business | `business.business.max_service_groups` |
-| Businesses a person owns (working at others doesn't count) | 20 | each person | `business.user_limits.max_businesses` |
+| Businesses a person owns (working at others doesn't count) | 20, 1 for a demo account | each person | `business.user_limits.max_businesses` (not for demo accounts) |
 | Pending booking requests one person has at a business | 10 | each business | `appointments.appointment_settings.max_pending_requests_per_client` |
 | Saved businesses | 100 | each account | fixed |
 | Passkeys | 10 | each account | fixed |
@@ -260,7 +270,7 @@ The single server uses exactly the same producers, outbox and consumers, with an
 
 - **Idempotency keys** on requests, so a retried request never takes effect twice.
 - **Single-use tokens** that are claimed atomically, so two concurrent requests cannot both use one.
-- **Rate limits** in the nginx configuration for sending and checking email codes and for passkey sign-in.
+- **Rate limits** in the nginx configuration for sending and checking email codes, passkey sign-in and creating demo accounts.
 - **Creation limits** on staff, clients, services, businesses, pending booking requests, saved businesses and passkeys, so one account can't fill the database (see [Creation limits](#creation-limits)).
 
 **Infrastructure** (the production setup in `deployment/`)
@@ -281,7 +291,7 @@ BookkMe is built to help whoever runs it meet the GDPR. It handles personal data
 
 - **Right of access and portability.** Users can export all their personal data from every service, after confirming with their passkey.
 - **Right to erasure.** Deleting an account erases the user's data in every service, cancels their upcoming appointments and removes their personal details from the appointment history. The erasure runs 7 days after the request: the account keeps working until then, the user is told at once and reminded 2 days and 1 day before, and can cancel in the app. A business can delete any of its clients in the same way.
-- **Storage limitation.** An account unused for 3 years is deleted after three warnings by email (on Telegram for an account created through Telegram with no real address). Each business sets how long it keeps inactive clients (12 to 120 months, 36 by default), and older ones are deleted automatically. Booking requests are deleted 60 days after their time slot, and failed events after 30 days.
+- **Storage limitation.** An account unused for 3 years is deleted after three warnings by email (on Telegram for an account created through Telegram with no real address). A demo account that was not kept is deleted 7 days after its 14 days end. Each business sets how long it keeps inactive clients (12 to 120 months, 36 by default), and older ones are deleted automatically. Booking requests are deleted 60 days after their time slot, and failed events after 30 days.
 - **Encryption per person.** Each person's data is encrypted with a key of their own: profiles, client and staff details, appointment snapshots and notes, stored events and data exports. Erasing a person deletes their key, so every copy of their data left in the database or in a backup can no longer be read once the backups of that key have expired. The keys live in their own schemas, which never enter the binary log, so they can be backed up on a shorter schedule than the data (we keep them 7 days). Back them up: without its key, a person's data cannot be recovered.
 - **Erasure survives backups.** Every erasure is recorded, and restoring an older backup runs the erasures made since then again and deletes the keys erased since then, so a deleted person does not come back.
 - **Recorded acceptance.** The server records which version of the privacy policy and terms each user accepted.

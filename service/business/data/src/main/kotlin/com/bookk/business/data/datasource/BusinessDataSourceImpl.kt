@@ -39,13 +39,18 @@ internal class BusinessDataSourceImpl : DataSource(), BusinessDataSource {
         name: String,
         currencyCode: String,
         timeZone: TimeZone,
+        demo: Boolean,
     ): Business = dbQuery {
-        val entity = BusinessEntity.new(userId, name, currencyCode, timeZone)
+        val entity = BusinessEntity.new(userId, name, currencyCode, timeZone, demo)
         BusinessDashboardTable.upsert {
             it[this.userId] = userId
             it[businessId] = entity.id
         }
         entity.toDomain()
+    }
+
+    override suspend fun endDemoOfBusinessesOwnedBy(userId: Uuid) = dbQuery<Unit> {
+        BusinessEntity.endDemoOfBusinessesOwnedBy(userId, Clock.System.now())
     }
 
     override suspend fun updateBusiness(model: BusinessUpdateModel, updatedAt: Instant) = dbQuery<Business> {

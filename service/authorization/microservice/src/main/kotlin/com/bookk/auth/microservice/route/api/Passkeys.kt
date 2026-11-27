@@ -45,10 +45,11 @@ internal fun Route.passkeyOperations() {
          * Tag: auth
          * Security: jwt
          * Response: 200 application/x-protobuf [com.bookk.auth.domain.api.registration.entity.RegistrationChallengeResponse] Registration challenge
-         * Response: 422 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Passkey errors<br>UNABLE_TO_GENERATE_REGISTRATION_CHALLENGE (10) Unable to provide registration challenge<br>PASSKEYS_LIMIT_REACHED (13) Account already has the maximum number of passkeys (10)
+         * Response: 422 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Passkey errors<br>UNABLE_TO_GENERATE_REGISTRATION_CHALLENGE (10) Unable to provide registration challenge<br>PASSKEYS_LIMIT_REACHED (13) Account already has the maximum number of passkeys (10)<br>DEMO_UPGRADE_REQUIRED (30) A demo account adds its email and passkey through the demo upgrade
          */
         get<Api.Auth.PassKey.AddChallenge> {
             val principal = requireNotNull(call.principal<AppPrincipal>())
+            if (principal.isDemo) return@get call.respondDemoUpgradeRequired()
             val getChallenge by application.injectScoped<GetAttachPasskeyToAccountChallenge>(AuthScope)
 
             call.respondWith(getChallenge(principal.authId, principal.deviceId, principal.userId))
@@ -62,12 +63,13 @@ internal fun Route.passkeyOperations() {
          * Security: jwt
          * Body: application/x-protobuf [com.bookk.auth.domain.api.identification.entity.AddPasskeyRequest] Passkey verification payload
          * Response: 204 application/x-protobuf Passkey created
-         * Response: 422 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Passkey errors<br>PASSKEYS_LIMIT_REACHED (13) Account already has the maximum number of passkeys (10)<br>CHALLENGE_WINDOW_EXPIRED (6) Challenge window expired<br>VERIFICATION_FAILED (4) Passkey verification failed
+         * Response: 422 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Passkey errors<br>PASSKEYS_LIMIT_REACHED (13) Account already has the maximum number of passkeys (10)<br>CHALLENGE_WINDOW_EXPIRED (6) Challenge window expired<br>VERIFICATION_FAILED (4) Passkey verification failed<br>DEMO_UPGRADE_REQUIRED (30) A demo account adds its email and passkey through the demo upgrade
          * Response: 404 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] The signed-in account no longer exists
          * See: docs/operations/authorization/add-passkey.md
          */
         post<Api.Auth.PassKey.AddFinish> {
             val principal = requireNotNull(call.principal<AppPrincipal>())
+            if (principal.isDemo) return@post call.respondDemoUpgradeRequired()
             val body = call.receive<AddPasskeyRequest>()
             val attachPasskey by application.injectScoped<AttachNewPasskeyToAccount>(AuthScope)
 

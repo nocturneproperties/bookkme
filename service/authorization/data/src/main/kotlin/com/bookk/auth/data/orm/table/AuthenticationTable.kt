@@ -14,4 +14,5 @@ internal object AuthenticationTable : UuidTable("authentication") {
     val dormancyStage = enumeration("dormancy_stage", DormancyStage::class).default(DormancyStage.ACTIVE)
     val dormancyWarnedAt = timestamp("dormancy_warned_at").nullable()
     val deletionHold = bool("deletion_hold").default(false)
+    val demoExpiresAt = timestamp("demo_expires_at").nullable().index()
 }

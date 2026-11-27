@@ -59,6 +59,16 @@ internal class BusinessLinkTest {
             }
         }
 
+        fun authenticatedDemo(): Application.() -> Unit {
+            return {
+                install(Authentication) {
+                    provider {
+                        authenticate { it.principal(AppPrincipal(Uuid.random(), userId, Uuid.random(), isDemo = true)) }
+                    }
+                }
+            }
+        }
+
         fun unauthenticated(): Application.() -> Unit {
             return { install(Authentication) { bearer { authenticate { null } } } }
         }
@@ -73,7 +83,8 @@ internal class BusinessLinkTest {
         given()
         val fixture = SutFixture()
         val link = BusinessLink(fixture.businessId, "my-shop")
-        coEvery { fixture.setBusinessLink(fixture.userId, fixture.businessId, "My-Shop") } returns Result.success(link)
+        coEvery { fixture.setBusinessLink(fixture.userId, fixture.businessId, "My-Shop", false) } returns
+            Result.success(link)
         with(fixture) { start(authenticated()) }
 
         whenn()
@@ -93,9 +104,10 @@ internal class BusinessLinkTest {
             SetBusinessLink.Error.LinkReserved() to BusinessErrorCodes.BUSINESS_LINK_RESERVED,
             SetBusinessLink.Error.LinkTaken() to BusinessErrorCodes.BUSINESS_LINK_TAKEN,
             SetBusinessLink.Error.ChangeLimitReached() to BusinessErrorCodes.BUSINESS_LINK_CHANGE_LIMIT_REACHED,
+            SetBusinessLink.Error.DemoRestricted() to BusinessErrorCodes.BUSINESS_DEMO_RESTRICTED,
         )
         coEvery {
-            fixture.setBusinessLink(fixture.userId, fixture.businessId, any())
+            fixture.setBusinessLink(fixture.userId, fixture.businessId, any(), any())
         } returnsMany errors.map { Result.failure(it.first) }
         with(fixture) { start(authenticated()) }
 
@@ -111,11 +123,28 @@ internal class BusinessLinkTest {
     }
 
     @Test
+    fun `should tell the operation that a demo account sets the link`() = routeTest {
+        given()
+        val fixture = SutFixture()
+        coEvery {
+            fixture.setBusinessLink(fixture.userId, fixture.businessId, "my-shop", true)
+        } returns Result.failure(SetBusinessLink.Error.DemoRestricted())
+        with(fixture) { start(authenticatedDemo()) }
+
+        whenn()
+        val response = createTestClient().put(fixture.linkRoute) { setBody(BusinessLinkRequest(name = "my-shop")) }
+
+        then()
+        assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
+        assertEquals(BusinessErrorCodes.BUSINESS_DEMO_RESTRICTED, response.body<SimpleServerError>().errorCode)
+    }
+
+    @Test
     fun `should return not found when the caller does not own the business`() = routeTest {
         given()
         val fixture = SutFixture()
         coEvery {
-            fixture.setBusinessLink(fixture.userId, fixture.businessId, "my-shop")
+            fixture.setBusinessLink(fixture.userId, fixture.businessId, "my-shop", false)
         } returns Result.failure(Error.OperationNotAllowed())
         with(fixture) { start(authenticated()) }
 

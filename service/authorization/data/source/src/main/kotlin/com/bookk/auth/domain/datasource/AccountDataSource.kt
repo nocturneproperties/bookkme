@@ -2,6 +2,7 @@ package com.bookk.auth.domain.datasource
 
 import com.bookk.auth.domain.api.authentication.entity.AccountActivity
 import com.bookk.auth.domain.api.authentication.entity.Authentication
+import com.bookk.auth.domain.api.authentication.entity.DemoAccount
 import com.bookk.auth.domain.api.authentication.entity.DormancyStage
 import com.bookk.auth.domain.api.authentication.entity.DormantAccount
 import com.bookk.auth.domain.api.authentication.entity.LockedAccount
@@ -22,4 +23,8 @@ interface AccountDataSource {
     suspend fun getDormantAccountForUpdate(userId: Uuid): DormantAccount?
     suspend fun setDormancyStage(userId: Uuid, stage: DormancyStage, warnedAt: Instant?)
     suspend fun getLastActiveAt(userIds: Collection<Uuid>): Map<Uuid, Instant>
+    suspend fun countDemoAccountsActiveAt(now: Instant): Long
+    suspend fun getDemoAccountsExpiredBefore(before: Instant): List<DemoAccount>
+    suspend fun getDemoAccountForUpdate(authId: Uuid): DemoAccount?
+    suspend fun endDemo(authId: Uuid)
 }

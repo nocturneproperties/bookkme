@@ -8,6 +8,7 @@ import com.bookk.appointments.domain.api.entity.BookingQuoteError
 import com.bookk.appointments.domain.api.operation.CreateAppointment
 import com.bookk.appointments.domain.api.operation.CreateAppointmentRequest
 import com.bookk.appointments.domain.api.operation.CreateAppointmentRequest.Error.DateInThePastNotAllowed
+import com.bookk.appointments.domain.api.operation.CreateAppointmentRequest.Error.DemoRestricted
 import com.bookk.appointments.domain.api.operation.CreateAppointmentRequest.Error.PendingRequestsLimitReached
 import com.bookk.appointments.domain.datasource.AppointmentDataSource
 import com.bookk.appointments.domain.datasource.AppointmentRequestDataSource
@@ -50,7 +51,15 @@ internal class CreateAppointmentRequestImpl(
     private val quoteVerifier = BookingQuoteVerifier(tokenValidatorFactory)
     private val employeeBookings = EmployeeBookings(appointmentDataSource)
 
-    override suspend fun invoke(userId: Uuid, draft: AppointmentRequestDraft): Result<Unit> = runSuspendCatching {
+    override suspend fun invoke(userId: Uuid, draft: AppointmentRequestDraft, isDemo: Boolean): Result<Unit> {
+        if (isDemo) return Result.failure(DemoRestricted())
+        return reserveAndBook(userId, draft)
+    }
+
+    private suspend fun reserveAndBook(
+        userId: Uuid,
+        draft: AppointmentRequestDraft,
+    ): Result<Unit> = runSuspendCatching {
         if (!requestDataSource.reserveOfferToken(draft.offerToken)) throw BookingQuoteError.TokenAlreadyUsed()
         runCleaningUpOnFailure(
             action = { book(userId, draft) },

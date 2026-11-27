@@ -15,6 +15,9 @@ import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import kotlin.time.Clock
+import kotlin.time.Duration.Companion.days
+import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
 internal class DeviceDataSourceImplTest {
@@ -26,6 +29,10 @@ internal class DeviceDataSourceImplTest {
 
         suspend fun insertAuth(): Authentication = suspendTransaction {
             accountSut.createAuthorization(Authentication.stub())
+        }
+
+        fun later(): Instant {
+            return Clock.System.now() + 7.days
         }
     }
 
@@ -140,7 +147,7 @@ internal class DeviceDataSourceImplTest {
         val tokenId = Uuid.random()
 
         whenn()
-        suspendTransaction { fixture.sut.attachRefreshTokenToDevice(deviceId, tokenId, "hash123") }
+        suspendTransaction { fixture.sut.attachRefreshTokenToDevice(deviceId, tokenId, "hash123", fixture.later()) }
         val found = suspendTransaction { fixture.sut.getDeviceByRefreshTokenIdForUpdate(tokenId) }
 
         then()
@@ -156,11 +163,13 @@ internal class DeviceDataSourceImplTest {
         val auth = fixture.insertAuth()
         val deviceId = suspendTransaction { fixture.sut.insertDevice(auth.id, Uuid.random(), "iPhone", Language.EN) }!!
         val firstTokenId = Uuid.random()
-        suspendTransaction { fixture.sut.attachRefreshTokenToDevice(deviceId, firstTokenId, "first-hash") }
+        suspendTransaction {
+            fixture.sut.attachRefreshTokenToDevice(deviceId, firstTokenId, "first-hash", fixture.later())
+        }
         val secondTokenId = Uuid.random()
 
         whenn()
-        suspendTransaction { fixture.sut.rotateRefreshToken(deviceId, secondTokenId, "second-hash") }
+        suspendTransaction { fixture.sut.rotateRefreshToken(deviceId, secondTokenId, "second-hash", fixture.later()) }
         val found = suspendTransaction { fixture.sut.getDeviceById(deviceId) }
 
         then()
@@ -175,7 +184,7 @@ internal class DeviceDataSourceImplTest {
         val auth = fixture.insertAuth()
         val deviceId = suspendTransaction { fixture.sut.insertDevice(auth.id, Uuid.random(), "iPhone", Language.EN) }!!
         val tokenId = Uuid.random()
-        suspendTransaction { fixture.sut.attachRefreshTokenToDevice(deviceId, tokenId, "hash") }
+        suspendTransaction { fixture.sut.attachRefreshTokenToDevice(deviceId, tokenId, "hash", fixture.later()) }
 
         whenn()
         suspendTransaction { fixture.sut.deleteTokenFromDevice(deviceId) }
@@ -232,6 +241,41 @@ internal class DeviceDataSourceImplTest {
         then()
         val found = suspendTransaction { fixture.sut.getDeviceByAuthIdAndUUIDForUpdate(auth.id, deviceUuid) }
         assertNotNull(found)
+    }
+
+    @Test
+    fun `should not find a device by a refresh token past the expiry it was attached with`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val auth = fixture.insertAuth()
+        val deviceId = suspendTransaction { fixture.sut.insertDevice(auth.id, Uuid.random(), "iPhone", Language.EN) }!!
+        val tokenId = Uuid.random()
+        val expired = Clock.System.now() - 1.days
+        suspendTransaction { fixture.sut.attachRefreshTokenToDevice(deviceId, tokenId, "hash", expired) }
+
+        whenn()
+        val found = suspendTransaction { fixture.sut.getDeviceByRefreshTokenIdForUpdate(tokenId) }
+
+        then()
+        assertNull(found)
+    }
+
+    @Test
+    fun `should find a device by a rotated refresh token until the expiry it was rotated with`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val auth = fixture.insertAuth()
+        val deviceId = suspendTransaction { fixture.sut.insertDevice(auth.id, Uuid.random(), "iPhone", Language.EN) }!!
+        suspendTransaction { fixture.sut.attachRefreshTokenToDevice(deviceId, Uuid.random(), "first", fixture.later()) }
+        val rotatedId = Uuid.random()
+        val demoGraceEnd = Clock.System.now() + 21.days
+
+        whenn()
+        suspendTransaction { fixture.sut.rotateRefreshToken(deviceId, rotatedId, "second", demoGraceEnd) }
+        val found = suspendTransaction { fixture.sut.getDeviceByRefreshTokenIdForUpdate(rotatedId) }
+
+        then()
+        assertEquals(deviceId, found?.deviceInfo?.id)
     }
 
     // deleteInactiveDevices uses deleteReturning which is not supported by H2.

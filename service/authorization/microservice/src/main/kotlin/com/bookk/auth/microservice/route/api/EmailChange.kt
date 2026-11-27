@@ -42,12 +42,13 @@ internal fun Route.emailChange() {
          * Security: jwt
          * Body: application/x-protobuf [com.bookk.auth.microservice.route.api.EmailChangeRequest] The new address
          * Response: 200 application/x-protobuf [library.email.EmailVerificationStarted] The verification to confirm with
-         * Response: 422 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Email change errors<br>EMAIL_EXIST (1) This email already exists<br>INVALID_EMAIL_FORMAT (2) Invalid email format<br>EMAIL_DOMAIN_UNSUPPORTED (17) Email addresses on this domain are not supported<br>EMAIL_UNDELIVERABLE (910005) This address can't receive email
+         * Response: 422 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Email change errors<br>EMAIL_EXIST (1) This email already exists<br>INVALID_EMAIL_FORMAT (2) Invalid email format<br>EMAIL_DOMAIN_UNSUPPORTED (17) Email addresses on this domain are not supported<br>EMAIL_UNDELIVERABLE (910005) This address can't receive email<br>DEMO_UPGRADE_REQUIRED (30) A demo account adds its email and passkey through the demo upgrade
          * Response: 429 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Code sending limit<br>EMAIL_CODE_RESEND_TOO_SOON (910004) A code was sent to this address too recently
          * See: docs/operations/authorization/start-email-change.md
          */
         post<Api.Auth.Email> {
             val principal = requireNotNull(call.principal<AppPrincipal>())
+            if (principal.isDemo) return@post call.respondDemoUpgradeRequired()
             val body = call.receive<EmailChangeRequest>()
             val language = Language.fromAcceptLanguage(call.request.headers[HttpHeaders.AcceptLanguage])
             val startEmailChange by application.injectScoped<StartEmailChange>(AuthScope)
@@ -63,11 +64,12 @@ internal fun Route.emailChange() {
          * Security: jwt
          * Body: application/x-protobuf [com.bookk.auth.microservice.route.api.EmailConfirmation] The verification and its code
          * Response: 204 application/x-protobuf The new address is stored
-         * Response: 422 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Email confirmation errors<br>EMAIL_CODE_INVALID (910001) The code is wrong<br>EMAIL_CODE_EXPIRED (910002) The code has expired or was already used, request a new one<br>EMAIL_CODE_ATTEMPTS_EXCEEDED (910003) Too many wrong codes, request a new one<br>EMAIL_EXIST (1) This email already exists
+         * Response: 422 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Email confirmation errors<br>EMAIL_CODE_INVALID (910001) The code is wrong<br>EMAIL_CODE_EXPIRED (910002) The code has expired or was already used, request a new one<br>EMAIL_CODE_ATTEMPTS_EXCEEDED (910003) Too many wrong codes, request a new one<br>EMAIL_EXIST (1) This email already exists<br>DEMO_UPGRADE_REQUIRED (30) A demo account adds its email and passkey through the demo upgrade
          * See: docs/operations/authorization/confirm-email-change.md
          */
         post<Api.Auth.Email.Confirm> {
             val principal = requireNotNull(call.principal<AppPrincipal>())
+            if (principal.isDemo) return@post call.respondDemoUpgradeRequired()
             val body = call.receive<EmailConfirmation>()
             val confirmEmailChange by application.injectScoped<ConfirmEmailChange>(AuthScope)
 

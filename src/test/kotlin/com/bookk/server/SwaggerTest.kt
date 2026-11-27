@@ -57,6 +57,9 @@ internal class SwaggerTest {
                 "post /api/auth/sign_up",
                 "post /api/auth/sign_in",
                 "post /api/auth/telegram/sign_in",
+                "post /api/auth/demo",
+                "post /api/auth/demo/upgrade/challenge",
+                "post /api/auth/demo/upgrade",
                 "post /api/auth/passkey/add/finish",
                 "post /api/auth/passkey/confirm_action",
                 "post /api/auth/telegram/confirm_action/start",
@@ -71,6 +74,7 @@ internal class SwaggerTest {
             setOf(
                 "post /api/internal/user/{id}/email",
                 "post /api/internal/user/{id}/telegram_username",
+                "post /api/internal/user/{id}/demo_upgrade",
                 "get /api/internal/user/email",
                 "post /api/internal/user",
                 "patch /api/user/me",

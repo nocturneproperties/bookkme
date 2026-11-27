@@ -14,6 +14,7 @@ import org.jetbrains.exposed.v1.jdbc.Database
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
 import org.jetbrains.exposed.v1.jdbc.update
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.BeforeAll
@@ -86,6 +87,38 @@ internal class DeviceCleanupMariaDbTest {
         assertNotNull(
             suspendTransaction(db = database) {
                 fixture.sut.getDeviceByAuthIdAndUUIDForUpdate(second.id, deviceUuid)
+            },
+        )
+    }
+
+    @Test
+    fun `should keep the devices of demo accounts however old their sign in is`() = runIntegrationTest {
+        given()
+        val fixture = SutFixture()
+        val deviceUuid = Uuid.random()
+        val demo = suspendTransaction(db = database) {
+            fixture.accounts.createAuthorization(
+                Authentication.stub(demoExpiresAt = Instant.parse("2000-02-01T00:00:00Z")),
+            )
+        }
+        suspendTransaction(db = database) {
+            fixture.sut.insertDevice(demo.id, deviceUuid, "Demo", Language.EN)
+            AuthDeviceTable.update({ AuthDeviceTable.userAuthId eq demo.id }) {
+                it[lastLogInAt] = Instant.parse("2000-01-01T00:00:00Z")
+            }
+        }
+
+        whenn()
+        val deleted =
+            suspendTransaction(db = database) {
+                fixture.sut.deleteInactiveDevices(Instant.parse("2020-01-01T00:00:00Z"))
+            }
+
+        then()
+        assertFalse(deleted.any { it.authId == demo.id })
+        assertNotNull(
+            suspendTransaction(db = database) {
+                fixture.sut.getDeviceByAuthIdAndUUIDForUpdate(demo.id, deviceUuid)
             },
         )
     }

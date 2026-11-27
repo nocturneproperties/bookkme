@@ -8,11 +8,15 @@ sent to through the user service. The address comes from the code's
 session, never from the body. If the user service refuses the address, the
 code is released and can be used again.
 
+A [demo account](demo-start.md) is sent to the [demo upgrade](demo-upgrade.md) instead (`DEMO_UPGRADE_REQUIRED`), since adding an email or a passkey here would not end the demo, and the account would still be erased with its data.
+
 ```mermaid
 flowchart TD
     Start([POST /api/auth/email/confirm<br/>body EmailConfirmation verificationId code]) --> Auth{Signed in?}
     Auth -- No --> R401([401])
-    Auth -- Yes --> Redeem[EmailCodeRedeemer.redeem verificationId code ownerId=userId]
+    Auth -- Yes --> DemoCheck{AppPrincipal.isDemo?}
+    DemoCheck -- Yes --> R422demo([422 DEMO_UPGRADE_REQUIRED 30 - use the demo upgrade])
+    DemoCheck -- No --> Redeem[EmailCodeRedeemer.redeem verificationId code ownerId=userId]
     Redeem -- not the caller's newest code,<br/>expired or already used --> R422a([422 EMAIL_CODE_EXPIRED 910002])
     Redeem -- sixth attempt --> R422b([422 EMAIL_CODE_ATTEMPTS_EXCEEDED 910003])
     Redeem -- wrong code, or purpose is not email-change --> R422c([422 EMAIL_CODE_INVALID 910001])

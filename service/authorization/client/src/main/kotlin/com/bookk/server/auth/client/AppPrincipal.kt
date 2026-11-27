@@ -6,4 +6,5 @@ class AppPrincipal(
     val authId: Uuid,
     val userId: Uuid,
     val deviceId: Uuid,
+    val isDemo: Boolean = false,
 )

@@ -2,6 +2,7 @@ package com.bookk.auth.microservice
 
 import com.bookk.auth.domain.api.authentication.operation.HandleDormantAccounts
 import com.bookk.auth.domain.api.delete_account.operation.HandleScheduledAccountDeletions
+import com.bookk.auth.domain.api.demo.operation.DeleteExpiredDemoAccounts
 import com.bookk.auth.domain.api.device.operation.DeleteInactiveDevices
 import com.bookk.auth.domain.api.erasure.operation.DeleteExpiredErasureRecords
 import com.bookk.auth.domain.api.erasure.operation.ReapplyAccountErasures
@@ -38,6 +39,7 @@ internal class AuthJobsTest {
         val reapplyAccountErasures = mockk<ReapplyAccountErasures>()
         val deleteExpiredErasureRecords = mockk<DeleteExpiredErasureRecords>()
         val deleteExpiredSentEmails = mockk<DeleteExpiredSentEmails>()
+        val deleteExpiredDemoAccounts = mockk<DeleteExpiredDemoAccounts>()
         val scheduler = SchedulerConfiguration()
 
         suspend fun registerJobs(builder: ApplicationTestBuilder) {
@@ -49,6 +51,7 @@ internal class AuthJobsTest {
                 scoped { reapplyAccountErasures }
                 scoped { deleteExpiredErasureRecords }
                 scoped { deleteExpiredSentEmails }
+                scoped { deleteExpiredDemoAccounts }
             }
             application.registerAuthJobs(scheduler)
         }
@@ -69,6 +72,7 @@ internal class AuthJobsTest {
                 "auth-deleteInactiveDevices" to 1.days,
                 "auth-handleDormantAccounts" to 1.days,
                 "auth-handleScheduledDeletions" to 1.hours,
+                "auth-deleteExpiredDemoAccounts" to 1.days,
                 "auth-reapplyErasures" to 1.minutes,
                 "auth-deleteExpiredErasureRecords" to 1.days,
                 "auth-deleteExpiredSentEmails" to 7.days,
@@ -287,6 +291,35 @@ internal class AuthJobsTest {
 
         whenn()
         val result = runCatching { fixture.scheduler.runJob("auth-deleteExpiredSentEmails") }
+
+        then()
+        assertSame(error, result.exceptionOrNull())
+    }
+
+    @Test
+    fun `should erase demo accounts past their upgrade grace period`() = routeTest {
+        given()
+        val fixture = SutFixture()
+        coEvery { fixture.deleteExpiredDemoAccounts.invoke() } returns Result.success(Unit)
+        fixture.registerJobs(this)
+
+        whenn()
+        fixture.scheduler.runJob("auth-deleteExpiredDemoAccounts")
+
+        then()
+        coVerify(exactly = 1) { fixture.deleteExpiredDemoAccounts.invoke() }
+    }
+
+    @Test
+    fun `should surface a failed expired demo erasure`() = routeTest {
+        given()
+        val fixture = SutFixture()
+        val error = RuntimeException("demo erasure failed")
+        coEvery { fixture.deleteExpiredDemoAccounts.invoke() } returns Result.failure(error)
+        fixture.registerJobs(this)
+
+        whenn()
+        val result = runCatching { fixture.scheduler.runJob("auth-deleteExpiredDemoAccounts") }
 
         then()
         assertSame(error, result.exceptionOrNull())

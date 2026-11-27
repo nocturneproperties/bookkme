@@ -11,7 +11,9 @@ import kotlinx.datetime.TimeZone
 import library.schedule.Schedule
 import library.schedule.toWorkingDays
 import library.schedule.toWorkingDaysMask
+import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.dao.id.EntityID
+import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.dao.UuidEntity
 import org.jetbrains.exposed.v1.dao.with
 import kotlin.time.Instant
@@ -35,6 +37,7 @@ internal class BusinessEntity(id: EntityID<Uuid>) : UuidEntity(id) {
     var createdAt by BusinessTable.createdAt
     var updatedAt by BusinessTable.updatedAt
     var workingDays by BusinessTable.workingDays
+    var demo by BusinessTable.demo
     val workingHours by BusinessWorkingHourEntity referrersOn BusinessWorkingHoursTable.businessId
     val dayOffs by BusinessDayOffEntity referrersOn BusinessDayOffTable.businessId
 
@@ -67,6 +70,7 @@ internal class BusinessEntity(id: EntityID<Uuid>) : UuidEntity(id) {
         employeeId = null,
         clientId = null,
         clientDataRetentionMonths = clientDataRetentionMonths,
+        demo = demo,
     )
 
     private fun replaceSchedule(schedule: Schedule) {
@@ -89,14 +93,30 @@ internal class BusinessEntity(id: EntityID<Uuid>) : UuidEntity(id) {
 
     companion object : DecoratorUuidEntityClass<BusinessEntity>(BusinessTable) {
 
-        fun new(userId: Uuid, name: String, currencyCode: String, timeZone: TimeZone): BusinessEntity = new {
+        fun new(
+            userId: Uuid,
+            name: String,
+            currencyCode: String,
+            timeZone: TimeZone,
+            demo: Boolean,
+        ): BusinessEntity = new {
             this.userId = userId
+            this.demo = demo
             this.name = name
             currency = currencyCode
             description = ""
             address = ""
             timezone = timeZone.id
         }.apply { replaceSchedule(Schedule()) }
+
+        fun endDemoOfBusinessesOwnedBy(ownerId: Uuid, updatedAt: Instant) {
+            find { (BusinessTable.userId eq ownerId) and (BusinessTable.demo eq true) }
+                .forUpdate()
+                .forEach {
+                    it.demo = false
+                    it.updatedAt = updatedAt
+                }
+        }
 
         fun findByIdAndUpdate(model: BusinessUpdateModel, updatedAt: Instant) = findByIdAndUpdate(model.id) {
             model.name?.let { name -> it.name = name }

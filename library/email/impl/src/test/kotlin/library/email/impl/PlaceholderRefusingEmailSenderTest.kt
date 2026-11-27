@@ -13,6 +13,7 @@ import library.email.EmailSender
 import library.email.PlaceholderEmail
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import kotlin.uuid.Uuid
 
 internal class PlaceholderRefusingEmailSenderTest {
 
@@ -26,6 +27,20 @@ internal class PlaceholderRefusingEmailSenderTest {
         given()
         val fixture = SutFixture()
         val message = EmailMessage.stub(to = PlaceholderEmail.forTelegramUser(123456789))
+
+        whenn()
+        val result = fixture.sut.send(message)
+
+        then()
+        assertTrue(result.exceptionOrNull() is EmailSendError.Undeliverable) { result.toString() }
+        coVerify(exactly = 0) { fixture.delegate.send(any()) }
+    }
+
+    @Test
+    fun `should refuse a demo account placeholder address as undeliverable without sending it`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val message = EmailMessage.stub(to = PlaceholderEmail.forDemoUser(Uuid.random()))
 
         whenn()
         val result = fixture.sut.send(message)

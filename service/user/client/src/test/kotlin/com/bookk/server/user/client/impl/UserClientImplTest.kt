@@ -7,10 +7,12 @@ import com.bookk.core.test.whenn
 import com.bookk.server.user.client.api.CreateUserRequest
 import com.bookk.user.domain.api.entity.AcceptedLegalDocuments
 import com.bookk.user.domain.api.entity.NewUser
+import com.bookk.user.domain.api.entity.ProfileName
 import com.bookk.user.domain.api.entity.UserId
 import com.bookk.user.domain.api.operation.ChangeTelegramUsername
 import com.bookk.user.domain.api.operation.ChangeUserEmail
 import com.bookk.user.domain.api.operation.CreateUser
+import com.bookk.user.domain.api.operation.UpgradeDemoProfile
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -26,7 +28,9 @@ internal class UserClientImplTest {
         val createUser = mockk<CreateUser>()
         val changeUserEmail = mockk<ChangeUserEmail>()
         val changeTelegramUsername = mockk<ChangeTelegramUsername>()
-        val sut = UserClientImpl(mockk(), mockk(), createUser, changeUserEmail, changeTelegramUsername)
+        val upgradeDemoProfile = mockk<UpgradeDemoProfile>()
+        val sut =
+            UserClientImpl(mockk(), mockk(), createUser, changeUserEmail, changeTelegramUsername, upgradeDemoProfile)
     }
 
     @Test
@@ -74,5 +78,21 @@ internal class UserClientImplTest {
         then()
         assertTrue(result.isSuccess)
         coVerify(exactly = 1) { fixture.changeTelegramUsername.invoke(userId, "ann_lee") }
+    }
+
+    @Test
+    fun `should replace a demo profile's email and name`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val name = ProfileName.stub()
+        coEvery { fixture.upgradeDemoProfile.invoke(userId, "new@example.com", name) } returns Result.success(Unit)
+
+        whenn()
+        val result = fixture.sut.upgradeDemoProfile(userId, "new@example.com", name)
+
+        then()
+        assertTrue(result.isSuccess)
+        coVerify(exactly = 1) { fixture.upgradeDemoProfile.invoke(userId, "new@example.com", name) }
     }
 }

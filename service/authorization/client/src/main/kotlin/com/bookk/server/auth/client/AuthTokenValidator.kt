@@ -15,7 +15,8 @@ private fun Payload.toPrincipal(): AppPrincipal? {
     val authId = uuidClaim(AuthClaim.AUTH_ID) ?: return null
     val userId = uuidClaim(AuthClaim.USER_ID) ?: return null
     val deviceId = uuidClaim(AuthClaim.DEVICE_ID) ?: return null
-    return AppPrincipal(authId = authId, userId = userId, deviceId = deviceId)
+    val isDemo = getClaim(AuthClaim.DEMO.key).asBoolean() == true
+    return AppPrincipal(authId = authId, userId = userId, deviceId = deviceId, isDemo = isDemo)
 }
 
 private fun Payload.uuidClaim(claim: AuthClaim): Uuid? = getClaim(claim.key).asString()?.let(Uuid::parseOrNull)

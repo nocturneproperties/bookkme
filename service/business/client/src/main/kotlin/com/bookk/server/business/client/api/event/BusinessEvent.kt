@@ -27,6 +27,24 @@ interface BusinessEvent : EventStreaming.Event<String> {
     }
 
     @Serializable
+    data class DemoBusinessSeeded(
+        @ProtoNumber(1) val businessId: Uuid,
+        @ProtoNumber(2) val ownerUserId: Uuid,
+        @ProtoNumber(3) val employeeId: Uuid,
+        @ProtoNumber(4) val serviceIds: List<Uuid>,
+        @ProtoNumber(5) val clientIds: List<Uuid>,
+        @ProtoNumber(6) override val idempotencyKey: String = Uuid.random().toString(),
+    ) : BusinessEvent {
+        @ProtoNumber(7)
+        override val topic: String = TOPIC
+        override val partitionKey: String get() = businessId.toString()
+
+        companion object {
+            const val TOPIC = "business.demo_business_seeded"
+        }
+    }
+
+    @Serializable
     data class Updated(
         @ProtoNumber(1) val business: BusinessDTO,
         @ProtoNumber(2) val updatedAt: Instant,

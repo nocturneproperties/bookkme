@@ -14,25 +14,33 @@ import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.greater
 import org.jetbrains.exposed.v1.core.innerJoin
+import org.jetbrains.exposed.v1.core.isNotNull
 import org.jetbrains.exposed.v1.core.less
+import org.jetbrains.exposed.v1.core.notInSubQuery
 import org.jetbrains.exposed.v1.core.or
+import org.jetbrains.exposed.v1.jdbc.Query
 import org.jetbrains.exposed.v1.jdbc.deleteReturning
 import org.jetbrains.exposed.v1.jdbc.insertIgnoreAndGetId
+import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.update
 import kotlin.time.Clock
-import kotlin.time.Duration.Companion.days
 import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
 internal class DeviceDataSourceImpl : DataSource(), DeviceDataSource {
-    override suspend fun attachRefreshTokenToDevice(deviceId: Uuid, tokenId: Uuid, tokenHash: String) = dbQuery<Unit> {
+    override suspend fun attachRefreshTokenToDevice(
+        deviceId: Uuid,
+        tokenId: Uuid,
+        tokenHash: String,
+        expiresAt: Instant,
+    ) = dbQuery<Unit> {
         val now = Clock.System.now()
         AuthDeviceTable.update(where = { AuthDeviceTable.id eq deviceId }) {
             it[isSignedIn] = true
             it[refreshTokenId] = tokenId
             it[refreshTokenHash] = tokenHash
-            it[refreshTokenExpiresAt] = now.plus(REFRESH_TOKEN_TTL)
+            it[refreshTokenExpiresAt] = expiresAt
             it[previousRefreshTokenId] = null
             it[previousRefreshTokenHash] = null
             it[lastLogInAt] = now
@@ -40,7 +48,12 @@ internal class DeviceDataSourceImpl : DataSource(), DeviceDataSource {
         }
     }
 
-    override suspend fun rotateRefreshToken(deviceId: Uuid, tokenId: Uuid, tokenHash: String) = dbQuery<Unit> {
+    override suspend fun rotateRefreshToken(
+        deviceId: Uuid,
+        tokenId: Uuid,
+        tokenHash: String,
+        expiresAt: Instant,
+    ) = dbQuery<Unit> {
         val (id, hash) = AuthDeviceTable
             .selectAll()
             .where { AuthDeviceTable.id eq deviceId }
@@ -53,7 +66,7 @@ internal class DeviceDataSourceImpl : DataSource(), DeviceDataSource {
             it[previousRefreshTokenHash] = hash
             it[refreshTokenId] = tokenId
             it[refreshTokenHash] = tokenHash
-            it[refreshTokenExpiresAt] = Clock.System.now().plus(REFRESH_TOKEN_TTL)
+            it[refreshTokenExpiresAt] = expiresAt
             it[updatedAt] = Clock.System.now()
         }
     }
@@ -152,13 +165,15 @@ internal class DeviceDataSourceImpl : DataSource(), DeviceDataSource {
     override suspend fun deleteInactiveDevices(olderThan: Instant): List<DeviceIdentity> = dbQuery {
         AuthDeviceTable
             .deleteReturning(listOf(AuthDeviceTable.userAuthId, AuthDeviceTable.deviceUUID)) {
-                AuthDeviceTable.lastLogInAt less
-                    olderThan
+                (AuthDeviceTable.lastLogInAt less olderThan) and
+                    (AuthDeviceTable.userAuthId notInSubQuery demoAccountIds())
             }
             .map { DeviceIdentity(it[AuthDeviceTable.userAuthId].value, it[AuthDeviceTable.deviceUUID]) }
     }
 
-    companion object {
-        private val REFRESH_TOKEN_TTL = 7.days
+    private fun demoAccountIds(): Query {
+        return AuthenticationTable.select(AuthenticationTable.id).where {
+            AuthenticationTable.demoExpiresAt.isNotNull()
+        }
     }
 }

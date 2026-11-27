@@ -61,13 +61,13 @@ fun Route.businessLink() {
          * Set business link
          *
          * Summary: Set business link
-         * Description: Set or change the business's link name, so clients can open bookkme.com/{name}. Only the owner may do it. The name is stored in lowercase and must be 3 to 32 latin letters or digits, with single hyphens between them. A replaced name stays held by the business for 90 days, so no other business can take it, and setting it again makes it current. The link can change at most 3 times within 90 days, switching back to a held name included. Setting the current name again changes nothing
+         * Description: Set or change the business's link name, so clients can open bookkme.com/{name}. Only the owner may do it. The name is stored in lowercase and must be 3 to 32 latin letters or digits, with single hyphens between them. A replaced name stays held by the business for 90 days, so no other business can take it, and setting it again makes it current. The link can change at most 3 times within 90 days, switching back to a held name included. Setting the current name again changes nothing. The name demo and every name starting with demo- are reserved for the links demo businesses get automatically; a demo account can't set a name until it is upgraded, and the first name set after that replaces the demo- name at once, without holding it or counting as a change
          * Tag: business
          * Security: jwt
          * Body: application/x-protobuf [com.bookk.business.microservice.route.api.BusinessLinkRequest]
          * Response: 200 application/x-protobuf [com.bookk.business.domain.api.business.entity.BusinessLink] The business's link
          * Response: 404 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] The business does not exist or the caller is not its owner
-         * Response: 422 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Set business link errors<br>BUSINESS_LINK_INVALID (200049) Link name must be 3 to 32 latin letters, digits or single hyphens between them<br>BUSINESS_LINK_RESERVED (200050) This link name is reserved<br>BUSINESS_LINK_TAKEN (200051) This link name is already taken<br>BUSINESS_LINK_CHANGE_LIMIT_REACHED (200052) The link was changed too often, try again later
+         * Response: 422 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Set business link errors<br>BUSINESS_LINK_INVALID (200049) Link name must be 3 to 32 latin letters, digits or single hyphens between them<br>BUSINESS_LINK_RESERVED (200050) This link name is reserved<br>BUSINESS_LINK_TAKEN (200051) This link name is already taken<br>BUSINESS_LINK_CHANGE_LIMIT_REACHED (200052) The link was changed too often, try again later<br>BUSINESS_DEMO_RESTRICTED (200055) A demo account can't choose a link name, upgrade the account first
          * See: docs/operations/business/set-business-link.md
          */
         put<Api.Business.Id.Link> { path ->
@@ -75,7 +75,14 @@ fun Route.businessLink() {
             val body = call.receive<BusinessLinkRequest>()
             val setBusinessLink by application.injectScoped<SetBusinessLink>(BusinessScope)
 
-            call.respondWith(setBusinessLink(userId = principal.userId, businessId = path.parent.id, name = body.name))
+            call.respondWith(
+                setBusinessLink(
+                    userId = principal.userId,
+                    businessId = path.parent.id,
+                    name = body.name,
+                    isDemo = principal.isDemo,
+                ),
+            )
         }
     }
 }

@@ -67,7 +67,7 @@ internal class SetBusinessLinkImplTest {
         }
 
         whenn()
-        val result = fixture.sut(fixture.userId, fixture.businessId, "my-shop")
+        val result = fixture.sut(fixture.userId, fixture.businessId, "my-shop", isDemo = false)
 
         then()
         assertEquals(BusinessLink(fixture.businessId, "my-shop"), result.getOrNull())
@@ -87,7 +87,7 @@ internal class SetBusinessLinkImplTest {
         }
 
         whenn()
-        val result = fixture.sut(fixture.userId, fixture.businessId, "  My-Shop ")
+        val result = fixture.sut(fixture.userId, fixture.businessId, "  My-Shop ", isDemo = false)
 
         then()
         assertEquals("my-shop", result.getOrNull()?.name)
@@ -105,7 +105,7 @@ internal class SetBusinessLinkImplTest {
         }
 
         whenn()
-        fixture.sut(fixture.userId, fixture.businessId, "my-shop")
+        fixture.sut(fixture.userId, fixture.businessId, "my-shop", isDemo = false)
 
         then()
         coVerifyOrder {
@@ -123,7 +123,7 @@ internal class SetBusinessLinkImplTest {
         val invalidNames = listOf("ab", "a".repeat(33), "my_shop", "-shop", "shop-", "my--shop", "café", "my shop", "")
 
         whenn()
-        val results = invalidNames.map { fixture.sut(fixture.userId, fixture.businessId, it) }
+        val results = invalidNames.map { fixture.sut(fixture.userId, fixture.businessId, it, isDemo = false) }
 
         then()
         assertTrue(results.all { it.exceptionOrNull() is SetBusinessLink.Error.LinkInvalid })
@@ -141,8 +141,8 @@ internal class SetBusinessLinkImplTest {
         }
 
         whenn()
-        val shortest = fixture.sut(fixture.userId, fixture.businessId, "a1b")
-        val longest = fixture.sut(fixture.userId, fixture.businessId, "a".repeat(32))
+        val shortest = fixture.sut(fixture.userId, fixture.businessId, "a1b", isDemo = false)
+        val longest = fixture.sut(fixture.userId, fixture.businessId, "a".repeat(32), isDemo = false)
 
         then()
         assertTrue(shortest.isSuccess)
@@ -156,7 +156,7 @@ internal class SetBusinessLinkImplTest {
         fixture.ownedBusiness()
 
         whenn()
-        val result = fixture.sut(fixture.userId, fixture.businessId, "Api")
+        val result = fixture.sut(fixture.userId, fixture.businessId, "Api", isDemo = false)
 
         then()
         assertTrue(result.exceptionOrNull() is SetBusinessLink.Error.LinkReserved)
@@ -173,7 +173,7 @@ internal class SetBusinessLinkImplTest {
         }
 
         whenn()
-        val result = fixture.sut(fixture.userId, fixture.businessId, "my-shop")
+        val result = fixture.sut(fixture.userId, fixture.businessId, "my-shop", isDemo = false)
 
         then()
         assertTrue(result.exceptionOrNull() is Error.NotFound)
@@ -192,7 +192,7 @@ internal class SetBusinessLinkImplTest {
         }
 
         whenn()
-        val result = fixture.sut(fixture.userId, fixture.businessId, "my-shop")
+        val result = fixture.sut(fixture.userId, fixture.businessId, "my-shop", isDemo = false)
 
         then()
         assertTrue(result.exceptionOrNull() is Error.OperationNotAllowed)
@@ -210,7 +210,7 @@ internal class SetBusinessLinkImplTest {
         }
 
         whenn()
-        val result = fixture.sut(fixture.userId, fixture.businessId, "my-shop")
+        val result = fixture.sut(fixture.userId, fixture.businessId, "my-shop", isDemo = false)
 
         then()
         assertTrue(result.exceptionOrNull() is SetBusinessLink.Error.LinkTaken)
@@ -227,7 +227,7 @@ internal class SetBusinessLinkImplTest {
         }
 
         whenn()
-        val result = fixture.sut(fixture.userId, fixture.businessId, "my-shop")
+        val result = fixture.sut(fixture.userId, fixture.businessId, "my-shop", isDemo = false)
 
         then()
         assertTrue(result.exceptionOrNull() is SetBusinessLink.Error.LinkTaken)
@@ -245,7 +245,7 @@ internal class SetBusinessLinkImplTest {
         }
 
         whenn()
-        val result = fixture.sut(fixture.userId, fixture.businessId, "my-shop")
+        val result = fixture.sut(fixture.userId, fixture.businessId, "my-shop", isDemo = false)
 
         then()
         assertEquals(BusinessLink(fixture.businessId, "my-shop"), result.getOrNull())
@@ -269,7 +269,7 @@ internal class SetBusinessLinkImplTest {
         }
 
         whenn()
-        val result = fixture.sut(fixture.userId, fixture.businessId, "my-shop")
+        val result = fixture.sut(fixture.userId, fixture.businessId, "my-shop", isDemo = false)
 
         then()
         assertTrue(result.exceptionOrNull() is SetBusinessLink.Error.LinkTaken)
@@ -285,7 +285,7 @@ internal class SetBusinessLinkImplTest {
         }
 
         whenn()
-        val result = fixture.sut(fixture.userId, fixture.businessId, "my-shop")
+        val result = fixture.sut(fixture.userId, fixture.businessId, "my-shop", isDemo = false)
 
         then()
         assertEquals(BusinessLink(fixture.businessId, "my-shop"), result.getOrNull())
@@ -307,7 +307,7 @@ internal class SetBusinessLinkImplTest {
         }
 
         whenn()
-        val result = fixture.sut(fixture.userId, fixture.businessId, "new-shop")
+        val result = fixture.sut(fixture.userId, fixture.businessId, "new-shop", isDemo = false)
 
         then()
         assertEquals(BusinessLink(fixture.businessId, "new-shop"), result.getOrNull())
@@ -330,7 +330,7 @@ internal class SetBusinessLinkImplTest {
         }
 
         whenn()
-        val result = fixture.sut(fixture.userId, fixture.businessId, "new-shop")
+        val result = fixture.sut(fixture.userId, fixture.businessId, "new-shop", isDemo = false)
 
         then()
         assertTrue(result.exceptionOrNull() is SetBusinessLink.Error.ChangeLimitReached)
@@ -353,7 +353,7 @@ internal class SetBusinessLinkImplTest {
         }
 
         whenn()
-        val result = fixture.sut(fixture.userId, fixture.businessId, "old-shop")
+        val result = fixture.sut(fixture.userId, fixture.businessId, "old-shop", isDemo = false)
 
         then()
         assertEquals(BusinessLink(fixture.businessId, "old-shop"), result.getOrNull())
@@ -380,11 +380,61 @@ internal class SetBusinessLinkImplTest {
         }
 
         whenn()
-        val result = fixture.sut(fixture.userId, fixture.businessId, "old-shop")
+        val result = fixture.sut(fixture.userId, fixture.businessId, "old-shop", isDemo = false)
 
         then()
         assertTrue(result.exceptionOrNull() is SetBusinessLink.Error.ChangeLimitReached)
         coVerify(exactly = 0) { fixture.businessLinkDataSource.releaseCurrentLink(any(), any()) }
         coVerify(exactly = 0) { fixture.businessLinkDataSource.restoreLink(any(), any()) }
+    }
+
+    @Test
+    fun `should refuse a demo account without opening a transaction`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+
+        whenn()
+        val result = fixture.sut(fixture.userId, fixture.businessId, "my-shop", isDemo = true)
+
+        then()
+        assertTrue(result.exceptionOrNull() is SetBusinessLink.Error.DemoRestricted) { result.toString() }
+        coVerify(exactly = 0) { fixture.transactionManager.transaction<Any>(any()) }
+    }
+
+    @Test
+    fun `should refuse the demo name and every demo- name for everyone`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val names = listOf("demo", "demo-abcd1234", "Demo-Shop")
+
+        whenn()
+        val results = names.map { fixture.sut(fixture.userId, fixture.businessId, it, isDemo = false) }
+
+        then()
+        assertTrue(results.all { it.exceptionOrNull() is SetBusinessLink.Error.LinkReserved }) { results.toString() }
+    }
+
+    @Test
+    fun `should drop a demo name at once instead of holding it when the first real name is set`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        with(fixture) {
+            ownedBusiness()
+            storedName("my-shop", null)
+            currentLink("demo-abcd1234")
+        }
+
+        whenn()
+        val result = fixture.sut(fixture.userId, fixture.businessId, "my-shop", isDemo = false)
+
+        then()
+        assertEquals(BusinessLink(fixture.businessId, "my-shop"), result.getOrNull())
+        coVerifyOrder {
+            fixture.businessLinkDataSource.deleteLink("demo-abcd1234")
+            fixture.businessLinkDataSource.createLink(fixture.businessId, "my-shop")
+        }
+        coVerify(exactly = 0) { fixture.businessLinkDataSource.releaseCurrentLink(any(), any()) }
+        coVerify(exactly = 0) { fixture.businessLinkDataSource.recordLinkChange(any(), any()) }
+        coVerify(exactly = 0) { fixture.businessLinkDataSource.countLinkChangesSince(any(), any()) }
     }
 }

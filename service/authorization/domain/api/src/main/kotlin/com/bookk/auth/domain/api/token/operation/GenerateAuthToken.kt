@@ -1,5 +1,6 @@
 package com.bookk.auth.domain.api.token.operation
 
+import com.bookk.auth.domain.api.error.AuthErrorCodes.DEMO_EXPIRED
 import com.bookk.auth.domain.api.error.AuthErrorCodes.INVALID_CREDENTIALS
 import com.bookk.auth.domain.api.token.entity.AuthTokens
 import com.bookk.core.domain.entity.BusinessError
@@ -21,6 +22,14 @@ interface GenerateAuthToken {
                 statusCode = HttpStatusCode.Unauthorized.value,
                 code = INVALID_CREDENTIALS,
                 message = "Invalid credentials",
+            ),
+            Error
+
+        class DemoExpired :
+            BusinessError(
+                statusCode = HttpStatusCode.Unauthorized.value,
+                code = DEMO_EXPIRED,
+                message = "The demo period of this account has ended",
             ),
             Error
     }

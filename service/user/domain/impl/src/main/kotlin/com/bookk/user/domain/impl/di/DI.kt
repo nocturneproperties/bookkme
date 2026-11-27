@@ -20,6 +20,7 @@ import com.bookk.user.domain.api.operation.GetPersonalDataExport
 import com.bookk.user.domain.api.operation.GetUserByEmail
 import com.bookk.user.domain.api.operation.GetUserById
 import com.bookk.user.domain.api.operation.StartPersonalDataExport
+import com.bookk.user.domain.api.operation.UpgradeDemoProfile
 import com.bookk.user.domain.impl.event.UserEventHandler
 import com.bookk.user.domain.impl.export.PersonalDataExportAssembler
 import com.bookk.user.domain.impl.operation.AcceptLegalDocumentsImpl
@@ -35,6 +36,7 @@ import com.bookk.user.domain.impl.operation.GetPersonalDataExportImpl
 import com.bookk.user.domain.impl.operation.GetUserByEmailImpl
 import com.bookk.user.domain.impl.operation.GetUserByIdImpl
 import com.bookk.user.domain.impl.operation.StartPersonalDataExportImpl
+import com.bookk.user.domain.impl.operation.UpgradeDemoProfileImpl
 import library.export.DataExportAssembler
 import org.koin.core.module.dsl.scopedOf
 import org.koin.core.qualifier.Qualifier
@@ -59,6 +61,7 @@ fun userDomainModule() = module {
         scopedOf(::EditUserImpl) bind EditUser::class
         scopedOf(::ChangeUserEmailImpl) bind ChangeUserEmail::class
         scopedOf(::ChangeTelegramUsernameImpl) bind ChangeTelegramUsername::class
+        scopedOf(::UpgradeDemoProfileImpl) bind UpgradeDemoProfile::class
         scopedOf(::GetUserByEmailImpl) bind GetUserByEmail::class
         scopedOf(::GetUserByIdImpl) bind GetUserById::class
         scopedOf(::GetLegalDocumentsImpl) bind GetLegalDocuments::class

@@ -2,3 +2,6 @@ CREATE TABLE IF NOT EXISTS telegram_identity (id BINARY(16) PRIMARY KEY, auth_id
 ALTER TABLE telegram_identity ADD COLUMN IF NOT EXISTS username_index CHAR(44) NULL;
 CREATE TABLE IF NOT EXISTS account_deletion (auth_id BINARY(16) PRIMARY KEY, requested_at TIMESTAMP(6) NOT NULL, deletes_at TIMESTAMP(6) NOT NULL, reminder VARCHAR(16) DEFAULT 'NONE' NOT NULL, CONSTRAINT fk_account_deletion_auth_id__id FOREIGN KEY (auth_id) REFERENCES authentication(id) ON DELETE CASCADE ON UPDATE RESTRICT);
 CREATE INDEX IF NOT EXISTS account_deletion_deletes_at ON account_deletion (deletes_at);
+ALTER TABLE authentication ADD COLUMN IF NOT EXISTS demo_expires_at TIMESTAMP(6) NULL, ADD INDEX IF NOT EXISTS authentication_demo_expires_at (demo_expires_at);
+CREATE TABLE IF NOT EXISTS demo_settings (id TINYINT PRIMARY KEY, max_active_accounts INT NULL);
+INSERT IGNORE INTO demo_settings (id, max_active_accounts) VALUES (1, NULL);

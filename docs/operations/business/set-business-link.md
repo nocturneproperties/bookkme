@@ -8,10 +8,12 @@ The link is opened as `bookkme.com/{name}`; the site resolves the name with `GET
 flowchart TD
     Start([PUT /api/business/id/link]) --> Auth{JWT valid?}
     Auth -- No --> R401([401 Unauthorized])
-    Auth -- Yes --> Normalize[BusinessLinkPolicy.normalize - trim and lowercase]
+    Auth -- Yes --> Demo{AppPrincipal.isDemo?}
+    Demo -- Yes --> R422d([422 BUSINESS_DEMO_RESTRICTED 200055])
+    Demo -- No --> Normalize[BusinessLinkPolicy.normalize - trim and lowercase]
     Normalize --> Valid{3 to 32 of a-z 0-9, single hyphens between?}
     Valid -- No --> R422i([422 BUSINESS_LINK_INVALID 200049])
-    Valid -- Yes --> Reserved{BusinessLinkPolicy.isReserved?}
+    Valid -- Yes --> Reserved{BusinessLinkPolicy.isReserved? - fixed names, demo and demo- anything}
     Reserved -- Yes --> R422r([422 BUSINESS_LINK_RESERVED 200050])
     Reserved -- No --> Tx[[Begin transaction]]
     Tx --> Lock{BusinessDataSource.lockBusiness id EXCLUSIVE - row exists?}
@@ -30,6 +32,8 @@ flowchart TD
     Restore[restore] --> Release
     Release{getCurrentLink id?}
     Release -- none --> Write
+    Release -- "a demo- name" --> DropDemo[deleteLink demo name - no hold, not counted as a change]
+    DropDemo --> Write
     Release -- exists --> Count{countLinkChangesSince id now - 90 days at least 3?}
     Count -- Yes --> R422c([422 BUSINESS_LINK_CHANGE_LIMIT_REACHED 200052])
     Count -- No --> Released[releaseCurrentLink id now, recordLinkChange id now]
@@ -38,5 +42,7 @@ flowchart TD
     Commit -- No, another business claimed it concurrently --> R422t
     Commit -- Yes --> R200
 ```
+
+A demo account's business gets a `demo-` name with 8 random letters and digits when it is created ([Create business](create-business.md), [seeded sample business](on-demo-account-created.md)); `demo` and every `demo-…` name are reserved, so only that assignment can create one. A demo account can't set a name (the access token's `demo` claim). After the [upgrade](../authorization/demo-upgrade.md), the first name the owner sets deletes the `demo-` name at once instead of holding it for 90 days, since no one else can claim it anyway, and neither it nor the automatic assignment counts toward the 3 changes. The reservation doesn't take a name from a business that already held it before 0.21.0.
 
 A name released more than 90 days ago counts as free here and in the lookup even before the daily `business-deleteReleasedBusinessLinks` job deletes it and the change records older than 90 days ([Scheduled jobs](../scheduled-jobs.md)). Locking the name's row stops that job from deleting a held name while the owner switches back to it. Deleting the business deletes its current and held names (`ON DELETE CASCADE`), so they are free at once.

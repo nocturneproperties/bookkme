@@ -11,6 +11,7 @@ import com.bookk.core.test.then
 import com.bookk.core.test.whenn
 import com.bookk.user.data.cache.UserCacheStrategy.getUser
 import com.bookk.user.data.orm.table.UserTable
+import com.bookk.user.domain.api.entity.ProfileName
 import com.bookk.user.domain.api.entity.User
 import com.bookk.user.domain.api.entity.UserEditModel
 import io.mockk.coEvery
@@ -659,6 +660,56 @@ internal class UserDataSourceImplTest {
         then()
         assertEquals(changed, found)
         assertEquals("new@example.com", found!!.email)
+    }
+
+    @Test
+    fun `should replace the name together with the email`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val created = suspendTransaction { fixture.sut.insertNewUser(User.stub(name = "Demo", lastName = "")) }
+        val name = ProfileName.stub(name = "Ann", lastName = "Lee")
+
+        whenn()
+        suspendTransaction { fixture.sut.changeEmailAndName(created.id, "ann@example.com", name, Clock.System.now()) }
+        val found = suspendTransaction { fixture.uncached.getUserById(created.id) }
+
+        then()
+        assertEquals(listOf("Ann", "Lee", "ann@example.com"), listOf(found?.name, found?.lastName, found?.email))
+    }
+
+    @Test
+    fun `should keep the name when another user already holds the new email`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        suspendTransaction { fixture.sut.insertNewUser(User.stub(email = "taken@example.com")) }
+        val created = suspendTransaction { fixture.sut.insertNewUser(User.stub(name = "Demo", lastName = "")) }
+        val name = ProfileName.stub(name = "Ann", lastName = "Lee")
+
+        whenn()
+        val result = runCatching {
+            suspendTransaction {
+                fixture.sut.changeEmailAndName(created.id, "taken@example.com", name, Clock.System.now())
+            }
+        }
+        val found = suspendTransaction { fixture.uncached.getUserById(created.id) }
+
+        then()
+        assertTrue(result.exceptionOrNull()?.toDomain() is Error.UniqueConstraintFailed) { result.toString() }
+        assertEquals("Demo", found?.name)
+    }
+
+    @Test
+    fun `should return null when changing the email and name of a missing user`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+
+        whenn()
+        val changed = suspendTransaction {
+            fixture.sut.changeEmailAndName(Uuid.random(), "ann@example.com", ProfileName.stub(), Clock.System.now())
+        }
+
+        then()
+        assertNull(changed)
     }
 
     @Test
