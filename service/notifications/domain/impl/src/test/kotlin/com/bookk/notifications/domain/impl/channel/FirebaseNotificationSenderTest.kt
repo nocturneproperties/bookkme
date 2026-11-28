@@ -9,6 +9,7 @@ import com.bookk.core.test.then
 import com.bookk.core.test.whenn
 import com.bookk.notifications.domain.api.entity.Device
 import com.bookk.notifications.domain.datasource.DeviceDataSource
+import com.bookk.notifications.domain.impl.notification.DataPush
 import com.bookk.notifications.domain.impl.notification.EmailNotification
 import com.bookk.notifications.domain.impl.notification.NotificationParameters
 import com.bookk.notifications.domain.impl.notification.NotificationType
@@ -92,6 +93,71 @@ internal class FirebaseNotificationSenderTest {
         assertEquals("appointment_request:42", collapseId?.jsonPrimitive?.content)
         assertEquals("42", requestId?.jsonPrimitive?.content)
         assertEquals("Title-EN", message["notification"]?.jsonObject?.get("title")?.jsonPrimitive?.content)
+    }
+
+    @Test
+    fun `should send a data push as a silent background message to every device with a token`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val devices = listOf(
+            Device.stub(userId = userId, notificationToken = "fcm-token-a"),
+            Device.stub(userId = userId, notificationToken = "fcm-token-b"),
+            Device.stub(userId = userId, notificationToken = null),
+        )
+        val push = DataPush(
+            type = NotificationType.APPOINTMENT,
+            data = mapOf("type" to "appointment_request_resolved", "appointmentRequestId" to "42"),
+        )
+        val sent = mutableListOf<Message>()
+        with(fixture) {
+            transactionManager.mockTransaction()
+            coEvery { deviceDataSource.getByUserId(userId) } returns devices
+            every { firebaseMessaging.send(capture(sent)) } returns "message-id"
+        }
+
+        whenn()
+        val result = fixture.sut.sendData(userId, push)
+
+        then()
+        assertTrue(result.isSuccess)
+        assertEquals(2, sent.size)
+        val message = sent.first().json()
+        val apns = message["apns"]?.jsonObject
+        val aps = apns?.get("payload")?.jsonObject?.get("aps")?.jsonObject
+        assertNull(message["notification"])
+        assertEquals("appointment_request_resolved", message["data"]?.jsonObject?.get("type")?.jsonPrimitive?.content)
+        assertEquals("42", message["data"]?.jsonObject?.get("appointmentRequestId")?.jsonPrimitive?.content)
+        assertEquals("normal", message["android"]?.jsonObject?.get("priority")?.jsonPrimitive?.content)
+        assertEquals("1", aps?.get("content-available")?.jsonPrimitive?.content)
+        assertNull(aps?.get("alert"))
+        assertEquals("background", apns?.get("headers")?.jsonObject?.get("apns-push-type")?.jsonPrimitive?.content)
+        assertEquals("5", apns?.get("headers")?.jsonObject?.get("apns-priority")?.jsonPrimitive?.content)
+    }
+
+    @Test
+    fun `should clear an unregistered token when a data push is refused`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val device = Device.stub(userId = userId, notificationToken = "stale-token")
+        val exception = mockk<FirebaseMessagingException>()
+        with(fixture) {
+            transactionManager.mockTransaction()
+            coEvery { deviceDataSource.getByUserId(userId) } returns listOf(device)
+            coEvery { deviceDataSource.updateToken(device.authId, device.deviceUuid, null) } returns
+                device.copy(notificationToken = null)
+            every { firebaseMessaging.send(any()) } throws exception
+            every { exception.messagingErrorCode } returns MessagingErrorCode.UNREGISTERED
+        }
+
+        whenn()
+        val push = DataPush(type = NotificationType.APPOINTMENT, data = mapOf("type" to "appointment_request_resolved"))
+        val result = fixture.sut.sendData(userId, push)
+
+        then()
+        assertTrue(result.isSuccess)
+        coVerify(exactly = 1) { fixture.deviceDataSource.updateToken(device.authId, device.deviceUuid, null) }
     }
 
     @Test

@@ -106,7 +106,7 @@ internal class CreateAppointmentRequestImpl(
             eventProducer.send(
                 AppointmentEvent.ClientVisitBooked(request.businessId, request.client.id, request.dateEnd),
             )
-            sendRequestCreatedNotification(request)
+            sendRequestCreatedNotification(it)
         }
     }
 

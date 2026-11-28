@@ -30,6 +30,20 @@ interface AppointmentEvent : EventStreaming.Event<String> {
     }
 
     @Serializable
+    data class RequestResolved(
+        @ProtoNumber(1) val requestId: Uuid,
+        @ProtoNumber(2) val employeeUserId: Uuid,
+        @ProtoNumber(3) override val idempotencyKey: String = Uuid.random().toString(),
+    ) : AppointmentEvent {
+        @ProtoNumber(4)
+        override val topic: String = TOPIC
+
+        companion object {
+            const val TOPIC = "appointment.request_resolved"
+        }
+    }
+
+    @Serializable
     data class RequestApproved(
         @ProtoNumber(1) val clientUserId: Uuid,
         @ProtoNumber(3) val employeeUserId: Uuid,

@@ -932,7 +932,7 @@ internal class CreateAppointmentRequestImplTest {
         val context = bookingContext(businessId, Uuid.random(), Uuid.random(), Uuid.random())
         val draft = draftFor(context, businessId, futureDate)
         val settings = mockk<AppointmentSettings> { every { inBetweenBreakInMinutes } returns 0 }
-        val created = slot<AppointmentRequest>()
+        val stored = mutableListOf<AppointmentRequest>()
         val eventSlot = slot<AppointmentEvent.RequestCreated>()
 
         with(fixture) {
@@ -943,7 +943,9 @@ internal class CreateAppointmentRequestImplTest {
             coEvery { settings.automaticApproval } returns false
             every { settings.maxPendingRequestsPerClient } returns 10
             every { settings.requireBookable(any(), any(), any()) } just Runs
-            coEvery { requestDataSource.create(capture(created)) } answers { firstArg() }
+            coEvery { requestDataSource.create(any()) } answers {
+                firstArg<AppointmentRequest>().copy(id = Uuid.random()).also { stored += it }
+            }
             coEvery { subscriptionDataSource.getBusinessSnapshot(any()) } returns BusinessSnapshot.stub()
             coEvery { eventProducer.send(capture(eventSlot), any()) } returns Unit
             coEvery { eventProducer.send(any<AppointmentEvent.ClientVisitBooked>(), any()) } returns Unit
@@ -956,7 +958,7 @@ internal class CreateAppointmentRequestImplTest {
 
         then()
         assertTrue(result.isSuccess)
-        assertEquals(created.captured.id, eventSlot.captured.requestId)
+        assertEquals(stored.single().id, eventSlot.captured.requestId)
     }
 
     @Test

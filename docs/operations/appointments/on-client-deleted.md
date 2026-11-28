@@ -47,7 +47,8 @@ flowchart TD
     Claim -- claimed --> Tx[[Begin transaction]]
     Tx --> Mark["DeletedClientDataSource.markDeleted businessId clientId - INSERT IGNORE into deleted_client"]
     Mark --> Upcoming["AppointmentDataSource.getUpcomingIdsOfClientForUpdate businessId clientId now - SELECT id FOR UPDATE, SCHEDULED and date_start after now"]
-    Upcoming --> Load["AppointmentDataSource.getAllByIds upcoming ids - plain read with services, after the lock; no query when there are none"]
+    Upcoming --> Pending["AppointmentRequestDataSource.getPendingOfClientForUpdate businessId clientId - SELECT id, employee_user_id FOR UPDATE, PENDING"]
+    Pending --> Load["AppointmentDataSource.getAllByIds upcoming ids - plain read with services, after the lock; no query when there are none"]
     Load --> Any{any upcoming appointment whose client has an account?}
     Any -- No --> Cancel
     Any -- Yes --> Snapshot{"AppointmentSubscriptionDataSource.getBusinessSnapshot businessId"}
@@ -57,12 +58,13 @@ flowchart TD
     Cancel --> Anon["AppointmentDataSource.anonymizeClient businessId clientId - client_name_encrypted, client_phone_encrypted, client_email_encrypted, note_encrypted, client_note_encrypted, client_name_index and client_user_id set to NULL, read with an empty name and erased set, cancellation and price adjustment reasons kept"]
     Anon --> DelReq["AppointmentRequestDataSource.deleteForClient businessId clientId"]
     DelReq --> Known{business snapshot found?}
-    Known -- No --> Shred
+    Known -- No --> Resolve
     Known -- Yes --> Each[For each cancelled appointment]
     Each --> ToClient{client has an account?}
     ToClient -- Yes --> SendClient["eventProducer.send AppointmentEvent.Cancelled clientUserId ... reason 'Client was removed by the business' reasonKind CLIENT_REMOVED"]
-    ToClient -- No --> Shred
-    SendClient --> Shred
+    ToClient -- No --> Resolve
+    SendClient --> Resolve
+    Resolve["eventProducer.send AppointmentEvent.RequestResolved for each pending request deleted"] --> Shred
     Shred["SubjectKeys.shred clientId - last"] --> Processed([markProcessed - kept 1 hour])
     Shred -- any step throws, rolled back --> Release[Release the claim] --> Dlt["Retried through business.client_deleted_appointments_dlt, up to 3 attempts"]
     Dlt -- every attempt failed --> Parked(["Saved to exhausted_event - EventsExhausted alert, replayed on the next start or when replay_requested is set"])
@@ -70,3 +72,4 @@ flowchart TD
 
 **Consumed by:**
 - `AppointmentEvent.Cancelled` → [notifications: tell the client](../notifications/on-appointment-cancelled.md).
+- `AppointmentEvent.RequestResolved` → [notifications: data-only push to the employee](../notifications/on-appointment-request-resolved.md).

@@ -78,10 +78,12 @@ flowchart TD
     Snapshot -- missing --> R404d([404 Error.NotFound - logged as data inconsistency])
     Snapshot -- found --> Visit[eventProducer.send AppointmentEvent.ClientVisitBooked businessId client.id dateEnd]
     Visit --> Event["eventProducer.send AppointmentEvent.RequestApproved - clientUserId = request.client.userId"]
-    Event --> R200([200 Created Appointment])
+    Event --> Resolved["eventProducer.send AppointmentEvent.RequestResolved requestId employeeUserId - this route only, not automatic approval"]
+    Resolved --> R200([200 Created Appointment])
 ```
 
 **Consumed by:** `AppointmentEvent.RequestApproved` → [notifications: notify
 the client](../notifications/on-appointment-request-approved.md);
 `AppointmentEvent.ClientVisitBooked` → [business: record the client's
-visit](../business/on-client-visit-booked.md).
+visit](../business/on-client-visit-booked.md);
+`AppointmentEvent.RequestResolved` → [notifications: data-only push to the employee](../notifications/on-appointment-request-resolved.md).

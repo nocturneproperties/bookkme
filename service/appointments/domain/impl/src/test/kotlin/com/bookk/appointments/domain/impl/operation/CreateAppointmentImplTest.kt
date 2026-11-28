@@ -442,6 +442,84 @@ internal class CreateAppointmentImplTest {
         then()
         assertTrue(result.isFailure)
         assertTrue(result.exceptionOrNull() is Error.OperationNotAllowed)
+        coVerify(exactly = 0) { fixture.eventProducer.send(any(), any()) }
+    }
+
+    @Test
+    fun `should tell the assigned employee in the transaction that the approved request is resolved`() =
+        runUnitTest {
+            given()
+            val userId = Uuid.random()
+            val request = AppointmentRequest.stub(initiatorUserId = userId, date = futureDate)
+            val settings = mockk<AppointmentSettings> { every { inBetweenBreakInMinutes } returns 0 }
+            val fixture = SutFixture()
+            val resolved = mutableListOf<AppointmentEvent.RequestResolved>()
+            val sentInTransaction = mutableListOf<Boolean>()
+
+            with(fixture) {
+                coEvery { requestDataSource.get(request.id) } returns request
+                coEvery { requestDataSource.getForUpdate(request.id) } returns request
+                coEvery {
+                    businessClient.getAppointmentRescheduleContext(
+                        request.businessId,
+                        request.employee.id,
+                        emptyList(),
+                        false,
+                    )
+                } returns Result.success(rescheduleContext(request))
+                coEvery { settingsDataSource.getForUpdate(request.businessId) } returns settings
+                every { settings.requireBookable(request.date, request.dateEnd, any()) } just Runs
+                coEvery { appointmentPermissionDataSource.getPermission(userId, request.businessId) } returns
+                    ResourcePermission(view = false, update = true, delete = false)
+                coEvery { appointmentDataSource.create(request) } returns Appointment.stub()
+                coEvery { requestDataSource.approve(request) } returns Unit
+                coEvery { subscriptionDataSource.getBusinessSnapshot(request.businessId) } returns
+                    BusinessSnapshot.stub()
+                coEvery { eventProducer.send(any(), any()) } returns Unit
+                coEvery { eventProducer.send(any<AppointmentEvent.RequestResolved>(), any()) } coAnswers {
+                    resolved += firstArg<AppointmentEvent.RequestResolved>()
+                    sentInTransaction += transactionManager.isInTransaction()
+                }
+                transactionManager.mockTransaction()
+            }
+
+            whenn()
+            val result = fixture.sut.invoke(userId, request.id)
+
+            then()
+            assertTrue(result.isSuccess)
+            assertEquals(request.id, resolved.single().requestId)
+            assertEquals(request.employee.userId, resolved.single().employeeUserId)
+            assertEquals(listOf(true), sentInTransaction)
+        }
+
+    @Test
+    fun `should not announce a resolved request for a booking approved automatically`() = runUnitTest {
+        given()
+        val request = AppointmentRequest.stub(date = futureDate)
+        val settings = mockk<AppointmentSettings> { every { inBetweenBreakInMinutes } returns 0 }
+        val fixture = SutFixture()
+        val sentEvents = mutableListOf<AppointmentEvent>()
+
+        with(fixture) {
+            every { settings.requireBookable(request.date, request.dateEnd, any()) } just Runs
+            coEvery { settingsDataSource.getForUpdate(request.businessId) } returns settings
+            coEvery { appointmentDataSource.create(request) } returns Appointment.stub()
+            coEvery { requestDataSource.approve(request) } returns Unit
+            coEvery { subscriptionDataSource.getBusinessSnapshot(request.businessId) } returns BusinessSnapshot.stub()
+            coEvery { eventProducer.send(any<AppointmentEvent>(), any()) } coAnswers {
+                sentEvents += firstArg<AppointmentEvent>()
+            }
+            transactionManager.mockTransaction()
+        }
+
+        whenn()
+        val result = fixture.sut.createBypassingPermissions(request, employeeSchedule = Schedule())
+
+        then()
+        assertTrue(result.isSuccess)
+        assertTrue(sentEvents.isNotEmpty())
+        assertTrue(sentEvents.none { it is AppointmentEvent.RequestResolved })
     }
 
     @Test

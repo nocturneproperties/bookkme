@@ -13,7 +13,6 @@ import kotlin.uuid.Uuid
 
 private const val KEY_PREFIX = "appointment.request_created"
 private const val PUSH_SUBJECT_PREFIX = "appointment_request:"
-private const val PUSH_REQUEST_ID_KEY = "appointmentRequestId"
 
 internal val AppointmentEvent.RequestCreated.notification: NotificationParameters
     get() = NotificationParameters(
@@ -48,6 +47,6 @@ private fun List<String>.servicesText(): String {
 private fun requestPushSubject(requestId: Uuid): PushSubject {
     return PushSubject(
         key = "$PUSH_SUBJECT_PREFIX$requestId",
-        data = mapOf(PUSH_REQUEST_ID_KEY to requestId.toString()),
+        data = mapOf(APPOINTMENT_REQUEST_ID_DATA_KEY to requestId.toString()),
     )
 }

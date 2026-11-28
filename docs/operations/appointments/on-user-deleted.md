@@ -72,7 +72,8 @@ flowchart TD
     Tx --> Mark["DeletedUserDataSource.markDeleted userId - INSERT IGNORE into deleted_user"]
     Mark --> Upcoming["AppointmentDataSource.getUpcomingIdsOfUserForUpdate userId now - SELECT id FOR UPDATE by client_user_id OR employee_user_id, SCHEDULED, date_start after now"]
     Upcoming --> ClientIds["AppointmentDataSource and AppointmentRequestDataSource.getClientIdsOfUserForUpdate userId - SELECT client_id FOR UPDATE where client_user_id matches"]
-    ClientIds --> OwnedIds["AppointmentSubscriptionDataSource.getBusinessIdsOwnedByForUpdate userId, then getClientIdsForUpdate those businesses - SELECT FOR UPDATE the owned business ids and the client ids of their appointments and requests"]
+    ClientIds --> Pending["AppointmentRequestDataSource.getPendingOfClientUserForUpdate userId - SELECT id, employee_user_id FOR UPDATE, PENDING, client_user_id matches and employee_user_id does not"]
+    Pending --> OwnedIds["AppointmentSubscriptionDataSource.getBusinessIdsOwnedByForUpdate userId, then getClientIdsForUpdate those businesses - SELECT FOR UPDATE the owned business ids and the client ids of their appointments and requests"]
     OwnedIds --> Load["AppointmentDataSource.getAllByIds upcoming ids - plain read with services, after every lock"]
     Load --> Each{"For each business of an upcoming appointment not booked by the user with themselves - AppointmentSubscriptionDataSource.getBusinessSnapshot businessId"}
     Each -- missing --> Log[Log error, no event for that business]
@@ -89,13 +90,14 @@ flowchart TD
     Notify -- yes --> Send["eventProducer.send AppointmentEvent.CancelledForDeletedClient employeeUserId from to timeZone businessName"]
     Notify -- "no, its employee" --> HasAccount{client.userId set?}
     HasAccount -- yes --> SendClient["eventProducer.send AppointmentEvent.Cancelled clientUserId reason 'Employee deleted their account' reasonKind EMPLOYEE_DELETED"]
-    Send --> Shred
-    SendClient --> Shred
-    HasAccount -- no --> Shred
+    Send --> Resolve
+    SendClient --> Resolve
+    HasAccount -- no --> Resolve
+    Resolve["eventProducer.send AppointmentEvent.RequestResolved for each pending request the user made with another employee - the user's own devices go with the account"] --> Shred
     Shred["SubjectKeys.shredAll userId, the client ids of their appointments and requests, and the clients of the dropped businesses - the employee name on the appointments they worked becomes unreadable, read with an empty name and erased set"]
     Shred --> Processed([markProcessed - kept 1 hour])
     Shred -- any step throws, rolled back --> Release[Release the claim] --> Dlt["Retried through auth.user_deleted_appointments_dlt, up to 3 attempts"]
     Dlt -- every attempt failed --> Parked(["Saved to exhausted_event - EventsExhausted alert, replayed on the next start or when replay_requested is set"])
 ```
 
-**Consumed by:** `AppointmentEvent.CancelledForDeletedClient` → [notifications: tell the employee](../notifications/on-appointment-cancelled-for-deleted-client.md); `AppointmentEvent.Cancelled` → [notifications: tell the client](../notifications/on-appointment-cancelled.md).
+**Consumed by:** `AppointmentEvent.CancelledForDeletedClient` → [notifications: tell the employee](../notifications/on-appointment-cancelled-for-deleted-client.md); `AppointmentEvent.Cancelled` → [notifications: tell the client](../notifications/on-appointment-cancelled.md); `AppointmentEvent.RequestResolved` → [notifications: data-only push to the employee](../notifications/on-appointment-request-resolved.md).

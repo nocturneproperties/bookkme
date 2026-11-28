@@ -20,6 +20,11 @@ internal class PushSubject(
     val data: Map<String, String>,
 )
 
+internal class DataPush(
+    val type: NotificationType,
+    val data: Map<String, String>,
+)
+
 internal class EmailNotification(
     val subject: String,
     val body: String,

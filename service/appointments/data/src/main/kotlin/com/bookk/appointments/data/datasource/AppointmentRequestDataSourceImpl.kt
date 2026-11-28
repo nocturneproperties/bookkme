@@ -11,6 +11,7 @@ import com.bookk.appointments.domain.api.entity.AppointmentRequestStatus
 import com.bookk.appointments.domain.api.entity.BookingPeriod
 import com.bookk.appointments.domain.api.entity.HistoryOrder
 import com.bookk.appointments.domain.api.entity.OwnAppointmentRequestFilter
+import com.bookk.appointments.domain.api.entity.PendingRequestRef
 import com.bookk.appointments.domain.api.entity.StartBounds
 import com.bookk.appointments.domain.datasource.AppointmentRequestDataSource
 import com.bookk.core.data.DataSource
@@ -32,6 +33,7 @@ import org.jetbrains.exposed.v1.core.greaterEq
 import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.core.less
 import org.jetbrains.exposed.v1.core.lessEq
+import org.jetbrains.exposed.v1.core.neq
 import org.jetbrains.exposed.v1.core.or
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.select
@@ -188,16 +190,31 @@ internal class AppointmentRequestDataSourceImpl(
         } ?: throw Error.NotFound()
     }
 
-    override suspend fun cancelOutdated(before: Instant) = dbQuery<Unit> {
-        AppointmentRequestTable.update(
-            where = {
-                AppointmentRequestTable.status.eq(AppointmentRequestStatus.PENDING)
-                    .and(AppointmentRequestTable.dateEnd.less(before))
-            },
-        ) {
-            it[AppointmentRequestTable.status] = AppointmentRequestStatus.CANCELLED
-            it[AppointmentRequestTable.updatedAt] = Clock.System.now()
+    override suspend fun cancelOutdated(before: Instant): List<PendingRequestRef> = dbQuery {
+        val outdated = pendingRefsForUpdate(AppointmentRequestTable.dateEnd less before)
+        if (outdated.isNotEmpty()) {
+            AppointmentRequestTable.update(where = { AppointmentRequestTable.id inList outdated.map { it.id } }) {
+                it[AppointmentRequestTable.status] = AppointmentRequestStatus.CANCELLED
+                it[AppointmentRequestTable.updatedAt] = Clock.System.now()
+            }
         }
+        outdated
+    }
+
+    override suspend fun getPendingOfClientUserForUpdate(clientUserId: Uuid): List<PendingRequestRef> = dbQuery {
+        pendingRefsForUpdate(
+            (AppointmentRequestTable.clientUserId eq clientUserId) and
+                (AppointmentRequestTable.employeeUserId neq clientUserId),
+        )
+    }
+
+    override suspend fun getPendingOfClientForUpdate(
+        businessId: Uuid,
+        clientId: Uuid,
+    ): List<PendingRequestRef> = dbQuery {
+        pendingRefsForUpdate(
+            (AppointmentRequestTable.businessId eq businessId) and (AppointmentRequestTable.clientId eq clientId),
+        )
     }
 
     override suspend fun getClientIdsOfUserForUpdate(clientUserId: Uuid): Set<Uuid> = dbQuery {
@@ -274,6 +291,14 @@ internal class AppointmentRequestDataSourceImpl(
     private suspend fun List<AppointmentRequestEntity>.decrypted(): List<AppointmentRequest> {
         val snapshots = snapshotCipher.decryptAll(map { it.storedSnapshot() }, AppointmentRequestTable.tableName)
         return zip(snapshots) { entity, snapshot -> entity.domain(snapshot) }
+    }
+
+    private fun pendingRefsForUpdate(condition: Op<Boolean>): List<PendingRequestRef> {
+        return AppointmentRequestTable.select(AppointmentRequestTable.id, AppointmentRequestTable.employeeUserId)
+            .where { (AppointmentRequestTable.status eq AppointmentRequestStatus.PENDING) and condition }
+            .orderBy(AppointmentRequestTable.id)
+            .forUpdate()
+            .map { PendingRequestRef(it[AppointmentRequestTable.id].value, it[AppointmentRequestTable.employeeUserId]) }
     }
 
     private fun pendingOfUser(userId: Uuid, businessId: Uuid): Op<Boolean> {

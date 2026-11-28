@@ -14,6 +14,7 @@ import com.bookk.notifications.domain.api.DeleteUserNotificationData
 import com.bookk.notifications.domain.impl.ClearPushNotificationToken
 import com.bookk.notifications.domain.impl.UpdateDeviceLanguage
 import com.bookk.notifications.domain.impl.UpdateTargetInformation
+import com.bookk.notifications.domain.impl.notification.DataPush
 import com.bookk.notifications.domain.impl.notification.NotificationParameters
 import com.bookk.notifications.domain.impl.notification.NotificationType
 import com.bookk.notifications.domain.impl.notification.SendNotification
@@ -233,6 +234,24 @@ internal class NotificationEventHandlerTest {
         then()
         coVerify(exactly = 1) { fixture.sendNotification.invoke(event.userId, any()) }
         assertEquals(NotificationType.ACCOUNT, params.captured.type)
+    }
+
+    @Test
+    fun `should send only a data push to the employee when an appointment request is resolved`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val event = AppointmentEvent.RequestResolved(requestId = Uuid.random(), employeeUserId = Uuid.random())
+        val push = slot<DataPush>()
+        coEvery { fixture.sendNotification.data(event.employeeUserId, capture(push)) } returns Result.success(Unit)
+        fixture.start(this)
+
+        whenn()
+        fixture.dispatch(AppointmentEvent.RequestResolved.TOPIC, event)
+
+        then()
+        assertEquals(event.requestId.toString(), push.captured.data["appointmentRequestId"])
+        assertEquals(NotificationType.APPOINTMENT, push.captured.type)
+        coVerify(exactly = 0) { fixture.sendNotification.invoke(any(), any()) }
     }
 
     @Test

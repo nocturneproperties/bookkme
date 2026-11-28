@@ -2,6 +2,7 @@ package com.bookk.appointments.domain.impl.operation
 
 import com.bookk.appointments.domain.api.entity.Appointment
 import com.bookk.appointments.domain.api.entity.BusinessSnapshot
+import com.bookk.appointments.domain.api.entity.PendingRequestRef
 import com.bookk.appointments.domain.datasource.AppointmentDataSource
 import com.bookk.appointments.domain.datasource.AppointmentPermissionDataSource
 import com.bookk.appointments.domain.datasource.AppointmentRequestDataSource
@@ -66,8 +67,10 @@ internal class DeleteUserAppointmentDataImplTest {
             requestClientIds: Set<Uuid> = emptySet(),
             ownedBusinessIds: List<Uuid> = emptyList(),
             ownedBusinessClientIds: Set<Uuid> = emptySet(),
+            pendingRequests: List<PendingRequestRef> = emptyList(),
         ) {
             transactionManager.mockTransaction()
+            coEvery { requestDataSource.getPendingOfClientUserForUpdate(userId) } returns pendingRequests
             coEvery { deletedUserDataSource.markDeleted(userId) } coAnswers { recordWrite() }
             coEvery { appointmentDataSource.getUpcomingIdsOfUserForUpdate(userId, any()) } returns
                 upcoming.map { it.id }
@@ -96,6 +99,11 @@ internal class DeleteUserAppointmentDataImplTest {
         fun employeeNotifications() = sentEvents.filterIsInstance<AppointmentEvent.CancelledForDeletedClient>()
 
         fun clientNotifications() = sentEvents.filterIsInstance<AppointmentEvent.Cancelled>()
+
+        fun resolvedRequests(): List<PendingRequestRef> {
+            return sentEvents.filterIsInstance<AppointmentEvent.RequestResolved>()
+                .map { PendingRequestRef(it.requestId, it.employeeUserId) }
+        }
     }
 
     private fun AppointmentEvent.CancelledForDeletedClient.withoutIdempotencyKey() = copy(idempotencyKey = "")
@@ -148,6 +156,7 @@ internal class DeleteUserAppointmentDataImplTest {
             fixture.appointmentDataSource.getUpcomingIdsOfUserForUpdate(userId, any())
             fixture.appointmentDataSource.getClientIdsOfUserForUpdate(userId)
             fixture.requestDataSource.getClientIdsOfUserForUpdate(userId)
+            fixture.requestDataSource.getPendingOfClientUserForUpdate(userId)
             fixture.subscriptionDataSource.getBusinessIdsOwnedByForUpdate(userId)
             fixture.subscriptionDataSource.getClientIdsForUpdate(ownedBusinessIds)
             fixture.appointmentDataSource.getAllByIds(any())
@@ -332,6 +341,23 @@ internal class DeleteUserAppointmentDataImplTest {
         then()
         assertTrue(result.isSuccess)
         coVerify(exactly = 0) { fixture.eventProducer.send(any<AppointmentEvent>(), any()) }
+    }
+
+    @Test
+    fun `should tell each employee in the transaction that the user's pending request is resolved`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val pending = listOf(PendingRequestRef.stub(), PendingRequestRef.stub())
+        fixture.stubErasure(userId, pendingRequests = pending)
+
+        whenn()
+        val result = fixture.sut(userId)
+
+        then()
+        assertTrue(result.isSuccess)
+        assertEquals(pending, fixture.resolvedRequests())
+        assertTrue(fixture.sentInTransaction.all { it })
     }
 
     @Test

@@ -3,6 +3,7 @@ package com.bookk.appointments.domain.datasource
 import com.bookk.appointments.domain.api.entity.AppointmentRequest
 import com.bookk.appointments.domain.api.entity.AppointmentRequestHistoryFilter
 import com.bookk.appointments.domain.api.entity.OwnAppointmentRequestFilter
+import com.bookk.appointments.domain.api.entity.PendingRequestRef
 import com.bookk.appointments.domain.api.entity.StartBounds
 import com.bookk.core.domain.entity.Page
 import com.bookk.core.domain.entity.PageRequest
@@ -36,8 +37,10 @@ interface AppointmentRequestDataSource {
     suspend fun decline(id: Uuid, reason: String): AppointmentRequest
     suspend fun withdraw(id: Uuid)
 
-    suspend fun cancelOutdated(before: Instant)
+    suspend fun cancelOutdated(before: Instant): List<PendingRequestRef>
     suspend fun getClientIdsOfUserForUpdate(clientUserId: Uuid): Set<Uuid>
+    suspend fun getPendingOfClientUserForUpdate(clientUserId: Uuid): List<PendingRequestRef>
+    suspend fun getPendingOfClientForUpdate(businessId: Uuid, clientId: Uuid): List<PendingRequestRef>
     suspend fun deleteForUser(userId: Uuid)
     suspend fun deleteForClient(businessId: Uuid, clientId: Uuid)
     suspend fun reassignClients(businessId: Uuid, fromClientIds: Collection<Uuid>, toClientId: Uuid)

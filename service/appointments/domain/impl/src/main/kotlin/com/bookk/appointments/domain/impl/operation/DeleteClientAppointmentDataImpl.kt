@@ -2,6 +2,7 @@ package com.bookk.appointments.domain.impl.operation
 
 import com.bookk.appointments.domain.api.entity.Appointment
 import com.bookk.appointments.domain.api.entity.BusinessSnapshot
+import com.bookk.appointments.domain.api.entity.PendingRequestRef
 import com.bookk.appointments.domain.api.operation.DeleteClientAppointmentData
 import com.bookk.appointments.domain.datasource.AppointmentDataSource
 import com.bookk.appointments.domain.datasource.AppointmentRequestDataSource
@@ -34,6 +35,7 @@ internal class DeleteClientAppointmentDataImpl(
         val erasure = select(businessId, clientId)
         delete(businessId, clientId, erasure)
         notifyCancellations(erasure)
+        eventProducer.sendRequestsResolved(erasure.pendingRequests)
         subjectKeys.shred(clientId)
     }
 
@@ -43,10 +45,11 @@ internal class DeleteClientAppointmentDataImpl(
             clientId,
             Clock.System.now(),
         )
+        val pendingRequests = requestDataSource.getPendingOfClientForUpdate(businessId, clientId)
         val upcoming = appointmentDataSource.getAllByIds(upcomingIds)
         val hasClientToNotify = upcoming.any { it.client.userId != null }
         val business = if (hasClientToNotify) businessToNotify(businessId) else null
-        return ClientErasure(upcoming, business)
+        return ClientErasure(upcoming, pendingRequests, business)
     }
 
     private suspend fun businessToNotify(businessId: Uuid): BusinessSnapshot? {
@@ -87,6 +90,7 @@ internal class DeleteClientAppointmentDataImpl(
 
     private class ClientErasure(
         val upcoming: List<Appointment>,
+        val pendingRequests: List<PendingRequestRef>,
         val business: BusinessSnapshot?,
     )
 

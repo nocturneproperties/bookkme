@@ -2,6 +2,7 @@ package com.bookk.appointments.domain.impl.operation
 
 import com.bookk.appointments.domain.api.entity.Appointment
 import com.bookk.appointments.domain.api.entity.BusinessSnapshot
+import com.bookk.appointments.domain.api.entity.PendingRequestRef
 import com.bookk.appointments.domain.api.operation.DeleteUserAppointmentData
 import com.bookk.appointments.domain.datasource.AppointmentDataSource
 import com.bookk.appointments.domain.datasource.AppointmentPermissionDataSource
@@ -38,6 +39,7 @@ internal class DeleteUserAppointmentDataImpl(
         val erasure = select(userId)
         delete(userId, erasure)
         notifyCancellations(userId, erasure)
+        eventProducer.sendRequestsResolved(erasure.pendingRequests)
         subjectKeys.shredAll(erasure.subjectIds)
     }
 
@@ -45,6 +47,7 @@ internal class DeleteUserAppointmentDataImpl(
         val upcomingIds = appointmentDataSource.getUpcomingIdsOfUserForUpdate(userId, Clock.System.now())
         val clientIds = appointmentDataSource.getClientIdsOfUserForUpdate(userId) +
             requestDataSource.getClientIdsOfUserForUpdate(userId)
+        val pendingRequests = requestDataSource.getPendingOfClientUserForUpdate(userId)
         val ownedBusinessIds = subscriptionDataSource.getBusinessIdsOwnedByForUpdate(userId)
         val ownedBusinessClientIds = subscriptionDataSource.getClientIdsForUpdate(ownedBusinessIds)
         val upcoming = appointmentDataSource.getAllByIds(upcomingIds)
@@ -52,6 +55,7 @@ internal class DeleteUserAppointmentDataImpl(
             upcoming = upcoming,
             businesses = businessesToNotify(userId, upcoming),
             ownedBusinessIds = ownedBusinessIds,
+            pendingRequests = pendingRequests,
             subjectIds = setOf(userId) + clientIds + ownedBusinessClientIds,
         )
     }
@@ -135,6 +139,7 @@ internal class DeleteUserAppointmentDataImpl(
         val upcoming: List<Appointment>,
         val businesses: Map<Uuid, BusinessSnapshot>,
         val ownedBusinessIds: List<Uuid>,
+        val pendingRequests: List<PendingRequestRef>,
         val subjectIds: Set<Uuid>,
     )
 
