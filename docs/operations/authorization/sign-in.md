@@ -11,9 +11,10 @@ way a token pair is minted for it.
 flowchart TD
     Start([POST /api/auth/sign_in]) --> Tx[[Begin transaction]]
     Tx --> Verify[FinishAssertion request]
-    Verify -- owner not found --> R422a([422 PASSKEY_OWNER_NOT_FOUND 7])
-    Verify -- expired --> R422b([422 CHALLENGE_WINDOW_EXPIRED 6])
-    Verify -- signature invalid --> R422c([422 VERIFICATION_FAILED 4])
+    Verify -- no stored passkey for the credential id and user handle, checked before the signature --> R422au([422 PASSKEY_UNKNOWN 26])
+    Verify -- no user handle, signature, challenge or origin invalid --> R422a([422 PASSKEY_OWNER_NOT_FOUND 7])
+    Verify -- missing, expired or already taken challenge --> R422b([422 CHALLENGE_WINDOW_EXPIRED 6])
+    Verify -- malformed assertion or lookup failure --> R422c([422 VERIFICATION_FAILED 4])
     Verify -- ok credentials --> InsertDevice[DeviceDataSource.insertDevice ownerId uuid name language]
     InsertDevice -- new device row --> DeviceCreatedEvt[eventProducer.send AuthEvent.DeviceCreated authId deviceUuid userId language]
     InsertDevice -- device already exists --> UpdateLang[DeviceDataSource.updateLanguage ownerId uuid language]

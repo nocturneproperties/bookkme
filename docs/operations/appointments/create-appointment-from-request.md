@@ -32,6 +32,8 @@ permission lookup before the settings lock let an approval that waited behind
 another booking check overlaps against a snapshot from before that booking
 committed, and book the same slot twice.
 
+The employee can hold only one appointment at a time. `EmployeeBookings.requireFree` reads the employee's `SCHEDULED` appointments in the business, whoever booked them, around the slot widened by `inBetweenBreakInMinutes` on both sides, and rejects the booking with 422 `EMPLOYEE_BUSY` (300032) when one other than the booking itself is found. It runs after the settings lock, which serializes every booking of the business, so two bookings can't both take the same employee's time. Pending requests don't block anyone: several clients may request the same time, and once staff approve one, approving another answers `EMPLOYEE_BUSY`. The client's own other bookings are not checked: a client may take two services with two employees at once. `POST /api/appointments/slots` offers only starts that pass the same check.
+
 ```mermaid
 flowchart TD
     Start([POST /api/appointments body AppointmentRequestId]) --> Auth{JWT valid?}
@@ -68,18 +70,20 @@ flowchart TD
     EmpDay -- No --> R422ed([422 EMPLOYEE_DATE_NOT_ALLOWED 300027])
     EmpDay -- Yes --> EmpTime{employee.schedule ranges cover date to dateEnd?}
     EmpTime -- No --> R422et([422 EMPLOYEE_TIME_NOT_ALLOWED 300028])
-    EmpTime -- Yes --> Overlap{overlaps another appointment?}
-    Overlap -- Yes --> R422d([422 APPOINTMENT_EXISTS 300004])
-    Overlap -- No --> Create[AppointmentDataSource.create from request]
+    EmpTime -- Yes --> EmployeeBusy{"EmployeeBookings.requireFree - AppointmentDataSource.getEmployeeBookings businessId employee.id date - break until dateEnd + break: any SCHEDULED appointment of the employee, whoever booked it, other than this booking?"}
+    EmployeeBusy -- Yes --> R422busy([422 EMPLOYEE_BUSY 300032])
+    EmployeeBusy -- No --> Create["AppointmentDataSource.create from request - the request's note becomes both note and clientNote, each encrypted under the client's key"]
     Create --> Approve[AppointmentRequestDataSource.approve request]
     Approve --> Snapshot[AppointmentSubscriptionDataSource.getBusinessSnapshot businessId]
     Snapshot -- missing --> R404d([404 Error.NotFound - logged as data inconsistency])
     Snapshot -- found --> Visit[eventProducer.send AppointmentEvent.ClientVisitBooked businessId client.id dateEnd]
     Visit --> Event["eventProducer.send AppointmentEvent.RequestApproved - clientUserId = request.client.userId"]
-    Event --> R200([200 Created Appointment])
+    Event --> Resolved["eventProducer.send AppointmentEvent.RequestResolved requestId employeeUserId - this route only, not automatic approval"]
+    Resolved --> R200([200 Created Appointment])
 ```
 
 **Consumed by:** `AppointmentEvent.RequestApproved` → [notifications: notify
 the client](../notifications/on-appointment-request-approved.md);
 `AppointmentEvent.ClientVisitBooked` → [business: record the client's
-visit](../business/on-client-visit-booked.md).
+visit](../business/on-client-visit-booked.md);
+`AppointmentEvent.RequestResolved` → [notifications: data-only push to the employee](../notifications/on-appointment-request-resolved.md).

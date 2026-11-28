@@ -8,9 +8,17 @@ import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
 interface BusinessDataSource {
-    suspend fun createBusiness(userId: Uuid, name: String, currencyCode: String, timeZone: TimeZone): Business
+    suspend fun createBusiness(
+        userId: Uuid,
+        name: String,
+        currencyCode: String,
+        timeZone: TimeZone,
+        demo: Boolean = false,
+    ): Business
+    suspend fun endDemoOfBusinessesOwnedBy(userId: Uuid)
     suspend fun updateBusiness(model: BusinessUpdateModel, updatedAt: Instant): Business
     suspend fun getBusinessById(id: Uuid): Business?
+    suspend fun getBusinessesByIds(ids: Collection<Uuid>): List<Business>
     suspend fun lockBusiness(id: Uuid, lock: RowLock): LockedBusiness?
     suspend fun countBusinessesOwnedBy(userId: Uuid): Long
     suspend fun isOwner(userId: Uuid, businessId: Uuid): Boolean

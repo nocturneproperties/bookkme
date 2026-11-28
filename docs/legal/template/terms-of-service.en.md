@@ -38,8 +38,8 @@ If you work for us, your use of {{SERVICE_NAME}} for work is also governed by yo
 
 - You must be at least {{MINIMUM_AGE}} years old and have the legal capacity or valid guardian authorisation required by the law that applies to you. The minimum age does not by itself give you contractual capacity.
 - One account belongs to one person. Give your real name and keep your contact details current; we use them to reach you about your appointments.
-- You sign in with passkeys stored on your devices. Keep those devices secure, and contact us if you lose access to them. Take reasonable steps to prevent unauthorised use. Responsibility for unauthorised activity is determined by applicable law, including our own security duties.
-- You can delete your account at any time in the app. If you own the business, this deletes the business and its employees, clients, services and appointments, including when the owner's unused account is deleted. Export necessary records before deletion.
+- You sign in with passkeys stored on your devices[ or through our mini app in Telegram, which confirms your Telegram account to us; using {{SERVICE_NAME}} in Telegram is also subject to Telegram's terms]. Keep those devices secure, and contact us if you lose access to them. Take reasonable steps to prevent unauthorised use. Responsibility for unauthorised activity is determined by applicable law, including our own security duties.
+- You can delete your account at any time in the app; this is confirmed with a passkey[ or, in the mini app, through a message from our Telegram bot]. A deletion requested in the app takes effect 7 days later, and until then you can cancel it in the app; one requested by email takes effect once you confirm it ([Privacy Policy]({{PRIVACY_POLICY_URL}}#section-9)). If you own the business, this deletes the business and its employees, clients, services and appointments, including when the owner's unused account is deleted. Export necessary records before deletion.
 
 ---
 
@@ -95,7 +95,7 @@ For business users acting in a business capacity only, and to the extent permitt
 
 ## <a id="section-9"></a>9. Ending the agreement
 
-You can end this agreement at any time by deleting your account. We may end it for an account that breaks these terms, or for an account unused for 3 years, as described in the [Privacy Policy]({{PRIVACY_POLICY_URL}}#section-7). After the agreement ends, we delete your data as the [Privacy Policy]({{PRIVACY_POLICY_URL}}#section-7) describes.
+You can end this agreement at any time by deleting your account; it ends when the deletion takes effect: 7 days after a request in the app, or once you confirm a request made by email. We may end it for an account that breaks these terms, or for an account unused for 3 years, as described in the [Privacy Policy]({{PRIVACY_POLICY_URL}}#section-7). After the agreement ends, we delete your data as the [Privacy Policy]({{PRIVACY_POLICY_URL}}#section-7) describes.
 
 ---
 

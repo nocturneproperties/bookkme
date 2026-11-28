@@ -9,6 +9,7 @@ data class EmployeeSnapshot(
     @ProtoNumber(1) val id: Uuid,
     @ProtoNumber(2) val userId: Uuid,
     @ProtoNumber(3) val fullName: String,
+    @ProtoNumber(4) val erased: Boolean = false,
 ) {
     companion object {
         fun stub(id: Uuid = Uuid.random(), userId: Uuid = Uuid.random()): EmployeeSnapshot {

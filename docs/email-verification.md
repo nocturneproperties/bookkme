@@ -3,7 +3,13 @@
 Every email address BookkMe stores was proven by a 6-digit code sent to it.
 Sign-up redeems a code before the account exists, and the address changes
 afterwards only through a code sent to the new one, so nothing downstream
-checks whether an address is verified. A business client is linked to an
+checks whether an address is verified. The one exception is an account
+created by Telegram Mini App sign-in, whose address is the placeholder
+`<telegram user id>@telegramundeliverable.org` (`PlaceholderEmail`): nothing is
+ever sent to it, and the user can replace it through an email change. Sign-up
+and email change refuse that domain and its subdomains with `EMAIL_DOMAIN_UNSUPPORTED` (17)
+before looking the address up or sending anything, so a placeholder can't be
+registered or switched to, and its existence is never revealed through `EMAIL_EXIST`. A business client is linked to an
 account by that email alone (`docs/agents/domain-rules.md`). Scope and
 decisions: issues #146 and #147.
 
@@ -76,7 +82,9 @@ Diagrams: [sign-up challenge](operations/authorization/sign-up-challenge.md),
    the caller.
 2. `POST /api/auth/email/confirm` (`ConfirmEmailChange`, `EmailConfirmation`)
    redeems it and calls user's internal `POST /api/internal/user/{id}/email`
-   (`ChangeUserEmail`), the only writer of an email after sign-up. An
+   (`ChangeUserEmail`), which with the demo upgrade's
+   `POST /api/internal/user/{id}/demo_upgrade` (`UpgradeDemoProfile`) is the
+   only writer of an email after sign-up. An
    address taken in the meantime is `EMAIL_EXIST` (1), and the code can be
    used again for another try.
 3. User publishes `UserEvent.Updated`; business merges the user's clients by

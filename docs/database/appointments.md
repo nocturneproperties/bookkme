@@ -5,8 +5,9 @@
 Keeps its own denormalized copy of business identity (`business_has_appointments`,
 populated from the business service via events) so booking logic never has to
 cross a service boundary at read time. `APPOINTMENT`/`APPOINTMENT_REQUEST` also
-denormalize employee, client and service line items (`employee_name`,
-`client_name`/`phone`/`email`, `service_name`/`price`/`duration`, …) the same
+denormalize employee, client and service line items (`employee_name_encrypted`,
+`client_name_encrypted`/`client_phone_encrypted`/`client_email_encrypted`,
+`service_name`/`price`/`duration`, …) the same
 way, but these are populated by resolving the ids synchronously from the
 business service at write time (`GetAppointmentBookingContext`, see
 [create-appointment-request](../operations/appointments/create-appointment-request.md))
@@ -24,6 +25,7 @@ erDiagram
     BUSINESS_HAS_APPOINTMENTS ||--|| APPOINTMENT_SETTINGS : "configures"
     BUSINESS_HAS_APPOINTMENTS ||--o{ WORKING_HOURS : "has"
     BUSINESS_HAS_APPOINTMENTS ||--o{ APPOINTMENT_PERMISSION_GRANTS : "grants"
+    BUSINESS_HAS_APPOINTMENTS ||--o{ SAVED_BUSINESS : "saved by clients"
     APPOINTMENT ||--o{ APPOINTMENT_SERVICES : "line items"
     APPOINTMENT ||--o| APPOINTMENT_PRICE_ADJUSTMENT : "checkout price"
     APPOINTMENT_PRICE_ADJUSTMENT ||--o{ APPOINTMENT_PRICE_ADJUSTMENT_SERVICES : "additional services"
@@ -44,20 +46,21 @@ erDiagram
 
     APPOINTMENT {
         uuid id PK
-        uuid initiator_user_id "logical FK -> user.profile.id of whoever booked; non-unique index with business_id, date_start (overlap checks)"
+        uuid initiator_user_id "logical FK -> user.profile.id of whoever booked; non-unique index with business_id, date_start"
         uuid business_id FK
-        uuid employee_id "logical FK -> business.employee.id"
+        uuid employee_id "logical FK -> business.employee.id; non-unique index with date_end (employee busy time: booking checks and free slots)"
         uuid employee_user_id "indexed; logical FK -> user.profile.id (employee's own userId); what account deletion cancels and renames by"
         bytes employee_name_encrypted "nullable; under the employee_user_id key, NULL when erased"
         uuid client_id "logical FK -> business.client.id"
-        uuid client_user_id "nullable, indexed; logical FK -> user.profile.id of the client's own account, empty for a client without one or once erased; who client notifications go to, and what account deletion erases by"
+        uuid client_user_id "nullable, non-unique index with date_start (the client's own history pages); logical FK -> user.profile.id of the client's own account, empty for a client without one or once erased; who client notifications go to, and what account deletion erases by"
         bytes client_name_encrypted "nullable; under the client_id key, NULL when erased"
         bytes client_phone_encrypted "nullable; under the client_id key"
         bytes client_email_encrypted "nullable; under the client_id key"
         string client_name_index "nullable; keyed HMAC of the trimmed, lowercased client name, non-unique index with business_id (search); NULL when erased"
-        timestamp date_start
+        timestamp date_start "indexed after business_id, after employee_id and after client_id (history pages)"
         timestamp date_end
         bytes note_encrypted "nullable; under the client_id key, set whenever client_name_encrypted is"
+        bytes client_note_encrypted "nullable; under the client_id key; the request's note, copied when the request becomes this appointment; NULL for instant appointments, rows before 0.21.0 and when erased"
         enum status "SCHEDULED 0, COMPLETED 1, CANCELLED 2, NO_SHOW 3, UNRESOLVED 4; stored as an integer"
         string cancellation_reason
         enum completed_by "nullable; SYSTEM (MarkAppointmentsCompleted job) or USER (CompleteAppointment); set only while status = COMPLETED"
@@ -92,7 +95,7 @@ erDiagram
 
     APPOINTMENT_PRICE_ADJUSTMENT_SERVICES {
         uuid id PK
-        uuid price_adjustment_id FK
+        uuid price_adjustment_id FK "unique with service_id"
         uuid service_id "logical FK -> business.service.id"
         string service_name
         uuid service_group_id "logical FK -> business.service_group.id"
@@ -100,13 +103,14 @@ erDiagram
         long price_unscaled
         int price_scale
         long duration_minutes
+        int count "how many times the service was added, default 1"
         timestamp createdAt
         timestamp updatedAt
     }
 
     APPOINTMENT_REQUEST {
         uuid id PK
-        uuid initiator_user_id "logical FK -> user.profile.id of whoever booked; non-unique index with business_id, date_start (overlap checks)"
+        uuid initiator_user_id "logical FK -> user.profile.id of whoever booked; non-unique indexes with business_id, date_start and with date_start (the client's own request history pages)"
         uuid business_id FK
         uuid employee_id "logical FK -> business.employee.id"
         uuid employee_user_id "indexed; logical FK -> user.profile.id (employee's own userId); what account deletion cancels and renames by"
@@ -116,7 +120,7 @@ erDiagram
         bytes client_name_encrypted "nullable; under the client_id key, NULL when erased"
         bytes client_phone_encrypted "nullable; under the client_id key"
         bytes client_email_encrypted "nullable; under the client_id key"
-        timestamp date_start
+        timestamp date_start "indexed after business_id (request history pages); requests live at most 60 days past their slot, so client and employee filters need no index of their own"
         timestamp date_end "indexed; requests ended more than 60 days ago are deleted by appointments-deleteExpiredRequests"
         bytes note_encrypted "nullable; under the client_id key, set whenever client_name_encrypted is"
         enum status
@@ -182,6 +186,12 @@ erDiagram
         timestamp updatedAt
     }
 
+    SAVED_BUSINESS {
+        uuid user_id PK "logical FK -> user.profile.id; deleted with the account"
+        uuid business_id PK,FK "indexed; -> business_has_appointments.id, ON DELETE CASCADE"
+        timestamp saved_at
+    }
+
     EXHAUSTED_EVENT {
         uuid id PK
         string original_topic
@@ -227,6 +237,8 @@ erDiagram
     }
 ```
 
+`SAVED_BUSINESS` lists the businesses a user saved to book again (`POST /api/appointments/businesses/{businessId}`, see [save-business](../operations/appointments/save-business.md)). Only a business that takes appointments can be saved, so every row references its `BUSINESS_HAS_APPOINTMENTS` copy and goes with it when the business is erased. A user saves at most 100 businesses, a soft cap: saves aren't serialized per user, so two at the same moment can end one over it. A repeated save is an `INSERT IGNORE` and keeps the first `saved_at`. Account deletion deletes the user's rows.
+
 `DELETED_USER` records every account whose deletion appointments has handled, the user id and the time only. `AuthEvent.UserDeleted` erases by `client_user_id`, but `BusinessEvent.ClientLinked`, which fills `client_user_id` in after the fact, can arrive after the deletion on its own topic. It reads this table first with a shared lock and erases the rows it links when the account is already gone (see [React to a client getting an account](../operations/appointments/on-client-linked.md)). Both booking paths read it the same way and reject a deleted account. A row is inserted once (`INSERT IGNORE`) and keeps the first deletion time.
 
 `DELETED_CLIENT` does the same for clients a business deleted (`BusinessEvent.ClientDeleted`, which erases by `business_id` and `client_id`): `BusinessEvent.ClientLinked` reads it first and erases the rows it links when the client is already gone, and both booking paths reject a deleted client (see [React to client deletion](../operations/appointments/on-client-deleted.md)). Inserted once (`INSERT IGNORE`), keyed by the client id alone, since client ids are random across businesses.
@@ -235,7 +247,7 @@ erDiagram
 
 `OUTBOX_EVENT` is not part of the appointments domain model either — it's the shared transactional outbox (`library/outbox`, one instance per service schema). `eventProducer.send` inserts the encoded event in the same transaction as the appointments write, so an event exists exactly when its write committed; `OutboxRelay` then locks the oldest rows (`SELECT … FOR UPDATE`), publishes them to Kafka (or the embedded transport in the monolith) and deletes them. Delivery is at-least-once, deduplicated by consumers through the event's idempotency key. See [Transactional outbox](../transactional-outbox.md).
 
-`APPOINTMENT` and `APPOINTMENT_REQUEST` hold the client snapshot (name, phone, email) and the note encrypted under the client's key (`*_encrypted`, keyed by `client_id`), and the employee name under the employee's user key (keyed by `employee_user_id`), so shredding a person's key leaves nothing of them readable in backups. A row reads an erased person as "Deleted Client" or "Deleted User": its key is shredded, or erasure set the encrypted columns to NULL; a row whose key is missing reads with empty fields and is reported through `personal_data_key_missing_total{source}`. Searching appointments matches the client's whole name through `client_name_index` (a keyed HMAC of the trimmed, lowercased name, so a part of the name finds nothing) or part of a service name, in SQL; nothing is decrypted except the returned page. Erasure clears the index with the encrypted columns. Moving a merged client's rows onto the kept client (`LinkClientUser`) re-encrypts them under the kept client's key before the merged keys are shredded. 0.19.0 dropped the plaintext columns that rows written before 0.18.0 had.
+`APPOINTMENT` and `APPOINTMENT_REQUEST` hold the client snapshot (name, phone, email) and the notes (`note`, and on an appointment also `client_note`) encrypted under the client's key (`*_encrypted`, keyed by `client_id`), and the employee name under the employee's user key (keyed by `employee_user_id`), so shredding a person's key leaves nothing of them readable in backups. A row reads an erased person with an empty name and `erased` set on the client or employee snapshot: its key is shredded, or erasure set the encrypted columns to NULL; a row whose key is missing reads with empty fields and `erased` unset and is reported through `personal_data_key_missing_total{source}`. Searching appointments matches the client's whole name through `client_name_index` (a keyed HMAC of the trimmed, lowercased name, so a part of the name finds nothing) or part of a service name, in SQL; nothing is decrypted except the returned page. Erasure clears the index with the encrypted columns. Moving a merged client's rows onto the kept client (`LinkClientUser`) re-encrypts them under the kept client's key before the merged keys are shredded. 0.19.0 dropped the plaintext columns that rows written before 0.18.0 had.
 
 `SUBJECT_KEY` lives in its own schema, `appointments_short_retention`, created by the same migration: it holds one AES-GCM key per person whose fields this service encrypts, wrapped by the master key from the vault (`library/encryption`). Erasing a person replaces their key with a tombstone in the erasure's transaction (`wrapped_key` and `master_key_version` NULL, `shredded_at` set; written even for a person who never had a key, and never deleted), so their encrypted fields become unreadable in the live database at once, and in backups once the last key backup holding the key expires after 7 days. The tombstone stops a late write from creating a fresh key for the erased person: `encryptor` gives none and `isShredded` reports it. That is why the key schema is separate: it stays out of the binary log and the 30-day dump and gets its own short-lived backup. It holds keys only: the outbox and parked events stay in `appointments`, and any personal data they copy is encrypted under the person's key. No foreign keys; NocoDB can't read it.
 

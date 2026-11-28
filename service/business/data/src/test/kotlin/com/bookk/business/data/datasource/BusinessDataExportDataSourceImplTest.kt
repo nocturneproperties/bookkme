@@ -5,6 +5,7 @@ import com.bookk.business.data.orm.table.BusinessDayOffTable
 import com.bookk.business.data.orm.table.BusinessPermissionGrantsTable
 import com.bookk.business.data.orm.table.BusinessTable
 import com.bookk.business.data.orm.table.BusinessWorkingHoursTable
+import com.bookk.business.data.orm.table.ClientNameTokenTable
 import com.bookk.business.data.orm.table.ClientTable
 import com.bookk.business.data.orm.table.EmployeeInvitationTable
 import com.bookk.business.domain.api.client.entity.Client
@@ -34,6 +35,7 @@ internal class BusinessDataExportDataSourceImplTest {
             BusinessWorkingHoursTable,
             BusinessDayOffTable,
             ClientTable,
+            ClientNameTokenTable,
             EmployeeInvitationTable,
         )
         val contactCipher = testContactCipher()
@@ -73,6 +75,7 @@ internal class BusinessDataExportDataSourceImplTest {
                     lastName = "Koval",
                     phone = "+380501112233",
                     email = "olena@example.com",
+                    telegramUsername = "olena_k",
                 ),
             )
         }
@@ -105,6 +108,7 @@ internal class BusinessDataExportDataSourceImplTest {
                     "prefers mornings",
                     hasAccount = false,
                     lastActivityAt = lastActivityAt,
+                    telegramUsername = null,
                 ),
                 BusinessClientExport(
                     integrated.id,
@@ -115,6 +119,7 @@ internal class BusinessDataExportDataSourceImplTest {
                     null,
                     hasAccount = true,
                     lastActivityAt = lastActivityAt,
+                    telegramUsername = "olena_k",
                 ),
             ),
             clients.toSet(),

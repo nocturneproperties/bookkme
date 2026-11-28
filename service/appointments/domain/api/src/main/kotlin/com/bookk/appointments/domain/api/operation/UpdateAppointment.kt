@@ -11,14 +11,6 @@ interface UpdateAppointment {
     suspend operator fun invoke(userId: Uuid, update: AppointmentUpdate): Result<Appointment>
 
     sealed interface Error {
-        class AppointmentForThisTimeExists :
-            BusinessError(
-                statusCode = HttpStatusCode.UnprocessableEntity.value,
-                code = AppointmentErrorCodes.APPOINTMENT_EXISTS,
-                message = "Appointment for this time already exists",
-            ),
-            Error
-
         class DateInThePastNotAllowed :
             BusinessError(
                 statusCode = HttpStatusCode.UnprocessableEntity.value,

@@ -1,5 +1,6 @@
 package com.bookk.appointments.domain.impl.operation
 
+import com.bookk.appointments.domain.api.entity.AdditionalService
 import com.bookk.appointments.domain.api.entity.Appointment
 import com.bookk.appointments.domain.api.entity.AppointmentCompletedBy
 import com.bookk.appointments.domain.api.entity.AppointmentRequest
@@ -10,6 +11,7 @@ import com.bookk.appointments.domain.api.entity.EmployeeSnapshot
 import com.bookk.appointments.domain.api.entity.PriceAdjustment
 import com.bookk.appointments.domain.api.entity.RequestClientSnapshot
 import com.bookk.appointments.domain.api.entity.ServiceSnapshot
+import com.bookk.appointments.domain.datasource.SavedBusinessDataSource
 import com.bookk.appointments.domain.datasource.UserDataExportDataSource
 import com.bookk.core.domain.datasource.transaction.TransactionManager
 import com.bookk.core.domain.datasource.transaction.mockTransaction
@@ -21,6 +23,7 @@ import com.bookk.server.appointments.client.api.export.AppointmentsUserDataExpor
 import com.bookk.server.appointments.client.api.export.AppointmentsUserDataExport.ClientDetailsExport
 import com.bookk.server.appointments.client.api.export.AppointmentsUserDataExport.PriceAdjustmentExport
 import com.bookk.server.appointments.client.api.export.AppointmentsUserDataExport.Role
+import com.bookk.server.appointments.client.api.export.AppointmentsUserDataExport.SavedBusinessExport
 import com.bookk.server.appointments.client.api.export.AppointmentsUserDataExport.ServiceExport
 import io.mockk.coEvery
 import io.mockk.mockk
@@ -37,8 +40,9 @@ internal class ExportUserAppointmentsImplTest {
 
     private class SutFixture {
         val dataSource = mockk<UserDataExportDataSource>()
+        val savedBusinessDataSource = mockk<SavedBusinessDataSource>()
         val transactionManager = mockk<TransactionManager>()
-        val sut = ExportUserAppointmentsImpl(dataSource, transactionManager)
+        val sut = ExportUserAppointmentsImpl(dataSource, savedBusinessDataSource, transactionManager)
         val userId = Uuid.random()
         val businessId = Uuid.random()
         val someoneElse = Uuid.random()
@@ -52,6 +56,10 @@ internal class ExportUserAppointmentsImplTest {
                 emptyList()
             }
             coEvery { dataSource.getRequestsOfUser(userId) } returns emptyList()
+            coEvery { savedBusinessDataSource.getSavedAt(userId) } coAnswers {
+                readInTransaction += transactionManager.isInTransaction()
+                emptyMap()
+            }
             coEvery { dataSource.getBusinessNames(any()) } returns mapOf(businessId to "Studio")
         }
 
@@ -79,10 +87,11 @@ internal class ExportUserAppointmentsImplTest {
             services = listOf(service),
             status = AppointmentStatus.CANCELLED,
             note = "allergic to latex",
+            clientNote = "please call on arrival",
             cancellationReason = "client is ill",
             completedBy = AppointmentCompletedBy.USER,
             priceAdjustment = PriceAdjustment(
-                additionalServices = listOf(service),
+                additionalServices = listOf(AdditionalService(service = service, count = 2)),
                 price = Money.parse("UAH 500.00"),
                 reason = "extra styling",
             ),
@@ -150,11 +159,12 @@ internal class ExportUserAppointmentsImplTest {
                     "+380501112233",
                     "olena@example.com",
                     note = "allergic to latex",
+                    clientNote = "please call on arrival",
                 ),
                 cancellationReason = "client is ill",
                 priceAdjustment = PriceAdjustmentExport(
                     "UAH 500.00",
-                    listOf(ServiceExport("Haircut", "UAH 450.00", durationMinutes = 45)),
+                    List(2) { ServiceExport("Haircut", "UAH 450.00", durationMinutes = 45) },
                     reason = "extra styling",
                 ),
                 completedBy = "USER",
@@ -182,11 +192,26 @@ internal class ExportUserAppointmentsImplTest {
         assertNull(exported.client)
         assertNull(exported.cancellationReason)
         assertEquals(
-            PriceAdjustmentExport("UAH 500.00", listOf(ServiceExport("Haircut", "UAH 450.00", 45)), reason = null),
+            PriceAdjustmentExport("UAH 500.00", List(2) { ServiceExport("Haircut", "UAH 450.00", 45) }, reason = null),
             exported.priceAdjustment,
         )
         assertEquals(listOf(ServiceExport("Haircut", "UAH 450.00", 45)), exported.services)
         assertEquals("CANCELLED", exported.status)
+    }
+
+    @Test
+    fun `should mark an appointment whose employee was erased`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val erasedEmployee = EmployeeSnapshot.stub(userId = fixture.someoneElse).copy(fullName = "", erased = true)
+        fixture.stored(fixture.appointment(client = fixture.clientUser(), employee = erasedEmployee))
+
+        whenn()
+        val exported = fixture.sut(fixture.userId).getOrThrow().appointments.single()
+
+        then()
+        assertEquals("", exported.employeeName)
+        assertTrue(exported.employeeErased)
     }
 
     @Test
@@ -231,7 +256,7 @@ internal class ExportUserAppointmentsImplTest {
         fixture.stored(
             fixture.appointment(
                 client = fixture.clientUser(),
-            ).copy(note = "", cancellationReason = "", priceAdjustment = null, completedBy = null),
+            ).copy(note = "", clientNote = "", cancellationReason = "", priceAdjustment = null, completedBy = null),
         )
 
         whenn()
@@ -239,6 +264,7 @@ internal class ExportUserAppointmentsImplTest {
 
         then()
         assertNull(exported.client?.note)
+        assertNull(exported.client?.clientNote)
         assertNull(exported.cancellationReason)
         assertNull(exported.priceAdjustment)
         assertNull(exported.completedBy)
@@ -266,7 +292,13 @@ internal class ExportUserAppointmentsImplTest {
                 status = "DECLINED",
                 services = listOf(ServiceExport("Haircut", "UAH 450.00", 45)),
                 employeeName = request.employee.fullName,
-                client = ClientDetailsExport("Olena Koval", "+380501112233", "olena@example.com", note = "first visit"),
+                client = ClientDetailsExport(
+                    "Olena Koval",
+                    "+380501112233",
+                    "olena@example.com",
+                    note = "first visit",
+                    clientNote = null,
+                ),
                 declineReason = "fully booked",
             ),
             exported,
@@ -294,6 +326,24 @@ internal class ExportUserAppointmentsImplTest {
     }
 
     @Test
+    fun `should export the businesses the user saved with their names`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val savedAt = Instant.fromEpochMilliseconds(7_200_000)
+        coEvery { fixture.savedBusinessDataSource.getSavedAt(fixture.userId) } returns
+            mapOf(fixture.businessId to savedAt)
+
+        whenn()
+        val export = fixture.sut(fixture.userId).getOrThrow()
+
+        then()
+        assertEquals(
+            listOf(SavedBusinessExport(businessId = fixture.businessId, businessName = "Studio", savedAt = savedAt)),
+            export.savedBusinesses,
+        )
+    }
+
+    @Test
     fun `should read everything inside a transaction`() = runUnitTest {
         given()
         val fixture = SutFixture()
@@ -302,7 +352,7 @@ internal class ExportUserAppointmentsImplTest {
         fixture.sut(fixture.userId)
 
         then()
-        assertEquals(listOf(true), fixture.readInTransaction)
+        assertEquals(listOf(true, true), fixture.readInTransaction)
     }
 
     @Test

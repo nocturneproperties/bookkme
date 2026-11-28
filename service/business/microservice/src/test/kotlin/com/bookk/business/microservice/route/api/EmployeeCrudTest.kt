@@ -2,8 +2,10 @@ package com.bookk.business.microservice.route.api
 
 import com.bookk.business.domain.api.business.entity.BusinessPermissions
 import com.bookk.business.domain.api.business.entity.BusinessResource
+import com.bookk.business.domain.api.employee.entity.BookableEmployee
 import com.bookk.business.domain.api.employee.entity.Employee
 import com.bookk.business.domain.api.employee.entity.EmployeeUpdateModel
+import com.bookk.business.domain.api.employee.operation.GetBookableEmployees
 import com.bookk.business.domain.api.employee.operation.GetEmployees
 import com.bookk.business.domain.api.employee.operation.SetEmployeePermissions
 import com.bookk.business.domain.api.employee.operation.SetEmployeeSuspension
@@ -67,6 +69,12 @@ internal class EmployeeCrudTest {
     )
 
     private fun ApplicationTestBuilder.authenticatedApplication(useCase: GetEmployees) = setupApplication(
+        extension = jwtAuthentication(),
+        diModule = module { single { useCase } },
+        routeUnderTest = { employeeCrud() },
+    )
+
+    private fun ApplicationTestBuilder.authenticatedApplication(useCase: GetBookableEmployees) = setupApplication(
         extension = jwtAuthentication(),
         diModule = module { single { useCase } },
         routeUnderTest = { employeeCrud() },
@@ -633,7 +641,7 @@ internal class EmployeeCrudTest {
             createTestEmployee().copy(permissions = BusinessPermissions.FULL),
             createTestEmployee().copy(permissions = BusinessPermissions.VIEW_ONLY),
         )
-        coEvery { useCase.invoke(userId, businessId) } returns Result.success(employees)
+        coEvery { useCase.invoke(userId, businessId, false) } returns Result.success(employees)
         authenticatedApplication(useCase)
 
         whenn()
@@ -646,10 +654,45 @@ internal class EmployeeCrudTest {
     }
 
     @Test
+    fun `should return only active employees when the active filter is set`() = routeTest {
+        given()
+        val useCase: GetEmployees = mockk()
+        val employees = listOf(createTestEmployee())
+        coEvery { useCase.invoke(userId, businessId, true) } returns Result.success(employees)
+        authenticatedApplication(useCase)
+
+        whenn()
+        val client = createTestClient()
+        val response = client.get(BusinessRouting.Api.Employee(businessId = businessId, active = true))
+
+        then()
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertEquals(employees, response.body<List<Employee>>())
+    }
+
+    @Test
+    fun `should return every employee when the active filter is false`() = routeTest {
+        given()
+        val useCase: GetEmployees = mockk()
+        val employees =
+            listOf(createTestEmployee(), createTestEmployee().copy(suspendedAt = Instant.fromEpochMilliseconds(1)))
+        coEvery { useCase.invoke(userId, businessId, false) } returns Result.success(employees)
+        authenticatedApplication(useCase)
+
+        whenn()
+        val client = createTestClient()
+        val response = client.get(BusinessRouting.Api.Employee(businessId = businessId, active = false))
+
+        then()
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertEquals(employees, response.body<List<Employee>>())
+    }
+
+    @Test
     fun `should return not found when caller has no rights to list employees`() = routeTest {
         given()
         val useCase: GetEmployees = mockk()
-        coEvery { useCase.invoke(userId, businessId) } returns Result.failure(Error.OperationNotAllowed())
+        coEvery { useCase.invoke(userId, businessId, false) } returns Result.failure(Error.OperationNotAllowed())
         authenticatedApplication(useCase)
 
         whenn()
@@ -664,7 +707,7 @@ internal class EmployeeCrudTest {
     fun `should return forbidden with a distinct code when the caller is suspended`() = routeTest {
         given()
         val useCase: GetEmployees = mockk()
-        coEvery { useCase.invoke(userId, businessId) } returns Result.failure(EmployeeAccessSuspended())
+        coEvery { useCase.invoke(userId, businessId, false) } returns Result.failure(EmployeeAccessSuspended())
         authenticatedApplication(useCase)
 
         whenn()
@@ -693,6 +736,49 @@ internal class EmployeeCrudTest {
         whenn()
         val client = createTestClient()
         val response = client.get(BusinessRouting.Api.Employee(businessId = businessId))
+
+        then()
+        assertEquals(HttpStatusCode.Unauthorized, response.status)
+    }
+
+    @Test
+    fun `should return the bookable employees of the business to any signed in user`() = routeTest {
+        given()
+        val useCase: GetBookableEmployees = mockk()
+        val employees = listOf(
+            BookableEmployee.stub(businessId = businessId),
+            BookableEmployee.stub(businessId = businessId),
+        )
+        coEvery { useCase.invoke(businessId) } returns Result.success(employees)
+        authenticatedApplication(useCase)
+
+        whenn()
+        val client = createTestClient()
+        val response = client.get(
+            BusinessRouting.Api.Employee.Bookable(BusinessRouting.Api.Employee(businessId = businessId)),
+        )
+
+        then()
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertEquals(employees, response.body<List<BookableEmployee>>())
+    }
+
+    @Test
+    fun `should return unauthorized when listing bookable employees without authentication`() = routeTest {
+        given()
+        val useCase: GetBookableEmployees = mockk()
+
+        setupApplication(
+            extension = { install(Authentication) { bearer { authenticate { null } } } },
+            diModule = module { single { useCase } },
+            routeUnderTest = { employeeCrud() },
+        )
+
+        whenn()
+        val client = createTestClient()
+        val response = client.get(
+            BusinessRouting.Api.Employee.Bookable(BusinessRouting.Api.Employee(businessId = businessId)),
+        )
 
         then()
         assertEquals(HttpStatusCode.Unauthorized, response.status)

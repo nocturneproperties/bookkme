@@ -20,7 +20,7 @@ flowchart TD
     Start([Consume BusinessEvent.Deleted]) --> Dedup{idempotencyKey already processed?}
     Dedup -- Yes --> Skip([Skip - already handled])
     Dedup -- No --> Select["AppointmentSubscriptionDataSource.getClientIdsForUpdate businessId - SELECT the client ids of its appointments and requests FOR UPDATE"]
-    Select --> Detach["AppointmentSubscriptionDataSource.detachBusinesses businessId - DELETE it, everything under it by ON DELETE CASCADE"]
+    Select --> Detach["AppointmentSubscriptionDataSource.detachBusinesses businessId - DELETE it, everything under it by ON DELETE CASCADE, saved_business rows included"]
     Detach --> Shred["SubjectKeys.shredAll the selected client ids"]
     Detach -- throws --> Dlt([Sent to BusinessEvent.Deleted_dlt topic, logged - no auto-retry])
     Shred -- throws --> Dlt

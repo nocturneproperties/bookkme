@@ -17,12 +17,11 @@ internal fun Route.postRefreshToken() {
      * Refresh access token
      *
      * Summary: Refresh access token
-     * Description: This request generates new access/refresh pair.
+     * Description: This request generates new access/refresh pair. A demo account's access token carries the demo claim and never outlives the demo, and its refresh is refused once the demo has ended.
      * Tag: auth
      * Header: Authorization Bearer &lt;refresh token&gt;
      * Response: 200 application/x-protobuf [com.bookk.auth.domain.api.token.entity.AuthTokens] New access/refresh pair
-     * Response: 401 Missing or malformed refresh token
-     * Response: 422 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Refresh errors<br>INVALID_CREDENTIALS (8) Invalid refresh token
+     * Response: 401 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Missing or malformed refresh token, or refresh errors<br>INVALID_CREDENTIALS (8) Invalid refresh token<br>DEMO_EXPIRED (27) The demo period of this account has ended
      * See: docs/operations/authorization/refresh-token.md
      */
     post<Api.Auth.Refresh> {

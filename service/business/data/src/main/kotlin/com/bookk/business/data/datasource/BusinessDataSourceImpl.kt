@@ -1,6 +1,7 @@
 package com.bookk.business.data.datasource
 
 import com.bookk.business.data.orm.entity.BusinessEntity
+import com.bookk.business.data.orm.entity.withSchedule
 import com.bookk.business.data.orm.table.BusinessDashboardTable
 import com.bookk.business.data.orm.table.BusinessDayOffTable
 import com.bookk.business.data.orm.table.BusinessTable
@@ -38,13 +39,18 @@ internal class BusinessDataSourceImpl : DataSource(), BusinessDataSource {
         name: String,
         currencyCode: String,
         timeZone: TimeZone,
+        demo: Boolean,
     ): Business = dbQuery {
-        val entity = BusinessEntity.new(userId, name, currencyCode, timeZone)
+        val entity = BusinessEntity.new(userId, name, currencyCode, timeZone, demo)
         BusinessDashboardTable.upsert {
             it[this.userId] = userId
             it[businessId] = entity.id
         }
         entity.toDomain()
+    }
+
+    override suspend fun endDemoOfBusinessesOwnedBy(userId: Uuid) = dbQuery<Unit> {
+        BusinessEntity.endDemoOfBusinessesOwnedBy(userId, Clock.System.now())
     }
 
     override suspend fun updateBusiness(model: BusinessUpdateModel, updatedAt: Instant) = dbQuery<Business> {
@@ -54,6 +60,13 @@ internal class BusinessDataSourceImpl : DataSource(), BusinessDataSource {
 
     override suspend fun getBusinessById(id: Uuid): Business? = dbQuery {
         BusinessEntity.findById(id)?.toDomain()
+    }
+
+    override suspend fun getBusinessesByIds(ids: Collection<Uuid>): List<Business> = dbQuery {
+        BusinessEntity
+            .find { BusinessTable.id inList ids }
+            .withSchedule()
+            .map { it.toDomain() }
     }
 
     override suspend fun lockBusiness(id: Uuid, lock: RowLock): LockedBusiness? = dbQuery {
@@ -138,6 +151,7 @@ internal class BusinessDataSourceImpl : DataSource(), BusinessDataSource {
             .map { it[EmployeeTable.businessId].value }
         val businesses = BusinessEntity
             .find { (BusinessTable.userId eq userId) or (BusinessTable.id inList activeEmployeeBusinessIds) }
+            .withSchedule()
             .map { it.toDomain() }
         UserBusinesses(
             dashboardId = dashboardId?.takeIf { id -> businesses.any { it.id == id } },

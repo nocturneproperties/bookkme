@@ -28,7 +28,6 @@ interface BusinessClient {
         serviceIds: List<Uuid>,
         currentAssignee: Boolean,
     ): Result<AppointmentRescheduleContext>
-    suspend fun getClientBusinessIds(userId: Uuid): Result<List<Uuid>>
     suspend fun getServicesByIds(businessId: Uuid, serviceIds: List<Uuid>): Result<List<Service>>
     suspend fun getOwnedBusinessMemberIds(ownerUserId: Uuid): Result<List<Uuid>>
 }

@@ -1,23 +1,38 @@
 package com.bookk.appointments.domain.impl.operation
 
 import com.bookk.appointments.domain.api.entity.Appointment
-import com.bookk.appointments.domain.api.entity.AppointmentPagination
+import com.bookk.appointments.domain.api.entity.AppointmentHistoryFilter
+import com.bookk.appointments.domain.api.entity.AppointmentSettings
+import com.bookk.appointments.domain.api.entity.AppointmentStatus
+import com.bookk.appointments.domain.api.entity.HistoryDates
+import com.bookk.appointments.domain.api.entity.HistoryFilterError
+import com.bookk.appointments.domain.api.entity.HistoryOrder
+import com.bookk.appointments.domain.api.entity.StartBounds
 import com.bookk.appointments.domain.datasource.AppointmentDataSource
 import com.bookk.appointments.domain.datasource.AppointmentPermissionDataSource
+import com.bookk.appointments.domain.datasource.AppointmentSettingsDataSource
 import com.bookk.core.domain.datasource.transaction.TransactionManager
 import com.bookk.core.domain.datasource.transaction.mockTransaction
 import com.bookk.core.domain.entity.Error
-import com.bookk.core.domain.entity.PaginationMetadata
+import com.bookk.core.domain.entity.Page
+import com.bookk.core.domain.entity.PageCursor
+import com.bookk.core.domain.entity.PageError
+import com.bookk.core.domain.entity.PageRequest
 import com.bookk.core.test.given
 import com.bookk.core.test.runUnitTest
 import com.bookk.core.test.then
 import com.bookk.core.test.whenn
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.mockk
+import kotlinx.datetime.LocalDate
+import kotlinx.datetime.TimeZone
+import library.permissions.EmployeeAccessSuspended
 import library.permissions.ResourcePermission
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
 internal class GetAppointmentHistoryImplTest {
@@ -25,79 +40,172 @@ internal class GetAppointmentHistoryImplTest {
     private class SutFixture {
         val dataSource = mockk<AppointmentDataSource>()
         val appointmentPermissionDataSource = mockk<AppointmentPermissionDataSource>()
+        val settingsDataSource = mockk<AppointmentSettingsDataSource>()
         val transactionManager = mockk<TransactionManager>()
-        val sut = GetAppointmentHistoryImpl(dataSource, appointmentPermissionDataSource, transactionManager)
-    }
-
-    @Test
-    fun `should return paginated appointments when user has read permissions`() = runUnitTest {
-        given()
-        val fixture = SutFixture()
+        val sut = GetAppointmentHistoryImpl(
+            dataSource,
+            appointmentPermissionDataSource,
+            settingsDataSource,
+            transactionManager,
+        )
         val userId = Uuid.random()
         val businessId = Uuid.random()
-        val appointments = listOf(Appointment.stub(initiatorUserId = userId, businessId = businessId))
-        val pagination = AppointmentPagination(
-            data = appointments,
-            metadata = PaginationMetadata(total = 1L, page = 0L, pageSize = 50),
-        )
 
-        with(fixture) {
+        fun allowView() {
             transactionManager.mockTransaction()
             coEvery { appointmentPermissionDataSource.getPermission(userId, businessId) } returns
                 ResourcePermission(view = true, update = false, delete = false)
-            coEvery { dataSource.getAllPaginated(businessId, 50, 0, null) } returns pagination
+        }
+    }
+
+    @Test
+    fun `should return a page of the history with the next cursor`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val appointment = Appointment.stub(businessId = fixture.businessId)
+        val next = PageCursor(after = appointment.date, id = appointment.id)
+        with(fixture) {
+            allowView()
+            coEvery { dataSource.getHistoryPage(businessId, any(), StartBounds.OPEN, any()) } returns
+                Page(listOf(appointment), next)
         }
 
         whenn()
-        val result = fixture.sut(userId, businessId, limit = 50, offset = 0)
+        val result = fixture.sut(fixture.userId, fixture.businessId, AppointmentHistoryFilter(), null, null)
 
         then()
-        assertTrue(result.isSuccess)
-        assertEquals(pagination, result.getOrNull())
+        val page = result.getOrThrow()
+        assertEquals(listOf(appointment), page.data)
+        assertEquals(next.encode(), page.nextCursor)
+        coVerify(exactly = 0) { fixture.settingsDataSource.get(any()) }
     }
 
     @Test
-    fun `should pass query filter to data source`() = runUnitTest {
+    fun `should pass the filter and the page after the cursor to the data source`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        val userId = Uuid.random()
-        val businessId = Uuid.random()
-        val appointments = listOf(Appointment.stub(initiatorUserId = userId, businessId = businessId))
-        val pagination = AppointmentPagination(
-            data = appointments,
-            metadata = PaginationMetadata(total = 1L, page = 0L, pageSize = 50),
+        val cursor = PageCursor(after = Instant.fromEpochSeconds(1_800_000_000), id = Uuid.random())
+        val filter = AppointmentHistoryFilter(
+            clientId = Uuid.random(),
+            employeeId = Uuid.random(),
+            statuses = setOf(AppointmentStatus.COMPLETED, AppointmentStatus.NO_SHOW),
+            query = "John",
+            order = HistoryOrder.SOONEST_FIRST,
         )
-
         with(fixture) {
-            transactionManager.mockTransaction()
-            coEvery { appointmentPermissionDataSource.getPermission(userId, businessId) } returns
-                ResourcePermission(view = true, update = false, delete = false)
-            coEvery {
-                dataSource.getAllPaginated(businessId, 50, 0, "John")
-            } returns pagination
+            allowView()
+            coEvery { dataSource.getHistoryPage(businessId, filter, StartBounds.OPEN, any()) } returns
+                Page(emptyList(), next = null)
         }
+
+        whenn()
+        val result = fixture.sut(fixture.userId, fixture.businessId, filter, limit = 10, cursor = cursor.encode())
+
+        then()
+        assertTrue(result.isSuccess)
+        coVerify(exactly = 1) {
+            fixture.dataSource.getHistoryPage(
+                fixture.businessId,
+                filter,
+                StartBounds.OPEN,
+                match<PageRequest> { it.limit == 10 && it.after == cursor },
+            )
+        }
+    }
+
+    @Test
+    fun `should turn the dates into start bounds in the business time zone`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val dates = HistoryDates(from = LocalDate(2027, 3, 1), to = LocalDate(2027, 3, 1))
+        val filter = AppointmentHistoryFilter(dates = dates)
+        val warsaw = TimeZone.of("Europe/Warsaw")
+        val expected = StartBounds(
+            from = Instant.parse("2027-02-28T23:00:00Z"),
+            until = Instant.parse("2027-03-01T23:00:00Z"),
+        )
+        with(fixture) {
+            allowView()
+            coEvery { settingsDataSource.get(businessId) } returns AppointmentSettings(businessId, warsaw)
+            coEvery { dataSource.getHistoryPage(businessId, filter, expected, any()) } returns Page(emptyList(), null)
+        }
+
+        whenn()
+        val result = fixture.sut(fixture.userId, fixture.businessId, filter, null, null)
+
+        then()
+        assertTrue(result.isSuccess) { result.toString() }
+        coVerify(exactly = 1) { fixture.dataSource.getHistoryPage(fixture.businessId, filter, expected, any()) }
+    }
+
+    @Test
+    fun `should return not found for dates in a business without appointments`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val filter = AppointmentHistoryFilter(dates = HistoryDates(from = LocalDate(2027, 3, 1)))
+        with(fixture) {
+            allowView()
+            coEvery { settingsDataSource.get(businessId) } returns null
+        }
+
+        whenn()
+        val result = fixture.sut(fixture.userId, fixture.businessId, filter, null, null)
+
+        then()
+        assertTrue(result.exceptionOrNull() is Error.NotFound)
+        coVerify(exactly = 0) { fixture.dataSource.getHistoryPage(any(), any(), any(), any()) }
+    }
+
+    @Test
+    fun `should reject dates that end before they start without opening a transaction`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val dates = HistoryDates(from = LocalDate(2027, 3, 2), to = LocalDate(2027, 3, 1))
 
         whenn()
         val result = fixture.sut(
-            userId,
-            businessId,
-            limit = 50,
-            offset = 0,
-            query = "John",
+            fixture.userId,
+            fixture.businessId,
+            AppointmentHistoryFilter(dates = dates),
+            null,
+            null,
         )
 
         then()
-        assertTrue(result.isSuccess)
-        assertEquals(pagination, result.getOrNull())
+        assertTrue(result.exceptionOrNull() is HistoryFilterError.DateRangeInvalid)
+        coVerify(exactly = 0) { fixture.transactionManager.transaction<Any>(any()) }
     }
 
     @Test
-    fun `should return failure when user has no permissions`() = runUnitTest {
+    fun `should reject an invalid limit without opening a transaction`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        val userId = Uuid.random()
-        val businessId = Uuid.random()
 
+        whenn()
+        val result = fixture.sut(fixture.userId, fixture.businessId, AppointmentHistoryFilter(), 0, null)
+
+        then()
+        assertTrue(result.exceptionOrNull() is PageError.LimitInvalid)
+        coVerify(exactly = 0) { fixture.transactionManager.transaction<Any>(any()) }
+    }
+
+    @Test
+    fun `should reject an invalid cursor without opening a transaction`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+
+        whenn()
+        val result = fixture.sut(fixture.userId, fixture.businessId, AppointmentHistoryFilter(), null, "garbage")
+
+        then()
+        assertTrue(result.exceptionOrNull() is PageError.CursorInvalid)
+        coVerify(exactly = 0) { fixture.transactionManager.transaction<Any>(any()) }
+    }
+
+    @Test
+    fun `should return failure without reading the history when the caller has no view grant`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
         with(fixture) {
             transactionManager.mockTransaction()
             coEvery { appointmentPermissionDataSource.getPermission(userId, businessId) } returns
@@ -105,33 +213,28 @@ internal class GetAppointmentHistoryImplTest {
         }
 
         whenn()
-        val result = fixture.sut(userId, businessId, limit = 50, offset = 0)
+        val result = fixture.sut(fixture.userId, fixture.businessId, AppointmentHistoryFilter(), null, null)
 
         then()
-        assertTrue(result.isFailure)
         assertTrue(result.exceptionOrNull() is Error.OperationNotAllowed)
+        coVerify(exactly = 0) { fixture.dataSource.getHistoryPage(any(), any(), any(), any()) }
     }
 
     @Test
-    fun `should return failure when data source fails`() = runUnitTest {
+    fun `should return failure when the caller is a suspended employee`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        val userId = Uuid.random()
-        val businessId = Uuid.random()
-        val exception = RuntimeException("Database error")
-
         with(fixture) {
             transactionManager.mockTransaction()
-            coEvery { appointmentPermissionDataSource.getPermission(userId, businessId) } returns
-                ResourcePermission(view = true, update = false, delete = false)
-            coEvery { dataSource.getAllPaginated(businessId, 50, 0, null) } throws exception
+            coEvery { appointmentPermissionDataSource.getPermission(userId, businessId) } throws
+                EmployeeAccessSuspended()
         }
 
         whenn()
-        val result = fixture.sut(userId, businessId, limit = 50, offset = 0)
+        val result = fixture.sut(fixture.userId, fixture.businessId, AppointmentHistoryFilter(), null, null)
 
         then()
-        assertTrue(result.isFailure)
-        assertEquals(exception, result.exceptionOrNull())
+        assertTrue(result.exceptionOrNull() is EmployeeAccessSuspended)
+        coVerify(exactly = 0) { fixture.dataSource.getHistoryPage(any(), any(), any(), any()) }
     }
 }

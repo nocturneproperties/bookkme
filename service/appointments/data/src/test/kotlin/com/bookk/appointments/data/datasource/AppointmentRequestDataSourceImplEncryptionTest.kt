@@ -169,7 +169,7 @@ internal class AppointmentRequestDataSourceImplEncryptionTest {
         val read = suspendTransaction { fixture.sut.getPending(fixture.businessId) }.single()
 
         then()
-        assertEquals(created.client.copy(fullName = "Deleted Client", phone = null, email = null), read.client)
+        assertEquals(created.client.copy(fullName = "", phone = null, email = null, erased = true), read.client)
         assertEquals("", read.note)
     }
 

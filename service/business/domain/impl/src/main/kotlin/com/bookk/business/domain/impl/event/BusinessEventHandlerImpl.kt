@@ -1,6 +1,8 @@
 package com.bookk.business.domain.impl.event
 
 import com.bookk.business.domain.api.business.operation.DeleteBusiness
+import com.bookk.business.domain.api.business.operation.EndBusinessDemo
+import com.bookk.business.domain.api.business.operation.SeedDemoBusiness
 import com.bookk.business.domain.api.client.operation.RecordClientVisit
 import com.bookk.business.domain.api.user.operation.DeleteUserBusinessData
 import com.bookk.business.domain.api.user.operation.SyncUserProfile
@@ -18,12 +20,20 @@ internal class BusinessEventHandlerImpl(
     private val syncUserProfile: SyncUserProfile,
     private val deleteUserBusinessData: DeleteUserBusinessData,
     private val recordClientVisit: RecordClientVisit,
+    private val endBusinessDemo: EndBusinessDemo,
+    private val seedDemoBusiness: SeedDemoBusiness,
 ) : EventHandler {
     override fun start(scope: CoroutineScope) {
         consumer
             .registerResultReceiver(AuthEvent.UserDeleted.TOPIC) { event: AuthEvent.UserDeleted ->
                 deleteBusiness(event.userId).getOrThrow()
                 deleteUserBusinessData(event.userId)
+            }
+            .registerResultReceiver(AuthEvent.DemoAccountCreated.TOPIC) { event: AuthEvent.DemoAccountCreated ->
+                seedDemoBusiness(event.userId, event.timeZoneId, event.language, event.businessKind)
+            }
+            .registerResultReceiver(AuthEvent.DemoUpgraded.TOPIC) { event: AuthEvent.DemoUpgraded ->
+                endBusinessDemo(event.userId)
             }
             .registerResultReceiver(UserEvent.Updated.TOPIC) { event: UserEvent.Updated ->
                 syncUserProfile(
@@ -32,6 +42,7 @@ internal class BusinessEventHandlerImpl(
                     lastName = event.lastName,
                     email = event.email,
                     phone = event.phone,
+                    telegramUsername = event.telegramUsername,
                     updatedAt = event.updatedAt,
                 )
             }

@@ -3,6 +3,7 @@ package com.bookk.appointments.domain.impl.event
 import com.bookk.appointments.domain.api.operation.DeleteBusinessAppointmentData
 import com.bookk.appointments.domain.api.operation.DeleteClientAppointmentData
 import com.bookk.appointments.domain.api.operation.DeleteUserAppointmentData
+import com.bookk.appointments.domain.api.operation.SeedDemoAppointments
 import com.bookk.appointments.domain.impl.operation.LinkClientUser
 import com.bookk.appointments.domain.impl.operation.SyncEmployeePermission
 import com.bookk.appointments.domain.impl.operation.UpdateBusinessInformation
@@ -21,6 +22,7 @@ internal class AppointmentEventHandler(
     private val syncEmployeePermission: SyncEmployeePermission,
     private val linkClientUser: LinkClientUser,
     private val deleteClientAppointmentData: DeleteClientAppointmentData,
+    private val seedDemoAppointments: SeedDemoAppointments,
 ) : EventHandler {
     override fun start(scope: CoroutineScope) {
         consumer
@@ -45,6 +47,17 @@ internal class AppointmentEventHandler(
             }
             .registerResultReceiver(BusinessEvent.ClientLinked.TOPIC) { event: BusinessEvent.ClientLinked ->
                 linkClientUser(event.businessId, event.clientId, event.userId, event.mergedClientIds)
+            }
+            .registerResultReceiver(
+                BusinessEvent.DemoBusinessSeeded.TOPIC,
+            ) { event: BusinessEvent.DemoBusinessSeeded ->
+                seedDemoAppointments(
+                    businessId = event.businessId,
+                    ownerUserId = event.ownerUserId,
+                    employeeId = event.employeeId,
+                    serviceIds = event.serviceIds,
+                    clientIds = event.clientIds,
+                )
             }
             .registerResultReceiver(BusinessEvent.ClientDeleted.TOPIC) { event: BusinessEvent.ClientDeleted ->
                 deleteClientAppointmentData(event.businessId, event.clientId)

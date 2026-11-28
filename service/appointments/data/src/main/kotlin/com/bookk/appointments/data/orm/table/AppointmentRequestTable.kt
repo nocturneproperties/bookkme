@@ -24,5 +24,7 @@ object AppointmentRequestTable : BaseUUIDTable("appointment_request") {
 
     init {
         index(false, initiatorUserId, businessId, dateStart)
+        index("appointment_request_business_date_start", false, businessId, dateStart)
+        index("appointment_request_initiator_user_id_date_start", false, initiatorUserId, dateStart)
     }
 }

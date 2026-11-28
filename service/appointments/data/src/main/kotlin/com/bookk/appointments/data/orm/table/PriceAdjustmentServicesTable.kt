@@ -12,4 +12,13 @@ object PriceAdjustmentServicesTable : BaseUUIDTable("appointment_price_adjustmen
     val priceUnscaled = long("price_unscaled")
     val priceScale = integer("price_scale")
     val durationMinutes = long("duration_minutes")
+    val count = integer("count").default(1)
+
+    init {
+        uniqueIndex(
+            "appointment_price_adjustment_services_adjustment_service_unique",
+            priceAdjustmentId,
+            serviceId,
+        )
+    }
 }

@@ -37,11 +37,17 @@ internal class InternalUserTest {
     private val email = "test@example.com"
 
     @Test
-    fun `should create user with the documents it accepted`() = routeTest {
+    fun `should create user with the documents it accepted and the Telegram user id`() = routeTest {
         given()
         val useCase: CreateUser = mockk()
-        val newUser =
-            NewUser("Ann", "Lee", email, AcceptedLegalDocuments(privacyPolicy = "2026-01-01", termsOfService = null))
+        val newUser = NewUser(
+            name = "Ann",
+            lastName = "Lee",
+            email = email,
+            acceptedDocuments = AcceptedLegalDocuments(privacyPolicy = "2026-01-01", termsOfService = null),
+            telegramUserId = 123456789,
+            telegramUsername = "ann_lee",
+        )
 
         coEvery { useCase.invoke(newUser) } returns Result.success(UserId(userId))
 
@@ -102,7 +108,16 @@ internal class InternalUserTest {
         whenn()
         val client = createTestClient()
         val response = client.post(UserRouting.Api.Internal.User()) {
-            setBody(NewUser("Ann", "Lee", email, AcceptedLegalDocuments(privacyPolicy = null, termsOfService = null)))
+            setBody(
+                NewUser(
+                    "Ann",
+                    "Lee",
+                    email,
+                    AcceptedLegalDocuments(privacyPolicy = null, termsOfService = null),
+                    null,
+                    null,
+                ),
+            )
         }
 
         then()
@@ -132,6 +147,8 @@ internal class InternalUserTest {
                     "Lee",
                     email,
                     AcceptedLegalDocuments(privacyPolicy = "unpublished", termsOfService = null),
+                    null,
+                    null,
                 ),
             )
         }

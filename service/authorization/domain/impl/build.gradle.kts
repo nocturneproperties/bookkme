@@ -1,10 +1,12 @@
 plugins {
     alias(libs.plugins.bookk.domain.impl)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 dependencies {
     implementation(libs.passkey)
     implementation(libs.micrometer.core)
+    implementation(libs.kotlin.serialization.json)
     implementation(projects.core)
     implementation(projects.core.domain)
     implementation(projects.core.domain.datasource)
@@ -18,6 +20,7 @@ dependencies {
     implementation(projects.service.authorization.client)
     implementation(projects.service.user.client)
     implementation(projects.service.business.client)
+    implementation(projects.service.notifications.client)
     testImplementation(testFixtures(projects.core))
     testImplementation(testFixtures(projects.core.domain.datasource))
     testImplementation(testFixtures(projects.library.actionconfirmation.impl))

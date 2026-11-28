@@ -16,16 +16,15 @@ import kotlin.uuid.Uuid
 
 internal class AppointmentRequestRejectedNotificationTest {
 
-    private fun event() = AppointmentEvent.RequestRejected(
+    private fun event(declineReason: String = "Fully booked") = AppointmentEvent.RequestRejected(
         clientUserId = Uuid.random(),
         employeeUserId = Uuid.random(),
         from = Instant.parse("2026-03-05T14:30:00Z"),
         to = Instant.parse("2026-03-05T15:00:00Z"),
         timeZone = TimeZone.UTC,
-        address = "1 Main St",
         businessName = "Barbershop",
         price = "USD 20.00",
-        declineReason = "Fully booked",
+        declineReason = declineReason,
     )
 
     @Test
@@ -38,7 +37,7 @@ internal class AppointmentRequestRejectedNotificationTest {
         val push = event.notification.push(Language.EN)
 
         then()
-        assertEquals("Appointment declined", push.title)
+        assertEquals("Request declined", push.title)
         assertEquals("Your request for Barbershop on $whenText was declined: Fully booked", push.body)
         // Language-specific assertion: ensure this is English, not Ukrainian
         assertTrue(push.title.contains("declined"), "Push title should contain English word 'declined'")
@@ -54,7 +53,7 @@ internal class AppointmentRequestRejectedNotificationTest {
         val push = event.notification.push(Language.UK)
 
         then()
-        assertEquals("Запис відхилено", push.title)
+        assertEquals("Запит відхилено", push.title)
         assertEquals("Ваш запит до Barbershop на $whenText відхилено: Fully booked", push.body)
         // Language-specific assertion: ensure this is Ukrainian, not English
         assertTrue(push.title.contains("відхилено"), "Push title should contain Ukrainian word 'відхилено'")
@@ -118,5 +117,60 @@ internal class AppointmentRequestRejectedNotificationTest {
         assertEquals("Ваш запит до Barbershop на $whenText відхилено: Fully booked.", text.text)
         // Language-specific assertion: ensure this is Ukrainian, not English
         assertTrue(text.text.contains("відхилено"), "Text should contain Ukrainian word 'відхилено'")
+    }
+
+    @Test
+    fun `should say no reason was given in the English push when the decline reason is empty`() = runUnitTest {
+        given()
+        val event = event(declineReason = "")
+        val whenText = event.from.formatLocalized(event.timeZone, Language.EN)
+
+        whenn()
+        val push = event.notification.push(Language.EN)
+
+        then()
+        assertEquals("Your request for Barbershop on $whenText was declined: no reason given", push.body)
+    }
+
+    @Test
+    fun `should say no reason was given in the English email when the decline reason is empty`() = runUnitTest {
+        given()
+        val event = event(declineReason = "  ")
+        val whenText = event.from.formatLocalized(event.timeZone, Language.EN)
+
+        whenn()
+        val email = event.notification.email(Language.EN)
+
+        then()
+        assertEquals(
+            "Your request for Barbershop on $whenText was declined: no reason given.",
+            email.body,
+        )
+    }
+
+    @Test
+    fun `should say no reason was given in the Ukrainian text when the decline reason is empty`() = runUnitTest {
+        given()
+        val event = event(declineReason = "")
+        val whenText = event.from.formatLocalized(event.timeZone, Language.UK)
+
+        whenn()
+        val text = event.notification.text(Language.UK)
+
+        then()
+        assertEquals("Ваш запит до Barbershop на $whenText відхилено: причину не вказано.", text.text)
+    }
+
+    @Test
+    fun `should leave the address out of the Ukrainian email`() = runUnitTest {
+        given()
+        val event = event()
+        val whenText = event.from.formatLocalized(event.timeZone, Language.UK)
+
+        whenn()
+        val email = event.notification.email(Language.UK)
+
+        then()
+        assertEquals("Ваш запит до Barbershop на $whenText відхилено: Fully booked.", email.body)
     }
 }

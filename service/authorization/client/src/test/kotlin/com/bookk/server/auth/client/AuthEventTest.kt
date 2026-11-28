@@ -1,5 +1,6 @@
 package com.bookk.server.auth.client
 
+import com.bookk.core.domain.entity.DemoBusinessKind
 import com.bookk.core.domain.entity.Language
 import com.bookk.core.test.given
 import com.bookk.core.test.runUnitTest
@@ -11,6 +12,7 @@ import kotlinx.serialization.protobuf.ProtoNumber
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Test
+import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
 internal class AuthEventTest {
@@ -135,5 +137,65 @@ internal class AuthEventTest {
         assertEquals("old-update", updated.idempotencyKey)
         assertEquals(Language.UK, updated.language)
         assertEquals(Uuid.NIL, updated.authId)
+    }
+
+    @Test
+    fun `should round trip a device sign out keyed by its device`() = runUnitTest {
+        given()
+        val event = AuthEvent.DeviceSignedOut(
+            authId = Uuid.random(),
+            deviceUuid = deviceUuid,
+            signedOutAt = Instant.fromEpochMilliseconds(1_700_000_000_123),
+        )
+        val protoBuf = ProtoBuf { encodeDefaults = true }
+
+        whenn()
+        val bytes = protoBuf.encodeToByteArray(AuthEvent.DeviceSignedOut.serializer(), event)
+        val decoded = protoBuf.decodeFromByteArray(AuthEvent.DeviceSignedOut.serializer(), bytes)
+
+        then()
+        assertEquals(event, decoded)
+        assertEquals(AuthEvent.DeviceSignedOut.TOPIC, decoded.topic)
+        assertEquals(deviceUuid.toString(), event.partitionKey)
+    }
+
+    @Test
+    fun `should round trip a demo account creation keyed by its user`() = runUnitTest {
+        given()
+        val userId = Uuid.random()
+        val event = AuthEvent.DemoAccountCreated(
+            userId = userId,
+            expiresAt = Instant.fromEpochMilliseconds(1_700_000_000_123),
+            timeZoneId = "Europe/Warsaw",
+            language = Language.PL,
+            businessKind = DemoBusinessKind.HEALTH,
+        )
+        val protoBuf = ProtoBuf { encodeDefaults = true }
+
+        whenn()
+        val bytes = protoBuf.encodeToByteArray(AuthEvent.DemoAccountCreated.serializer(), event)
+        val decoded = protoBuf.decodeFromByteArray(AuthEvent.DemoAccountCreated.serializer(), bytes)
+
+        then()
+        assertEquals(event, decoded)
+        assertEquals(AuthEvent.DemoAccountCreated.TOPIC, decoded.topic)
+        assertEquals(userId.toString(), event.partitionKey)
+    }
+
+    @Test
+    fun `should round trip a demo upgrade keyed by its user`() = runUnitTest {
+        given()
+        val userId = Uuid.random()
+        val event = AuthEvent.DemoUpgraded(userId = userId)
+        val protoBuf = ProtoBuf { encodeDefaults = true }
+
+        whenn()
+        val bytes = protoBuf.encodeToByteArray(AuthEvent.DemoUpgraded.serializer(), event)
+        val decoded = protoBuf.decodeFromByteArray(AuthEvent.DemoUpgraded.serializer(), bytes)
+
+        then()
+        assertEquals(event, decoded)
+        assertEquals(AuthEvent.DemoUpgraded.TOPIC, decoded.topic)
+        assertEquals(userId.toString(), event.partitionKey)
     }
 }

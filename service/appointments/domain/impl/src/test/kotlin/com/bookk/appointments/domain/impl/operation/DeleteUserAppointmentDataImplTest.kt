@@ -2,11 +2,13 @@ package com.bookk.appointments.domain.impl.operation
 
 import com.bookk.appointments.domain.api.entity.Appointment
 import com.bookk.appointments.domain.api.entity.BusinessSnapshot
+import com.bookk.appointments.domain.api.entity.PendingRequestRef
 import com.bookk.appointments.domain.datasource.AppointmentDataSource
 import com.bookk.appointments.domain.datasource.AppointmentPermissionDataSource
 import com.bookk.appointments.domain.datasource.AppointmentRequestDataSource
 import com.bookk.appointments.domain.datasource.AppointmentSubscriptionDataSource
 import com.bookk.appointments.domain.datasource.DeletedUserDataSource
+import com.bookk.appointments.domain.datasource.SavedBusinessDataSource
 import com.bookk.core.data.eventstreaming.StandardEventProducer
 import com.bookk.core.domain.datasource.transaction.TransactionManager
 import com.bookk.core.domain.datasource.transaction.mockTransaction
@@ -16,6 +18,7 @@ import com.bookk.core.test.then
 import com.bookk.core.test.whenn
 import com.bookk.library.serializer.moneyFormatter
 import com.bookk.server.appointments.client.api.event.AppointmentEvent
+import com.bookk.server.appointments.client.api.event.CancellationReasonKind
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.coVerifyOrder
@@ -38,6 +41,7 @@ internal class DeleteUserAppointmentDataImplTest {
         val requestDataSource = mockk<AppointmentRequestDataSource>()
         val appointmentPermissionDataSource = mockk<AppointmentPermissionDataSource>()
         val subscriptionDataSource = mockk<AppointmentSubscriptionDataSource>()
+        val savedBusinessDataSource = mockk<SavedBusinessDataSource>()
         val eventProducer = mockk<StandardEventProducer>()
         val transactionManager = mockk<TransactionManager>()
         val writesInTransaction = mutableListOf<Boolean>()
@@ -50,6 +54,7 @@ internal class DeleteUserAppointmentDataImplTest {
             requestDataSource,
             appointmentPermissionDataSource,
             subscriptionDataSource,
+            savedBusinessDataSource,
             eventProducer,
             subjectKeys,
             transactionManager,
@@ -62,8 +67,10 @@ internal class DeleteUserAppointmentDataImplTest {
             requestClientIds: Set<Uuid> = emptySet(),
             ownedBusinessIds: List<Uuid> = emptyList(),
             ownedBusinessClientIds: Set<Uuid> = emptySet(),
+            pendingRequests: List<PendingRequestRef> = emptyList(),
         ) {
             transactionManager.mockTransaction()
+            coEvery { requestDataSource.getPendingOfClientUserForUpdate(userId) } returns pendingRequests
             coEvery { deletedUserDataSource.markDeleted(userId) } coAnswers { recordWrite() }
             coEvery { appointmentDataSource.getUpcomingIdsOfUserForUpdate(userId, any()) } returns
                 upcoming.map { it.id }
@@ -74,11 +81,11 @@ internal class DeleteUserAppointmentDataImplTest {
             coEvery { appointmentDataSource.getAllByIds(upcoming.map { it.id }) } returns upcoming
             coEvery { appointmentDataSource.cancelAll(any(), any()) } coAnswers { recordWrite() }
             coEvery { appointmentDataSource.anonymizeClientUser(userId) } coAnswers { recordWrite() }
-            coEvery { appointmentDataSource.anonymizeEmployee(userId) } coAnswers { recordWrite() }
             coEvery { appointmentDataSource.unlinkInitiator(userId) } coAnswers { recordWrite() }
             coEvery { requestDataSource.deleteForUser(userId) } coAnswers { recordWrite() }
             coEvery { appointmentPermissionDataSource.deleteForUser(userId) } coAnswers { recordWrite() }
             coEvery { subscriptionDataSource.detachBusinesses(ownedBusinessIds) } coAnswers { recordWrite() }
+            coEvery { savedBusinessDataSource.deleteForUser(userId) } coAnswers { recordWrite() }
             coEvery { eventProducer.send(any<AppointmentEvent>(), any()) } coAnswers {
                 sentEvents += firstArg<AppointmentEvent>()
                 sentInTransaction += transactionManager.isInTransaction()
@@ -92,6 +99,11 @@ internal class DeleteUserAppointmentDataImplTest {
         fun employeeNotifications() = sentEvents.filterIsInstance<AppointmentEvent.CancelledForDeletedClient>()
 
         fun clientNotifications() = sentEvents.filterIsInstance<AppointmentEvent.Cancelled>()
+
+        fun resolvedRequests(): List<PendingRequestRef> {
+            return sentEvents.filterIsInstance<AppointmentEvent.RequestResolved>()
+                .map { PendingRequestRef(it.requestId, it.employeeUserId) }
+        }
     }
 
     private fun AppointmentEvent.CancelledForDeletedClient.withoutIdempotencyKey() = copy(idempotencyKey = "")
@@ -107,7 +119,7 @@ internal class DeleteUserAppointmentDataImplTest {
         .let { it.copy(employee = it.employee.copy(userId = employeeUserId)) }
 
     @Test
-    fun `should erase the user as client, employee and initiator with requests and grants at once`() = runUnitTest {
+    fun `should erase the user as client and initiator with requests and grants at once`() = runUnitTest {
         given()
         val fixture = SutFixture()
         val userId = Uuid.random()
@@ -119,10 +131,10 @@ internal class DeleteUserAppointmentDataImplTest {
         then()
         assertTrue(result.isSuccess)
         coVerify(exactly = 1) { fixture.appointmentDataSource.anonymizeClientUser(userId) }
-        coVerify(exactly = 1) { fixture.appointmentDataSource.anonymizeEmployee(userId) }
         coVerify(exactly = 1) { fixture.appointmentDataSource.unlinkInitiator(userId) }
         coVerify(exactly = 1) { fixture.requestDataSource.deleteForUser(userId) }
         coVerify(exactly = 1) { fixture.appointmentPermissionDataSource.deleteForUser(userId) }
+        coVerify(exactly = 1) { fixture.savedBusinessDataSource.deleteForUser(userId) }
         assertTrue(fixture.writesInTransaction.isNotEmpty())
         assertTrue(fixture.writesInTransaction.all { it })
     }
@@ -144,10 +156,12 @@ internal class DeleteUserAppointmentDataImplTest {
             fixture.appointmentDataSource.getUpcomingIdsOfUserForUpdate(userId, any())
             fixture.appointmentDataSource.getClientIdsOfUserForUpdate(userId)
             fixture.requestDataSource.getClientIdsOfUserForUpdate(userId)
+            fixture.requestDataSource.getPendingOfClientUserForUpdate(userId)
             fixture.subscriptionDataSource.getBusinessIdsOwnedByForUpdate(userId)
             fixture.subscriptionDataSource.getClientIdsForUpdate(ownedBusinessIds)
             fixture.appointmentDataSource.getAllByIds(any())
             fixture.appointmentDataSource.anonymizeClientUser(userId)
+            fixture.savedBusinessDataSource.deleteForUser(userId)
             fixture.subscriptionDataSource.detachBusinesses(ownedBusinessIds)
         }
     }
@@ -249,11 +263,11 @@ internal class DeleteUserAppointmentDataImplTest {
             from = appointment.date,
             to = appointment.dateEnd,
             timeZone = business.timeZone,
-            address = business.address,
             businessName = business.name,
             price = moneyFormatter.print(appointment.totalAmount),
             reason = "Employee deleted their account",
             idempotencyKey = "",
+            reasonKind = CancellationReasonKind.EMPLOYEE_DELETED,
         )
         assertEquals(listOf(expected), fixture.clientNotifications().map { it.withoutIdempotencyKey() })
         assertTrue(fixture.employeeNotifications().isEmpty())
@@ -327,6 +341,23 @@ internal class DeleteUserAppointmentDataImplTest {
         then()
         assertTrue(result.isSuccess)
         coVerify(exactly = 0) { fixture.eventProducer.send(any<AppointmentEvent>(), any()) }
+    }
+
+    @Test
+    fun `should tell each employee in the transaction that the user's pending request is resolved`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val pending = listOf(PendingRequestRef.stub(), PendingRequestRef.stub())
+        fixture.stubErasure(userId, pendingRequests = pending)
+
+        whenn()
+        val result = fixture.sut(userId)
+
+        then()
+        assertTrue(result.isSuccess)
+        assertEquals(pending, fixture.resolvedRequests())
+        assertTrue(fixture.sentInTransaction.all { it })
     }
 
     @Test

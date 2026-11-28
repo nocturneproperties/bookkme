@@ -11,9 +11,17 @@ data class RequestClientSnapshot(
     @ProtoNumber(3) val phone: String?,
     @ProtoNumber(4) val email: String?,
     @ProtoNumber(5) val userId: Uuid,
+    @ProtoNumber(6) val erased: Boolean = false,
 ) {
     fun toClientSnapshot(): ClientSnapshot {
-        return ClientSnapshot(id = id, fullName = fullName, phone = phone, email = email, userId = userId)
+        return ClientSnapshot(
+            id = id,
+            fullName = fullName,
+            phone = phone,
+            email = email,
+            userId = userId,
+            erased = erased,
+        )
     }
 
     companion object {

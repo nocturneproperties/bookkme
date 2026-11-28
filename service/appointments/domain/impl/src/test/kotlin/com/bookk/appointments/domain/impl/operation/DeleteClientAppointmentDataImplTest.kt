@@ -2,6 +2,7 @@ package com.bookk.appointments.domain.impl.operation
 
 import com.bookk.appointments.domain.api.entity.Appointment
 import com.bookk.appointments.domain.api.entity.BusinessSnapshot
+import com.bookk.appointments.domain.api.entity.PendingRequestRef
 import com.bookk.appointments.domain.datasource.AppointmentDataSource
 import com.bookk.appointments.domain.datasource.AppointmentRequestDataSource
 import com.bookk.appointments.domain.datasource.AppointmentSubscriptionDataSource
@@ -15,12 +16,11 @@ import com.bookk.core.test.then
 import com.bookk.core.test.whenn
 import com.bookk.library.serializer.moneyFormatter
 import com.bookk.server.appointments.client.api.event.AppointmentEvent
-import com.bookk.server.appointments.client.api.event.ClientDeletionCause
+import com.bookk.server.appointments.client.api.event.CancellationReasonKind
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.coVerifyOrder
 import io.mockk.mockk
-import kotlinx.datetime.TimeZone
 import library.encryption.test.ShredRecordingSubjectKeys
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -53,8 +53,14 @@ internal class DeleteClientAppointmentDataImplTest {
             transactionManager,
         )
 
-        fun stubErasure(businessId: Uuid, clientId: Uuid, upcoming: List<Appointment> = emptyList()) {
+        fun stubErasure(
+            businessId: Uuid,
+            clientId: Uuid,
+            upcoming: List<Appointment> = emptyList(),
+            pendingRequests: List<PendingRequestRef> = emptyList(),
+        ) {
             transactionManager.mockTransaction()
+            coEvery { requestDataSource.getPendingOfClientForUpdate(businessId, clientId) } returns pendingRequests
             coEvery { deletedClientDataSource.markDeleted(businessId, clientId) } coAnswers { recordWrite() }
             coEvery {
                 appointmentDataSource.getUpcomingIdsOfClientForUpdate(businessId, clientId, any())
@@ -76,9 +82,12 @@ internal class DeleteClientAppointmentDataImplTest {
         fun employeeNotifications() = sentEvents.filterIsInstance<AppointmentEvent.CancelledForDeletedClient>()
 
         fun clientNotifications() = sentEvents.filterIsInstance<AppointmentEvent.Cancelled>()
-    }
 
-    private fun AppointmentEvent.CancelledForDeletedClient.withoutIdempotencyKey() = copy(idempotencyKey = "")
+        fun resolvedRequests(): List<PendingRequestRef> {
+            return sentEvents.filterIsInstance<AppointmentEvent.RequestResolved>()
+                .map { PendingRequestRef(it.requestId, it.employeeUserId) }
+        }
+    }
 
     private fun AppointmentEvent.Cancelled.withoutIdempotencyKey() = copy(idempotencyKey = "")
 
@@ -117,6 +126,7 @@ internal class DeleteClientAppointmentDataImplTest {
         coVerifyOrder {
             fixture.deletedClientDataSource.markDeleted(business.id, clientId)
             fixture.appointmentDataSource.getUpcomingIdsOfClientForUpdate(business.id, clientId, any())
+            fixture.requestDataSource.getPendingOfClientForUpdate(business.id, clientId)
             fixture.appointmentDataSource.getAllByIds(listOf(upcoming.id))
             fixture.subscriptionDataSource.getBusinessSnapshot(business.id)
             fixture.appointmentDataSource.cancelAll(listOf(upcoming.id), any())
@@ -183,14 +193,16 @@ internal class DeleteClientAppointmentDataImplTest {
     }
 
     @Test
-    fun `should tell the assigned employee that the business removed the client`() = runUnitTest {
+    fun `should not tell the employees that the business removed the client`() = runUnitTest {
         given()
         val fixture = SutFixture()
-        val business = BusinessSnapshot.stub().copy(timeZone = TimeZone.of("Europe/Kyiv"))
+        val business = BusinessSnapshot.stub()
         val clientId = Uuid.random()
-        val first = Appointment.stub(businessId = business.id)
-        val second = Appointment.stub(businessId = business.id)
-        fixture.stubErasure(business.id, clientId, upcoming = listOf(first, second))
+        val appointments = List(2) {
+            Appointment.stub(businessId = business.id)
+                .let { it.copy(client = it.client.copy(id = clientId, userId = Uuid.random())) }
+        }
+        fixture.stubErasure(business.id, clientId, upcoming = appointments)
         coEvery { fixture.subscriptionDataSource.getBusinessSnapshot(business.id) } returns business
 
         whenn()
@@ -198,18 +210,8 @@ internal class DeleteClientAppointmentDataImplTest {
 
         then()
         assertTrue(result.isSuccess)
-        val expected = listOf(first, second).map {
-            AppointmentEvent.CancelledForDeletedClient(
-                employeeUserId = it.employee.userId,
-                from = it.date,
-                to = it.dateEnd,
-                timeZone = business.timeZone,
-                businessName = business.name,
-                idempotencyKey = "",
-                cause = ClientDeletionCause.REMOVED_BY_BUSINESS,
-            )
-        }
-        assertEquals(expected, fixture.employeeNotifications().map { it.withoutIdempotencyKey() })
+        assertTrue(fixture.employeeNotifications().isEmpty())
+        assertEquals(2, fixture.clientNotifications().size)
         assertTrue(fixture.sentInTransaction.all { it })
     }
 
@@ -235,17 +237,17 @@ internal class DeleteClientAppointmentDataImplTest {
             from = appointment.date,
             to = appointment.dateEnd,
             timeZone = business.timeZone,
-            address = business.address,
             businessName = business.name,
             price = moneyFormatter.print(appointment.totalAmount),
             reason = "Client was removed by the business",
             idempotencyKey = "",
+            reasonKind = CancellationReasonKind.CLIENT_REMOVED,
         )
         assertEquals(listOf(expected), fixture.clientNotifications().map { it.withoutIdempotencyKey() })
     }
 
     @Test
-    fun `should not notify a client without an account`() = runUnitTest {
+    fun `should notify nobody and not read the business when the client has no account`() = runUnitTest {
         given()
         val fixture = SutFixture()
         val business = BusinessSnapshot.stub()
@@ -256,36 +258,12 @@ internal class DeleteClientAppointmentDataImplTest {
         coEvery { fixture.subscriptionDataSource.getBusinessSnapshot(business.id) } returns business
 
         whenn()
-        fixture.sut(business.id, clientId)
+        val result = fixture.sut(business.id, clientId)
 
         then()
-        assertTrue(fixture.clientNotifications().isEmpty())
-        assertEquals(1, fixture.employeeNotifications().size)
-    }
-
-    @Test
-    fun `should tell an employee who is the client only as the client`() = runUnitTest {
-        given()
-        val fixture = SutFixture()
-        val business = BusinessSnapshot.stub()
-        val clientId = Uuid.random()
-        val userId = Uuid.random()
-        val ownAppointment = Appointment.stub(businessId = business.id)
-            .let {
-                it.copy(
-                    client = it.client.copy(id = clientId, userId = userId),
-                    employee = it.employee.copy(userId = userId),
-                )
-            }
-        fixture.stubErasure(business.id, clientId, upcoming = listOf(ownAppointment))
-        coEvery { fixture.subscriptionDataSource.getBusinessSnapshot(business.id) } returns business
-
-        whenn()
-        fixture.sut(business.id, clientId)
-
-        then()
-        assertTrue(fixture.employeeNotifications().isEmpty())
-        assertEquals(listOf(userId), fixture.clientNotifications().map { it.clientUserId })
+        assertTrue(result.isSuccess)
+        assertTrue(fixture.sentEvents.isEmpty())
+        coVerify(exactly = 0) { fixture.subscriptionDataSource.getBusinessSnapshot(any()) }
     }
 
     @Test
@@ -294,7 +272,9 @@ internal class DeleteClientAppointmentDataImplTest {
         val fixture = SutFixture()
         val businessId = Uuid.random()
         val clientId = Uuid.random()
-        fixture.stubErasure(businessId, clientId, upcoming = listOf(Appointment.stub(businessId = businessId)))
+        val appointment = Appointment.stub(businessId = businessId)
+            .let { it.copy(client = it.client.copy(id = clientId, userId = Uuid.random())) }
+        fixture.stubErasure(businessId, clientId, upcoming = listOf(appointment))
         coEvery { fixture.subscriptionDataSource.getBusinessSnapshot(businessId) } returns null
 
         whenn()
@@ -321,6 +301,26 @@ internal class DeleteClientAppointmentDataImplTest {
         assertTrue(result.isSuccess)
         coVerify(exactly = 0) { fixture.eventProducer.send(any<AppointmentEvent>(), any()) }
     }
+
+    @Test
+    fun `should tell each employee in the transaction that the client's pending request is resolved`() =
+        runUnitTest {
+            given()
+            val fixture = SutFixture()
+            val businessId = Uuid.random()
+            val clientId = Uuid.random()
+            val pending = listOf(PendingRequestRef.stub(), PendingRequestRef.stub())
+            fixture.stubErasure(businessId, clientId, pendingRequests = pending)
+
+            whenn()
+            val result = fixture.sut(businessId, clientId)
+
+            then()
+            assertTrue(result.isSuccess)
+            assertEquals(pending, fixture.resolvedRequests())
+            assertTrue(fixture.sentInTransaction.all { it })
+            coVerify(exactly = 0) { fixture.subscriptionDataSource.getBusinessSnapshot(any()) }
+        }
 
     @Test
     fun `should fail so the event is retried when a write fails`() = runUnitTest {

@@ -90,11 +90,19 @@ site:
   image: ghcr.io/nocturneproperties/bookkme-site
   domain_name: "{{ vault_stack_env.EMAIL_DOMAIN_NAME | default('', true) }}"
 
+webapp:
+  stack:
+    name: webapp
+    source: prod/webapp
+    compose: [webapp-compose.yml]
+  image: ghcr.io/nocturneproperties/bookkme-webapp
+
 nginx_stack_env:
   SITE_DOMAIN_NAME: "{{ site.domain_name }}"
 
 monolith_env:
   APPLICATION_DOMAIN_NAME: "{{ vault_stack_env.DOMAIN_NAME }}"
+  APPLICATION_SITE_DOMAIN_NAME: "{{ site.domain_name }}"
   APPLICATION_SERVICE_NAME: monolith
   APPLICATION_SERVICE_HOSTNAME: monolith.service
   APPLICATION_SERVICE_PORT: "80"
@@ -116,3 +124,6 @@ monolith_env:
   APPLICATION_EMAIL_CODE_SECRET: "{{ vault_email_code_secret }}"
   APPLICATION_SUBJECT_MASTER_KEY: "{{ vault_subject_master_key }}"
   APPLICATION_BLIND_INDEX_KEY: "{{ vault_blind_index_key }}"
+  APPLICATION_TELEGRAM_BOT_ID: "{{ vault_telegram_bot_id | default('') }}"
+  APPLICATION_TELEGRAM_BOT_TOKEN: "{{ vault_telegram_bot_token | default('') }}"
+  APPLICATION_TELEGRAM_BOT_USERNAME: "{{ vault_telegram_bot_username | default('') }}"

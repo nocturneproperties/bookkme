@@ -11,6 +11,7 @@ import com.bookk.core.test.then
 import com.bookk.core.test.whenn
 import com.bookk.user.data.cache.UserCacheStrategy.getUser
 import com.bookk.user.data.orm.table.UserTable
+import com.bookk.user.domain.api.entity.ProfileName
 import com.bookk.user.domain.api.entity.User
 import com.bookk.user.domain.api.entity.UserEditModel
 import io.mockk.coEvery
@@ -81,6 +82,170 @@ internal class UserDataSourceImplTest {
     }
 
     @Test
+    fun `should store the Telegram user id encrypted under the user's key`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val user = User.stub(telegramUserId = 123456789)
+
+        whenn()
+        suspendTransaction { fixture.sut.insertNewUser(user) }
+        val found = suspendTransaction { fixture.uncached.getUserById(user.id) }
+
+        then()
+        val row = fixture.storedRow(user.id)
+        assertEquals("123456789", fixture.decrypted(user.id, row[UserTable.telegramUserIdEncrypted]))
+        assertEquals(123456789L, found!!.telegramUserId)
+    }
+
+    @Test
+    fun `should store no Telegram user id for a user who signed up by email`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val user = User.stub(telegramUserId = null)
+
+        whenn()
+        suspendTransaction { fixture.sut.insertNewUser(user) }
+
+        then()
+        assertNull(fixture.storedRow(user.id)[UserTable.telegramUserIdEncrypted])
+    }
+
+    @Test
+    fun `should keep the stored Telegram user id ciphertext through a profile edit and an email change`() =
+        runUnitTest {
+            given()
+            val fixture = SutFixture()
+            val user = suspendTransaction { fixture.sut.insertNewUser(User.stub(telegramUserId = 123456789)) }
+            val stored = fixture.storedRow(user.id)[UserTable.telegramUserIdEncrypted]
+
+            whenn()
+            val edited = suspendTransaction { fixture.sut.updateUser(user.id, nameEdit("Alicia"), Clock.System.now()) }
+            val changed = suspendTransaction {
+                fixture.sut.changeEmail(user.id, "new@example.com", Clock.System.now())
+            }
+
+            then()
+            assertEquals(123456789L, edited!!.telegramUserId)
+            assertEquals(123456789L, changed!!.telegramUserId)
+            assertArrayEquals(stored, fixture.storedRow(user.id)[UserTable.telegramUserIdEncrypted])
+        }
+
+    @Test
+    fun `should read no Telegram user id and report the missing key when the profile's key was lost`() =
+        runUnitTest {
+            given()
+            val fixture = SutFixture()
+            val user = suspendTransaction { fixture.sut.insertNewUser(User.stub(telegramUserId = 123456789)) }
+            fixture.subjectKeys.loseKey(user.id)
+
+            whenn()
+            val found = suspendTransaction { fixture.uncached.getUserById(user.id) }
+
+            then()
+            assertNull(found!!.telegramUserId)
+            assertEquals(listOf("profile"), fixture.missingKeys.reported)
+        }
+
+    @Test
+    fun `should store the Telegram username encrypted under the user's key`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val user = User.stub(telegramUserId = 123456789, telegramUsername = "ann_lee")
+
+        whenn()
+        suspendTransaction { fixture.sut.insertNewUser(user) }
+        val found = suspendTransaction { fixture.uncached.getUserById(user.id) }
+
+        then()
+        val row = fixture.storedRow(user.id)
+        assertEquals("ann_lee", fixture.decrypted(user.id, row[UserTable.telegramUsernameEncrypted]))
+        assertEquals("ann_lee", found!!.telegramUsername)
+    }
+
+    @Test
+    fun `should store a changed Telegram username and report the change`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val user = suspendTransaction { fixture.sut.insertNewUser(User.stub(telegramUsername = "ann_lee")) }
+        val updatedAt = Instant.fromEpochSeconds(1_800_000_000)
+
+        whenn()
+        val change = suspendTransaction { fixture.sut.changeTelegramUsername(user.id, "ann_renamed", updatedAt) }
+
+        then()
+        assertTrue(change!!.changed)
+        assertEquals(user.copy(telegramUsername = "ann_renamed"), change.user)
+        val row = fixture.storedRow(user.id)
+        assertEquals("ann_renamed", fixture.decrypted(user.id, row[UserTable.telegramUsernameEncrypted]))
+        assertEquals(updatedAt, row[UserTable.updatedAt])
+        assertEquals("ann_renamed", suspendTransaction { fixture.sut.getUserById(user.id) }!!.telegramUsername)
+    }
+
+    @Test
+    fun `should leave the profile untouched when the Telegram username is unchanged`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val user = suspendTransaction { fixture.sut.insertNewUser(User.stub(telegramUsername = "ann_lee")) }
+        val before = fixture.storedRow(user.id)
+
+        whenn()
+        val change = suspendTransaction {
+            fixture.sut.changeTelegramUsername(user.id, "ann_lee", Instant.fromEpochSeconds(1_800_000_000))
+        }
+
+        then()
+        assertEquals(false, change!!.changed)
+        assertEquals(user, change.user)
+        val after = fixture.storedRow(user.id)
+        assertArrayEquals(before[UserTable.telegramUsernameEncrypted], after[UserTable.telegramUsernameEncrypted])
+        assertEquals(before[UserTable.updatedAt], after[UserTable.updatedAt])
+    }
+
+    @Test
+    fun `should clear the Telegram username the user removed`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val user = suspendTransaction { fixture.sut.insertNewUser(User.stub(telegramUsername = "ann_lee")) }
+
+        whenn()
+        val change = suspendTransaction { fixture.sut.changeTelegramUsername(user.id, null, Clock.System.now()) }
+
+        then()
+        assertTrue(change!!.changed)
+        assertNull(change.user.telegramUsername)
+        assertNull(fixture.storedRow(user.id)[UserTable.telegramUsernameEncrypted])
+    }
+
+    @Test
+    fun `should keep the Telegram username through a profile edit and an email change`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val user = suspendTransaction { fixture.sut.insertNewUser(User.stub(telegramUsername = "ann_lee")) }
+
+        whenn()
+        suspendTransaction { fixture.sut.updateUser(user.id, nameEdit("Alicia"), Clock.System.now()) }
+        suspendTransaction { fixture.sut.changeEmail(user.id, "new@example.com", Clock.System.now()) }
+
+        then()
+        val row = fixture.storedRow(user.id)
+        assertEquals("ann_lee", fixture.decrypted(user.id, row[UserTable.telegramUsernameEncrypted]))
+    }
+
+    @Test
+    fun `should return null when changing the Telegram username of a missing user`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+
+        whenn()
+        val change = suspendTransaction {
+            fixture.sut.changeTelegramUsername(Uuid.random(), "ann_lee", Clock.System.now())
+        }
+
+        then()
+        assertNull(change)
+    }
+
+    @Test
     fun `should index the email and phone ignoring case and surrounding spaces`() = runUnitTest {
         given()
         val fixture = SutFixture()
@@ -137,7 +302,10 @@ internal class UserDataSourceImplTest {
         val found = suspendTransaction { fixture.uncached.getUserById(user.id) }
 
         then()
-        assertEquals(User(id = user.id, name = "", lastName = "", email = "", phone = null), found)
+        assertEquals(
+            User.stub(id = user.id, name = "", lastName = "", email = "", phone = null),
+            found,
+        )
         assertEquals(listOf("profile"), fixture.missingKeys.reported)
     }
 
@@ -194,7 +362,10 @@ internal class UserDataSourceImplTest {
             val found = suspendTransaction { fixture.uncached.getUserById(user.id) }
 
             then()
-            assertEquals(User(id = user.id, name = "Alicia", lastName = "", email = "", phone = null), found)
+            assertEquals(
+                User.stub(id = user.id, name = "Alicia", lastName = "", email = "", phone = null),
+                found,
+            )
             assertEquals(listOf("profile"), fixture.missingKeys.reported.drop(reportedBefore))
         }
 
@@ -489,6 +660,56 @@ internal class UserDataSourceImplTest {
         then()
         assertEquals(changed, found)
         assertEquals("new@example.com", found!!.email)
+    }
+
+    @Test
+    fun `should replace the name together with the email`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val created = suspendTransaction { fixture.sut.insertNewUser(User.stub(name = "Demo", lastName = "")) }
+        val name = ProfileName.stub(name = "Ann", lastName = "Lee")
+
+        whenn()
+        suspendTransaction { fixture.sut.changeEmailAndName(created.id, "ann@example.com", name, Clock.System.now()) }
+        val found = suspendTransaction { fixture.uncached.getUserById(created.id) }
+
+        then()
+        assertEquals(listOf("Ann", "Lee", "ann@example.com"), listOf(found?.name, found?.lastName, found?.email))
+    }
+
+    @Test
+    fun `should keep the name when another user already holds the new email`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        suspendTransaction { fixture.sut.insertNewUser(User.stub(email = "taken@example.com")) }
+        val created = suspendTransaction { fixture.sut.insertNewUser(User.stub(name = "Demo", lastName = "")) }
+        val name = ProfileName.stub(name = "Ann", lastName = "Lee")
+
+        whenn()
+        val result = runCatching {
+            suspendTransaction {
+                fixture.sut.changeEmailAndName(created.id, "taken@example.com", name, Clock.System.now())
+            }
+        }
+        val found = suspendTransaction { fixture.uncached.getUserById(created.id) }
+
+        then()
+        assertTrue(result.exceptionOrNull()?.toDomain() is Error.UniqueConstraintFailed) { result.toString() }
+        assertEquals("Demo", found?.name)
+    }
+
+    @Test
+    fun `should return null when changing the email and name of a missing user`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+
+        whenn()
+        val changed = suspendTransaction {
+            fixture.sut.changeEmailAndName(Uuid.random(), "ann@example.com", ProfileName.stub(), Clock.System.now())
+        }
+
+        then()
+        assertNull(changed)
     }
 
     @Test

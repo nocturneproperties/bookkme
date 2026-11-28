@@ -103,6 +103,7 @@ internal class EditUserImplTest {
             lastName = "Smith",
             email = "jane@example.com",
             phone = null,
+            telegramUserId = 123456789,
         )
         with(fixture) {
             transactionManager.mockTransaction()
@@ -120,7 +121,8 @@ internal class EditUserImplTest {
                     it.userId == userId &&
                         it.name == "Jane" &&
                         it.lastName == "Smith" &&
-                        it.email == "jane@example.com"
+                        it.email == "jane@example.com" &&
+                        it.telegramUserId == 123456789L
                 },
                 any(),
             )

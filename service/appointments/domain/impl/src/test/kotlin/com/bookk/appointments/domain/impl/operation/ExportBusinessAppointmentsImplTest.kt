@@ -85,6 +85,7 @@ internal class ExportBusinessAppointmentsImplTest {
             services = listOf(fixture.service),
             status = AppointmentStatus.COMPLETED,
             note = "allergic to latex",
+            clientNote = "please call on arrival",
             cancellationReason = "",
             completedBy = AppointmentCompletedBy.USER,
             priceAdjustment = PriceAdjustment(
@@ -119,9 +120,31 @@ internal class ExportBusinessAppointmentsImplTest {
                     cancellationReason = null,
                     priceAdjustment = PriceAdjustmentExport("UAH 500.00", emptyList(), "extra styling"),
                     completedBy = "USER",
+                    clientNote = "please call on arrival",
                 ),
             ),
             export.appointments,
+        )
+    }
+
+    @Test
+    fun `should mark an erased client and employee in the exported appointment`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val erasedEmployee = fixture.employee.copy(fullName = "", erased = true)
+        val erasedClient = fixture.client.copy(fullName = "", phone = null, email = null, userId = null, erased = true)
+        val appointment = Appointment.stub(businessId = fixture.businessId)
+            .copy(employee = erasedEmployee, client = erasedClient)
+        coEvery { fixture.appointmentDataSource.getAll(fixture.businessId) } returns listOf(appointment)
+
+        whenn()
+        val exported = fixture.sut(fixture.businessId).getOrThrow().appointments.single()
+
+        then()
+        assertEquals(EmployeeExport(fixture.employee.id, "", erased = true), exported.employee)
+        assertEquals(
+            ClientExport(fixture.client.id, "", null, null, hasAccount = false, erased = true),
+            exported.client,
         )
     }
 

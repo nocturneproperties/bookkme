@@ -1,12 +1,16 @@
 package com.bookk.auth.domain.impl.operation.token
 
+import com.bookk.auth.domain.api.authentication.entity.Authentication
+import com.bookk.auth.domain.api.demo.entity.DemoAccountPolicy
 import com.bookk.auth.domain.api.identification.entity.Device
 import com.bookk.auth.domain.api.token.entity.AuthTokens
 import com.bookk.auth.domain.api.token.operation.GenerateAuthToken
+import com.bookk.auth.domain.api.token.operation.GenerateAuthToken.Error.DemoExpired
 import com.bookk.auth.domain.api.token.operation.GenerateAuthToken.Error.InvalidCredentials
 import com.bookk.auth.domain.api.token.operation.GenerateAuthToken.Source
 import com.bookk.auth.domain.datasource.AccountDataSource
 import com.bookk.auth.domain.datasource.DeviceDataSource
+import com.bookk.auth.domain.impl.operation.DeviceSignOut
 import com.bookk.core.AppLevelConstants
 import com.bookk.core.domain.datasource.transaction.TransactionManager
 import com.bookk.server.auth.client.AuthClaim
@@ -14,12 +18,15 @@ import io.micrometer.core.instrument.Counter
 import io.micrometer.core.instrument.MeterRegistry
 import library.signing.TokenIssuer
 import kotlin.time.Clock
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.minutes
+import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
 internal class GenerateAuthTokenImpl(
     private val deviceDataSource: DeviceDataSource,
+    private val deviceSignOut: DeviceSignOut,
     private val transactionManager: TransactionManager,
     private val tokenIssuer: TokenIssuer,
     private val accountDataSource: AccountDataSource,
@@ -51,35 +58,56 @@ internal class GenerateAuthTokenImpl(
             DeviceCheck.RefreshTokenReused -> return Issued.DeviceRevoked
         }
         val now = Clock.System.now()
+        val account = deviceRecord.authRecord
+        if (account.isDemoEndedAt(now)) throw DemoExpired()
         accountDataSource.recordActivity(
-            authId = deviceRecord.authRecord.id,
+            authId = account.id,
             at = now,
             unlessRecordedSince = now - ACTIVITY_PRECISION,
         )
-        val accessToken = createAccessToken(deviceRecord)
+        val accessToken = createAccessToken(deviceRecord, account.accessTtlAt(now))
         val refreshToken = OpaqueRefreshToken.generate()
+        val refreshExpiresAt = account.refreshExpiryAt(now)
         when (source) {
             is Source.RefreshToken -> deviceDataSource.rotateRefreshToken(
                 deviceRecord.deviceInfo.id,
                 refreshToken.id,
                 refreshToken.secretHash,
+                refreshExpiresAt,
             )
 
             is Source.InitialAuthentication -> deviceDataSource.attachRefreshTokenToDevice(
                 deviceRecord.deviceInfo.id,
                 refreshToken.id,
                 refreshToken.secretHash,
+                refreshExpiresAt,
             )
         }
         return Issued.Tokens(AuthTokens(accessToken, refreshToken.token))
     }
 
-    private suspend fun createAccessToken(record: Device): String = tokenIssuer.issue(ACCESS_TTL) {
-        withJWTId(Uuid.random().toString())
+    private suspend fun createAccessToken(record: Device, ttl: Duration): String = tokenIssuer.issue(ttl) {
+        val claims = withJWTId(Uuid.random().toString())
             .withAudience(AppLevelConstants.domainName)
             .withClaim(AuthClaim.AUTH_ID.key, record.authRecord.id.toString())
             .withClaim(AuthClaim.USER_ID.key, record.authRecord.userId.toString())
             .withClaim(AuthClaim.DEVICE_ID.key, record.deviceInfo.id.toString())
+        if (record.authRecord.isDemo) claims.withClaim(AuthClaim.DEMO.key, true) else claims
+    }
+
+    private fun Authentication.isDemoEndedAt(now: Instant): Boolean {
+        val end = demoExpiresAt ?: return false
+        return now >= end
+    }
+
+    private fun Authentication.accessTtlAt(now: Instant): Duration {
+        val end = demoExpiresAt ?: return ACCESS_TTL
+        return minOf(ACCESS_TTL, end - now)
+    }
+
+    private fun Authentication.refreshExpiryAt(now: Instant): Instant {
+        val end = demoExpiresAt ?: return now + REFRESH_TTL
+        return DemoAccountPolicy.upgradeDeadline(end)
     }
 
     private suspend fun Source.check(): DeviceCheck {
@@ -101,7 +129,7 @@ internal class GenerateAuthTokenImpl(
         val previousDeviceToken = device.deviceInfo.previousRefreshToken
 
         if (previousDeviceToken != null && OpaqueRefreshToken.matches(refreshToken, previousDeviceToken)) {
-            deviceDataSource.deleteTokenFromDevice(device.deviceInfo.id)
+            deviceSignOut.signOut(device)
             return DeviceCheck.RefreshTokenReused
         }
         if (OpaqueRefreshToken.matches(refreshToken, currentDeviceToken)) {
@@ -124,6 +152,7 @@ internal class GenerateAuthTokenImpl(
     companion object {
         const val REFRESH_TOKEN_REUSED_METRIC = "auth.refresh_token.reused"
         private val ACCESS_TTL = 5.minutes
+        private val REFRESH_TTL = 7.days
         private val ACTIVITY_PRECISION = 1.days
     }
 }

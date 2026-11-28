@@ -19,6 +19,8 @@ internal class UserDataExportDataSourceImpl(
             lastName = user.lastName,
             email = user.email,
             phone = user.phone,
+            telegramUserId = user.telegramUserId,
+            telegramUsername = user.telegramUsername,
             createdAt = entity.createdAt,
         )
     }

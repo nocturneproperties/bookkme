@@ -9,33 +9,39 @@ import com.bookk.appointments.data.orm.table.AppointmentTable
 import com.bookk.appointments.data.orm.table.SettingsTable
 import com.bookk.appointments.domain.api.entity.Appointment
 import com.bookk.appointments.domain.api.entity.AppointmentCompletedBy
-import com.bookk.appointments.domain.api.entity.AppointmentPagination
-import com.bookk.appointments.domain.api.entity.AppointmentRepresentation
+import com.bookk.appointments.domain.api.entity.AppointmentHistoryFilter
 import com.bookk.appointments.domain.api.entity.AppointmentRequest
 import com.bookk.appointments.domain.api.entity.AppointmentStatus
+import com.bookk.appointments.domain.api.entity.BookedRange
+import com.bookk.appointments.domain.api.entity.BookingPeriod
+import com.bookk.appointments.domain.api.entity.HistoryOrder
+import com.bookk.appointments.domain.api.entity.OwnAppointmentFilter
 import com.bookk.appointments.domain.api.entity.PriceAdjustment
+import com.bookk.appointments.domain.api.entity.StartBounds
 import com.bookk.appointments.domain.datasource.AppointmentDataSource
 import com.bookk.core.data.DataSource
+import com.bookk.core.data.Keyset
 import com.bookk.core.domain.entity.Error
-import com.bookk.core.domain.entity.PaginationMetadata
+import com.bookk.core.domain.entity.Page
+import com.bookk.core.domain.entity.PageCursor
+import com.bookk.core.domain.entity.PageRequest
+import com.bookk.core.domain.entity.toPage
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.atStartOfDayIn
 import kotlinx.datetime.toLocalDateTime
 import org.jetbrains.exposed.v1.core.Op
 import org.jetbrains.exposed.v1.core.SortOrder
 import org.jetbrains.exposed.v1.core.and
+import org.jetbrains.exposed.v1.core.compoundAnd
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.greater
 import org.jetbrains.exposed.v1.core.greaterEq
 import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.core.inSubQuery
-import org.jetbrains.exposed.v1.core.isNotNull
-import org.jetbrains.exposed.v1.core.isNull
 import org.jetbrains.exposed.v1.core.less
 import org.jetbrains.exposed.v1.core.lessEq
 import org.jetbrains.exposed.v1.core.like
 import org.jetbrains.exposed.v1.core.lowerCase
-import org.jetbrains.exposed.v1.core.neq
 import org.jetbrains.exposed.v1.core.or
 import org.jetbrains.exposed.v1.core.statements.UpdateStatement
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
@@ -79,6 +85,43 @@ internal class AppointmentDataSourceImpl(
         }
     }
 
+    override suspend fun getUpcomingOfClientUser(
+        clientUserId: Uuid,
+        endingAfter: Instant,
+        limit: Int,
+    ): List<Appointment> = dbQuery {
+        AppointmentEntity
+            .find {
+                (AppointmentTable.clientUserId eq clientUserId)
+                    .and(AppointmentTable.status eq AppointmentStatus.SCHEDULED)
+                    .and(AppointmentTable.dateEnd greater endingAfter)
+            }
+            .orderBy(AppointmentTable.dateStart to SortOrder.ASC)
+            .limit(limit)
+            .toList()
+            .withDetails()
+            .decrypted()
+    }
+
+    override suspend fun getPageOfClientUser(
+        clientUserId: Uuid,
+        filter: OwnAppointmentFilter,
+        now: Instant,
+        page: PageRequest,
+    ): Page<Appointment> = dbQuery {
+        val keyset = if (filter.period == BookingPeriod.UPCOMING) soonestFirst else newestFirst
+        val conditions = listOfNotNull(
+            AppointmentTable.clientUserId eq clientUserId,
+            filter.statuses.takeIf { it.isNotEmpty() }?.let { AppointmentTable.status inList it },
+            when (filter.period) {
+                BookingPeriod.UPCOMING -> AppointmentTable.dateEnd greater now
+                BookingPeriod.PAST -> AppointmentTable.dateEnd lessEq now
+                null -> null
+            },
+        )
+        pageOf(conditions, keyset, page)
+    }
+
     override suspend fun getAllForDate(
         businessId: Uuid,
         range: ClosedRange<Instant>,
@@ -97,29 +140,27 @@ internal class AppointmentDataSourceImpl(
             .decrypted()
     }
 
-    override suspend fun getAllPaginated(
+    override suspend fun getHistoryPage(
         businessId: Uuid,
-        limit: Int,
-        offset: Long,
-        query: String?,
-    ): AppointmentPagination = dbQuery {
-        if (query.isNullOrBlank()) {
-            pageOfAll(businessId, limit, offset)
-        } else {
-            pageOfMatches(businessId, limit, offset, query.lowercase())
-        }
+        filter: AppointmentHistoryFilter,
+        starts: StartBounds,
+        page: PageRequest,
+    ): Page<Appointment> = dbQuery {
+        val keyset = if (filter.order == HistoryOrder.SOONEST_FIRST) soonestFirst else newestFirst
+        val query = filter.query?.takeIf { it.isNotBlank() }?.lowercase()
+        val conditions = listOfNotNull(
+            AppointmentTable.businessId eq businessId,
+            filter.clientId?.let { AppointmentTable.clientId eq it },
+            filter.employeeId?.let { AppointmentTable.employeeId eq it },
+            filter.statuses.takeIf { it.isNotEmpty() }?.let { AppointmentTable.status inList it },
+            starts.from?.let { AppointmentTable.dateStart greaterEq it },
+            starts.until?.let { AppointmentTable.dateStart less it },
+            query?.let { matching(businessId, it) },
+        )
+        pageOf(conditions, keyset, page)
     }
 
-    private suspend fun pageOfAll(businessId: Uuid, limit: Int, offset: Long): AppointmentPagination {
-        return page(AppointmentTable.businessId eq businessId, limit, offset)
-    }
-
-    private suspend fun pageOfMatches(
-        businessId: Uuid,
-        limit: Int,
-        offset: Long,
-        query: String,
-    ): AppointmentPagination {
+    private fun matching(businessId: Uuid, query: String): Op<Boolean> {
         val serviceMatches = (AppointmentServicesTable innerJoin AppointmentTable)
             .select(AppointmentServicesTable.appointmentId)
             .where {
@@ -128,47 +169,33 @@ internal class AppointmentDataSourceImpl(
             }
         val matchesService = AppointmentTable.id inSubQuery serviceMatches
         val matchesClientName = AppointmentTable.clientNameIndex eq snapshotCipher.clientNameIndex(query)
-        return page(
-            (AppointmentTable.businessId eq businessId) and (matchesService or matchesClientName),
-            limit,
-            offset,
-        )
+        return matchesService or matchesClientName
     }
 
-    private suspend fun page(where: Op<Boolean>, limit: Int, offset: Long): AppointmentPagination {
-        val appointments = AppointmentEntity.find(where).orderBy(AppointmentTable.dateStart to SortOrder.DESC)
-        val page = appointments.limit(limit).offset(offset).toList().withDetails().decrypted()
-        return pagination(page, total = appointments.count(), limit, offset)
-    }
-
-    private fun pagination(page: List<Appointment>, total: Long, limit: Int, offset: Long): AppointmentPagination {
-        return AppointmentPagination(
-            data = page,
-            metadata = PaginationMetadata(
-                total = total,
-                pageSize = limit,
-                page = (offset / limit) + 1,
-            ),
-        )
-    }
-
-    override suspend fun hasOverlapsWith(appointment: AppointmentRepresentation): Boolean = dbQuery {
-        AppointmentTable.select(AppointmentTable.id)
+    override suspend fun getEmployeeBookings(
+        businessId: Uuid,
+        employeeId: Uuid,
+        overlapping: OpenEndRange<Instant>,
+    ): List<BookedRange> = dbQuery {
+        AppointmentTable.select(AppointmentTable.id, AppointmentTable.dateStart, AppointmentTable.dateEnd)
             .where {
-                (AppointmentTable.businessId eq appointment.businessId)
-                    .and(AppointmentTable.initiatorUserId eq appointment.initiatorUserId)
-                    .and(AppointmentTable.dateStart.less(appointment.dateEnd))
-                    .and(AppointmentTable.dateEnd.greater(appointment.date))
-                    .and(AppointmentTable.id neq appointment.id)
+                (AppointmentTable.employeeId eq employeeId)
+                    .and(AppointmentTable.businessId eq businessId)
+                    .and(AppointmentTable.dateStart.less(overlapping.endExclusive))
+                    .and(AppointmentTable.dateEnd.greater(overlapping.start))
                     .and(AppointmentTable.status eq AppointmentStatus.SCHEDULED)
             }
-            .limit(1)
-            .empty()
-            .not()
+            .map {
+                BookedRange(
+                    id = it[AppointmentTable.id].value,
+                    start = it[AppointmentTable.dateStart],
+                    end = it[AppointmentTable.dateEnd],
+                )
+            }
     }
 
     override suspend fun create(request: AppointmentRequest): Appointment = dbQuery {
-        val encrypted = snapshotCipher.encrypt(request)
+        val encrypted = snapshotCipher.encryptAppointmentOf(request)
         val appointment = AppointmentEntity.new(request, encrypted)
         request.services.forEach {
             AppointmentServiceEntity.new(appointment.id, it)
@@ -182,7 +209,7 @@ internal class AppointmentDataSourceImpl(
         appointment.services.forEach {
             AppointmentServiceEntity.new(appointmentEntity.id, it)
         }
-        appointment.copy(id = appointmentEntity.id.value)
+        appointment.copy(id = appointmentEntity.id.value, businessName = appointmentEntity.business.name)
     }
 
     override suspend fun update(appointment: Appointment): Appointment = dbQuery {
@@ -294,13 +321,6 @@ internal class AppointmentDataSourceImpl(
         }?.decrypted() ?: throw Error.NotFound()
     }
 
-    override suspend fun anonymizeEmployee(employeeUserId: Uuid) = dbQuery<Unit> {
-        AppointmentTable.update(where = { AppointmentTable.employeeUserId eq employeeUserId }) {
-            it[employeeNameEncrypted] = null
-            it[AppointmentTable.employeeUserId] = Uuid.NIL
-        }
-    }
-
     override suspend fun unlinkInitiator(initiatorUserId: Uuid) = dbQuery<Unit> {
         AppointmentTable.update(where = { AppointmentTable.initiatorUserId eq initiatorUserId }) {
             it[AppointmentTable.initiatorUserId] = Uuid.NIL
@@ -388,6 +408,7 @@ internal class AppointmentDataSourceImpl(
         this[AppointmentTable.clientPhoneEncrypted] = null
         this[AppointmentTable.clientEmailEncrypted] = null
         this[AppointmentTable.noteEncrypted] = null
+        this[AppointmentTable.clientNoteEncrypted] = null
         this[AppointmentTable.clientNameIndex] = null
         this[AppointmentTable.clientUserId] = null
     }
@@ -399,5 +420,19 @@ internal class AppointmentDataSourceImpl(
     private suspend fun List<AppointmentEntity>.decrypted(): List<Appointment> {
         val snapshots = snapshotCipher.decryptAll(map { it.storedSnapshot() }, AppointmentTable.tableName)
         return zip(snapshots) { entity, snapshot -> entity.domain(snapshot) }
+    }
+
+    private suspend fun pageOf(conditions: List<Op<Boolean>>, keyset: Keyset, page: PageRequest): Page<Appointment> {
+        val entities = AppointmentEntity.find { (conditions + keyset.after(page.after)).compoundAnd() }
+            .orderBy(*keyset.orderBy())
+            .limit(page.fetchSize)
+            .toList()
+            .toPage(page) { PageCursor(after = it.dateStart, id = it.id.value) }
+        return Page(entities.items.withDetails().decrypted(), entities.next)
+    }
+
+    private companion object {
+        val newestFirst = Keyset(AppointmentTable.dateStart, AppointmentTable.id, SortOrder.DESC)
+        val soonestFirst = Keyset(AppointmentTable.dateStart, AppointmentTable.id, SortOrder.ASC)
     }
 }

@@ -7,9 +7,12 @@ import com.bookk.core.test.whenn
 import com.bookk.server.user.client.api.CreateUserRequest
 import com.bookk.user.domain.api.entity.AcceptedLegalDocuments
 import com.bookk.user.domain.api.entity.NewUser
+import com.bookk.user.domain.api.entity.ProfileName
 import com.bookk.user.domain.api.entity.UserId
+import com.bookk.user.domain.api.operation.ChangeTelegramUsername
 import com.bookk.user.domain.api.operation.ChangeUserEmail
 import com.bookk.user.domain.api.operation.CreateUser
+import com.bookk.user.domain.api.operation.UpgradeDemoProfile
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
@@ -24,11 +27,14 @@ internal class UserClientImplTest {
     private class SutFixture {
         val createUser = mockk<CreateUser>()
         val changeUserEmail = mockk<ChangeUserEmail>()
-        val sut = UserClientImpl(mockk(), mockk(), createUser, changeUserEmail)
+        val changeTelegramUsername = mockk<ChangeTelegramUsername>()
+        val upgradeDemoProfile = mockk<UpgradeDemoProfile>()
+        val sut =
+            UserClientImpl(mockk(), mockk(), createUser, changeUserEmail, changeTelegramUsername, upgradeDemoProfile)
     }
 
     @Test
-    fun `should create the user with the documents it accepted`() = runUnitTest {
+    fun `should create the user with the documents it accepted and the Telegram user id and username`() = runUnitTest {
         given()
         val fixture = SutFixture()
         val userId = Uuid.random()
@@ -37,11 +43,11 @@ internal class UserClientImplTest {
         coEvery { fixture.createUser.invoke(capture(sent)) } returns Result.success(UserId(userId))
 
         whenn()
-        val result = fixture.sut.createUser(CreateUserRequest("Ann", "Lee", "ann@example.com", accepted))
+        val result = fixture.sut.createUser(CreateUserRequest("Ann", "Lee", "ann@example.com", accepted, 42, "ann_lee"))
 
         then()
         assertEquals(userId, result.getOrNull())
-        assertEquals(NewUser("Ann", "Lee", "ann@example.com", accepted), sent.captured)
+        assertEquals(NewUser("Ann", "Lee", "ann@example.com", accepted, 42, "ann_lee"), sent.captured)
     }
 
     @Test
@@ -57,5 +63,36 @@ internal class UserClientImplTest {
         then()
         assertTrue(result.isSuccess)
         coVerify(exactly = 1) { fixture.changeUserEmail.invoke(userId, "new@example.com") }
+    }
+
+    @Test
+    fun `should store the user's Telegram username`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        coEvery { fixture.changeTelegramUsername.invoke(userId, "ann_lee") } returns Result.success(Unit)
+
+        whenn()
+        val result = fixture.sut.changeTelegramUsername(userId, "ann_lee")
+
+        then()
+        assertTrue(result.isSuccess)
+        coVerify(exactly = 1) { fixture.changeTelegramUsername.invoke(userId, "ann_lee") }
+    }
+
+    @Test
+    fun `should replace a demo profile's email and name`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val name = ProfileName.stub()
+        coEvery { fixture.upgradeDemoProfile.invoke(userId, "new@example.com", name) } returns Result.success(Unit)
+
+        whenn()
+        val result = fixture.sut.upgradeDemoProfile(userId, "new@example.com", name)
+
+        then()
+        assertTrue(result.isSuccess)
+        coVerify(exactly = 1) { fixture.upgradeDemoProfile.invoke(userId, "new@example.com", name) }
     }
 }

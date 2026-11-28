@@ -8,7 +8,7 @@ import io.ktor.http.HttpStatusCode
 import kotlin.uuid.Uuid
 
 interface CreateBusiness {
-    suspend operator fun invoke(userId: Uuid, request: BusinessCreateRequest): Result<Business>
+    suspend operator fun invoke(userId: Uuid, request: BusinessCreateRequest, isDemo: Boolean): Result<Business>
 
     sealed interface Error {
         class BusinessValidationError : BusinessError(

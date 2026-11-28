@@ -10,6 +10,7 @@ import com.bookk.notifications.domain.impl.notification.NotificationParameters
 import com.bookk.notifications.domain.impl.notification.renderer.emailContent
 import library.email.EmailMessage
 import library.email.EmailSender
+import library.email.PlaceholderEmail
 import org.slf4j.LoggerFactory
 import kotlin.uuid.Uuid
 
@@ -32,6 +33,7 @@ internal class EmailNotificationSender(
 
     private suspend fun findRecipient(userId: Uuid): Recipient? {
         val address = targetDataSource.getEmail(userId) ?: return null
+        if (PlaceholderEmail.isPlaceholder(address)) return null
         val language = deviceDataSource.getLastUsedLanguage(userId) ?: Language.EN
         return Recipient(address, language)
     }

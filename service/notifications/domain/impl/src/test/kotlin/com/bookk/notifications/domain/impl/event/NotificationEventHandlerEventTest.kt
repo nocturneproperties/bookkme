@@ -17,9 +17,11 @@ import com.bookk.notifications.domain.api.CreateDeviceEntry
 import com.bookk.notifications.domain.api.DeleteDeviceByUUID
 import com.bookk.notifications.domain.api.DeleteUserNotificationData
 import com.bookk.notifications.domain.api.entity.Device
+import com.bookk.notifications.domain.impl.ClearPushNotificationToken
 import com.bookk.notifications.domain.impl.UpdateDeviceLanguage
 import com.bookk.notifications.domain.impl.UpdateTargetInformation
 import com.bookk.notifications.domain.impl.notification.SendNotification
+import com.bookk.notifications.domain.impl.telegram.TelegramConfirmationChat
 import com.bookk.server.appointments.client.api.event.AppointmentEvent
 import com.bookk.server.auth.client.AuthEvent
 import com.bookk.server.business.client.api.event.BusinessEvent
@@ -52,6 +54,7 @@ internal class NotificationEventHandlerEventTest {
             KafkaTestBroker.createTopic(AuthEvent.DeviceLanguageUpdated.TOPIC, partitions = 3)
             KafkaTestBroker.createTopic(AuthEvent.DeviceCreated.TOPIC, partitions = 3)
             KafkaTestBroker.createTopic(AuthEvent.DeviceDeleted.TOPIC, partitions = 3)
+            KafkaTestBroker.createTopic(AuthEvent.DeviceSignedOut.TOPIC, partitions = 3)
             KafkaTestBroker.createTopic(AuthEvent.UserDeleted.TOPIC, partitions = 3)
             KafkaTestBroker.createTopic(AppointmentEvent.RequestCreated.TOPIC, partitions = 3)
             KafkaTestBroker.createTopic(AppointmentEvent.RequestApproved.TOPIC, partitions = 3)
@@ -67,8 +70,10 @@ internal class NotificationEventHandlerEventTest {
         val deleteDeviceByUUID = mockk<DeleteDeviceByUUID>()
         val updateTargetInformation = mockk<UpdateTargetInformation>()
         val updateDeviceLanguage = mockk<UpdateDeviceLanguage>()
+        val clearPushNotificationToken = mockk<ClearPushNotificationToken>()
         val sendNotification = mockk<SendNotification>()
         val deleteUserNotificationData = mockk<DeleteUserNotificationData>()
+        val telegramConfirmationChat = mockk<TelegramConfirmationChat>()
         val transactionManager = mockedTransactionManager()
         val consumer = KafkaEventConsumer(
             servers = KafkaTestBroker.servers,
@@ -85,8 +90,10 @@ internal class NotificationEventHandlerEventTest {
             deleteDeviceByUUID,
             updateTargetInformation,
             updateDeviceLanguage,
+            clearPushNotificationToken,
             sendNotification,
             deleteUserNotificationData,
+            telegramConfirmationChat,
         )
         private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -122,6 +129,8 @@ internal class NotificationEventHandlerEventTest {
                     email = "jane@example.com",
                     phone = null,
                     updatedAt = updatedAt,
+                    telegramUserId = null,
+                    telegramUsername = null,
                 ),
             )
             arrived.await(20, TimeUnit.SECONDS)
@@ -132,8 +141,8 @@ internal class NotificationEventHandlerEventTest {
         coVerify(exactly = 1) {
             fixture.updateTargetInformation(
                 userId,
-                match<UpdateTargetInformation.Target> {
-                    it is UpdateTargetInformation.Target.Email && it.newEmail == "jane@example.com"
+                match<List<UpdateTargetInformation.Target>> {
+                    (it.single() as UpdateTargetInformation.Target.Email).newEmail == "jane@example.com"
                 },
                 updatedAt,
             )
@@ -195,9 +204,13 @@ internal class NotificationEventHandlerEventTest {
     }
 
     private fun requestCreated(clientUserId: Uuid, employeeUserId: Uuid) = AppointmentEvent.RequestCreated(
-        clientUserId = clientUserId, clientName = "Client", employeeUserId = employeeUserId,
-        from = from, to = to, timeZone = TimeZone.UTC,
-        businessName = "Salon", address = "1 Main St", price = "10 USD",
+        clientUserId = clientUserId,
+        employeeUserId = employeeUserId,
+        from = from,
+        to = to,
+        timeZone = TimeZone.UTC,
+        price = "10 USD",
+        requestId = Uuid.random(),
     )
 
     private fun requestApproved(clientUserId: Uuid, employeeUserId: Uuid) = AppointmentEvent.RequestApproved(
@@ -212,15 +225,25 @@ internal class NotificationEventHandlerEventTest {
     )
 
     private fun requestRejected(clientUserId: Uuid, employeeUserId: Uuid) = AppointmentEvent.RequestRejected(
-        clientUserId = clientUserId, employeeUserId = employeeUserId,
-        from = from, to = to, timeZone = TimeZone.UTC,
-        address = "1 Main St", businessName = "Salon", price = "10 USD", declineReason = "busy",
+        clientUserId = clientUserId,
+        employeeUserId = employeeUserId,
+        from = from,
+        to = to,
+        timeZone = TimeZone.UTC,
+        businessName = "Salon",
+        price = "10 USD",
+        declineReason = "busy",
     )
 
     private fun cancelled(clientUserId: Uuid, employeeUserId: Uuid) = AppointmentEvent.Cancelled(
-        clientUserId = clientUserId, employeeUserId = employeeUserId,
-        from = from, to = to, timeZone = TimeZone.UTC,
-        address = "1 Main St", businessName = "Salon", price = "10 USD", reason = "changed plans",
+        clientUserId = clientUserId,
+        employeeUserId = employeeUserId,
+        from = from,
+        to = to,
+        timeZone = TimeZone.UTC,
+        businessName = "Salon",
+        price = "10 USD",
+        reason = "changed plans",
     )
 
     @Test
@@ -272,6 +295,31 @@ internal class NotificationEventHandlerEventTest {
 
         then()
         coVerify(exactly = 1) { fixture.deleteDeviceByUUID(authId, deviceUuid) }
+    }
+
+    @Test
+    fun `should clear the push token from a published sign out`() = runIntegrationTest {
+        given()
+        val fixture = SutFixture()
+        val deviceUuid = Uuid.random()
+        val authId = Uuid.random()
+        val signedOutAt = Instant.fromEpochMilliseconds(1_700_000_000_000)
+        val arrived = CountDownLatch(1)
+        coEvery { fixture.clearPushNotificationToken(authId, deviceUuid, signedOutAt) } answers {
+            arrived.countDown()
+            Result.success(Unit)
+        }
+
+        whenn()
+        publishAndAwait(
+            fixture,
+            arrived,
+            AuthEvent.DeviceSignedOut(authId = authId, deviceUuid = deviceUuid, signedOutAt = signedOutAt),
+            typeOf<AuthEvent.DeviceSignedOut>(),
+        )
+
+        then()
+        coVerify(exactly = 1) { fixture.clearPushNotificationToken(authId, deviceUuid, signedOutAt) }
     }
 
     @Test

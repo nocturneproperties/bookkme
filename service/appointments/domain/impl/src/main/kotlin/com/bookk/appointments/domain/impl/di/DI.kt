@@ -17,14 +17,22 @@ import com.bookk.appointments.domain.api.operation.EditSettings
 import com.bookk.appointments.domain.api.operation.EnableAppointmentsForBusiness
 import com.bookk.appointments.domain.api.operation.GetAppointment
 import com.bookk.appointments.domain.api.operation.GetAppointmentHistory
+import com.bookk.appointments.domain.api.operation.GetAppointmentRequestHistory
 import com.bookk.appointments.domain.api.operation.GetAppointmentRequests
 import com.bookk.appointments.domain.api.operation.GetAppointmentsForDate
-import com.bookk.appointments.domain.api.operation.GetClientBusinessesAppointmentsStatus
-import com.bookk.appointments.domain.api.operation.GetPendingAppointmentRequests
+import com.bookk.appointments.domain.api.operation.GetAvailableSlots
+import com.bookk.appointments.domain.api.operation.GetBookingInfo
+import com.bookk.appointments.domain.api.operation.GetOwnAppointmentHistory
+import com.bookk.appointments.domain.api.operation.GetOwnAppointmentRequestHistory
+import com.bookk.appointments.domain.api.operation.GetSavedBusinesses
 import com.bookk.appointments.domain.api.operation.GetSettings
+import com.bookk.appointments.domain.api.operation.GetUpcomingBookings
 import com.bookk.appointments.domain.api.operation.IsAppointmentsEnabled
 import com.bookk.appointments.domain.api.operation.MarkAppointmentNoShow
 import com.bookk.appointments.domain.api.operation.MarkAppointmentsCompleted
+import com.bookk.appointments.domain.api.operation.RemoveSavedBusiness
+import com.bookk.appointments.domain.api.operation.SaveBusiness
+import com.bookk.appointments.domain.api.operation.SeedDemoAppointments
 import com.bookk.appointments.domain.api.operation.UpdateAppointment
 import com.bookk.appointments.domain.api.operation.WithdrawAppointmentRequest
 import com.bookk.appointments.domain.impl.event.AppointmentEventHandler
@@ -46,15 +54,23 @@ import com.bookk.appointments.domain.impl.operation.ExportBusinessAppointmentsIm
 import com.bookk.appointments.domain.impl.operation.ExportUserAppointmentsImpl
 import com.bookk.appointments.domain.impl.operation.GetAppointmentHistoryImpl
 import com.bookk.appointments.domain.impl.operation.GetAppointmentImpl
+import com.bookk.appointments.domain.impl.operation.GetAppointmentRequestHistoryImpl
 import com.bookk.appointments.domain.impl.operation.GetAppointmentRequestsImpl
 import com.bookk.appointments.domain.impl.operation.GetAppointmentsForDateImpl
-import com.bookk.appointments.domain.impl.operation.GetClientBusinessesAppointmentsStatusImpl
-import com.bookk.appointments.domain.impl.operation.GetPendingAppointmentRequestsImpl
+import com.bookk.appointments.domain.impl.operation.GetAvailableSlotsImpl
+import com.bookk.appointments.domain.impl.operation.GetBookingInfoImpl
+import com.bookk.appointments.domain.impl.operation.GetOwnAppointmentHistoryImpl
+import com.bookk.appointments.domain.impl.operation.GetOwnAppointmentRequestHistoryImpl
+import com.bookk.appointments.domain.impl.operation.GetSavedBusinessesImpl
 import com.bookk.appointments.domain.impl.operation.GetSettingsImpl
+import com.bookk.appointments.domain.impl.operation.GetUpcomingBookingsImpl
 import com.bookk.appointments.domain.impl.operation.IsAppointmentsEnabledImpl
 import com.bookk.appointments.domain.impl.operation.LinkClientUser
 import com.bookk.appointments.domain.impl.operation.MarkAppointmentNoShowImpl
 import com.bookk.appointments.domain.impl.operation.MarkAppointmentsCompletedImpl
+import com.bookk.appointments.domain.impl.operation.RemoveSavedBusinessImpl
+import com.bookk.appointments.domain.impl.operation.SaveBusinessImpl
+import com.bookk.appointments.domain.impl.operation.SeedDemoAppointmentsImpl
 import com.bookk.appointments.domain.impl.operation.SyncEmployeePermission
 import com.bookk.appointments.domain.impl.operation.UpdateAppointmentImpl
 import com.bookk.appointments.domain.impl.operation.UpdateBusinessInformation
@@ -67,6 +83,7 @@ import org.koin.core.qualifier.Qualifier
 import org.koin.core.qualifier.named
 import org.koin.dsl.bind
 import org.koin.dsl.module
+import kotlin.time.Clock
 
 val AppointmentsScope: Qualifier = named(APPOINTMENTS_SCHEMA)
 
@@ -74,6 +91,7 @@ fun appointmentsDomainModule() = module {
     scope(AppointmentsScope) {
         scopedOf(::CreateAppointmentImpl) bind CreateAppointment::class
         scopedOf(::EnableAppointmentsForBusinessImpl) bind EnableAppointmentsForBusiness::class
+        scopedOf(::SeedDemoAppointmentsImpl) bind SeedDemoAppointments::class
         scopedOf(::AppointmentEventHandler) bind EventHandler::class
         scopedOf(::DeleteBusinessAppointmentDataImpl) bind DeleteBusinessAppointmentData::class
         scopedOf(::EditSettingsImpl) bind EditSettings::class
@@ -81,7 +99,7 @@ fun appointmentsDomainModule() = module {
         scopedOf(::CreateAppointmentRequestImpl) bind CreateAppointmentRequest::class
         scopedOf(::CreateInstantAppointmentImpl) bind CreateInstantAppointment::class
         scopedOf(::GetAppointmentRequestsImpl) bind GetAppointmentRequests::class
-        scopedOf(::GetPendingAppointmentRequestsImpl) bind GetPendingAppointmentRequests::class
+        scopedOf(::GetAppointmentRequestHistoryImpl) bind GetAppointmentRequestHistory::class
         scopedOf(::GetAppointmentImpl) bind GetAppointment::class
         scopedOf(::GetAppointmentsForDateImpl) bind GetAppointmentsForDate::class
         scopedOf(::GetAppointmentHistoryImpl) bind GetAppointmentHistory::class
@@ -95,7 +113,14 @@ fun appointmentsDomainModule() = module {
         scopedOf(::DeclineAppointmentRequestImpl) bind DeclineAppointmentRequest::class
         scopedOf(::WithdrawAppointmentRequestImpl) bind WithdrawAppointmentRequest::class
         scopedOf(::IsAppointmentsEnabledImpl) bind IsAppointmentsEnabled::class
-        scopedOf(::GetClientBusinessesAppointmentsStatusImpl) bind GetClientBusinessesAppointmentsStatus::class
+        scopedOf(::GetUpcomingBookingsImpl) bind GetUpcomingBookings::class
+        scoped<GetAvailableSlots> { GetAvailableSlotsImpl(get(), get(), get(), get(), get(), Clock.System) }
+        scoped<GetOwnAppointmentHistory> { GetOwnAppointmentHistoryImpl(get(), get(), Clock.System) }
+        scoped<GetOwnAppointmentRequestHistory> { GetOwnAppointmentRequestHistoryImpl(get(), get(), Clock.System) }
+        scopedOf(::GetSavedBusinessesImpl) bind GetSavedBusinesses::class
+        scopedOf(::GetBookingInfoImpl) bind GetBookingInfo::class
+        scopedOf(::SaveBusinessImpl) bind SaveBusiness::class
+        scopedOf(::RemoveSavedBusinessImpl) bind RemoveSavedBusiness::class
         scopedOf(::MarkAppointmentsCompletedImpl) bind MarkAppointmentsCompleted::class
         scopedOf(::DeleteOutdatedRequestsImpl) bind DeleteOutdatedRequests::class
         scopedOf(::DeleteExpiredRequestsImpl) bind DeleteExpiredRequests::class

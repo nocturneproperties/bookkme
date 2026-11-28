@@ -25,6 +25,7 @@ import library.permissions.ResourcePermission
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
 internal class CreateClientImplTest {
@@ -140,6 +141,26 @@ internal class CreateClientImplTest {
         assertEquals(expected.phone, actual?.phone)
         assertEquals(expected.email, actual?.email)
         assertEquals(expected.userId, actual?.userId)
+    }
+
+    @Test
+    fun `should return the creation time of the created client`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val businessId = Uuid.random()
+        val client = Client.Detached.stub()
+        val createdAt = Instant.fromEpochMilliseconds(1_700_000_000_000)
+        with(fixture) {
+            transactionManager.mockTransaction()
+            coEvery { clientDataSource.createDetachedClient(businessId, client) } returns
+                client.copy(createdAt = createdAt)
+        }
+
+        whenn()
+        val result = fixture.sut(requestUserId, businessId, client)
+
+        then()
+        assertEquals(createdAt, result.getOrThrow().createdAt)
     }
 
     @Test

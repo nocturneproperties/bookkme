@@ -8,6 +8,8 @@ import com.bookk.user.data.cache.UserCacheStrategy.getUser
 import com.bookk.user.data.cache.UserCacheStrategy.save
 import com.bookk.user.data.orm.entity.UserEntity
 import com.bookk.user.data.orm.table.UserTable
+import com.bookk.user.domain.api.entity.ProfileName
+import com.bookk.user.domain.api.entity.TelegramUsernameChange
 import com.bookk.user.domain.api.entity.User
 import com.bookk.user.domain.api.entity.UserEditModel
 import com.bookk.user.domain.datasource.UserDataSource
@@ -51,15 +53,51 @@ internal class UserDataSourceImpl(
         cacheClient.deleteUser(id)
     }
 
-    override suspend fun changeEmail(id: Uuid, verifiedEmail: String, updatedAt: Instant): User? = dbQuery {
+    override suspend fun changeEmail(id: Uuid, verifiedEmail: String, updatedAt: Instant): User? {
+        return writeEmail(id, verifiedEmail, updatedAt) { it.copy(email = verifiedEmail) }
+    }
+
+    override suspend fun changeEmailAndName(
+        id: Uuid,
+        verifiedEmail: String,
+        name: ProfileName,
+        updatedAt: Instant,
+    ): User? {
+        return writeEmail(id, verifiedEmail, updatedAt) {
+            it.copy(email = verifiedEmail, name = name.name, lastName = name.lastName)
+        }
+    }
+
+    private suspend fun writeEmail(
+        id: Uuid,
+        verifiedEmail: String,
+        updatedAt: Instant,
+        change: (User) -> User,
+    ): User? = dbQuery {
         val entity = UserEntity.findByIdForUpdate(id) ?: return@dbQuery null
         val read = profileCipher.decrypt(id, entity.profile)
-        val changed = read.user.copy(email = verifiedEmail)
+        val changed = change(read.user)
         val encrypted = profileCipher.encryptChanges(read, changed) ?: return@dbQuery null
         UserEntity.findByIdAndUpdateEmail(id, encrypted, profileCipher.indexOf(verifiedEmail), updatedAt)
         changed
     }?.also {
         cacheClient.deleteUser(id)
+    }
+
+    override suspend fun changeTelegramUsername(
+        id: Uuid,
+        username: String?,
+        updatedAt: Instant,
+    ): TelegramUsernameChange? = dbQuery {
+        val entity = UserEntity.findByIdForUpdate(id) ?: return@dbQuery null
+        val read = profileCipher.decrypt(id, entity.profile)
+        if (read.user.telegramUsername == username) return@dbQuery TelegramUsernameChange(read.user, changed = false)
+        val changed = read.user.copy(telegramUsername = username)
+        val encrypted = profileCipher.encryptChanges(read, changed) ?: return@dbQuery null
+        UserEntity.findByIdAndUpdateProfile(id, encrypted, updatedAt)
+        TelegramUsernameChange(changed, changed = true)
+    }?.also {
+        if (it.changed) cacheClient.deleteUser(id)
     }
 
     override suspend fun getUserById(id: Uuid): User? = dbQuery {

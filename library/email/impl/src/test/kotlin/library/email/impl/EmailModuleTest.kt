@@ -65,7 +65,7 @@ internal class EmailModuleTest {
         val sender = fixture.scope.get<EmailSender>()
 
         then()
-        assertTrue(sender is LoggingEmailSender) { sender.toString() }
+        assertTrue((sender as PlaceholderRefusingEmailSender).delegate is LoggingEmailSender) { sender.toString() }
     }
 
     @Test
@@ -77,7 +77,7 @@ internal class EmailModuleTest {
         val sender = fixture.scope.get<EmailSender>()
 
         then()
-        assertTrue(sender is HostingerEmailSender) { sender.toString() }
+        assertTrue((sender as PlaceholderRefusingEmailSender).delegate is HostingerEmailSender) { sender.toString() }
     }
 
     @Test

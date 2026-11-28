@@ -258,6 +258,27 @@ internal class BusinessEventTest {
         then()
         assertEquals(DataSubject.User(employeeUserId), subject)
     }
+
+    @Test
+    fun `should round trip a seeded demo business keyed by its business`() = runUnitTest {
+        given()
+        val event = BusinessEvent.DemoBusinessSeeded(
+            businessId = businessId,
+            ownerUserId = Uuid.random(),
+            employeeId = Uuid.random(),
+            serviceIds = listOf(Uuid.random(), Uuid.random()),
+            clientIds = listOf(Uuid.random()),
+        )
+
+        whenn()
+        val bytes = protoBuf.encodeToByteArray(BusinessEvent.DemoBusinessSeeded.serializer(), event)
+        val decoded = protoBuf.decodeFromByteArray(BusinessEvent.DemoBusinessSeeded.serializer(), bytes)
+
+        then()
+        assertEquals(event, decoded)
+        assertEquals(BusinessEvent.DemoBusinessSeeded.TOPIC, decoded.topic)
+        assertEquals(businessId.toString(), event.partitionKey)
+    }
 }
 
 @Serializable

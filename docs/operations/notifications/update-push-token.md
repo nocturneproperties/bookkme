@@ -10,7 +10,7 @@ flowchart TD
     Auth -- no --> R401([401 Unauthorized])
     Auth -- yes --> Caller[Read AppPrincipal.authId]
     Caller --> Tx[[Begin transaction]]
-    Tx --> Update["DeviceDataSource.updateToken authId deviceUuid token - WHERE auth_id and device_uuid"]
+    Tx --> Update["DeviceDataSource.updateToken authId deviceUuid token - WHERE auth_id and device_uuid FOR UPDATE, sets notification_token_updated_at = now"]
     Update -- no matching account and device --> R404([404 Error.NotFound])
     Update -- success --> Commit[[Commit]]
     Commit --> R200([200 Updated Device])

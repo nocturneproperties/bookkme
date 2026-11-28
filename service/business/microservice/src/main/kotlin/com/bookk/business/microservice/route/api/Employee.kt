@@ -2,6 +2,7 @@ package com.bookk.business.microservice.route.api
 
 import com.bookk.business.domain.api.business.entity.BusinessResource
 import com.bookk.business.domain.api.employee.entity.EmployeeUpdateModel
+import com.bookk.business.domain.api.employee.operation.GetBookableEmployees
 import com.bookk.business.domain.api.employee.operation.GetEmployees
 import com.bookk.business.domain.api.employee.operation.SetEmployeePermissions
 import com.bookk.business.domain.api.employee.operation.SetEmployeeSuspension
@@ -52,7 +53,7 @@ fun Route.employeeCrud() {
          * Get employees
          *
          * Summary: Get employees
-         * Description: Returns all employees of the business, each with their own current view/update/delete grants for every business resource; only users who can view the employees resource may list them
+         * Description: Returns the employees of the business, each with their own current view/update/delete grants for every business resource; with the query parameter active=true only employees who are not suspended are returned; only users who can view the employees resource may list them
          * Tag: employee
          * Security: jwt
          * Response: 200 application/protobuf [com.bookk.business.domain.api.employee.entity.Employee]+ List of employees
@@ -62,14 +63,31 @@ fun Route.employeeCrud() {
             val principal = requireNotNull(call.principal<AppPrincipal>())
             val getEmployees by application.injectScoped<GetEmployees>(BusinessScope)
 
-            call.respondWith(getEmployees(userId = principal.userId, businessId = it.businessId))
+            call.respondWith(
+                getEmployees(userId = principal.userId, businessId = it.businessId, activeOnly = it.active == true),
+            )
+        }
+
+        /**
+         * Get bookable employees
+         *
+         * Summary: Get bookable employees
+         * Description: Returns the employees a client can book with in the business, every employee who is not suspended, with only their name, provided services and schedule; any signed in user may list them
+         * Tag: employee
+         * Security: jwt
+         * Response: 200 application/protobuf [com.bookk.business.domain.api.employee.entity.BookableEmployee]+ List of bookable employees
+         */
+        get<Api.Employee.Bookable> {
+            val getBookableEmployees by application.injectScoped<GetBookableEmployees>(BusinessScope)
+
+            call.respondWith(getBookableEmployees(it.parent.businessId))
         }
 
         /**
          * Update employee
          *
          * Summary: Update employee
-         * Description: Updates the employee profile, schedule and provided services. Permissions are not part of the body and are changed only through the set employee permission endpoint
+         * Description: Updates the employee profile, schedule and provided services. Permissions are not part of the body and are changed only through the set employee permission endpoint. name takes 2 to 512 characters, lastName 0 to 512, so it may be empty or a single letter
          * Tag: employee
          * Security: jwt
          * Body: application/x-protobuf [com.bookk.business.domain.api.employee.entity.EmployeeUpdateModel]

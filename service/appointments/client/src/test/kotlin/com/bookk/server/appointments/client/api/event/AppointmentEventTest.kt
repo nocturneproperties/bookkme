@@ -1,6 +1,6 @@
 package com.bookk.server.appointments.client.api.event
 
-import com.bookk.core.data.eventstreaming.DataSubject
+import com.bookk.core.data.eventstreaming.PersonalEvent
 import com.bookk.core.test.given
 import com.bookk.core.test.runUnitTest
 import com.bookk.core.test.then
@@ -10,6 +10,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.protobuf.ProtoBuf
 import kotlinx.serialization.protobuf.ProtoNumber
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Test
 import kotlin.time.Instant
 import kotlin.uuid.Uuid
@@ -67,6 +68,108 @@ internal class AppointmentEventTest {
     }
 
     @Test
+    fun `should decode a cancelled for deleted client event written with the removed cause`() = runUnitTest {
+        given()
+        val event = cancelledForDeletedClient()
+        val pinned = PinnedCancelledForDeletedClientBefore021(
+            employeeUserId = event.employeeUserId,
+            from = event.from,
+            to = event.to,
+            timeZone = event.timeZone,
+            businessName = event.businessName,
+            idempotencyKey = "key",
+            topic = AppointmentEvent.CancelledForDeletedClient.TOPIC,
+            cause = 2,
+        )
+
+        whenn()
+        val decoded = protoBuf.decodeFromByteArray(
+            AppointmentEvent.CancelledForDeletedClient.serializer(),
+            protoBuf.encodeToByteArray(PinnedCancelledForDeletedClientBefore021.serializer(), pinned),
+        )
+
+        then()
+        assertEquals(event.copy(idempotencyKey = "key"), decoded)
+    }
+
+    @Test
+    fun `should carry the requested service names in the request created event`() = runUnitTest {
+        given()
+        val event = AppointmentEvent.RequestCreated(
+            clientUserId = Uuid.random(),
+            employeeUserId = Uuid.random(),
+            from = Instant.parse("2099-03-05T14:30:00Z"),
+            to = Instant.parse("2099-03-05T15:00:00Z"),
+            timeZone = TimeZone.of("Europe/Kyiv"),
+            price = "100 UAH",
+            requestId = null,
+            serviceNames = listOf("Haircut", "Beard trim", "Beard trim"),
+        )
+
+        whenn()
+        val decoded = protoBuf.decodeFromByteArray(
+            AppointmentEvent.RequestCreated.serializer(),
+            protoBuf.encodeToByteArray(AppointmentEvent.RequestCreated.serializer(), event),
+        )
+
+        then()
+        assertEquals(event, decoded)
+    }
+
+    @Test
+    fun `should decode a cancelled event written before the reason kind was added as a stated reason`() = runUnitTest {
+        given()
+        val pinned = PinnedCancelledBefore021(
+            clientUserId = Uuid.random(),
+            employeeUserId = Uuid.random(),
+            from = Instant.parse("2099-03-05T14:30:00Z"),
+            to = Instant.parse("2099-03-05T15:00:00Z"),
+            timeZone = TimeZone.of("Europe/Kyiv"),
+            address = "Main street 1",
+            businessName = "Barbershop",
+            price = "100 UAH",
+            reason = "Staff unavailable",
+            idempotencyKey = "key",
+            topic = AppointmentEvent.Cancelled.TOPIC,
+        )
+
+        whenn()
+        val decoded = protoBuf.decodeFromByteArray(
+            AppointmentEvent.Cancelled.serializer(),
+            protoBuf.encodeToByteArray(PinnedCancelledBefore021.serializer(), pinned),
+        )
+
+        then()
+        assertEquals(CancellationReasonKind.STATED, decoded.reasonKind)
+        assertEquals("Staff unavailable", decoded.reason)
+    }
+
+    @Test
+    fun `should round trip the reason kind of a cancelled event`() = runUnitTest {
+        given()
+        val event = AppointmentEvent.Cancelled(
+            clientUserId = Uuid.random(),
+            employeeUserId = Uuid.random(),
+            from = Instant.parse("2099-03-05T14:30:00Z"),
+            to = Instant.parse("2099-03-05T15:00:00Z"),
+            timeZone = TimeZone.of("Europe/Kyiv"),
+            businessName = "Barbershop",
+            price = "100 UAH",
+            reason = "Client was removed by the business",
+            reasonKind = CancellationReasonKind.CLIENT_REMOVED,
+        )
+
+        whenn()
+        val decoded = protoBuf.decodeFromByteArray(
+            AppointmentEvent.Cancelled.serializer(),
+            protoBuf.encodeToByteArray(AppointmentEvent.Cancelled.serializer(), event),
+        )
+
+        then()
+        assertEquals(event, decoded)
+    }
+
+    @Test
     fun `should decode the client visit booked event from its pinned field numbers`() = runUnitTest {
         given()
         val pinned =
@@ -109,7 +212,7 @@ internal class AppointmentEventTest {
     }
 
     @Test
-    fun `should decode a request created event written before the client id was added`() = runUnitTest {
+    fun `should decode a request created event written before its unused fields were dropped`() = runUnitTest {
         given()
         val pinned = PinnedRequestEventBefore018(
             clientUserId = Uuid.random(),
@@ -135,18 +238,38 @@ internal class AppointmentEventTest {
         then()
         val expected = AppointmentEvent.RequestCreated(
             clientUserId = requireNotNull(pinned.clientUserId),
-            clientName = pinned.clientName,
             employeeUserId = pinned.employeeUserId,
             from = pinned.from,
             to = pinned.to,
             timeZone = pinned.timeZone,
-            businessName = pinned.businessName,
-            address = pinned.address,
             price = pinned.price,
+            requestId = null,
             idempotencyKey = "key",
-            clientId = Uuid.NIL,
         )
         assertEquals(expected, decoded)
+    }
+
+    @Test
+    fun `should carry the request id in the request created event`() = runUnitTest {
+        given()
+        val event = AppointmentEvent.RequestCreated(
+            clientUserId = Uuid.random(),
+            employeeUserId = Uuid.random(),
+            from = Instant.parse("2099-03-05T14:30:00Z"),
+            to = Instant.parse("2099-03-05T15:00:00Z"),
+            timeZone = TimeZone.of("Europe/Kyiv"),
+            price = "100 UAH",
+            requestId = Uuid.random(),
+        )
+
+        whenn()
+        val decoded = protoBuf.decodeFromByteArray(
+            AppointmentEvent.RequestCreated.serializer(),
+            protoBuf.encodeToByteArray(AppointmentEvent.RequestCreated.serializer(), event),
+        )
+
+        then()
+        assertEquals(event, decoded)
     }
 
     @Test
@@ -221,7 +344,6 @@ internal class AppointmentEventTest {
             from = pinned.from,
             to = pinned.to,
             timeZone = pinned.timeZone,
-            address = pinned.address,
             businessName = pinned.businessName,
             price = pinned.price,
             declineReason = pinned.declineReason,
@@ -232,28 +354,54 @@ internal class AppointmentEventTest {
     }
 
     @Test
-    fun `should name the client as the data subject of a new request`() = runUnitTest {
+    fun `should carry the request and its employee in the request resolved event`() = runUnitTest {
         given()
-        val clientId = Uuid.random()
-        val clientUserId = Uuid.random()
-        val event = AppointmentEvent.RequestCreated(
-            clientId = clientId,
-            clientUserId = clientUserId,
-            clientName = "Alice",
+        val event = AppointmentEvent.RequestResolved(requestId = Uuid.random(), employeeUserId = Uuid.random())
+
+        whenn()
+        val decoded = protoBuf.decodeFromByteArray(
+            AppointmentEvent.RequestResolved.serializer(),
+            protoBuf.encodeToByteArray(AppointmentEvent.RequestResolved.serializer(), event),
+        )
+
+        then()
+        assertEquals(event, decoded)
+        assertEquals("appointment.request_resolved", decoded.topic)
+    }
+
+    @Test
+    fun `should not treat a resolved request as personal data`() = runUnitTest {
+        given()
+        val event: AppointmentEvent = AppointmentEvent.RequestResolved(
+            requestId = Uuid.random(),
+            employeeUserId = Uuid.random(),
+        )
+
+        whenn()
+        val personal = event is PersonalEvent
+
+        then()
+        assertFalse(personal)
+    }
+
+    @Test
+    fun `should not treat a new request as personal data`() = runUnitTest {
+        given()
+        val event: AppointmentEvent = AppointmentEvent.RequestCreated(
+            clientUserId = Uuid.random(),
             employeeUserId = Uuid.random(),
             from = Instant.parse("2099-03-05T14:30:00Z"),
             to = Instant.parse("2099-03-05T15:00:00Z"),
             timeZone = TimeZone.of("Europe/Kyiv"),
-            businessName = "Barbershop",
-            address = "Main street 1",
             price = "100 UAH",
+            requestId = Uuid.random(),
         )
 
         whenn()
-        val subject = event.dataSubject
+        val personal = event is PersonalEvent
 
         then()
-        assertEquals(DataSubject.Client(clientId = clientId, userId = clientUserId), subject)
+        assertFalse(personal)
     }
 }
 
@@ -266,6 +414,33 @@ private data class PinnedCancelledForDeletedClient(
     @ProtoNumber(5) val businessName: String,
     @ProtoNumber(6) val idempotencyKey: String,
     @ProtoNumber(7) val topic: String,
+)
+
+@Serializable
+private data class PinnedCancelledBefore021(
+    @ProtoNumber(1) val clientUserId: Uuid?,
+    @ProtoNumber(3) val employeeUserId: Uuid,
+    @ProtoNumber(5) val from: Instant,
+    @ProtoNumber(6) val to: Instant,
+    @ProtoNumber(7) val timeZone: TimeZone,
+    @ProtoNumber(8) val address: String,
+    @ProtoNumber(9) val businessName: String,
+    @ProtoNumber(10) val price: String,
+    @ProtoNumber(11) val reason: String,
+    @ProtoNumber(12) val idempotencyKey: String,
+    @ProtoNumber(13) val topic: String,
+)
+
+@Serializable
+private data class PinnedCancelledForDeletedClientBefore021(
+    @ProtoNumber(1) val employeeUserId: Uuid,
+    @ProtoNumber(2) val from: Instant,
+    @ProtoNumber(3) val to: Instant,
+    @ProtoNumber(4) val timeZone: TimeZone,
+    @ProtoNumber(5) val businessName: String,
+    @ProtoNumber(6) val idempotencyKey: String,
+    @ProtoNumber(7) val topic: String,
+    @ProtoNumber(8) val cause: Int,
 )
 
 @Serializable

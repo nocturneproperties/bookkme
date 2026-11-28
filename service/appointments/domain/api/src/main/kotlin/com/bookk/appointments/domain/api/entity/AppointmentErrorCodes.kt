@@ -3,10 +3,8 @@ package com.bookk.appointments.domain.api.entity
 object AppointmentErrorCodes {
     private const val BASE = 300000
 
-    const val REQUEST_EXISTS = BASE + 1
     const val BUSINESS_TIME_NOT_ALLOWED = BASE + 2
     const val BUSINESS_DATE_NOT_ALLOWED = BASE + 3
-    const val APPOINTMENT_EXISTS = BASE + 4
     const val APPOINTMENT_ALREADY_CANCELED = BASE + 5
     const val REQUEST_ALREADY_DECLINED = BASE + 7
     const val REQUEST_ALREADY_APPROVED = BASE + 8
@@ -25,4 +23,10 @@ object AppointmentErrorCodes {
     const val EMPLOYEE_DATE_NOT_ALLOWED = BASE + 27
     const val EMPLOYEE_TIME_NOT_ALLOWED = BASE + 28
     const val PENDING_REQUESTS_LIMIT_REACHED = BASE + 29
+    const val APPOINTMENTS_NOT_ENABLED = BASE + 30
+    const val SAVED_BUSINESSES_LIMIT_REACHED = BASE + 31
+    const val EMPLOYEE_BUSY = BASE + 32
+    const val SLOT_RANGE_INVALID = BASE + 33
+    const val HISTORY_DATE_RANGE_INVALID = BASE + 34
+    const val APPOINTMENTS_DEMO_RESTRICTED = BASE + 35
 }

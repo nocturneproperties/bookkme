@@ -6,7 +6,6 @@ import com.bookk.business.domain.api.client.entity.ClientUpdateModel
 import com.bookk.business.domain.api.client.entity.toDetachedClient
 import com.bookk.business.domain.api.client.operation.CreateClient
 import com.bookk.business.domain.api.client.operation.DeleteClient
-import com.bookk.business.domain.api.client.operation.GetClients
 import com.bookk.business.domain.api.client.operation.UpdateClient
 import com.bookk.business.domain.api.error.BusinessErrorCodes
 import com.bookk.business.microservice.route.BusinessRouting
@@ -21,7 +20,6 @@ import com.bookk.core.test.whenn
 import com.bookk.server.auth.client.AppPrincipal
 import io.ktor.client.call.body
 import io.ktor.client.plugins.resources.delete
-import io.ktor.client.plugins.resources.get
 import io.ktor.client.plugins.resources.patch
 import io.ktor.client.plugins.resources.post
 import io.ktor.client.request.setBody
@@ -35,6 +33,7 @@ import io.mockk.mockk
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.koin.dsl.module
+import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
 private const val ACTION_CONFIRMATION_TOKEN = "action-confirmation-token"
@@ -75,6 +74,40 @@ internal class ClientCrudTest {
 
         then()
         assertEquals(HttpStatusCode.OK, response.status)
+    }
+
+    @Test
+    fun `should create a client from a body without a creation time`() = routeTest {
+        given()
+        val useCase: CreateClient = mockk()
+        val clientRemote = ClientRemote.stub(createdAt = null)
+        val created = ClientRemote.stub(id = clientRemote.id, createdAt = Instant.fromEpochMilliseconds(1_000))
+        coEvery { useCase.invoke(userId, businessId, clientRemote.toDetachedClient()) } returns
+            Result.success(created)
+
+        setupApplication(
+            extension = {
+                install(Authentication) {
+                    provider {
+                        authenticate { it.principal(AppPrincipal(Uuid.random(), userId, Uuid.random())) }
+                    }
+                }
+            },
+            diModule = module {
+                single { useCase }
+            },
+            routeUnderTest = { clientCrud() },
+        )
+
+        whenn()
+        val httpClient = createTestClient()
+        val response = httpClient.post(BusinessRouting.Api.Clients(businessId = businessId)) {
+            setBody(clientRemote)
+        }
+
+        then()
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertEquals(created.createdAt, response.body<ClientRemote>().createdAt)
     }
 
     @Test
@@ -121,36 +154,6 @@ internal class ClientCrudTest {
                 ),
             )
         }
-    }
-
-    @Test
-    fun `should return clients`() = routeTest {
-        given()
-        val useCase: GetClients = mockk()
-        val clients = listOf(ClientRemote.stub())
-
-        coEvery { useCase.invoke(userId, businessId) } returns Result.success(clients)
-
-        setupApplication(
-            extension = {
-                install(Authentication) {
-                    provider {
-                        authenticate { it.principal(AppPrincipal(Uuid.random(), userId, Uuid.random())) }
-                    }
-                }
-            },
-            diModule = module {
-                single { useCase }
-            },
-            routeUnderTest = { clientCrud() },
-        )
-
-        whenn()
-        val httpClient = createTestClient()
-        val response = httpClient.get(BusinessRouting.Api.Clients(businessId = businessId))
-
-        then()
-        assertEquals(HttpStatusCode.OK, response.status)
     }
 
     @Test
@@ -629,32 +632,6 @@ internal class ClientCrudTest {
     }
 
     @Test
-    fun `should return not found when user is not allowed to get clients`() = routeTest {
-        given()
-        val useCase: GetClients = mockk()
-        coEvery { useCase.invoke(userId, businessId) } returns Result.failure(Error.OperationNotAllowed())
-
-        setupApplication(
-            extension = {
-                install(Authentication) {
-                    provider {
-                        authenticate { it.principal(AppPrincipal(Uuid.random(), userId, Uuid.random())) }
-                    }
-                }
-            },
-            diModule = module { single { useCase } },
-            routeUnderTest = { clientCrud() },
-        )
-
-        whenn()
-        val client = createTestClient()
-        val response = client.get(BusinessRouting.Api.Clients(businessId = businessId))
-
-        then()
-        assertEquals(HttpStatusCode.NotFound, response.status)
-    }
-
-    @Test
     fun `should return not found when user is not allowed to create client`() = routeTest {
         given()
         val useCase: CreateClient = mockk()
@@ -731,25 +708,6 @@ internal class ClientCrudTest {
         val response = httpClient.post(BusinessRouting.Api.Clients(businessId = businessId)) {
             setBody(ClientRemote.stub())
         }
-
-        then()
-        assertEquals(HttpStatusCode.Unauthorized, response.status)
-    }
-
-    @Test
-    fun `should return unauthorized when getting clients without authentication`() = routeTest {
-        given()
-        val useCase: GetClients = mockk()
-
-        setupApplication(
-            extension = { install(Authentication) { bearer { authenticate { null } } } },
-            diModule = module { single { useCase } },
-            routeUnderTest = { clientCrud() },
-        )
-
-        whenn()
-        val httpClient = createTestClient()
-        val response = httpClient.get(BusinessRouting.Api.Clients(businessId = businessId))
 
         then()
         assertEquals(HttpStatusCode.Unauthorized, response.status)

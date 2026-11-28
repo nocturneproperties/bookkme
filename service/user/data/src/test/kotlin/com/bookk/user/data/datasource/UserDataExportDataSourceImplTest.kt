@@ -35,11 +35,18 @@ internal class UserDataExportDataSourceImplTest {
     }
 
     @Test
-    fun `should export the user's profile with its creation time`() = runUnitTest {
+    fun `should export the user's profile with its creation time and Telegram user id and username`() = runUnitTest {
         given()
         val fixture = SutFixture()
         val user = fixture.user(
-            User.stub(name = "Olena", lastName = "Koval", email = "olena@example.com", phone = "+380501112233"),
+            User.stub(
+                name = "Olena",
+                lastName = "Koval",
+                email = "olena@example.com",
+                phone = "+380501112233",
+                telegramUserId = 123456789,
+                telegramUsername = "olena_k",
+            ),
         )
         val createdAt = Instant.fromEpochMilliseconds(1_700_000_000_000)
         suspendTransaction { UserTable.update({ UserTable.id eq user.id }) { it[this.createdAt] = createdAt } }
@@ -48,7 +55,17 @@ internal class UserDataExportDataSourceImplTest {
         val profile = suspendTransaction { fixture.sut.getProfile(user.id) }
 
         then()
-        assertEquals(ProfileExport(user.id, "Olena", "Koval", "olena@example.com", "+380501112233", createdAt), profile)
+        val expected = ProfileExport(
+            id = user.id,
+            name = "Olena",
+            lastName = "Koval",
+            email = "olena@example.com",
+            phone = "+380501112233",
+            createdAt = createdAt,
+            telegramUserId = 123456789,
+            telegramUsername = "olena_k",
+        )
+        assertEquals(expected, profile)
     }
 
     @Test

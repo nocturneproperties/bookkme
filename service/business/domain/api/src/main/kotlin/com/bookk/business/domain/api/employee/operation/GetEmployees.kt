@@ -4,5 +4,5 @@ import com.bookk.business.domain.api.employee.entity.Employee
 import kotlin.uuid.Uuid
 
 interface GetEmployees {
-    suspend operator fun invoke(userId: Uuid, businessId: Uuid): Result<List<Employee>>
+    suspend operator fun invoke(userId: Uuid, businessId: Uuid, activeOnly: Boolean): Result<List<Employee>>
 }

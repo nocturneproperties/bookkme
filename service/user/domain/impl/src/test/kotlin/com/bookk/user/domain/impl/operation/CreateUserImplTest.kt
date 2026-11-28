@@ -55,13 +55,42 @@ internal class CreateUserImplTest {
         }
 
         whenn()
-        val result = fixture.sut.invoke(NewUser("Ann", "Lee", "ann@example.com", AcceptedLegalDocuments(null, null)))
+        val result = fixture.sut.invoke(
+            NewUser("Ann", "Lee", "ann@example.com", AcceptedLegalDocuments(null, null), null, null),
+        )
 
         then()
         assertEquals(created.id, result.getOrNull()?.id)
         assertEquals(listOf("Ann", "Lee", "ann@example.com"), with(inserted.captured) { listOf(name, lastName, email) })
         assertEquals(null, inserted.captured.phone)
+        assertEquals(null, inserted.captured.telegramUserId)
         coVerify(exactly = 0) { fixture.legalDocumentDataSource.recordAcceptance(any(), any()) }
+    }
+
+    @Test
+    fun `should store and publish the Telegram id and username of a user signing up with Telegram`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val created = User.stub(telegramUserId = 123456789, telegramUsername = "ann_lee")
+        val inserted = slot<User>()
+        val published = slot<UserEvent.Updated>()
+        with(fixture) {
+            transactionManager.mockTransaction()
+            coEvery { legalDocumentDataSource.getVersionsInEffect(any()) } returns emptyList()
+            coEvery { userDataSource.insertNewUser(capture(inserted)) } returns created
+            coEvery { eventProducer.send(capture(published), any()) } just runs
+        }
+
+        whenn()
+        val newUser = newUser(AcceptedLegalDocuments(null, null))
+        val result = fixture.sut.invoke(newUser.copy(telegramUserId = 123456789, telegramUsername = "ann_lee"))
+
+        then()
+        assertTrue(result.isSuccess) { result.toString() }
+        assertEquals(123456789L, inserted.captured.telegramUserId)
+        assertEquals(123456789L, published.captured.telegramUserId)
+        assertEquals("ann_lee", inserted.captured.telegramUsername)
+        assertEquals("ann_lee", published.captured.telegramUsername)
     }
 
     @Test
@@ -108,7 +137,9 @@ internal class CreateUserImplTest {
         }
 
         whenn()
-        val result = fixture.sut.invoke(NewUser("Ann", "Lee", "ann@example.com", AcceptedLegalDocuments(null, null)))
+        val result = fixture.sut.invoke(
+            NewUser("Ann", "Lee", "ann@example.com", AcceptedLegalDocuments(null, null), null, null),
+        )
 
         then()
         assertTrue(result.isSuccess)
@@ -222,5 +253,7 @@ internal class CreateUserImplTest {
         lastName = "Smith",
         email = "user@example.com",
         acceptedDocuments = acceptedDocuments,
+        telegramUserId = null,
+        telegramUsername = null,
     )
 }

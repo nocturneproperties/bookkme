@@ -5,6 +5,7 @@ import com.bookk.business.data.orm.table.BusinessDayOffTable
 import com.bookk.business.data.orm.table.BusinessPermissionGrantsTable
 import com.bookk.business.data.orm.table.BusinessTable
 import com.bookk.business.data.orm.table.BusinessWorkingHoursTable
+import com.bookk.business.data.orm.table.ClientNameTokenTable
 import com.bookk.business.data.orm.table.ClientTable
 import com.bookk.business.data.orm.table.EmployeeCanProvideServiceTable
 import com.bookk.business.data.orm.table.EmployeeDayOffTable
@@ -17,6 +18,7 @@ import com.bookk.business.domain.api.client.entity.Client
 import com.bookk.business.domain.api.employee.entity.Employee
 import com.bookk.business.domain.datasource.LockedBusiness
 import com.bookk.business.domain.datasource.RowLock
+import com.bookk.core.data.test.countStatements
 import com.bookk.core.data.test.createTestDatabase
 import com.bookk.core.test.given
 import com.bookk.core.test.runUnitTest
@@ -58,6 +60,7 @@ internal class BusinessDataSourceImplTest {
             EmployeeWorkingHoursTable,
             EmployeeDayOffTable,
             ClientTable,
+            ClientNameTokenTable,
         )
         val sut = BusinessDataSourceImpl()
         val contactCipher = testContactCipher()
@@ -83,6 +86,39 @@ internal class BusinessDataSourceImplTest {
         schedule = schedule?.copy(dayOffs = dayOffs),
         clientDataRetentionMonths = clientDataRetentionMonths,
     )
+
+    @Test
+    fun `should store whether a business is a demo`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+
+        whenn()
+        val demo =
+            suspendTransaction { fixture.sut.createBusiness(Uuid.random(), "Demo", "EUR", TimeZone.UTC, demo = true) }
+        val regular = suspendTransaction { fixture.sut.createBusiness(Uuid.random(), "Salon", "EUR", TimeZone.UTC) }
+
+        then()
+        assertEquals(true, suspendTransaction { fixture.sut.getBusinessById(demo.id) }?.demo)
+        assertEquals(false, suspendTransaction { fixture.sut.getBusinessById(regular.id) }?.demo)
+    }
+
+    @Test
+    fun `should end the demo of only the given owner's businesses`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val ownerId = Uuid.random()
+        val owned = suspendTransaction { fixture.sut.createBusiness(ownerId, "Demo", "EUR", TimeZone.UTC, demo = true) }
+        val other = suspendTransaction {
+            fixture.sut.createBusiness(Uuid.random(), "Other demo", "EUR", TimeZone.UTC, demo = true)
+        }
+
+        whenn()
+        suspendTransaction { fixture.sut.endDemoOfBusinessesOwnedBy(ownerId) }
+
+        then()
+        assertEquals(false, suspendTransaction { fixture.sut.getBusinessById(owned.id) }?.demo)
+        assertEquals(true, suspendTransaction { fixture.sut.getBusinessById(other.id) }?.demo)
+    }
 
     @Test
     fun `should lock a business with the default limits when none are stored`() = runUnitTest {
@@ -149,6 +185,100 @@ internal class BusinessDataSourceImplTest {
 
         then()
         assertNull(found)
+    }
+
+    @Test
+    fun `should get each requested business with its own schedule`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val first = suspendTransaction { fixture.sut.createBusiness(Uuid.random(), "First", "USD", TimeZone.UTC) }
+        val second = suspendTransaction { fixture.sut.createBusiness(Uuid.random(), "Second", "EUR", TimeZone.UTC) }
+        suspendTransaction { fixture.sut.createBusiness(Uuid.random(), "Not requested", "USD", TimeZone.UTC) }
+        val firstSchedule = Schedule(
+            workingDays = listOf(DayOfWeek.MONDAY),
+            workingHours = mapOf(DayOfWeek.MONDAY to listOf(WorkHour(LocalTime(8, 0), LocalTime(12, 0)))),
+            dayOffs = listOf(DayOffRange(LocalDate(2099, 1, 1), LocalDate(2099, 1, 2))),
+        )
+        val secondSchedule = Schedule(
+            workingDays = listOf(DayOfWeek.SATURDAY),
+            workingHours = mapOf(DayOfWeek.SATURDAY to listOf(WorkHour(LocalTime(10, 0), LocalTime(14, 0)))),
+            dayOffs = listOf(DayOffRange(LocalDate(2099, 12, 30), LocalDate(2099, 12, 31))),
+        )
+        suspendTransaction {
+            fixture.sut.updateBusiness(
+                updateModel(first.id, schedule = firstSchedule, dayOffs = firstSchedule.dayOffs),
+                Clock.System.now(),
+            )
+            fixture.sut.updateBusiness(
+                updateModel(second.id, schedule = secondSchedule, dayOffs = secondSchedule.dayOffs),
+                Clock.System.now(),
+            )
+        }
+
+        whenn()
+        val found = suspendTransaction { fixture.sut.getBusinessesByIds(listOf(first.id, second.id, Uuid.random())) }
+
+        then()
+        assertEquals(setOf("First", "Second"), found.map { it.name }.toSet())
+        assertEquals(firstSchedule, found.single { it.id == first.id }.schedule)
+        assertEquals(secondSchedule, found.single { it.id == second.id }.schedule)
+    }
+
+    @Test
+    fun `should get businesses by ids with a constant number of queries`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val single = listOf(fixture.createBusinessWithDayOff(Uuid.random()))
+        val several = List(3) { fixture.createBusinessWithDayOff(Uuid.random()) }
+
+        whenn()
+        val singleQueries = suspendTransaction { countStatements { fixture.sut.getBusinessesByIds(single) } }
+        val severalQueries = suspendTransaction { countStatements { fixture.sut.getBusinessesByIds(several) } }
+
+        then()
+        assertEquals(singleQueries, severalQueries)
+    }
+
+    @Test
+    fun `should get user businesses with a constant number of queries`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val singleOwnerId = Uuid.random()
+        val severalOwnerId = Uuid.random()
+        fixture.createBusinessWithDayOff(singleOwnerId)
+        repeat(3) { fixture.createBusinessWithDayOff(severalOwnerId) }
+
+        whenn()
+        val singleQueries = suspendTransaction { countStatements { fixture.sut.getUserBusinesses(singleOwnerId) } }
+        val severalQueries = suspendTransaction { countStatements { fixture.sut.getUserBusinesses(severalOwnerId) } }
+
+        then()
+        assertEquals(singleQueries, severalQueries)
+    }
+
+    private suspend fun SutFixture.createBusinessWithDayOff(ownerId: Uuid): Uuid {
+        val created = suspendTransaction { sut.createBusiness(ownerId, "Salon", "USD", TimeZone.UTC) }
+        val dayOffs = listOf(DayOffRange(LocalDate(2099, 12, 30), LocalDate(2099, 12, 31)))
+        suspendTransaction {
+            sut.updateBusiness(
+                updateModel(created.id, schedule = created.schedule, dayOffs = dayOffs),
+                Clock.System.now(),
+            )
+        }
+        return created.id
+    }
+
+    @Test
+    fun `should get no businesses for no ids`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        suspendTransaction { fixture.sut.createBusiness(Uuid.random(), "Salon", "USD", TimeZone.UTC) }
+
+        whenn()
+        val found = suspendTransaction { fixture.sut.getBusinessesByIds(emptyList()) }
+
+        then()
+        assertTrue(found.isEmpty())
     }
 
     @Test

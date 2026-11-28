@@ -29,6 +29,7 @@ internal class AppointmentEntity(id: EntityID<Uuid>) : UuidEntity(id) {
 
     var initiatorUserId by AppointmentTable.initiatorUserId
     var businessId by AppointmentTable.businessId
+    val business by AppointmentBusinessEntity referencedOn AppointmentTable.businessId
     var employeeId by AppointmentTable.employeeId
     var employeeUserId by AppointmentTable.employeeUserId
     var employeeNameEncrypted by AppointmentTable.employeeNameEncrypted
@@ -42,6 +43,7 @@ internal class AppointmentEntity(id: EntityID<Uuid>) : UuidEntity(id) {
     var dateStart by AppointmentTable.dateStart
     var dateEnd by AppointmentTable.dateEnd
     var noteEncrypted by AppointmentTable.noteEncrypted
+    var clientNoteEncrypted by AppointmentTable.clientNoteEncrypted
     var clientNameIndex by AppointmentTable.clientNameIndex
     var status by AppointmentTable.status
     var cancellationReason by AppointmentTable.cancellationReason
@@ -58,6 +60,7 @@ internal class AppointmentEntity(id: EntityID<Uuid>) : UuidEntity(id) {
                 id = employeeId,
                 userId = employeeUserId,
                 fullName = snapshot.employeeName,
+                erased = snapshot.isEmployeeErased,
             ),
             client = ClientSnapshot(
                 id = clientId,
@@ -65,6 +68,7 @@ internal class AppointmentEntity(id: EntityID<Uuid>) : UuidEntity(id) {
                 phone = client.phone,
                 email = client.email,
                 userId = clientUserId,
+                erased = snapshot.isClientErased,
             ),
             services = services.map {
                 ServiceSnapshot(
@@ -84,6 +88,8 @@ internal class AppointmentEntity(id: EntityID<Uuid>) : UuidEntity(id) {
             cancellationReason = cancellationReason,
             completedBy = completedBy,
             priceAdjustment = priceAdjustments.singleOrNull()?.domain(),
+            clientNote = client.clientNote,
+            businessName = business.name,
         )
     }
 
@@ -107,6 +113,7 @@ internal class AppointmentEntity(id: EntityID<Uuid>) : UuidEntity(id) {
                     phone = clientPhoneEncrypted,
                     email = clientEmailEncrypted,
                     note = checkNotNull(noteEncrypted) { "Snapshot of client $clientId has no encrypted note" },
+                    clientNote = clientNoteEncrypted,
                     nameIndex = clientNameIndex,
                 )
             },
@@ -179,12 +186,14 @@ internal class AppointmentEntity(id: EntityID<Uuid>) : UuidEntity(id) {
             clientPhoneEncrypted = encrypted?.phone
             clientEmailEncrypted = encrypted?.email
             noteEncrypted = encrypted?.note
+            clientNoteEncrypted = encrypted?.clientNote
             clientNameIndex = encrypted?.nameIndex
         }
     }
 }
 
 internal fun List<AppointmentEntity>.withDetails(): List<AppointmentEntity> = this.with(
+    AppointmentEntity::business,
     AppointmentEntity::services,
     AppointmentEntity::priceAdjustments,
     PriceAdjustmentEntity::additionalServices,

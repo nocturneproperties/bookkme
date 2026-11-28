@@ -220,6 +220,31 @@ internal class AppointmentSubscriptionDataSourceImplTest {
     }
 
     @Test
+    fun `should tell whether a business takes appointments under a shared lock of its row`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val enabled = BusinessSnapshot.stub(isEnabled = true)
+        val disabled = BusinessSnapshot.stub(isEnabled = true)
+        suspendTransaction {
+            fixture.sut.attachBusiness(enabled)
+            fixture.sut.attachBusiness(disabled)
+            fixture.sut.disableBusiness(disabled.id)
+        }
+        val capturedSql = CapturingSqlLogger()
+
+        whenn()
+        val checks = suspendTransaction {
+            addLogger(capturedSql)
+            listOf(enabled.id, disabled.id, Uuid.random()).map { fixture.sut.isBusinessEnabledForShare(it) }
+        }
+
+        then()
+        assertEquals(listOf(true, false, false), checks)
+        val selects = capturedSql.statements.filter { it.startsWith("SELECT", ignoreCase = true) }
+        assertTrue(selects.all { it.contains("FOR UPDATE", ignoreCase = true) })
+    }
+
+    @Test
     fun `should give the ids of the owner's businesses only`() = runUnitTest {
         given()
         val fixture = SutFixture()

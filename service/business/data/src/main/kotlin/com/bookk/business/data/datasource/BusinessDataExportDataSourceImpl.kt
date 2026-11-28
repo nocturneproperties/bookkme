@@ -32,6 +32,7 @@ internal class BusinessDataExportDataSourceImpl(
                     description = contact.description,
                     hasAccount = entity.userId != null,
                     lastActivityAt = entity.lastActivityAt,
+                    telegramUsername = contact.telegramUsername,
                 )
             }
             .sortedWith(BY_LAST_NAME_THEN_NAME)

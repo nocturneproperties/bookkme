@@ -25,6 +25,7 @@ data class AppointmentsBusinessDataExport(
     data class EmployeeExport(
         @ProtoNumber(1) val id: Uuid,
         @ProtoNumber(2) val name: String,
+        @ProtoNumber(3) val erased: Boolean = false,
     )
 
     @Serializable
@@ -34,6 +35,7 @@ data class AppointmentsBusinessDataExport(
         @ProtoNumber(3) val phone: String?,
         @ProtoNumber(4) val email: String?,
         @ProtoNumber(5) val hasAccount: Boolean,
+        @ProtoNumber(6) val erased: Boolean = false,
     )
 
     @Serializable
@@ -49,6 +51,7 @@ data class AppointmentsBusinessDataExport(
         @ProtoNumber(9) val cancellationReason: String?,
         @ProtoNumber(10) val priceAdjustment: PriceAdjustmentExport?,
         @ProtoNumber(11) val completedBy: String?,
+        @ProtoNumber(12) val clientNote: String?,
     )
 
     @Serializable

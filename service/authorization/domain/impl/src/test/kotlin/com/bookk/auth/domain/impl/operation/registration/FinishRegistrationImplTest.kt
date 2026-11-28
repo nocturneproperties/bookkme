@@ -33,6 +33,7 @@ import io.mockk.slot
 import library.email.EmailCodeError
 import library.email.test.EmailTestMailbox
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import kotlin.uuid.Uuid
@@ -66,6 +67,7 @@ internal class FinishRegistrationImplTest {
             acceptedDocuments: AcceptedLegalDocuments =
                 AcceptedLegalDocuments(privacyPolicy = "2026-01-01", termsOfService = "2025-06-01"),
             purpose: String = EmailPurpose.SIGN_UP,
+            name: String = "John Doe",
         ): VerifyAccountCreationRequest {
             val started = mailbox.issuer.issue(verifiedEmail, purpose, Uuid.parse(requestId)) {
                 AuthEmails.signUpCode(Language.EN, it)
@@ -74,11 +76,7 @@ internal class FinishRegistrationImplTest {
                 requestId = requestId,
                 publicKeyCredentialJson = "{}",
                 deviceInfo = VerifyAccountCreationRequest.DeviceInfo(deviceUUID = deviceId, deviceName = "Test Device"),
-                userInfo = VerifyAccountCreationRequest.UserInfo(
-                    name = "John",
-                    lastName = "Doe",
-                    email = "typed@example.com",
-                ),
+                userInfo = VerifyAccountCreationRequest.UserInfo(name = name, email = "typed@example.com"),
                 acceptedDocuments = acceptedDocuments,
                 verificationId = started.verificationId,
                 emailCode = mailbox.codeSentTo(verifiedEmail),
@@ -140,6 +138,41 @@ internal class FinishRegistrationImplTest {
         assertTrue(result.isSuccess) { result.toString() }
         assertEquals(accepted, sent.captured.acceptedDocuments)
         assertEquals(listOf("John", "Doe", VERIFIED_EMAIL), with(sent.captured) { listOf(name, lastName, email) })
+        assertNull(sent.captured.telegramUserId)
+    }
+
+    @Test
+    fun `should create the user with an empty last name when the name is a single word`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val request = fixture.signUpRequest(name = " John ")
+        val sent = slot<CreateUserRequest>()
+        fixture.registrationSucceeds(request)
+        coEvery { fixture.userClient.createUser(capture(sent)) } returns Result.success(Uuid.random())
+
+        whenn()
+        val result = fixture.sut.invoke(request, Language.EN)
+
+        then()
+        assertTrue(result.isSuccess) { result.toString() }
+        assertEquals(listOf("John", ""), with(sent.captured) { listOf(name, lastName) })
+    }
+
+    @Test
+    fun `should create the user with a one letter last name`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val request = fixture.signUpRequest(name = "John D")
+        val sent = slot<CreateUserRequest>()
+        fixture.registrationSucceeds(request)
+        coEvery { fixture.userClient.createUser(capture(sent)) } returns Result.success(Uuid.random())
+
+        whenn()
+        val result = fixture.sut.invoke(request, Language.EN)
+
+        then()
+        assertTrue(result.isSuccess) { result.toString() }
+        assertEquals(listOf("John", "D"), with(sent.captured) { listOf(name, lastName) })
     }
 
     @Test

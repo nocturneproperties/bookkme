@@ -2,7 +2,7 @@
 
 `auth.device_language_updated` → `NotificationEventHandler` → `UpdateDeviceLanguage`
 
-Produced by [Verify sign-in](../authorization/sign-in.md) when an existing account/device pair signs in again. Updates only that account's language for the installation. A legacy event with no `authId` is retried and parked for manual reconciliation.
+Produced by [Verify sign-in](../authorization/sign-in.md) and [Sign in with Telegram](../authorization/telegram-sign-in.md) when an existing account/device pair signs in again. Updates only that account's language for the installation. A legacy event with no `authId` is retried and parked for manual reconciliation.
 
 ```mermaid
 flowchart TD

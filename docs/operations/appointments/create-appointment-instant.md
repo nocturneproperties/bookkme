@@ -51,6 +51,8 @@ erases it.
 No event is sent, as before: the client isn't notified of an appointment the
 employee booked for them.
 
+The employee can hold only one appointment at a time. `EmployeeBookings.requireFree` reads the employee's `SCHEDULED` appointments in the business, whoever booked them, around the slot widened by `inBetweenBreakInMinutes` on both sides, and rejects the booking with 422 `EMPLOYEE_BUSY` (300032) when one other than the booking itself is found. It runs after the settings lock, which serializes every booking of the business, so two bookings can't both take the same employee's time. Pending requests don't block anyone: several clients may request the same time, and once staff approve one, approving another answers `EMPLOYEE_BUSY`. The client's own other bookings are not checked: a client may take two services with two employees at once. `POST /api/appointments/slots` offers only starts that pass the same check.
+
 ```mermaid
 flowchart TD
     Start([POST /api/appointments/instant body InstantAppointmentDraft]) --> Auth{JWT valid?}
@@ -91,9 +93,9 @@ flowchart TD
     EmpDay -- No --> R422ed([422 EMPLOYEE_DATE_NOT_ALLOWED 300027])
     EmpDay -- Yes --> EmpTime{context.employee.schedule ranges cover date to dateEnd?}
     EmpTime -- No --> R422et([422 EMPLOYEE_TIME_NOT_ALLOWED 300028])
-    EmpTime -- Yes --> Overlap{overlaps another appointment?}
-    Overlap -- Yes --> R422e([422 APPOINTMENT_EXISTS 300004])
-    Overlap -- No --> Store[AppointmentDataSource.create appointment]
+    EmpTime -- Yes --> EmployeeBusy{"EmployeeBookings.requireFree - AppointmentDataSource.getEmployeeBookings businessId employee.id date - break until dateEnd + break: any SCHEDULED appointment of the employee, whoever booked it, other than this booking?"}
+    EmployeeBusy -- Yes --> R422busy([422 EMPLOYEE_BUSY 300032])
+    EmployeeBusy -- No --> Store[AppointmentDataSource.create appointment]
     Store --> Visit[eventProducer.send AppointmentEvent.ClientVisitBooked businessId client.id dateEnd]
     Visit --> R200([200 Created Appointment - token stays spent])
     Tx -- any failure after the reservation --> Release["AppointmentRequestDataSource.releaseOfferToken - NonCancellable, best effort"]

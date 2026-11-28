@@ -2,7 +2,9 @@ package com.bookk.notifications.client.di
 
 import com.bookk.core.client.internalHttpClient
 import com.bookk.notifications.client.api.export.ExportUserNotificationData
+import com.bookk.notifications.client.api.telegram.SendTelegramActionConfirmation
 import com.bookk.notifications.client.impl.ExportUserNotificationDataClientImpl
+import com.bookk.notifications.client.impl.SendTelegramActionConfirmationClientImpl
 import org.koin.core.qualifier.Qualifier
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
@@ -16,6 +18,9 @@ fun notificationsClientModule(qualifier: Qualifier, clientTag: String) = module 
         }
         scoped<ExportUserNotificationData> {
             ExportUserNotificationDataClientImpl(get(named(NOTIFICATIONS_HTTP_CLIENT)))
+        }
+        scoped<SendTelegramActionConfirmation> {
+            SendTelegramActionConfirmationClientImpl(get(named(NOTIFICATIONS_HTTP_CLIENT)))
         }
     }
 }

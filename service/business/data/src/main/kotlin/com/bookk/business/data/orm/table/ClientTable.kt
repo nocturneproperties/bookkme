@@ -16,7 +16,10 @@ internal object ClientTable : UuidTable("client") {
     val phoneEncrypted = binary("phone_encrypted", 2080).nullable()
     val emailEncrypted = binary("email_encrypted", 2080).nullable()
     val descriptionEncrypted = binary("description_encrypted", 4128).nullable()
+    val telegramUsernameEncrypted = binary("telegram_username_encrypted", 256).nullable()
     val emailIndex = char("email_index", BLIND_INDEX_LENGTH).nullable()
+    val phoneIndex = char("phone_index", BLIND_INDEX_LENGTH).nullable()
+    val createdAt = timestamp("created_at").clientDefault { Clock.System.now() }
     val lastActivityAt = timestamp("last_activity_at").clientDefault { Clock.System.now() }
     val deletionHold = bool("deletion_hold").default(false)
 
@@ -24,5 +27,7 @@ internal object ClientTable : UuidTable("client") {
         uniqueIndex(businessId, userId)
         uniqueIndex(businessId, emailIndex)
         index(false, businessId, lastActivityAt)
+        index(false, businessId, createdAt)
+        index(false, businessId, phoneIndex)
     }
 }

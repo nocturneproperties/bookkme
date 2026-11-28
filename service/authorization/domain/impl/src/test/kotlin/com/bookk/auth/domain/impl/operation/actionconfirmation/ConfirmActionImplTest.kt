@@ -81,7 +81,9 @@ internal class ConfirmActionImplTest {
             decoded.getClaim(ActionConfirmationClaims.CLAIM_TARGET_ID).asString(),
         )
         assertNotNull(decoded.id)
-        coVerify(exactly = 1) { fixture.tokenIssuer.issue(ConfirmActionImpl.ACTION_CONFIRMATION_TTL, any()) }
+        coVerify(exactly = 1) {
+            fixture.tokenIssuer.issue(ACTION_CONFIRMATION_TTL, any())
+        }
     }
 
     @Test

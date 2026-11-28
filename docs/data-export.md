@@ -100,7 +100,7 @@ only inside the cluster, like every `/api/internal` route):
 | `profile`, `legalAcceptances` | user | Profile with its creation time, accepted legal document versions |
 | `account` | auth (`ExportAccountData`) | Account creation and last activity time, passkeys (name, created, last used, backed up; never key material), devices (name, signed in, last sign-in) |
 | `businesses` | business (`ExportUserBusinessData`) | Every business the user owns, their employee rows (suspended ones too) with permissions, working hours and days off, their client rows as each business keeps them (the business's `description` included), the business their dashboard shows |
-| `appointments` | appointments (`ExportUserAppointments`) | Every appointment and request where the user is the client, the employee or the one who booked (`roles`), with times, services, prices, status and employee name |
+| `appointments` | appointments (`ExportUserAppointments`) | Every appointment and request where the user is the client, the employee or the one who booked (`roles`), with times, services, prices, status and employee name (empty, with `employeeErased`, when the employee was erased) |
 | `notifications` | notifications (`ExportUserNotificationData`) | Notification settings and channels, devices (language, whether push is registered; never the push token), email and Telegram targets |
 
 Art. 15(4): an appointment or request where the user is only the employee
@@ -139,7 +139,7 @@ data in one transaction and asks appointments for its part over
 | `employees` | business | Every employee, the owner included (`role` `OWNER` or `EMPLOYEE`): name and contact details, when they joined, suspension, the services they provide, working hours, days off and permissions per resource |
 | `pendingInvitations` | business | Invitations still waiting, with the employee who sent them (null when they left) and when; never the code |
 | `clients` | business | Every client row with all its fields, `description` included (it may hold special-category data), whether it is linked to an account, and its last activity |
-| `appointments` | appointments (`ExportBusinessAppointments`) | The appointment settings, every appointment and every pending request, with client and employee snapshots, times, services, prices, price adjustments, status, notes and reasons |
+| `appointments` | appointments (`ExportBusinessAppointments`) | The appointment settings, every appointment and every pending request, with client and employee snapshots (an erased person with an empty name and `erased`), times, services, prices, price adjustments, status, notes and reasons |
 
 It holds nothing the business is not the controller of: no user ids of
 employees or clients, no account data (passkeys, devices, notification

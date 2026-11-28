@@ -1,10 +1,14 @@
 package com.bookk.appointments.domain.datasource
 
 import com.bookk.appointments.domain.api.entity.Appointment
-import com.bookk.appointments.domain.api.entity.AppointmentPagination
-import com.bookk.appointments.domain.api.entity.AppointmentRepresentation
+import com.bookk.appointments.domain.api.entity.AppointmentHistoryFilter
 import com.bookk.appointments.domain.api.entity.AppointmentRequest
+import com.bookk.appointments.domain.api.entity.BookedRange
+import com.bookk.appointments.domain.api.entity.OwnAppointmentFilter
 import com.bookk.appointments.domain.api.entity.PriceAdjustment
+import com.bookk.appointments.domain.api.entity.StartBounds
+import com.bookk.core.domain.entity.Page
+import com.bookk.core.domain.entity.PageRequest
 import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
@@ -15,16 +19,27 @@ interface AppointmentDataSource {
     suspend fun getForUpdate(id: Uuid): Appointment
     suspend fun getAll(businessId: Uuid): List<Appointment>
     suspend fun getAllByIds(ids: Collection<Uuid>): List<Appointment>
+    suspend fun getUpcomingOfClientUser(clientUserId: Uuid, endingAfter: Instant, limit: Int): List<Appointment>
+    suspend fun getPageOfClientUser(
+        clientUserId: Uuid,
+        filter: OwnAppointmentFilter,
+        now: Instant,
+        page: PageRequest,
+    ): Page<Appointment>
     suspend fun getAllForDate(businessId: Uuid, range: ClosedRange<Instant>, employeeId: Uuid?): List<Appointment>
-    suspend fun getAllPaginated(
+    suspend fun getHistoryPage(
         businessId: Uuid,
-        limit: Int,
-        offset: Long,
-        query: String? = null,
-    ): AppointmentPagination
+        filter: AppointmentHistoryFilter,
+        starts: StartBounds,
+        page: PageRequest,
+    ): Page<Appointment>
     suspend fun update(appointment: Appointment): Appointment
     suspend fun delete(id: Uuid)
-    suspend fun hasOverlapsWith(appointment: AppointmentRepresentation): Boolean
+    suspend fun getEmployeeBookings(
+        businessId: Uuid,
+        employeeId: Uuid,
+        overlapping: OpenEndRange<Instant>,
+    ): List<BookedRange>
     suspend fun cancel(id: Uuid, reason: String): Appointment
     suspend fun cancelAll(ids: Collection<Uuid>, reason: String)
     suspend fun markCompleted(now: Instant)
@@ -33,7 +48,6 @@ interface AppointmentDataSource {
     suspend fun reopen(id: Uuid)
     suspend fun adjustPrice(id: Uuid, adjustment: PriceAdjustment): Appointment
     suspend fun markNoShow(id: Uuid): Appointment
-    suspend fun anonymizeEmployee(employeeUserId: Uuid)
     suspend fun getClientIdsOfUserForUpdate(clientUserId: Uuid): Set<Uuid>
     suspend fun anonymizeClientUser(clientUserId: Uuid)
     suspend fun unlinkInitiator(initiatorUserId: Uuid)

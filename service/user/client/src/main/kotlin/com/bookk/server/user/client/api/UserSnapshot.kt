@@ -12,15 +12,19 @@ class UserSnapshot(
     @ProtoNumber(3) val lastName: String,
     @ProtoNumber(4) val email: String,
     @ProtoNumber(5) val phone: String?,
+    @ProtoNumber(6) val telegramUsername: String?,
 ) {
     companion object {
-        internal fun fromUser(user: User): UserSnapshot = UserSnapshot(
-            id = user.id,
-            name = user.name,
-            lastName = user.lastName,
-            email = user.email,
-            phone = user.phone,
-        )
+        internal fun fromUser(user: User): UserSnapshot {
+            return UserSnapshot(
+                id = user.id,
+                name = user.name,
+                lastName = user.lastName,
+                email = user.email,
+                phone = user.phone,
+                telegramUsername = user.telegramUsername,
+            )
+        }
 
         fun stub(
             id: Uuid = Uuid.random(),
@@ -28,6 +32,16 @@ class UserSnapshot(
             lastName: String = "Smith",
             email: String = "user@example.com",
             phone: String? = null,
-        ) = UserSnapshot(id = id, name = name, lastName = lastName, email = email, phone = phone)
+            telegramUsername: String? = null,
+        ): UserSnapshot {
+            return UserSnapshot(
+                id = id,
+                name = name,
+                lastName = lastName,
+                email = email,
+                phone = phone,
+                telegramUsername = telegramUsername,
+            )
+        }
     }
 }

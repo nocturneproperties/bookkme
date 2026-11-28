@@ -8,8 +8,8 @@ import com.bookk.appointments.domain.api.entity.BookingQuoteError
 import com.bookk.appointments.domain.api.operation.CreateAppointment
 import com.bookk.appointments.domain.api.operation.CreateAppointmentRequest
 import com.bookk.appointments.domain.api.operation.CreateAppointmentRequest.Error.DateInThePastNotAllowed
+import com.bookk.appointments.domain.api.operation.CreateAppointmentRequest.Error.DemoRestricted
 import com.bookk.appointments.domain.api.operation.CreateAppointmentRequest.Error.PendingRequestsLimitReached
-import com.bookk.appointments.domain.api.operation.CreateAppointmentRequest.Error.RequestForThisTimeExists
 import com.bookk.appointments.domain.datasource.AppointmentDataSource
 import com.bookk.appointments.domain.datasource.AppointmentRequestDataSource
 import com.bookk.appointments.domain.datasource.AppointmentSettingsDataSource
@@ -49,8 +49,17 @@ internal class CreateAppointmentRequestImpl(
 ) : CreateAppointmentRequest {
 
     private val quoteVerifier = BookingQuoteVerifier(tokenValidatorFactory)
+    private val employeeBookings = EmployeeBookings(appointmentDataSource)
 
-    override suspend fun invoke(userId: Uuid, draft: AppointmentRequestDraft): Result<Unit> = runSuspendCatching {
+    override suspend fun invoke(userId: Uuid, draft: AppointmentRequestDraft, isDemo: Boolean): Result<Unit> {
+        if (isDemo) return Result.failure(DemoRestricted())
+        return reserveAndBook(userId, draft)
+    }
+
+    private suspend fun reserveAndBook(
+        userId: Uuid,
+        draft: AppointmentRequestDraft,
+    ): Result<Unit> = runSuspendCatching {
         if (!requestDataSource.reserveOfferToken(draft.offerToken)) throw BookingQuoteError.TokenAlreadyUsed()
         runCleaningUpOnFailure(
             action = { book(userId, draft) },
@@ -97,7 +106,7 @@ internal class CreateAppointmentRequestImpl(
             eventProducer.send(
                 AppointmentEvent.ClientVisitBooked(request.businessId, request.client.id, request.dateEnd),
             )
-            sendRequestCreatedNotification(request)
+            sendRequestCreatedNotification(it)
         }
     }
 
@@ -123,8 +132,7 @@ internal class CreateAppointmentRequestImpl(
     ) {
         if (request.date < Clock.System.now()) throw DateInThePastNotAllowed()
         settings.requireBookable(request.date, request.dateEnd, employeeSchedule)
-        if (requestDataSource.hasOverlapsWith(request)) throw RequestForThisTimeExists()
-        if (appointmentDataSource.hasOverlapsWith(request)) throw RequestForThisTimeExists()
+        employeeBookings.requireFree(request, settings)
     }
 
     private suspend fun sendRequestCreatedNotification(request: AppointmentRequest) {
@@ -134,16 +142,14 @@ internal class CreateAppointmentRequestImpl(
         }
         eventProducer.send(
             AppointmentEvent.RequestCreated(
-                clientId = request.client.id,
                 clientUserId = request.client.userId,
-                clientName = request.client.fullName,
                 employeeUserId = request.employee.userId,
                 from = request.date,
                 to = request.dateEnd,
                 timeZone = business.timeZone,
-                businessName = business.name,
-                address = business.address,
                 price = moneyFormatter.print(request.totalAmount),
+                requestId = request.id,
+                serviceNames = request.services.map { it.name },
             ),
         )
     }

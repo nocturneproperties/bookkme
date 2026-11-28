@@ -13,14 +13,6 @@ interface CreateAppointment {
     suspend fun createBypassingPermissions(request: AppointmentRequest, employeeSchedule: Schedule): Result<Appointment>
 
     sealed interface Error {
-        class AppointmentForThisTimeExists :
-            BusinessError(
-                statusCode = HttpStatusCode.UnprocessableEntity.value,
-                code = AppointmentErrorCodes.APPOINTMENT_EXISTS,
-                message = "Appointment for this time already exists",
-            ),
-            Error
-
         class DateInThePastNotAllowed :
             BusinessError(
                 statusCode = HttpStatusCode.UnprocessableEntity.value,

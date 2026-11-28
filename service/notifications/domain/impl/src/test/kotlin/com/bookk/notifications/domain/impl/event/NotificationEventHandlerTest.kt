@@ -11,11 +11,14 @@ import com.bookk.core.test.whenn
 import com.bookk.notifications.domain.api.CreateDeviceEntry
 import com.bookk.notifications.domain.api.DeleteDeviceByUUID
 import com.bookk.notifications.domain.api.DeleteUserNotificationData
+import com.bookk.notifications.domain.impl.ClearPushNotificationToken
 import com.bookk.notifications.domain.impl.UpdateDeviceLanguage
 import com.bookk.notifications.domain.impl.UpdateTargetInformation
+import com.bookk.notifications.domain.impl.notification.DataPush
 import com.bookk.notifications.domain.impl.notification.NotificationParameters
 import com.bookk.notifications.domain.impl.notification.NotificationType
 import com.bookk.notifications.domain.impl.notification.SendNotification
+import com.bookk.notifications.domain.impl.telegram.TelegramConfirmationChat
 import com.bookk.server.appointments.client.api.event.AppointmentEvent
 import com.bookk.server.auth.client.AuthEvent
 import com.bookk.server.business.client.api.event.BusinessEvent
@@ -42,8 +45,10 @@ internal class NotificationEventHandlerTest {
         val deleteDeviceByUUID = mockk<DeleteDeviceByUUID>()
         val updateTargetInformation = mockk<UpdateTargetInformation>()
         val updateDeviceLanguage = mockk<UpdateDeviceLanguage>()
+        val clearPushNotificationToken = mockk<ClearPushNotificationToken>()
         val sendNotification = mockk<SendNotification>()
         val deleteUserNotificationData = mockk<DeleteUserNotificationData>()
+        val telegramConfirmationChat = mockk<TelegramConfirmationChat>()
         val receivers = mutableMapOf<String, suspend (Any) -> Unit>()
         val sut = NotificationEventHandler(
             consumer,
@@ -51,8 +56,10 @@ internal class NotificationEventHandlerTest {
             deleteDeviceByUUID,
             updateTargetInformation,
             updateDeviceLanguage,
+            clearPushNotificationToken,
             sendNotification,
             deleteUserNotificationData,
+            telegramConfirmationChat,
         )
 
         @Suppress("UNCHECKED_CAST")
@@ -109,6 +116,58 @@ internal class NotificationEventHandlerTest {
         assertEquals(NotificationType.EMPLOYEE, params.captured.type)
     }
 
+    private fun userUpdated(telegramUserId: Long?): UserEvent.Updated {
+        return UserEvent.Updated(
+            userId = Uuid.random(),
+            name = "Ann",
+            lastName = "Lee",
+            email = "ann@example.com",
+            phone = null,
+            updatedAt = Instant.fromEpochMilliseconds(1_700_000_000_000),
+            telegramUserId = telegramUserId,
+            telegramUsername = null,
+        )
+    }
+
+    @Test
+    fun `should update the email and Telegram targets of a user who signed up with Telegram`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val event = userUpdated(telegramUserId = 123456789)
+        val targets = slot<List<UpdateTargetInformation.Target>>()
+        coEvery {
+            fixture.updateTargetInformation(event.userId, capture(targets), event.updatedAt)
+        } returns Result.success(Unit)
+        fixture.start(this)
+
+        whenn()
+        fixture.dispatch(UserEvent.Updated.TOPIC, event)
+
+        then()
+        val (email, telegram) = targets.captured
+        assertEquals("ann@example.com", (email as UpdateTargetInformation.Target.Email).newEmail)
+        assertEquals(123456789L, (telegram as UpdateTargetInformation.Target.Telegram).telegramUserId)
+    }
+
+    @Test
+    fun `should update only the email target of a user without a Telegram user id`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val event = userUpdated(telegramUserId = null)
+        val targets = slot<List<UpdateTargetInformation.Target>>()
+        coEvery {
+            fixture.updateTargetInformation(event.userId, capture(targets), event.updatedAt)
+        } returns Result.success(Unit)
+        fixture.start(this)
+
+        whenn()
+        fixture.dispatch(UserEvent.Updated.TOPIC, event)
+
+        then()
+        val email = targets.captured.single() as UpdateTargetInformation.Target.Email
+        assertEquals("ann@example.com", email.newEmail)
+    }
+
     private val from = Instant.fromEpochMilliseconds(1_700_000_000_000)
     private val to = Instant.fromEpochMilliseconds(1_700_003_600_000)
 
@@ -117,9 +176,14 @@ internal class NotificationEventHandlerTest {
         given()
         val fixture = SutFixture()
         val event = AppointmentEvent.Cancelled(
-            clientUserId = null, employeeUserId = Uuid.random(),
-            from = from, to = to, timeZone = TimeZone.UTC, address = "1 Main St", businessName = "Salon",
-            price = "10 USD", reason = "changed plans",
+            clientUserId = null,
+            employeeUserId = Uuid.random(),
+            from = from,
+            to = to,
+            timeZone = TimeZone.UTC,
+            businessName = "Salon",
+            price = "10 USD",
+            reason = "changed plans",
         )
         fixture.start(this)
 
@@ -145,6 +209,62 @@ internal class NotificationEventHandlerTest {
 
         whenn()
         fixture.dispatch(AuthEvent.AccountDormancyWarning.TOPIC, event)
+
+        then()
+        coVerify(exactly = 1) { fixture.sendNotification.invoke(event.userId, any()) }
+        assertEquals(NotificationType.ACCOUNT, params.captured.type)
+    }
+
+    @Test
+    fun `should tell the user when their account will be deleted at their request`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val event = AuthEvent.AccountDeletionScheduled(
+            userId = Uuid.random(),
+            deletesAt = Instant.parse("2026-12-03T10:00:00Z"),
+            reminder = false,
+        )
+        val params = slot<NotificationParameters>()
+        coEvery { fixture.sendNotification.invoke(any(), capture(params)) } returns Result.success(Unit)
+        fixture.start(this)
+
+        whenn()
+        fixture.dispatch(AuthEvent.AccountDeletionScheduled.TOPIC, event)
+
+        then()
+        coVerify(exactly = 1) { fixture.sendNotification.invoke(event.userId, any()) }
+        assertEquals(NotificationType.ACCOUNT, params.captured.type)
+    }
+
+    @Test
+    fun `should send only a data push to the employee when an appointment request is resolved`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val event = AppointmentEvent.RequestResolved(requestId = Uuid.random(), employeeUserId = Uuid.random())
+        val push = slot<DataPush>()
+        coEvery { fixture.sendNotification.data(event.employeeUserId, capture(push)) } returns Result.success(Unit)
+        fixture.start(this)
+
+        whenn()
+        fixture.dispatch(AppointmentEvent.RequestResolved.TOPIC, event)
+
+        then()
+        assertEquals(event.requestId.toString(), push.captured.data["appointmentRequestId"])
+        assertEquals(NotificationType.APPOINTMENT, push.captured.type)
+        coVerify(exactly = 0) { fixture.sendNotification.invoke(any(), any()) }
+    }
+
+    @Test
+    fun `should tell the user their account deletion was cancelled`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val event = AuthEvent.AccountDeletionCancelled(userId = Uuid.random())
+        val params = slot<NotificationParameters>()
+        coEvery { fixture.sendNotification.invoke(any(), capture(params)) } returns Result.success(Unit)
+        fixture.start(this)
+
+        whenn()
+        fixture.dispatch(AuthEvent.AccountDeletionCancelled.TOPIC, event)
 
         then()
         coVerify(exactly = 1) { fixture.sendNotification.invoke(event.userId, any()) }
@@ -234,5 +354,44 @@ internal class NotificationEventHandlerTest {
         assertTrue(deletion.exceptionOrNull() is IllegalArgumentException)
         coVerify(exactly = 0) { fixture.updateDeviceLanguage(any(), any(), any()) }
         coVerify(exactly = 0) { fixture.deleteDeviceByUUID(any(), any()) }
+    }
+
+    @Test
+    fun `should clear the push token of a device that signed out`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val event = AuthEvent.DeviceSignedOut(
+            authId = Uuid.random(),
+            deviceUuid = Uuid.random(),
+            signedOutAt = Instant.fromEpochMilliseconds(1_700_000_000_000),
+        )
+        coEvery {
+            fixture.clearPushNotificationToken(event.authId, event.deviceUuid, event.signedOutAt)
+        } returns Result.success(Unit)
+        fixture.start(this)
+
+        whenn()
+        fixture.dispatch(AuthEvent.DeviceSignedOut.TOPIC, event)
+
+        then()
+        coVerify(exactly = 1) {
+            fixture.clearPushNotificationToken(event.authId, event.deviceUuid, event.signedOutAt)
+        }
+    }
+
+    @Test
+    fun `should mark the Telegram message confirmed when the user confirms the action`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val event = AuthEvent.TelegramActionConfirmed(userId = Uuid.random(), challengeId = "0123456789abcdef")
+        coEvery { fixture.telegramConfirmationChat.markConfirmed(event.userId, event.challengeId) } returns
+            Result.success(Unit)
+        fixture.start(this)
+
+        whenn()
+        fixture.dispatch(AuthEvent.TelegramActionConfirmed.TOPIC, event)
+
+        then()
+        coVerify(exactly = 1) { fixture.telegramConfirmationChat.markConfirmed(event.userId, event.challengeId) }
     }
 }

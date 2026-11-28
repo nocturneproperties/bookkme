@@ -16,6 +16,8 @@ services:
     environment:
       JAVA_TOOL_OPTIONS: "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:8000 -ea"
       TZ: "UTC"
+      APPLICATION_TELEGRAM_BOT_TOKEN: ${APPLICATION_TELEGRAM_BOT_TOKEN:-}
+      APPLICATION_TELEGRAM_BOT_USERNAME: ${APPLICATION_TELEGRAM_BOT_USERNAME:-}
     secrets:
       - signing_key_encryption_key
       - firebase_key

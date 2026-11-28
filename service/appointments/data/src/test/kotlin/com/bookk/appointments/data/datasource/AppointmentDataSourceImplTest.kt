@@ -8,22 +8,33 @@ import com.bookk.appointments.data.orm.table.PriceAdjustmentServicesTable
 import com.bookk.appointments.data.orm.table.PriceAdjustmentTable
 import com.bookk.appointments.data.orm.table.SettingsTable
 import com.bookk.appointments.data.orm.table.WorkingHoursTable
+import com.bookk.appointments.domain.api.entity.AdditionalService
 import com.bookk.appointments.domain.api.entity.Appointment
 import com.bookk.appointments.domain.api.entity.AppointmentCompletedBy
+import com.bookk.appointments.domain.api.entity.AppointmentHistoryFilter
 import com.bookk.appointments.domain.api.entity.AppointmentRequest
 import com.bookk.appointments.domain.api.entity.AppointmentSettings
 import com.bookk.appointments.domain.api.entity.AppointmentStatus
+import com.bookk.appointments.domain.api.entity.BookedRange
+import com.bookk.appointments.domain.api.entity.BookingPeriod
 import com.bookk.appointments.domain.api.entity.BusinessSnapshot
 import com.bookk.appointments.domain.api.entity.EmployeeSnapshot
+import com.bookk.appointments.domain.api.entity.HistoryOrder
+import com.bookk.appointments.domain.api.entity.OwnAppointmentFilter
 import com.bookk.appointments.domain.api.entity.PriceAdjustment
 import com.bookk.appointments.domain.api.entity.ServiceSnapshot
+import com.bookk.appointments.domain.api.entity.StartBounds
 import com.bookk.core.data.test.createTestDatabase
 import com.bookk.core.domain.entity.Error
+import com.bookk.core.domain.entity.Page
+import com.bookk.core.domain.entity.PageCursor
+import com.bookk.core.domain.entity.pageRequest
 import com.bookk.core.test.given
 import com.bookk.core.test.runUnitTest
 import com.bookk.core.test.then
 import com.bookk.core.test.whenn
 import kotlinx.datetime.TimeZone
+import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
 import org.joda.money.Money
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -76,6 +87,15 @@ internal class AppointmentDataSourceImplTest {
             date: Instant = Instant.fromEpochMilliseconds(0),
             employee: EmployeeSnapshot = EmployeeSnapshot.stub(),
         ) = AppointmentRequest.stub(initiatorUserId = userId, businessId = businessId, date = date, employee = employee)
+
+        suspend fun createForClientUser(
+            clientUserId: Uuid,
+            date: Instant,
+            businessId: Uuid = this.businessId,
+        ): Appointment {
+            val request = buildRequest(date = date).copy(businessId = businessId)
+            return suspendTransaction { sut.create(request.copy(client = request.client.copy(userId = clientUserId))) }
+        }
     }
 
     @Test
@@ -157,6 +177,114 @@ internal class AppointmentDataSourceImplTest {
         assertNotNull(created)
         assertEquals(fixture.businessId, created.businessId)
     }
+
+    @Test
+    fun `should return the business name with an appointment created from a request`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val business = BusinessSnapshot.stub(name = "Hair studio")
+        suspendTransaction { fixture.subscriptionSut.attachBusiness(business) }
+        val request = AppointmentRequest.stub(businessId = business.id)
+
+        whenn()
+        val created = suspendTransaction { fixture.sut.create(request) }
+        val found = suspendTransaction { fixture.sut.get(created.id) }
+
+        then()
+        assertEquals("Hair studio", created.businessName)
+        assertEquals("Hair studio", found.businessName)
+    }
+
+    @Test
+    fun `should return the business name with an appointment created from an appointment`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val business = BusinessSnapshot.stub(name = "Hair studio")
+        suspendTransaction { fixture.subscriptionSut.attachBusiness(business) }
+        val appointment = Appointment.stub(businessId = business.id)
+
+        whenn()
+        val created = suspendTransaction { fixture.sut.create(appointment) }
+
+        then()
+        assertEquals("Hair studio", created.businessName)
+    }
+
+    @Test
+    fun `should return the current business name after the business is renamed`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val business = BusinessSnapshot.stub(name = "Hair studio")
+        suspendTransaction { fixture.subscriptionSut.attachBusiness(business) }
+        val created = suspendTransaction { fixture.sut.create(AppointmentRequest.stub(businessId = business.id)) }
+        val renamed = business.copy(name = "Barber shop")
+        suspendTransaction { fixture.subscriptionSut.updateBusiness(renamed, Clock.System.now()) }
+
+        whenn()
+        val found = suspendTransaction { fixture.sut.get(created.id) }
+
+        then()
+        assertEquals("Barber shop", found.businessName)
+    }
+
+    @Test
+    fun `should return the name of each business with the client's appointments`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val clientUserId = Uuid.random()
+        val studio = BusinessSnapshot.stub(name = "Hair studio")
+        val barber = BusinessSnapshot.stub(name = "Barber shop")
+        suspendTransaction {
+            fixture.subscriptionSut.attachBusiness(studio)
+            fixture.subscriptionSut.attachBusiness(barber)
+        }
+        val atStudio = fixture.createForClientUser(clientUserId, Instant.fromEpochMilliseconds(0), studio.id)
+        val atBarber = fixture.createForClientUser(clientUserId, Instant.fromEpochMilliseconds(0), barber.id)
+
+        whenn()
+        val page = suspendTransaction {
+            fixture.sut.getPageOfClientUser(clientUserId, OwnAppointmentFilter(), Clock.System.now(), pageRequest())
+        }
+
+        then()
+        val names = page.items.associate { it.id to it.businessName }
+        assertEquals(mapOf(atStudio.id to "Hair studio", atBarber.id to "Barber shop"), names)
+    }
+
+    @Test
+    fun `should load the client's appointments across businesses with a constant number of queries`() =
+        runUnitTest {
+            given()
+            val fixture = SutFixture()
+            fixture.setup()
+            val singleUserId = Uuid.random()
+            val severalUserId = Uuid.random()
+            fixture.createForClientUser(
+                singleUserId,
+                Instant.fromEpochMilliseconds(0),
+                fixture.attachBusiness(automaticCompletion = true),
+            )
+            repeat(3) {
+                fixture.createForClientUser(
+                    severalUserId,
+                    Instant.fromEpochMilliseconds(0),
+                    fixture.attachBusiness(automaticCompletion = true),
+                )
+            }
+            val now = Clock.System.now()
+
+            whenn()
+            val singleQueries = countStatements {
+                fixture.sut.getPageOfClientUser(singleUserId, OwnAppointmentFilter(), now, pageRequest())
+            }
+            val severalQueries = countStatements {
+                fixture.sut.getPageOfClientUser(severalUserId, OwnAppointmentFilter(), now, pageRequest())
+            }
+
+            then()
+            assertEquals(singleQueries, severalQueries)
+        }
 
     @Test
     fun `should retrieve all appointments for business`() = runUnitTest {
@@ -346,40 +474,6 @@ internal class AppointmentDataSourceImplTest {
     }
 
     @Test
-    fun `should detect overlapping appointments for same user`() = runUnitTest {
-        given()
-        val fixture = SutFixture()
-        fixture.setup()
-        val userId = Uuid.random()
-        val baseDate = Clock.System.now()
-        suspendTransaction { fixture.sut.create(fixture.buildRequest(userId = userId, date = baseDate)) }
-
-        whenn()
-        val overlapping = fixture.buildRequest(userId = userId, date = baseDate + 15.minutes)
-        val hasOverlap = suspendTransaction { fixture.sut.hasOverlapsWith(overlapping) }
-
-        then()
-        assertTrue(hasOverlap)
-    }
-
-    @Test
-    fun `should not detect overlap when appointments are far apart`() = runUnitTest {
-        given()
-        val fixture = SutFixture()
-        fixture.setup()
-        val userId = Uuid.random()
-        val baseDate = Clock.System.now()
-        suspendTransaction { fixture.sut.create(fixture.buildRequest(userId = userId, date = baseDate)) }
-
-        whenn()
-        val nonOverlapping = fixture.buildRequest(userId = userId, date = baseDate + 2.hours)
-        val hasOverlap = suspendTransaction { fixture.sut.hasOverlapsWith(nonOverlapping) }
-
-        then()
-        assertFalse(hasOverlap)
-    }
-
-    @Test
     fun `should retrieve appointments for date range`() = runUnitTest {
         given()
         val fixture = SutFixture()
@@ -416,7 +510,7 @@ internal class AppointmentDataSourceImplTest {
     }
 
     @Test
-    fun `should return all appointments with pagination metadata`() = runUnitTest {
+    fun `should return every appointment on one page with no next cursor when they fit the limit`() = runUnitTest {
         given()
         val fixture = SutFixture()
         fixture.setup()
@@ -425,13 +519,19 @@ internal class AppointmentDataSourceImplTest {
         suspendTransaction { fixture.sut.create(fixture.buildRequest()) }
 
         whenn()
-        val pagination = suspendTransaction { fixture.sut.getAllPaginated(fixture.businessId, 10, 0, null) }
+        val page =
+            suspendTransaction {
+                fixture.sut.getHistoryPage(
+                    fixture.businessId,
+                    AppointmentHistoryFilter(),
+                    StartBounds.OPEN,
+                    pageRequest(limit = 3),
+                )
+            }
 
         then()
-        assertEquals(3, pagination.data.size)
-        assertEquals(3L, pagination.metadata.total)
-        assertEquals(1L, pagination.metadata.page)
-        assertEquals(10, pagination.metadata.pageSize)
+        assertEquals(3, page.items.size)
+        assertNull(page.next)
     }
 
     @Test
@@ -444,10 +544,18 @@ internal class AppointmentDataSourceImplTest {
 
         whenn()
         // ClientSnapshot.stub() uses fullName "Client Name"
-        val pagination = suspendTransaction { fixture.sut.getAllPaginated(fixture.businessId, 10, 0, "client name") }
+        val pagination =
+            suspendTransaction {
+                fixture.sut.getHistoryPage(
+                    fixture.businessId,
+                    AppointmentHistoryFilter(query = "client name"),
+                    StartBounds.OPEN,
+                    pageRequest(),
+                )
+            }
 
         then()
-        assertEquals(2, pagination.data.size)
+        assertEquals(2, pagination.items.size)
     }
 
     @Test
@@ -459,10 +567,18 @@ internal class AppointmentDataSourceImplTest {
 
         whenn()
         // ServiceSnapshot.stub() uses name "Service Name"
-        val pagination = suspendTransaction { fixture.sut.getAllPaginated(fixture.businessId, 10, 0, "service") }
+        val pagination =
+            suspendTransaction {
+                fixture.sut.getHistoryPage(
+                    fixture.businessId,
+                    AppointmentHistoryFilter(query = "service"),
+                    StartBounds.OPEN,
+                    pageRequest(),
+                )
+            }
 
         then()
-        assertEquals(1, pagination.data.size)
+        assertEquals(1, pagination.items.size)
     }
 
     @Test
@@ -479,14 +595,28 @@ internal class AppointmentDataSourceImplTest {
         }
 
         whenn()
-        val byService = suspendTransaction { fixture.sut.getAllPaginated(fixture.businessId, 10, 0, "service") }
-        val byClient = suspendTransaction { fixture.sut.getAllPaginated(fixture.businessId, 10, 0, "client name") }
+        val byService =
+            suspendTransaction {
+                fixture.sut.getHistoryPage(
+                    fixture.businessId,
+                    AppointmentHistoryFilter(query = "service"),
+                    StartBounds.OPEN,
+                    pageRequest(),
+                )
+            }
+        val byClient =
+            suspendTransaction {
+                fixture.sut.getHistoryPage(
+                    fixture.businessId,
+                    AppointmentHistoryFilter(query = "client name"),
+                    StartBounds.OPEN,
+                    pageRequest(),
+                )
+            }
 
         then()
-        assertEquals(listOf(own.id), byService.data.map { it.id })
-        assertEquals(1L, byService.metadata.total)
-        assertEquals(listOf(own.id), byClient.data.map { it.id })
-        assertEquals(1L, byClient.metadata.total)
+        assertEquals(listOf(own.id), byService.items.map { it.id })
+        assertEquals(listOf(own.id), byClient.items.map { it.id })
     }
 
     @Test
@@ -498,29 +628,117 @@ internal class AppointmentDataSourceImplTest {
 
         whenn()
         val pagination =
-            suspendTransaction { fixture.sut.getAllPaginated(fixture.businessId, 10, 0, "xyz-nonexistent") }
+            suspendTransaction {
+                fixture.sut.getHistoryPage(
+                    fixture.businessId,
+                    AppointmentHistoryFilter(query = "xyz-nonexistent"),
+                    StartBounds.OPEN,
+                    pageRequest(),
+                )
+            }
 
         then()
-        assertTrue(pagination.data.isEmpty())
-        assertEquals(0L, pagination.metadata.total)
+        assertTrue(pagination.items.isEmpty())
+        assertNull(pagination.next)
     }
 
     @Test
-    fun `should paginate appointments using offset`() = runUnitTest {
+    fun `should continue the history newest first after the cursor`() = runUnitTest {
         given()
         val fixture = SutFixture()
         fixture.setup()
-        suspendTransaction { fixture.sut.create(fixture.buildRequest()) }
-        suspendTransaction { fixture.sut.create(fixture.buildRequest()) }
-        suspendTransaction { fixture.sut.create(fixture.buildRequest()) }
+        val appointments = (0 until 3).map { hour ->
+            suspendTransaction {
+                fixture.sut.create(fixture.buildRequest(date = Instant.fromEpochSeconds(hour * 3600L)))
+            }
+        }
+        val first =
+            suspendTransaction {
+                fixture.sut.getHistoryPage(
+                    fixture.businessId,
+                    AppointmentHistoryFilter(),
+                    StartBounds.OPEN,
+                    pageRequest(limit = 2),
+                )
+            }
 
         whenn()
-        val page2 = suspendTransaction { fixture.sut.getAllPaginated(fixture.businessId, 2, 2, null) }
+        val second = suspendTransaction {
+            fixture.sut.getHistoryPage(
+                fixture.businessId,
+                AppointmentHistoryFilter(),
+                StartBounds.OPEN,
+                pageRequest(limit = 2, after = first.next),
+            )
+        }
 
         then()
-        assertEquals(1, page2.data.size)
-        assertEquals(3L, page2.metadata.total)
-        assertEquals(2L, page2.metadata.page)
+        assertEquals(listOf(appointments[2].id, appointments[1].id), first.items.map { it.id })
+        assertEquals(listOf(appointments[0].id), second.items.map { it.id })
+        assertNull(second.next)
+    }
+
+    @Test
+    fun `should page appointments starting at the same time without gaps or repeats`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val created = (0 until 5).map { suspendTransaction { fixture.sut.create(fixture.buildRequest()) } }
+
+        whenn()
+        val pages = mutableListOf<List<Uuid>>()
+        var after: PageCursor? = null
+        do {
+            val page = suspendTransaction {
+                fixture.sut.getHistoryPage(
+                    fixture.businessId,
+                    AppointmentHistoryFilter(),
+                    StartBounds.OPEN,
+                    pageRequest(limit = 2, after = after),
+                )
+            }
+            pages += page.items.map { it.id }
+            after = page.next
+        } while (after != null)
+
+        then()
+        assertEquals(listOf(2, 2, 1), pages.map { it.size })
+        assertEquals(created.map { it.id }.toSet(), pages.flatten().toSet())
+    }
+
+    @Test
+    fun `should apply the query filter on the pages after the cursor`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val matches = (0 until 3).map { hour ->
+            suspendTransaction {
+                fixture.sut.create(fixture.buildRequest(date = Instant.fromEpochSeconds(hour * 3600L)))
+            }
+        }
+        val first =
+            suspendTransaction {
+                fixture.sut.getHistoryPage(
+                    fixture.businessId,
+                    AppointmentHistoryFilter(query = "service"),
+                    StartBounds.OPEN,
+                    pageRequest(limit = 2),
+                )
+            }
+
+        whenn()
+        val second = suspendTransaction {
+            fixture.sut.getHistoryPage(
+                fixture.businessId,
+                AppointmentHistoryFilter(query = "service"),
+                StartBounds.OPEN,
+                pageRequest(limit = 2, after = first.next),
+            )
+        }
+
+        then()
+        assertEquals(listOf(matches[0].id), second.items.map { it.id })
+        assertNull(second.next)
     }
 
     @Test
@@ -798,7 +1016,8 @@ internal class AppointmentDataSourceImplTest {
         val found = suspendTransaction { fixture.sut.get(created.id) }
 
         then()
-        assertEquals("Deleted Client", found.client.fullName)
+        assertEquals("", found.client.fullName)
+        assertTrue(found.client.erased)
         assertNull(found.client.phone)
         assertNull(found.client.email)
         assertEquals(created.client.id, found.client.id)
@@ -840,25 +1059,6 @@ internal class AppointmentDataSourceImplTest {
         assertEquals("Carol", found.client.fullName)
         assertEquals("+456", found.client.phone)
         assertEquals("carol@test.com", found.client.email)
-    }
-
-    @Test
-    fun `should leave client details alone when anonymizing an employee user`() = runUnitTest {
-        given()
-        val fixture = SutFixture()
-        fixture.setup()
-        val userId = Uuid.random()
-        val request = fixture.buildRequest().let {
-            it.copy(client = it.client.copy(userId = userId, fullName = "Dave"))
-        }
-        val created = suspendTransaction { fixture.sut.create(request) }
-
-        whenn()
-        suspendTransaction { fixture.sut.anonymizeEmployee(userId) }
-        val found = suspendTransaction { fixture.sut.get(created.id) }
-
-        then()
-        assertEquals("Dave", found.client.fullName)
     }
 
     @Test
@@ -994,59 +1194,6 @@ internal class AppointmentDataSourceImplTest {
     }
 
     @Test
-    fun `should anonymize employee name on appointments assigned to the deleted user as employee`() = runUnitTest {
-        given()
-        val fixture = SutFixture()
-        fixture.setup()
-        val userId = Uuid.random()
-        val request = fixture.buildRequest().let {
-            it.copy(employee = it.employee.copy(userId = userId, fullName = "Bob"))
-        }
-        val created = suspendTransaction { fixture.sut.create(request) }
-
-        whenn()
-        suspendTransaction { fixture.sut.anonymizeEmployee(userId) }
-        val found = suspendTransaction { fixture.sut.get(created.id) }
-
-        then()
-        assertEquals("Deleted User", found.employee.fullName)
-    }
-
-    @Test
-    fun `should unlink the deleted user's account from appointments assigned to them as employee`() = runUnitTest {
-        given()
-        val fixture = SutFixture()
-        fixture.setup()
-        val userId = Uuid.random()
-        val request = fixture.buildRequest().let { it.copy(employee = it.employee.copy(userId = userId)) }
-        val created = suspendTransaction { fixture.sut.create(request) }
-
-        whenn()
-        suspendTransaction { fixture.sut.anonymizeEmployee(userId) }
-        val found = suspendTransaction { fixture.sut.get(created.id) }
-
-        then()
-        assertEquals(Uuid.NIL, found.employee.userId)
-        assertEquals(created.employee.id, found.employee.id)
-    }
-
-    @Test
-    fun `should keep other employees' accounts when anonymizing an employee user`() = runUnitTest {
-        given()
-        val fixture = SutFixture()
-        fixture.setup()
-        val untouched = suspendTransaction { fixture.sut.create(fixture.buildRequest()) }
-
-        whenn()
-        suspendTransaction { fixture.sut.anonymizeEmployee(Uuid.random()) }
-        val found = suspendTransaction { fixture.sut.get(untouched.id) }
-
-        then()
-        assertEquals(untouched.employee.userId, found.employee.userId)
-        assertEquals(untouched.employee.fullName, found.employee.fullName)
-    }
-
-    @Test
     fun `should unlink the deleted user's account from appointments they booked`() = runUnitTest {
         given()
         val fixture = SutFixture()
@@ -1078,26 +1225,18 @@ internal class AppointmentDataSourceImplTest {
     }
 
     @Test
-    fun `should not fail anonymizing appointments for an employee user with none`() = runUnitTest {
-        given()
-        val fixture = SutFixture()
-        fixture.setup()
-
-        whenn()
-        val result = runCatching { suspendTransaction { fixture.sut.anonymizeEmployee(Uuid.random()) } }
-
-        then()
-        assertTrue(result.isSuccess)
-    }
-
-    @Test
     fun `should attach price adjustment with additional services to appointment`() = runUnitTest {
         given()
         val fixture = SutFixture()
         fixture.setup()
         val created = suspendTransaction { fixture.sut.create(fixture.buildRequest()) }
         val adjustment = PriceAdjustment.stub(
-            additionalServices = listOf(ServiceSnapshot.stub().copy(price = Money.parse("USD 12.50"))),
+            additionalServices = listOf(
+                AdditionalService.stub(
+                    service = ServiceSnapshot.stub().copy(price = Money.parse("USD 12.50")),
+                    count = 3,
+                ),
+            ),
             price = Money.parse("USD 99.99"),
             reason = "Extra wash",
         )
@@ -1107,6 +1246,22 @@ internal class AppointmentDataSourceImplTest {
 
         then()
         assertEquals(adjustment, adjusted.priceAdjustment)
+        assertEquals(adjustment, suspendTransaction { fixture.sut.get(created.id) }.priceAdjustment)
+    }
+
+    @Test
+    fun `should store an additional service added several times as one row with its count`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val created = suspendTransaction { fixture.sut.create(fixture.buildRequest()) }
+        val adjustment = PriceAdjustment.stub(additionalServices = listOf(AdditionalService.stub(count = 50)))
+
+        whenn()
+        suspendTransaction { fixture.sut.adjustPrice(created.id, adjustment) }
+
+        then()
+        assertEquals(1L, suspendTransaction { PriceAdjustmentServicesTable.selectAll().count() })
         assertEquals(adjustment, suspendTransaction { fixture.sut.get(created.id) }.priceAdjustment)
     }
 
@@ -1134,7 +1289,7 @@ internal class AppointmentDataSourceImplTest {
         suspendTransaction {
             fixture.sut.adjustPrice(
                 created.id,
-                PriceAdjustment.stub(additionalServices = listOf(ServiceSnapshot.stub(), ServiceSnapshot.stub())),
+                PriceAdjustment.stub(additionalServices = listOf(AdditionalService.stub(), AdditionalService.stub())),
             )
         }
         val replacement = PriceAdjustment.stub(price = Money.parse("USD 10"), reason = "Corrected")
@@ -1204,11 +1359,19 @@ internal class AppointmentDataSourceImplTest {
         suspendTransaction { fixture.sut.adjustPrice(adjustedAppointment.id, adjustment) }
 
         whenn()
-        val pagination = suspendTransaction { fixture.sut.getAllPaginated(fixture.businessId, 10, 0, null) }
+        val pagination =
+            suspendTransaction {
+                fixture.sut.getHistoryPage(
+                    fixture.businessId,
+                    AppointmentHistoryFilter(),
+                    StartBounds.OPEN,
+                    pageRequest(),
+                )
+            }
 
         then()
-        assertEquals(adjustment, pagination.data.first { it.id == adjustedAppointment.id }.priceAdjustment)
-        assertNull(pagination.data.first { it.id == plainAppointment.id }.priceAdjustment)
+        assertEquals(adjustment, pagination.items.first { it.id == adjustedAppointment.id }.priceAdjustment)
+        assertNull(pagination.items.first { it.id == plainAppointment.id }.priceAdjustment)
     }
 
     @Test
@@ -1272,8 +1435,24 @@ internal class AppointmentDataSourceImplTest {
         seedAdjustedAppointments(fixture, severalBusinessId, count = 3)
 
         whenn()
-        val singleQueries = countStatements { fixture.sut.getAllPaginated(singleBusinessId, 10, 0, null) }
-        val severalQueries = countStatements { fixture.sut.getAllPaginated(severalBusinessId, 10, 0, null) }
+        val singleQueries =
+            countStatements {
+                fixture.sut.getHistoryPage(
+                    singleBusinessId,
+                    AppointmentHistoryFilter(),
+                    StartBounds.OPEN,
+                    pageRequest(),
+                )
+            }
+        val severalQueries =
+            countStatements {
+                fixture.sut.getHistoryPage(
+                    severalBusinessId,
+                    AppointmentHistoryFilter(),
+                    StartBounds.OPEN,
+                    pageRequest(),
+                )
+            }
 
         then()
         assertEquals(singleQueries, severalQueries)
@@ -1503,7 +1682,8 @@ internal class AppointmentDataSourceImplTest {
         val found = suspendTransaction { fixture.sut.get(created.id) }
 
         then()
-        assertEquals("Deleted Client", found.client.fullName)
+        assertEquals("", found.client.fullName)
+        assertTrue(found.client.erased)
         assertNull(found.client.phone)
         assertNull(found.client.email)
         assertNull(found.client.userId)
@@ -1998,5 +2178,431 @@ internal class AppointmentDataSourceImplTest {
         then()
         assertEquals(recorded.copy(note = "Corrected note"), updated)
         assertEquals(updated, suspendTransaction { fixture.sut.get(created.id) })
+    }
+
+    @Test
+    fun `should give the client's nearest scheduled appointments that have not ended, soonest first`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val otherBusinessId = fixture.attachBusiness(automaticCompletion = true)
+        val clientUserId = Uuid.random()
+        val now = Clock.System.now()
+        val latest = fixture.createForClientUser(clientUserId, now + 72.hours)
+        val ongoing = fixture.createForClientUser(clientUserId, now - 10.minutes)
+        val nearest = fixture.createForClientUser(clientUserId, now + 1.hours, otherBusinessId)
+
+        whenn()
+        val found = suspendTransaction { fixture.sut.getUpcomingOfClientUser(clientUserId, now, limit = 2) }
+
+        then()
+        assertEquals(listOf(ongoing.id, nearest.id), found.map { it.id })
+        assertFalse(latest.id in found.map { it.id })
+    }
+
+    @Test
+    fun `should not give the client's ended, cancelled or completed appointments as upcoming`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val clientUserId = Uuid.random()
+        val now = Clock.System.now()
+        fixture.createForClientUser(clientUserId, now - 2.hours)
+        val cancelled = fixture.createForClientUser(clientUserId, now + 1.hours)
+        val completed = fixture.createForClientUser(clientUserId, now + 2.hours)
+        suspendTransaction {
+            fixture.sut.cancel(cancelled.id, "Business closed")
+            fixture.sut.markCompletedByUser(completed.id)
+        }
+
+        whenn()
+        val found = suspendTransaction { fixture.sut.getUpcomingOfClientUser(clientUserId, now, limit = 2) }
+
+        then()
+        assertTrue(found.isEmpty())
+    }
+
+    @Test
+    fun `should not give other clients' appointments or ones the user only booked as upcoming`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val userId = Uuid.random()
+        val now = Clock.System.now()
+        fixture.createForClientUser(Uuid.random(), now + 1.hours)
+        val bookedForSomeoneElse = fixture.buildRequest(userId = userId, date = now + 2.hours)
+        suspendTransaction {
+            fixture.sut.create(
+                bookedForSomeoneElse.copy(client = bookedForSomeoneElse.client.copy(userId = Uuid.random())),
+            )
+        }
+
+        whenn()
+        val found = suspendTransaction { fixture.sut.getUpcomingOfClientUser(userId, now, limit = 2) }
+
+        then()
+        assertTrue(found.isEmpty())
+    }
+
+    @Test
+    fun `should load upcoming appointments with their services`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val clientUserId = Uuid.random()
+        val now = Clock.System.now()
+        val created = fixture.createForClientUser(clientUserId, now + 1.hours)
+
+        whenn()
+        val found = suspendTransaction { fixture.sut.getUpcomingOfClientUser(clientUserId, now, limit = 2) }
+
+        then()
+        assertEquals(listOf(created), found)
+    }
+
+    @Test
+    fun `should give the employee's scheduled appointments overlapping the range, whoever booked them`() =
+        runUnitTest {
+            given()
+            val fixture = SutFixture()
+            fixture.setup()
+            val employee = EmployeeSnapshot.stub()
+            val start = Instant.parse("2030-06-03T10:00:00Z")
+            val first =
+                suspendTransaction { fixture.sut.create(fixture.buildRequest(date = start, employee = employee)) }
+            val second = suspendTransaction {
+                fixture.sut.create(fixture.buildRequest(date = start + 1.hours, employee = employee))
+            }
+
+            whenn()
+            val bookings = suspendTransaction {
+                fixture.sut.getEmployeeBookings(fixture.businessId, employee.id, start..<start + 2.hours)
+            }
+
+            then()
+            assertEquals(
+                listOf(
+                    BookedRange(first.id, start, start + 30.minutes),
+                    BookedRange(second.id, start + 1.hours, start + 90.minutes),
+                ),
+                bookings.sortedBy { it.start },
+            )
+        }
+
+    @Test
+    fun `should not give appointments only touching the range`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val employee = EmployeeSnapshot.stub()
+        val start = Instant.parse("2030-06-03T10:00:00Z")
+        suspendTransaction { fixture.sut.create(fixture.buildRequest(date = start, employee = employee)) }
+        suspendTransaction { fixture.sut.create(fixture.buildRequest(date = start + 2.hours, employee = employee)) }
+
+        whenn()
+        val bookings = suspendTransaction {
+            fixture.sut.getEmployeeBookings(fixture.businessId, employee.id, start + 30.minutes..<start + 2.hours)
+        }
+
+        then()
+        assertTrue(bookings.isEmpty())
+    }
+
+    @Test
+    fun `should not give other employees', other businesses' or inactive appointments as employee bookings`() =
+        runUnitTest {
+            given()
+            val fixture = SutFixture()
+            fixture.setup()
+            val employee = EmployeeSnapshot.stub()
+            val start = Instant.parse("2030-06-03T10:00:00Z")
+            val otherBusinessId = fixture.attachBusiness(automaticCompletion = true)
+            suspendTransaction { fixture.sut.create(fixture.buildRequest(date = start)) }
+            suspendTransaction {
+                fixture.sut.create(
+                    fixture.buildRequest(date = start, employee = employee).copy(businessId = otherBusinessId),
+                )
+            }
+            val cancelled = suspendTransaction {
+                fixture.sut.create(fixture.buildRequest(date = start, employee = employee))
+            }
+            suspendTransaction { fixture.sut.cancel(cancelled.id, "Client called") }
+
+            whenn()
+            val bookings = suspendTransaction {
+                fixture.sut.getEmployeeBookings(fixture.businessId, employee.id, start..<start + 1.hours)
+            }
+
+            then()
+            assertTrue(bookings.isEmpty())
+        }
+
+    private suspend fun SutFixture.history(
+        filter: AppointmentHistoryFilter,
+        starts: StartBounds = StartBounds.OPEN,
+        after: PageCursor? = null,
+        limit: Int = 10,
+    ): Page<Appointment> {
+        return suspendTransaction { sut.getHistoryPage(businessId, filter, starts, pageRequest(limit, after)) }
+    }
+
+    @Test
+    fun `should filter the history by client`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val match = suspendTransaction { fixture.sut.create(fixture.buildRequest()) }
+        suspendTransaction { fixture.sut.create(fixture.buildRequest()) }
+
+        whenn()
+        val page = fixture.history(AppointmentHistoryFilter(clientId = match.client.id))
+
+        then()
+        assertEquals(listOf(match.id), page.items.map { it.id })
+    }
+
+    @Test
+    fun `should filter the history by employee`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val employee = EmployeeSnapshot.stub()
+        val match = suspendTransaction { fixture.sut.create(fixture.buildRequest(employee = employee)) }
+        suspendTransaction { fixture.sut.create(fixture.buildRequest()) }
+
+        whenn()
+        val page = fixture.history(AppointmentHistoryFilter(employeeId = employee.id))
+
+        then()
+        assertEquals(listOf(match.id), page.items.map { it.id })
+    }
+
+    @Test
+    fun `should filter the history by any of the given statuses`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val scheduled = suspendTransaction { fixture.sut.create(fixture.buildRequest()) }
+        val cancelled = suspendTransaction { fixture.sut.create(fixture.buildRequest()) }
+        suspendTransaction { fixture.sut.cancel(cancelled.id, "reason") }
+        val noShow = suspendTransaction { fixture.sut.create(fixture.buildRequest()) }
+        suspendTransaction { fixture.sut.markNoShow(noShow.id) }
+
+        whenn()
+        val onlyCancelled = fixture.history(AppointmentHistoryFilter(statuses = setOf(AppointmentStatus.CANCELLED)))
+        val cancelledOrScheduled = fixture.history(
+            AppointmentHistoryFilter(statuses = setOf(AppointmentStatus.CANCELLED, AppointmentStatus.SCHEDULED)),
+        )
+
+        then()
+        assertEquals(listOf(cancelled.id), onlyCancelled.items.map { it.id })
+        assertEquals(setOf(scheduled.id, cancelled.id), cancelledOrScheduled.items.map { it.id }.toSet())
+    }
+
+    @Test
+    fun `should keep appointments starting from the first bound and before the second`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val appointments = (0 until 3).map { hour ->
+            suspendTransaction {
+                fixture.sut.create(fixture.buildRequest(date = Instant.fromEpochSeconds(hour * 3600L)))
+            }
+        }
+        val starts = StartBounds(from = Instant.fromEpochSeconds(3600), until = Instant.fromEpochSeconds(7200))
+
+        whenn()
+        val page = fixture.history(AppointmentHistoryFilter(), starts)
+
+        then()
+        assertEquals(listOf(appointments[1].id), page.items.map { it.id })
+    }
+
+    @Test
+    fun `should continue the history soonest first after the cursor when asked`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val appointments = (0 until 3).map { hour ->
+            suspendTransaction {
+                fixture.sut.create(fixture.buildRequest(date = Instant.fromEpochSeconds(hour * 3600L)))
+            }
+        }
+        val filter = AppointmentHistoryFilter(order = HistoryOrder.SOONEST_FIRST)
+        val first = fixture.history(filter, limit = 2)
+
+        whenn()
+        val second = fixture.history(filter, after = first.next, limit = 2)
+
+        then()
+        assertEquals(listOf(appointments[0].id, appointments[1].id), first.items.map { it.id })
+        assertEquals(listOf(appointments[2].id), second.items.map { it.id })
+        assertNull(second.next)
+    }
+
+    @Test
+    fun `should page every appointment of the client's account across businesses, newest first`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val otherBusinessId = fixture.attachBusiness(automaticCompletion = true)
+        val clientUserId = Uuid.random()
+        val now = Clock.System.now()
+        val past = fixture.createForClientUser(clientUserId, now - 48.hours)
+        val upcoming = fixture.createForClientUser(clientUserId, now + 1.hours, otherBusinessId)
+        fixture.createForClientUser(Uuid.random(), now + 2.hours)
+
+        whenn()
+        val page = suspendTransaction {
+            fixture.sut.getPageOfClientUser(clientUserId, OwnAppointmentFilter(), now, pageRequest(limit = 10))
+        }
+
+        then()
+        assertEquals(listOf(upcoming.id, past.id), page.items.map { it.id })
+        assertNull(page.next)
+    }
+
+    @Test
+    fun `should page the client's appointments that have not ended, soonest first`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val clientUserId = Uuid.random()
+        val now = Clock.System.now()
+        val later = fixture.createForClientUser(clientUserId, now + 72.hours)
+        val ongoing = fixture.createForClientUser(clientUserId, now - 10.minutes)
+        fixture.createForClientUser(clientUserId, now - 48.hours)
+        val filter = OwnAppointmentFilter(period = BookingPeriod.UPCOMING)
+
+        whenn()
+        val page = suspendTransaction {
+            fixture.sut.getPageOfClientUser(clientUserId, filter, now, pageRequest(limit = 10))
+        }
+
+        then()
+        assertEquals(listOf(ongoing.id, later.id), page.items.map { it.id })
+    }
+
+    @Test
+    fun `should page the client's appointments that have ended, newest first`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val clientUserId = Uuid.random()
+        val now = Clock.System.now()
+        val older = fixture.createForClientUser(clientUserId, now - 72.hours)
+        val newer = fixture.createForClientUser(clientUserId, now - 48.hours)
+        fixture.createForClientUser(clientUserId, now - 10.minutes)
+        fixture.createForClientUser(clientUserId, now + 1.hours)
+        val filter = OwnAppointmentFilter(period = BookingPeriod.PAST)
+
+        whenn()
+        val page = suspendTransaction {
+            fixture.sut.getPageOfClientUser(clientUserId, filter, now, pageRequest(limit = 10))
+        }
+
+        then()
+        assertEquals(listOf(newer.id, older.id), page.items.map { it.id })
+    }
+
+    @Test
+    fun `should page only the client's appointments in the given statuses`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val clientUserId = Uuid.random()
+        val now = Clock.System.now()
+        val scheduled = fixture.createForClientUser(clientUserId, now + 1.hours)
+        val cancelled = fixture.createForClientUser(clientUserId, now + 2.hours)
+        val completed = fixture.createForClientUser(clientUserId, now + 3.hours)
+        suspendTransaction {
+            fixture.sut.cancel(cancelled.id, "Business closed")
+            fixture.sut.markCompletedByUser(completed.id)
+        }
+        val filter = OwnAppointmentFilter(statuses = setOf(AppointmentStatus.SCHEDULED, AppointmentStatus.CANCELLED))
+
+        whenn()
+        val page = suspendTransaction {
+            fixture.sut.getPageOfClientUser(clientUserId, filter, now, pageRequest(limit = 10))
+        }
+
+        then()
+        assertEquals(listOf(cancelled.id, scheduled.id), page.items.map { it.id })
+    }
+
+    @Test
+    fun `should continue the client's upcoming appointments after the cursor`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val clientUserId = Uuid.random()
+        val now = Clock.System.now()
+        val appointments = (1..3).map { fixture.createForClientUser(clientUserId, now + it.hours) }
+        val filter = OwnAppointmentFilter(period = BookingPeriod.UPCOMING)
+        val first = suspendTransaction {
+            fixture.sut.getPageOfClientUser(clientUserId, filter, now, pageRequest(limit = 2))
+        }
+
+        whenn()
+        val second = suspendTransaction {
+            fixture.sut.getPageOfClientUser(clientUserId, filter, now, pageRequest(limit = 2, after = first.next))
+        }
+
+        then()
+        assertEquals(listOf(appointments[0].id, appointments[1].id), first.items.map { it.id })
+        assertEquals(listOf(appointments[2].id), second.items.map { it.id })
+        assertNull(second.next)
+    }
+
+    @Test
+    fun `should page the client's appointments starting at the same time without gaps or repeats`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val clientUserId = Uuid.random()
+        val now = Clock.System.now()
+        val created = (0 until 5).map { fixture.createForClientUser(clientUserId, now - 48.hours) }
+
+        whenn()
+        val pages = mutableListOf<List<Uuid>>()
+        var after: PageCursor? = null
+        do {
+            val page = suspendTransaction {
+                fixture.sut.getPageOfClientUser(
+                    clientUserId,
+                    OwnAppointmentFilter(period = BookingPeriod.PAST),
+                    now,
+                    pageRequest(limit = 2, after = after),
+                )
+            }
+            pages += page.items.map { it.id }
+            after = page.next
+        } while (after != null)
+
+        then()
+        assertEquals(listOf(2, 2, 1), pages.map { it.size })
+        assertEquals(created.map { it.id }.toSet(), pages.flatten().toSet())
+    }
+
+    @Test
+    fun `should load the client's page of appointments with their services`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val clientUserId = Uuid.random()
+        val created = fixture.createForClientUser(clientUserId, Clock.System.now() + 1.hours)
+
+        whenn()
+        val page = suspendTransaction {
+            fixture.sut.getPageOfClientUser(
+                clientUserId,
+                OwnAppointmentFilter(),
+                Clock.System.now(),
+                pageRequest(limit = 10),
+            )
+        }
+
+        then()
+        assertEquals(created.services, page.items.single().services)
     }
 }

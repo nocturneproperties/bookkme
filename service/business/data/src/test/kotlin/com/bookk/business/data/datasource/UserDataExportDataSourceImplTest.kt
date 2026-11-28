@@ -5,6 +5,7 @@ import com.bookk.business.data.orm.table.BusinessDayOffTable
 import com.bookk.business.data.orm.table.BusinessPermissionGrantsTable
 import com.bookk.business.data.orm.table.BusinessTable
 import com.bookk.business.data.orm.table.BusinessWorkingHoursTable
+import com.bookk.business.data.orm.table.ClientNameTokenTable
 import com.bookk.business.data.orm.table.ClientTable
 import com.bookk.business.data.orm.table.EmployeeCanProvideServiceTable
 import com.bookk.business.data.orm.table.EmployeeDayOffTable
@@ -53,6 +54,7 @@ internal class UserDataExportDataSourceImplTest {
             EmployeeWorkingHoursTable,
             EmployeeDayOffTable,
             ClientTable,
+            ClientNameTokenTable,
         )
         val contactCipher = testContactCipher()
         val sut = UserDataExportDataSourceImpl(contactCipher)
@@ -196,6 +198,7 @@ internal class UserDataExportDataSourceImplTest {
                     phone = "+380501112233",
                     email = "olena@example.com",
                     description = "allergic to latex",
+                    telegramUsername = "olena_k",
                 ),
             )
         }
@@ -228,6 +231,7 @@ internal class UserDataExportDataSourceImplTest {
                     email = "olena@example.com",
                     description = "allergic to latex",
                     lastActivityAt = lastActivityAt,
+                    telegramUsername = "olena_k",
                 ),
             ),
             export.clientRecords,

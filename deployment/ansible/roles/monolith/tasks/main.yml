@@ -26,6 +26,22 @@
     fail_msg: "Run 'make vault-update' to generate vault_subject_master_key and vault_blind_index_key; without them the app can't start"
     quiet: true
 
+- name: Refuse Telegram sign-in without a token of the same bot for its notifications
+  ansible.builtin.assert:
+    that: >-
+      vault_telegram_bot_id | default('', true) | string == ''
+      or (vault_telegram_bot_token | default('', true)).split(':')[0] == vault_telegram_bot_id | string
+    fail_msg: "Set vault_telegram_bot_token to the token of bot {{ vault_telegram_bot_id | default('') }} with 'make vault-edit'; without it accounts created through Telegram get no notifications, not even the warning before a dormant account is deleted"
+    quiet: true
+
+- name: Refuse Telegram sign-in without the bot username its action confirmation links need
+  ansible.builtin.assert:
+    that: >-
+      vault_telegram_bot_id | default('', true) | string == ''
+      or vault_telegram_bot_username | default('', true) | string != ''
+    fail_msg: "Set vault_telegram_bot_username with 'make vault-edit'; without it accounts created through Telegram can't confirm deleting their account or exporting their data"
+    quiet: true
+
 - name: Render the monolith environment and database users init files
   ansible.builtin.set_fact:
     monolith_env_file: "{{ lookup('ansible.builtin.template', 'monolith.env.j2') }}"

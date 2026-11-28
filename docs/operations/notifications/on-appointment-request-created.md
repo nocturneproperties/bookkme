@@ -5,7 +5,13 @@ Kafka topic `AppointmentEvent.RequestCreated` → `NotificationEventHandler` →
 Produced by [Create appointment request](../appointments/create-appointment-request.md)
 (the manual-approval path only — see [Send
 notification](#shared-send-notification-behavior) below). Notifies the
-employee a new request is waiting for them.
+employee a new request is waiting for them, with its date; the email also
+lists the services (a service booked more than once as `name ×count`) and the
+price. The push carries the request id as its subject (Android tag and APNs
+collapse id `appointment_request:<requestId>`, data `appointmentRequestId`), so
+the app can remove it once the request is handled; see [Push
+notifications](../../push-notifications.md). An event without `requestId`
+sends the push without them.
 
 ```mermaid
 flowchart TD

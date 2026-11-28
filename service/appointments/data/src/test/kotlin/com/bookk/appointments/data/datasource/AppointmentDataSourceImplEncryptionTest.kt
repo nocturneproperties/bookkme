@@ -9,13 +9,16 @@ import com.bookk.appointments.data.orm.table.PriceAdjustmentTable
 import com.bookk.appointments.data.orm.table.SettingsTable
 import com.bookk.appointments.data.orm.table.WorkingHoursTable
 import com.bookk.appointments.domain.api.entity.Appointment
+import com.bookk.appointments.domain.api.entity.AppointmentHistoryFilter
 import com.bookk.appointments.domain.api.entity.AppointmentRequest
 import com.bookk.appointments.domain.api.entity.AppointmentSettings
 import com.bookk.appointments.domain.api.entity.BusinessSnapshot
 import com.bookk.appointments.domain.api.entity.ClientSnapshot
 import com.bookk.appointments.domain.api.entity.EmployeeSnapshot
 import com.bookk.appointments.domain.api.entity.ServiceSnapshot
+import com.bookk.appointments.domain.api.entity.StartBounds
 import com.bookk.core.data.test.createTestDatabase
+import com.bookk.core.domain.entity.pageRequest
 import com.bookk.core.test.given
 import com.bookk.core.test.runUnitTest
 import com.bookk.core.test.then
@@ -31,9 +34,11 @@ import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.suspendTransaction
+import org.jetbrains.exposed.v1.jdbc.update
 import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import kotlin.time.Instant
 import kotlin.uuid.Uuid
@@ -72,13 +77,23 @@ internal class AppointmentDataSourceImplEncryptionTest {
             employee: EmployeeSnapshot = EmployeeSnapshot.stub(),
             note: String = "Bring the red dress",
             date: Instant = Instant.fromEpochMilliseconds(0),
+            clientNote: String = "Please ring twice",
         ): Appointment {
             return Appointment.stub(businessId = businessId, date = date)
-                .copy(client = client, employee = employee, note = note)
+                .copy(client = client, employee = employee, note = note, clientNote = clientNote)
         }
 
         suspend fun create(appointment: Appointment): Appointment {
             return suspendTransaction { sut.create(appointment) }
+        }
+
+        suspend fun anonymizeEmployeeTheOldWay(id: Uuid) {
+            suspendTransaction {
+                AppointmentTable.update(where = { AppointmentTable.id eq id }) {
+                    it[AppointmentTable.employeeNameEncrypted] = null
+                    it[AppointmentTable.employeeUserId] = Uuid.NIL
+                }
+            }
         }
 
         suspend fun storedRow(id: Uuid): ResultRow {
@@ -89,8 +104,10 @@ internal class AppointmentDataSourceImplEncryptionTest {
             return blindIndex.ofCaseInsensitive(fullName)
         }
 
-        suspend fun page(query: String, limit: Int = 10, offset: Long = 0): List<Uuid> {
-            return suspendTransaction { sut.getAllPaginated(businessId, limit, offset, query) }.data.map { it.id }
+        suspend fun page(query: String): List<Uuid> {
+            return suspendTransaction {
+                sut.getHistoryPage(businessId, AppointmentHistoryFilter(query = query), StartBounds.OPEN, pageRequest())
+            }.items.map { it.id }
         }
 
         suspend fun decrypted(subjectId: Uuid, ciphertext: ByteArray?): String? {
@@ -127,6 +144,7 @@ internal class AppointmentDataSourceImplEncryptionTest {
             assertEquals("+10000000000", fixture.decrypted(client.id, row[AppointmentTable.clientPhoneEncrypted]))
             assertEquals("alice@example.com", fixture.decrypted(client.id, row[AppointmentTable.clientEmailEncrypted]))
             assertEquals("Bring the red dress", fixture.decrypted(client.id, row[AppointmentTable.noteEncrypted]))
+            assertEquals("Please ring twice", fixture.decrypted(client.id, row[AppointmentTable.clientNoteEncrypted]))
             assertEquals("Bob Stylist", fixture.decrypted(employee.userId, row[AppointmentTable.employeeNameEncrypted]))
         }
 
@@ -180,6 +198,63 @@ internal class AppointmentDataSourceImplEncryptionTest {
     }
 
     @Test
+    fun `should copy a request's note into the client's note of the appointment created from it`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val request = AppointmentRequest.stub(businessId = fixture.businessId).copy(note = "Please ring twice")
+
+        whenn()
+        val created = suspendTransaction { fixture.sut.create(request) }
+
+        then()
+        val row = fixture.storedRow(created.id)
+        assertEquals(
+            "Please ring twice",
+            fixture.decrypted(request.client.id, row[AppointmentTable.clientNoteEncrypted]),
+        )
+        assertEquals("Please ring twice", created.clientNote)
+        assertEquals("Please ring twice", suspendTransaction { fixture.sut.get(created.id) }.clientNote)
+    }
+
+    @Test
+    fun `should keep the stored client's note when the appointment's note changes`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val created = fixture.create(fixture.appointment())
+        val before = fixture.storedRow(created.id)
+
+        whenn()
+        val updated = suspendTransaction { fixture.sut.update(created.copy(note = "Short hair")) }
+
+        then()
+        assertKept(before, fixture.storedRow(created.id), AppointmentTable.clientNoteEncrypted)
+        assertEquals("Please ring twice", updated.clientNote)
+    }
+
+    @Test
+    fun `should read an appointment stored without a client's note as one with an empty note`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val created = fixture.create(fixture.appointment())
+        suspendTransaction {
+            AppointmentTable.update(where = { AppointmentTable.id eq created.id }) {
+                it[clientNoteEncrypted] = null
+            }
+        }
+
+        whenn()
+        val read = suspendTransaction { fixture.sut.get(created.id) }
+
+        then()
+        assertEquals("", read.clientNote)
+        assertEquals("Bring the red dress", read.note)
+        assertEquals(emptyList<String>(), fixture.missingKeys.reported)
+    }
+
+    @Test
     fun `should read back an encrypted appointment`() = runUnitTest {
         given()
         val fixture = SutFixture()
@@ -225,9 +300,9 @@ internal class AppointmentDataSourceImplEncryptionTest {
         val read = suspendTransaction { fixture.sut.get(created.id) }
 
         then()
-        assertEquals(created.client.copy(fullName = "Deleted Client", phone = null, email = null), read.client)
+        assertEquals(created.client.copy(fullName = "", phone = null, email = null, erased = true), read.client)
         assertEquals("", read.note)
-        assertEquals(created.employee.copy(fullName = "Deleted User"), read.employee)
+        assertEquals(created.employee.copy(fullName = "", erased = true), read.employee)
         assertEquals(emptyList<String>(), fixture.missingKeys.reported)
     }
 
@@ -246,6 +321,7 @@ internal class AppointmentDataSourceImplEncryptionTest {
         then()
         assertEquals(created.client.copy(fullName = "", phone = null, email = null), read.client)
         assertEquals("", read.note)
+        assertEquals("", read.clientNote)
         assertEquals(created.employee.copy(fullName = ""), read.employee)
         assertEquals(listOf("appointment", "appointment"), fixture.missingKeys.reported)
     }
@@ -267,7 +343,7 @@ internal class AppointmentDataSourceImplEncryptionTest {
         assertNull(row[AppointmentTable.clientNameEncrypted])
         assertNull(row[AppointmentTable.noteEncrypted])
         assertNull(row[AppointmentTable.clientNameIndex])
-        assertEquals("Deleted Client", suspendTransaction { fixture.sut.get(created.id) }.client.fullName)
+        assertTrue(suspendTransaction { fixture.sut.get(created.id) }.client.erased)
     }
 
     @Test
@@ -344,10 +420,12 @@ internal class AppointmentDataSourceImplEncryptionTest {
         assertNull(row[AppointmentTable.clientPhoneEncrypted])
         assertNull(row[AppointmentTable.clientEmailEncrypted])
         assertNull(row[AppointmentTable.noteEncrypted])
+        assertNull(row[AppointmentTable.clientNoteEncrypted])
         assertNull(row[AppointmentTable.clientNameIndex])
         val read = suspendTransaction { fixture.sut.get(created.id) }
-        assertEquals(ClientSnapshot(created.client.id, "Deleted Client", null, null, null), read.client)
+        assertEquals(ClientSnapshot(created.client.id, "", null, null, null, erased = true), read.client)
         assertEquals("", read.note)
+        assertEquals("", read.clientNote)
     }
 
     @Test
@@ -364,26 +442,26 @@ internal class AppointmentDataSourceImplEncryptionTest {
         val row = fixture.storedRow(created.id)
         assertNull(row[AppointmentTable.clientNameEncrypted])
         assertNull(row[AppointmentTable.noteEncrypted])
+        assertNull(row[AppointmentTable.clientNoteEncrypted])
         assertNull(row[AppointmentTable.clientNameIndex])
         val read = suspendTransaction { fixture.sut.get(created.id) }
-        assertEquals(ClientSnapshot(created.client.id, "Deleted Client", null, null, null), read.client)
+        assertEquals(ClientSnapshot(created.client.id, "", null, null, null, erased = true), read.client)
     }
 
     @Test
-    fun `should erase a deleted employee's encrypted name`() = runUnitTest {
+    fun `should read an employee erased before shredding replaced anonymization as a deleted user`() = runUnitTest {
         given()
         val fixture = SutFixture()
         fixture.setup()
         val created = fixture.create(fixture.appointment())
+        fixture.anonymizeEmployeeTheOldWay(created.id)
 
         whenn()
-        suspendTransaction { fixture.sut.anonymizeEmployee(created.employee.userId) }
+        val read = suspendTransaction { fixture.sut.get(created.id) }
 
         then()
-        val row = fixture.storedRow(created.id)
-        assertNull(row[AppointmentTable.employeeNameEncrypted])
-        val read = suspendTransaction { fixture.sut.get(created.id) }
-        assertEquals(EmployeeSnapshot(created.employee.id, Uuid.NIL, "Deleted User"), read.employee)
+        assertEquals(EmployeeSnapshot(created.employee.id, Uuid.NIL, "", erased = true), read.employee)
+        assertEquals(emptyList<String>(), fixture.missingKeys.reported)
     }
 
     @Test
@@ -395,11 +473,10 @@ internal class AppointmentDataSourceImplEncryptionTest {
         fixture.create(fixture.appointment(client = ClientSnapshot.stub().copy(fullName = "Carol Jones")))
 
         whenn()
-        val page = suspendTransaction { fixture.sut.getAllPaginated(fixture.businessId, 10, 0, " aLiCe sMiTh ") }
+        val found = fixture.page(" aLiCe sMiTh ")
 
         then()
-        assertEquals(listOf(match.id), page.data.map { it.id })
-        assertEquals(1L, page.metadata.total)
+        assertEquals(listOf(match.id), found)
     }
 
     @Test
@@ -465,13 +542,29 @@ internal class AppointmentDataSourceImplEncryptionTest {
             )
         }
 
+        val first = suspendTransaction {
+            fixture.sut.getHistoryPage(
+                fixture.businessId,
+                AppointmentHistoryFilter(query = "alice smith"),
+                StartBounds.OPEN,
+                pageRequest(limit = 2),
+            )
+        }
+
         whenn()
-        val page = suspendTransaction { fixture.sut.getAllPaginated(fixture.businessId, 2, 2, "alice smith") }
+        val second = suspendTransaction {
+            fixture.sut.getHistoryPage(
+                fixture.businessId,
+                AppointmentHistoryFilter(query = "alice smith"),
+                StartBounds.OPEN,
+                pageRequest(limit = 2, after = first.next),
+            )
+        }
 
         then()
-        assertEquals(listOf(matches[0].id), page.data.map { it.id })
-        assertEquals(3L, page.metadata.total)
-        assertEquals(2L, page.metadata.page)
+        assertEquals(listOf(matches[2].id, matches[1].id), first.items.map { it.id })
+        assertEquals(listOf(matches[0].id), second.items.map { it.id })
+        assertNull(second.next)
     }
 
     @Test
@@ -524,6 +617,7 @@ internal class AppointmentDataSourceImplEncryptionTest {
         val row = fixture.storedRow(moved.id)
         assertEquals("Merged Name", fixture.decrypted(kept.id, row[AppointmentTable.clientNameEncrypted]))
         assertEquals("Merged note", fixture.decrypted(kept.id, row[AppointmentTable.noteEncrypted]))
+        assertEquals("Please ring twice", fixture.decrypted(kept.id, row[AppointmentTable.clientNoteEncrypted]))
         assertEquals(fixture.nameIndex("Merged Name"), row[AppointmentTable.clientNameIndex])
         val read = suspendTransaction { fixture.sut.get(moved.id) }
         assertEquals(merged.copy(id = kept.id), read.client)
@@ -569,12 +663,30 @@ internal class AppointmentDataSourceImplEncryptionTest {
     }
 
     @Test
-    fun `should not store a deleted employee's name under a key`() = runUnitTest {
+    fun `should keep a deleted employee erased when the appointment is updated`() = runUnitTest {
         given()
         val fixture = SutFixture()
         fixture.setup()
         val created = fixture.create(fixture.appointment())
-        suspendTransaction { fixture.sut.anonymizeEmployee(created.employee.userId) }
+        fixture.subjectKeys.shred(created.employee.userId)
+        val erased = suspendTransaction { fixture.sut.get(created.id) }
+
+        whenn()
+        suspendTransaction { fixture.sut.update(erased.copy(note = "Changed")) }
+
+        then()
+        val read = suspendTransaction { fixture.sut.get(created.id) }
+        assertEquals(created.employee.copy(fullName = "", erased = true), read.employee)
+        assertEquals("Changed", read.note)
+    }
+
+    @Test
+    fun `should not store the name of an employee erased before shredding replaced anonymization`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val created = fixture.create(fixture.appointment())
+        fixture.anonymizeEmployeeTheOldWay(created.id)
         val anonymized = suspendTransaction { fixture.sut.get(created.id) }
 
         whenn()
@@ -583,6 +695,6 @@ internal class AppointmentDataSourceImplEncryptionTest {
         then()
         val row = fixture.storedRow(created.id)
         assertNull(row[AppointmentTable.employeeNameEncrypted])
-        assertEquals("Deleted User", suspendTransaction { fixture.sut.get(created.id) }.employee.fullName)
+        assertTrue(suspendTransaction { fixture.sut.get(created.id) }.employee.erased)
     }
 }

@@ -1,5 +1,9 @@
 package com.bookk.appointments.microservice.route
 
+import com.bookk.appointments.domain.api.entity.AppointmentRequestStatus
+import com.bookk.appointments.domain.api.entity.AppointmentStatus
+import com.bookk.appointments.domain.api.entity.BookingPeriod
+import com.bookk.appointments.domain.api.entity.HistoryOrder
 import io.ktor.resources.Resource
 import kotlinx.datetime.LocalDate
 import kotlin.uuid.Uuid
@@ -28,8 +32,38 @@ object AppointmentsRouting {
             @Resource("/enabled/{businessId}")
             class Enabled(val parent: Appointment = Appointment(), val businessId: Uuid)
 
-            @Resource("/enabled")
-            class EnabledForClientBusinesses(val parent: Appointment = Appointment())
+            @Resource("/upcoming")
+            class Upcoming(val parent: Appointment = Appointment())
+
+            @Resource("/mine")
+            class OwnHistory(
+                val parent: Appointment = Appointment(),
+                val limit: Int? = null,
+                val cursor: String? = null,
+                val period: BookingPeriod? = null,
+                val status: List<AppointmentStatus> = emptyList(),
+            )
+
+            @Resource("/request/mine")
+            class OwnRequestHistory(
+                val parent: Appointment = Appointment(),
+                val limit: Int? = null,
+                val cursor: String? = null,
+                val period: BookingPeriod? = null,
+                val status: List<AppointmentRequestStatus> = emptyList(),
+            )
+
+            @Resource("/businesses")
+            class SavedBusinesses(val parent: Appointment = Appointment())
+
+            @Resource("/businesses/{businessId}")
+            class SavedBusiness(val parent: Appointment = Appointment(), val businessId: Uuid)
+
+            @Resource("/slots")
+            class Slots(val parent: Appointment = Appointment())
+
+            @Resource("/booking-info/{businessId}")
+            class BookingInfo(val parent: Appointment = Appointment(), val businessId: Uuid)
 
             @Resource("/{id}")
             class Id(val parent: Appointment = Appointment(), val id: Uuid)
@@ -55,12 +89,22 @@ object AppointmentsRouting {
             @Resource("/request/{id}/withdraw")
             class RequestWithdraw(val parent: Appointment = Appointment(), val id: Uuid)
 
-            @Resource("/request/{businessId}")
-            class Requests(val parent: Appointment = Appointment(), val businessId: Uuid) {
+            @Resource("/request/history/{businessId}")
+            class RequestHistory(
+                val parent: Appointment = Appointment(),
+                val businessId: Uuid,
+                val limit: Int? = null,
+                val cursor: String? = null,
+                val clientId: Uuid? = null,
+                val employeeId: Uuid? = null,
+                val status: List<AppointmentRequestStatus> = emptyList(),
+                val from: LocalDate? = null,
+                val to: LocalDate? = null,
+                val order: HistoryOrder? = null,
+            )
 
-                @Resource("/mine")
-                class Own(val parent: Requests)
-            }
+            @Resource("/request/{businessId}/mine")
+            class OwnRequests(val parent: Appointment = Appointment(), val businessId: Uuid)
 
             @Resource("/settings/{businessId}")
             class Settings(val parent: Appointment = Appointment(), val businessId: Uuid)
@@ -78,9 +122,15 @@ object AppointmentsRouting {
         class AppointmentHistory(
             val parent: Api = Api(),
             val businessId: Uuid,
-            val limit: Int,
-            val offset: Long,
+            val limit: Int? = null,
+            val cursor: String? = null,
             val query: String? = null,
+            val clientId: Uuid? = null,
+            val employeeId: Uuid? = null,
+            val status: List<AppointmentStatus> = emptyList(),
+            val from: LocalDate? = null,
+            val to: LocalDate? = null,
+            val order: HistoryOrder? = null,
         )
     }
 }

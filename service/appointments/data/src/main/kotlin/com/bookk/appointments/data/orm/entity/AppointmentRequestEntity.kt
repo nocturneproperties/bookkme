@@ -11,6 +11,7 @@ import com.bookk.appointments.domain.api.entity.ServiceSnapshot
 import com.bookk.core.data.DecoratorUuidEntityClass
 import org.jetbrains.exposed.v1.core.dao.id.EntityID
 import org.jetbrains.exposed.v1.dao.UuidEntity
+import org.jetbrains.exposed.v1.dao.with
 import org.joda.money.CurrencyUnit
 import org.joda.money.Money
 import java.math.BigDecimal
@@ -23,6 +24,7 @@ internal class AppointmentRequestEntity(id: EntityID<Uuid>) : UuidEntity(id) {
 
     var initiatorUserId by AppointmentRequestTable.initiatorUserId
     var businessId by AppointmentRequestTable.businessId
+    val business by AppointmentBusinessEntity referencedOn AppointmentRequestTable.businessId
     var employeeId by AppointmentRequestTable.employeeId
     var employeeUserId by AppointmentRequestTable.employeeUserId
     var employeeNameEncrypted by AppointmentRequestTable.employeeNameEncrypted
@@ -49,6 +51,7 @@ internal class AppointmentRequestEntity(id: EntityID<Uuid>) : UuidEntity(id) {
                 id = employeeId,
                 userId = employeeUserId,
                 fullName = snapshot.employeeName,
+                erased = snapshot.isEmployeeErased,
             ),
             client = RequestClientSnapshot(
                 id = clientId,
@@ -56,6 +59,7 @@ internal class AppointmentRequestEntity(id: EntityID<Uuid>) : UuidEntity(id) {
                 phone = client.phone,
                 email = client.email,
                 userId = clientUserId,
+                erased = snapshot.isClientErased,
             ),
             services = services.map {
                 ServiceSnapshot(
@@ -73,6 +77,7 @@ internal class AppointmentRequestEntity(id: EntityID<Uuid>) : UuidEntity(id) {
             note = client.note,
             status = status,
             declineReason = declineReason,
+            businessName = business.name,
         )
     }
 
@@ -86,6 +91,7 @@ internal class AppointmentRequestEntity(id: EntityID<Uuid>) : UuidEntity(id) {
                     phone = clientPhoneEncrypted,
                     email = clientEmailEncrypted,
                     note = checkNotNull(noteEncrypted) { "Snapshot of client $clientId has no encrypted note" },
+                    clientNote = null,
                     nameIndex = null,
                 )
             },
@@ -149,3 +155,8 @@ internal class AppointmentRequestEntity(id: EntityID<Uuid>) : UuidEntity(id) {
         }
     }
 }
+
+internal fun List<AppointmentRequestEntity>.withDetails(): List<AppointmentRequestEntity> = this.with(
+    AppointmentRequestEntity::business,
+    AppointmentRequestEntity::services,
+)

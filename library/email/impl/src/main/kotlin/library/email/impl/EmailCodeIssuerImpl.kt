@@ -6,8 +6,10 @@ import library.email.EmailCodeError
 import library.email.EmailCodeIssuer
 import library.email.EmailContent
 import library.email.EmailMessage
+import library.email.EmailSendError
 import library.email.EmailSender
 import library.email.EmailVerificationStarted
+import library.email.PlaceholderEmail
 import java.util.Random
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.hours
@@ -30,6 +32,7 @@ internal class EmailCodeIssuerImpl(
         ownerId: Uuid,
         render: (code: String) -> EmailContent,
     ): Result<EmailVerificationStarted> = runSuspendCatching {
+        if (PlaceholderEmail.isPlaceholder(email)) throw EmailSendError.Undeliverable()
         if (!store.claimCooldown(email, RESEND_COOLDOWN)) throw EmailCodeError.ResendTooSoon()
         runCleaningUpOnFailure(cleanUp = { store.releaseCooldown(email) }) {
             val sendsInWindow = store.countSend(email, SEND_LIMIT_WINDOW)

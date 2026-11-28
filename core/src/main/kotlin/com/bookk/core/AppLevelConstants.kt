@@ -8,6 +8,10 @@ object AppLevelConstants {
 
     val domainName: String
         get() = System.getenv("APPLICATION_DOMAIN_NAME").orEmpty()
+    val siteDomainName: String
+        get() = System.getenv("APPLICATION_SITE_DOMAIN_NAME").orEmpty()
+    val passkeyExtraOrigins: String
+        get() = System.getenv("APPLICATION_PASSKEY_EXTRA_ORIGINS").orEmpty()
     val serviceName: String
         get() = System.getenv("APPLICATION_SERVICE_NAME").orEmpty()
     val serviceHostName: String

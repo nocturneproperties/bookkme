@@ -8,24 +8,32 @@ import com.bookk.business.domain.api.appointment.operation.GetStaffBookingContex
 import com.bookk.business.domain.api.business.operation.CreateBusiness
 import com.bookk.business.domain.api.business.operation.DeleteBusiness
 import com.bookk.business.domain.api.business.operation.DeleteDayOffsInThePast
+import com.bookk.business.domain.api.business.operation.DeleteReleasedBusinessLinks
+import com.bookk.business.domain.api.business.operation.EndBusinessDemo
 import com.bookk.business.domain.api.business.operation.GetBusinessById
 import com.bookk.business.domain.api.business.operation.GetBusinessDetails
+import com.bookk.business.domain.api.business.operation.GetBusinessLink
 import com.bookk.business.domain.api.business.operation.GetBusinessPermission
+import com.bookk.business.domain.api.business.operation.GetBusinessesByIds
 import com.bookk.business.domain.api.business.operation.GetDashboardBusiness
 import com.bookk.business.domain.api.business.operation.GetUserBusinesses
+import com.bookk.business.domain.api.business.operation.ResolveBusinessLink
+import com.bookk.business.domain.api.business.operation.SeedDemoBusiness
+import com.bookk.business.domain.api.business.operation.SetBusinessLink
 import com.bookk.business.domain.api.business.operation.SetDashboardBusiness
 import com.bookk.business.domain.api.business.operation.UpdateBusiness
 import com.bookk.business.domain.api.client.operation.CreateClient
 import com.bookk.business.domain.api.client.operation.DeleteClient
 import com.bookk.business.domain.api.client.operation.DeleteInactiveClients
-import com.bookk.business.domain.api.client.operation.GetClientBusinessIds
 import com.bookk.business.domain.api.client.operation.GetClients
 import com.bookk.business.domain.api.client.operation.ImportClients
+import com.bookk.business.domain.api.client.operation.IndexClientContacts
 import com.bookk.business.domain.api.client.operation.RecordClientVisit
 import com.bookk.business.domain.api.client.operation.UpdateClient
 import com.bookk.business.domain.api.employee.operation.CreateEmployeeInvitation
 import com.bookk.business.domain.api.employee.operation.DeleteProcessedEmployeeInvitations
 import com.bookk.business.domain.api.employee.operation.ExpireEmployeeInvitations
+import com.bookk.business.domain.api.employee.operation.GetBookableEmployees
 import com.bookk.business.domain.api.employee.operation.GetEmployeeInvitations
 import com.bookk.business.domain.api.employee.operation.GetEmployees
 import com.bookk.business.domain.api.employee.operation.GetOwnedBusinessMemberIds
@@ -56,27 +64,36 @@ import com.bookk.business.domain.impl.export.BusinessDataExportAssembler
 import com.bookk.business.domain.impl.operation.appointment.GetAppointmentBookingContextImpl
 import com.bookk.business.domain.impl.operation.appointment.GetAppointmentRescheduleContextImpl
 import com.bookk.business.domain.impl.operation.appointment.GetStaffBookingContextImpl
+import com.bookk.business.domain.impl.operation.business.BusinessFounder
 import com.bookk.business.domain.impl.operation.business.CreateBusinessImpl
 import com.bookk.business.domain.impl.operation.business.DeleteBusinessImpl
 import com.bookk.business.domain.impl.operation.business.DeleteDayOffsInThePastImpl
+import com.bookk.business.domain.impl.operation.business.DeleteReleasedBusinessLinksImpl
+import com.bookk.business.domain.impl.operation.business.EndBusinessDemoImpl
 import com.bookk.business.domain.impl.operation.business.GetBusinessByIdImpl
 import com.bookk.business.domain.impl.operation.business.GetBusinessDetailsImpl
+import com.bookk.business.domain.impl.operation.business.GetBusinessLinkImpl
 import com.bookk.business.domain.impl.operation.business.GetBusinessPermissionImpl
+import com.bookk.business.domain.impl.operation.business.GetBusinessesByIdsImpl
 import com.bookk.business.domain.impl.operation.business.GetDashboardBusinessImpl
 import com.bookk.business.domain.impl.operation.business.GetUserBusinessesImpl
+import com.bookk.business.domain.impl.operation.business.ResolveBusinessLinkImpl
+import com.bookk.business.domain.impl.operation.business.SetBusinessLinkImpl
 import com.bookk.business.domain.impl.operation.business.SetDashboardBusinessImpl
 import com.bookk.business.domain.impl.operation.business.UpdateBusinessImpl
 import com.bookk.business.domain.impl.operation.client.CreateClientImpl
 import com.bookk.business.domain.impl.operation.client.DeleteClientImpl
 import com.bookk.business.domain.impl.operation.client.DeleteInactiveClientsImpl
-import com.bookk.business.domain.impl.operation.client.GetClientBusinessIdsImpl
 import com.bookk.business.domain.impl.operation.client.GetClientsImpl
 import com.bookk.business.domain.impl.operation.client.ImportClientsImpl
+import com.bookk.business.domain.impl.operation.client.IndexClientContactsImpl
 import com.bookk.business.domain.impl.operation.client.RecordClientVisitImpl
 import com.bookk.business.domain.impl.operation.client.UpdateClientImpl
+import com.bookk.business.domain.impl.operation.demo.SeedDemoBusinessImpl
 import com.bookk.business.domain.impl.operation.employee.CreateEmployeeInvitationImpl
 import com.bookk.business.domain.impl.operation.employee.DeleteProcessedEmployeeInvitationsImpl
 import com.bookk.business.domain.impl.operation.employee.ExpireEmployeeInvitationsImpl
+import com.bookk.business.domain.impl.operation.employee.GetBookableEmployeesImpl
 import com.bookk.business.domain.impl.operation.employee.GetEmployeeInvitationsImpl
 import com.bookk.business.domain.impl.operation.employee.GetEmployeesImpl
 import com.bookk.business.domain.impl.operation.employee.GetOwnedBusinessMemberIdsImpl
@@ -122,8 +139,12 @@ fun businessDomainModule() = module {
     )
     scope(BusinessScope) {
         scopedOf(::GetBusinessByIdImpl) bind GetBusinessById::class
+        scopedOf(::GetBusinessesByIdsImpl) bind GetBusinessesByIds::class
         scopedOf(::GetBusinessDetailsImpl) bind GetBusinessDetails::class
+        scopedOf(::BusinessFounder)
         scopedOf(::CreateBusinessImpl) bind CreateBusiness::class
+        scopedOf(::EndBusinessDemoImpl) bind EndBusinessDemo::class
+        scopedOf(::SeedDemoBusinessImpl) bind SeedDemoBusiness::class
         scopedOf(::DeleteBusinessImpl) bind DeleteBusiness::class
         scopedOf(::GetBusinessPermissionImpl) bind GetBusinessPermission::class
         scopedOf(::GetDashboardBusinessImpl) bind GetDashboardBusiness::class
@@ -131,11 +152,15 @@ fun businessDomainModule() = module {
         scopedOf(::UpdateBusinessImpl) bind UpdateBusiness::class
         scopedOf(::GetUserBusinessesImpl) bind GetUserBusinesses::class
         scopedOf(::DeleteDayOffsInThePastImpl) bind DeleteDayOffsInThePast::class
+        scoped<SetBusinessLink> { SetBusinessLinkImpl(get(), get(), get(), Clock.System) }
+        scopedOf(::GetBusinessLinkImpl) bind GetBusinessLink::class
+        scoped<ResolveBusinessLink> { ResolveBusinessLinkImpl(get(), get(), Clock.System) }
+        scoped<DeleteReleasedBusinessLinks> { DeleteReleasedBusinessLinksImpl(get(), get(), Clock.System) }
         scopedOf(::BusinessEventHandlerImpl) bind EventHandler::class
         scopedOf(::CreateClientImpl) bind CreateClient::class
         scopedOf(::ImportClientsImpl) bind ImportClients::class
         scopedOf(::GetClientsImpl) bind GetClients::class
-        scopedOf(::GetClientBusinessIdsImpl) bind GetClientBusinessIds::class
+        scopedOf(::IndexClientContactsImpl) bind IndexClientContacts::class
         scopedOf(::GetOwnedBusinessMemberIdsImpl) bind GetOwnedBusinessMemberIds::class
         scopedOf(::DeleteClientImpl) bind DeleteClient::class
         scopedOf(::ExportUserBusinessDataImpl) bind ExportUserBusinessData::class
@@ -165,6 +190,7 @@ fun businessDomainModule() = module {
         scopedOf(::JoinBusinessImpl) bind JoinBusiness::class
         scopedOf(::GetEmployeeInvitationsImpl) bind GetEmployeeInvitations::class
         scopedOf(::GetEmployeesImpl) bind GetEmployees::class
+        scopedOf(::GetBookableEmployeesImpl) bind GetBookableEmployees::class
         scopedOf(::UpdateEmployeeImpl) bind UpdateEmployee::class
         scopedOf(::SetEmployeePermissionsImpl) bind SetEmployeePermissions::class
         scopedOf(::SetEmployeeSuspensionImpl) bind SetEmployeeSuspension::class

@@ -9,9 +9,15 @@ host-record=${DOMAIN_NAME}, ${VPN_HOST_ADDRESS}
 cname=grafana.${DOMAIN_NAME}, ${DOMAIN_NAME}
 cname=prometheus.${DOMAIN_NAME}, ${DOMAIN_NAME}
 cname=local.${DOMAIN_NAME}, ${DOMAIN_NAME}
+cname=local-app.${DOMAIN_NAME}, ${DOMAIN_NAME}
 cname=www.${DOMAIN_NAME}, ${DOMAIN_NAME}
 cname=orchestrator.${DOMAIN_NAME}, ${DOMAIN_NAME}
 cname=kafka.${DOMAIN_NAME}, ${DOMAIN_NAME}
 cname=vpn.${DOMAIN_NAME}, ${DOMAIN_NAME}
 cname=admin.${DOMAIN_NAME}, ${DOMAIN_NAME}
 cname=dozzle.${DOMAIN_NAME}, ${DOMAIN_NAME}
+#answer NXDOMAIN for iCloud Private Relay, which turns it off for VPN clients: its egress resolves names publicly and cannot reach the VPN-only hosts
+address=/mask.icloud.com/
+address=/mask-h2.icloud.com/
+#never forward the domain upstream: its public AAAA and HTTPS records would send clients to Cloudflare instead of the VPN host
+local=/${DOMAIN_NAME}/

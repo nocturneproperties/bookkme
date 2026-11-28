@@ -43,6 +43,8 @@ flow covers end-of-day completion and unresolved outcomes after the edit window.
 | `POST /api/appointments/{id}/no-show` | [Mark appointment as no-show](appointments/mark-appointment-no-show.md) |
 | `POST /api/appointments/{id}/complete` | [Complete appointment](appointments/complete-appointment.md) |
 | `PUT /api/appointments/settings/{businessId}` | [Edit appointment settings](appointments/edit-appointment-settings.md) |
+| `POST /api/appointments/businesses/{businessId}` | [Save business](appointments/save-business.md) |
+| `DELETE /api/appointments/businesses/{businessId}` | [Remove saved business](appointments/remove-saved-business.md) |
 
 Reactions to cross-service events:
 
@@ -54,6 +56,7 @@ Reactions to cross-service events:
 | `BusinessEvent.EmployeePermissionsChanged` | [React to an employee permissions change](appointments/on-employee-permissions-changed.md) |
 | `BusinessEvent.ClientLinked` | [React to a client getting an account](appointments/on-client-linked.md) |
 | `BusinessEvent.ClientDeleted` | [React to client deletion](appointments/on-client-deleted.md) |
+| `BusinessEvent.DemoBusinessSeeded` | [React to a seeded demo business](appointments/on-demo-business-seeded.md) |
 
 ## Authorization service
 
@@ -64,9 +67,14 @@ Reactions to cross-service events:
 | `POST /api/auth/email` | [Request an email change code](authorization/start-email-change.md) |
 | `POST /api/auth/email/confirm` | [Confirm an email change](authorization/confirm-email-change.md) |
 | `POST /api/auth/sign_in` | [Verify sign-in](authorization/sign-in.md) |
+| `POST /api/auth/telegram/sign_in` | [Sign in with Telegram](authorization/telegram-sign-in.md) |
+| `POST /api/auth/demo` | [Start a demo account](authorization/demo-start.md) |
+| `POST /api/auth/demo/upgrade/challenge` | [Upgrade a demo account (start)](authorization/demo-upgrade.md) |
+| `POST /api/auth/demo/upgrade` | [Upgrade a demo account (finish)](authorization/demo-upgrade.md) |
 | `POST /api/auth/refresh` | [Refresh access token](authorization/refresh-token.md) |
 | `DELETE /api/auth/session` | [Sign out](authorization/sign-out.md) |
 | `DELETE /api/auth/account` | [Delete account](authorization/delete-account.md) |
+| `DELETE /api/auth/account/deletion` | [Cancel account deletion](authorization/cancel-account-deletion.md) |
 | `POST /api/auth/passkey/confirm_action` | [Confirm a sensitive action with a passkey](authorization/action-confirmation.md) |
 | `POST /api/auth/passkey/add/finish` | [Add passkey to account](authorization/add-passkey.md) |
 | `DELETE /api/auth/passkey/{id}` | [Delete passkey](authorization/delete-passkey.md) |
@@ -79,6 +87,7 @@ Reactions to cross-service events:
 | `POST /api/business/{businessId}/export` | [Start business data export](business/start-business-data-export.md) |
 | `PUT /api/business/{id}` | [Update business](business/update-business.md) |
 | `PUT /api/business/{id}/dashboard` | [Set dashboard business](business/set-dashboard-business.md) |
+| `PUT /api/business/{id}/link` | [Set business link](business/set-business-link.md) |
 | `POST /api/business/{businessId}/clients` | [Create client](business/create-client.md) |
 | `POST /api/business/{businessId}/clients/import` | [Import clients](business/import-clients.md) |
 | `DELETE /api/business/{businessId}/clients/{id}` | [Delete client](business/delete-client.md) |
@@ -102,6 +111,8 @@ Reactions to cross-service events:
 | Event | Diagram |
 |---|---|
 | `AuthEvent.UserDeleted` | [React to user deletion](business/on-user-deleted.md) |
+| `AuthEvent.DemoAccountCreated` | [React to a new demo account](business/on-demo-account-created.md) |
+| `AuthEvent.DemoUpgraded` | [React to a demo upgrade](business/on-demo-upgraded.md) |
 | `UserEvent.Updated` | [React to user profile update](business/on-user-updated.md) |
 | `AppointmentEvent.ClientVisitBooked` | [React to a booked client visit](business/on-client-visit-booked.md) |
 
@@ -121,13 +132,18 @@ Reactions to cross-service events (all handled by the same
 | `AuthEvent.UserDeleted` | [React to user deletion](notifications/on-user-deleted.md) |
 | `AuthEvent.DeviceLanguageUpdated` | [React to device language change](notifications/on-device-language-updated.md) |
 | `AuthEvent.AccountDormancyWarning` | [React to a dormancy warning](notifications/on-account-dormancy-warning.md) |
+| `AuthEvent.AccountDeletionScheduled` | [React to a scheduled account deletion](notifications/on-account-deletion-scheduled.md) |
+| `AuthEvent.AccountDeletionCancelled` | [React to a cancelled account deletion](notifications/on-account-deletion-cancelled.md) |
 | `UserEvent.DataExportReady` | [React to a ready personal data export](notifications/on-data-export-ready.md) |
 | `BusinessEvent.ExportReady` | [React to a ready business data export](notifications/on-business-export-ready.md) |
 | `AuthEvent.DeviceDeleted` | [React to device deletion](notifications/on-device-deleted.md) |
+| `AuthEvent.DeviceSignedOut` | [React to device sign-out](notifications/on-device-signed-out.md) |
+| `AuthEvent.TelegramActionConfirmed` | [React to a Telegram action confirmation](notifications/on-telegram-action-confirmed.md) |
 | `UserEvent.Updated` | [React to user profile update](notifications/on-user-updated.md) |
 | `AppointmentEvent.RequestCreated` | [React to appointment request creation](notifications/on-appointment-request-created.md) |
 | `AppointmentEvent.RequestApproved` | [React to appointment request approval](notifications/on-appointment-request-approved.md) |
 | `AppointmentEvent.RequestRejected` | [React to appointment request decline](notifications/on-appointment-request-rejected.md) |
+| `AppointmentEvent.RequestResolved` | [React to a resolved appointment request](notifications/on-appointment-request-resolved.md) |
 | `AppointmentEvent.Cancelled` | [React to appointment cancellation](notifications/on-appointment-cancelled.md) |
 | `AppointmentEvent.CancelledForDeletedClient` | [React to an appointment cancelled by a client's account deletion](notifications/on-appointment-cancelled-for-deleted-client.md) |
 | `BusinessEvent.EmployeeInvitationRedeemed` | [React to an employee joining the business](notifications/on-employee-invitation-redeemed.md) |
@@ -141,6 +157,8 @@ Reactions to cross-service events (all handled by the same
 | `POST /api/user/export` | [Start personal data export](user/start-personal-data-export.md) |
 | `POST /api/internal/user` | [Create user (internal)](user/create-user-internal.md) |
 | `POST /api/internal/user/{id}/email` | [Store a verified email (internal)](user/change-user-email-internal.md) |
+| `POST /api/internal/user/{id}/telegram_username` | [Store the Telegram username (internal)](user/change-telegram-username-internal.md) |
+| `POST /api/internal/user/{id}/demo_upgrade` | [Replace a demo profile (internal)](user/upgrade-demo-profile-internal.md) |
 
 Reactions to cross-service events:
 
@@ -164,25 +182,33 @@ the operation committed, and reaches its consumers at least once. See
 
 | Event | Producer | Consumer(s) |
 |---|---|---|
-| `AuthEvent.UserDeleted` | [Delete account](authorization/delete-account.md), [sign-up compensation](authorization/sign-up.md), [`auth-handleDormantAccounts` job](scheduled-jobs.md), [`auth-reapplyErasures` job](scheduled-jobs.md) | [appointments](appointments/on-user-deleted.md), [business](business/on-user-deleted.md), [notifications](notifications/on-user-deleted.md), [user](user/on-user-deleted.md) |
-| `AuthEvent.DeviceDeleted` | [Delete account](authorization/delete-account.md), [`auth-deleteInactiveDevices`, `auth-handleDormantAccounts` and `auth-reapplyErasures` jobs](scheduled-jobs.md) | [notifications](notifications/on-device-deleted.md) |
-| `AuthEvent.DeviceCreated` | [Verify sign-up](authorization/sign-up.md), [Verify sign-in](authorization/sign-in.md) | [notifications](notifications/on-device-created.md) |
-| `AuthEvent.DeviceLanguageUpdated` | [Verify sign-in](authorization/sign-in.md) | [notifications](notifications/on-device-language-updated.md) |
+| `AuthEvent.UserDeleted` | [`auth-handleScheduledDeletions` job](scheduled-jobs.md) (requested by [Delete account](authorization/delete-account.md)), [sign-up compensation](authorization/sign-up.md), [Telegram sign-up compensation](authorization/telegram-sign-in.md), [`auth-handleDormantAccounts` job](scheduled-jobs.md), [`auth-reapplyErasures` job](scheduled-jobs.md) | [appointments](appointments/on-user-deleted.md), [business](business/on-user-deleted.md), [notifications](notifications/on-user-deleted.md), [user](user/on-user-deleted.md) |
+| `AuthEvent.DeviceDeleted` | [`auth-deleteInactiveDevices`, `auth-handleScheduledDeletions`, `auth-handleDormantAccounts` and `auth-reapplyErasures` jobs](scheduled-jobs.md) | [notifications](notifications/on-device-deleted.md) |
+| `AuthEvent.DemoAccountCreated` | [Start a demo account](authorization/demo-start.md) | [business](business/on-demo-account-created.md) |
+| `BusinessEvent.DemoBusinessSeeded` | [React to a new demo account](business/on-demo-account-created.md) | [appointments](appointments/on-demo-business-seeded.md) |
+| `AuthEvent.DemoUpgraded` | [Upgrade a demo account](authorization/demo-upgrade.md) | [business](business/on-demo-upgraded.md) |
+| `AuthEvent.DeviceCreated` | [Verify sign-up](authorization/sign-up.md), [Verify sign-in](authorization/sign-in.md), [Sign in with Telegram](authorization/telegram-sign-in.md), [Start a demo account](authorization/demo-start.md) | [notifications](notifications/on-device-created.md) |
+| `AuthEvent.DeviceLanguageUpdated` | [Verify sign-in](authorization/sign-in.md), [Sign in with Telegram](authorization/telegram-sign-in.md) | [notifications](notifications/on-device-language-updated.md) |
+| `AuthEvent.DeviceSignedOut` | [Sign out](authorization/sign-out.md), [Refresh access token](authorization/refresh-token.md) (reused refresh token) | [notifications](notifications/on-device-signed-out.md) |
 | `AuthEvent.AccountDormancyWarning` | [`auth-handleDormantAccounts` job](scheduled-jobs.md) | [notifications](notifications/on-account-dormancy-warning.md) |
+| `AuthEvent.AccountDeletionScheduled` | [Delete account](authorization/delete-account.md), [`auth-handleScheduledDeletions` job](scheduled-jobs.md) (reminders) | [notifications](notifications/on-account-deletion-scheduled.md) |
+| `AuthEvent.AccountDeletionCancelled` | [Cancel account deletion](authorization/cancel-account-deletion.md) | [notifications](notifications/on-account-deletion-cancelled.md) |
+| `AuthEvent.TelegramActionConfirmed` | [Confirm an action through Telegram](authorization/telegram-confirm-action.md) | [notifications](notifications/on-telegram-action-confirmed.md) |
 | `BusinessEvent.Updated` | [Update business](business/update-business.md) | [appointments](appointments/on-business-updated.md) |
 | `BusinessEvent.Deleted` | [React to user deletion (business)](business/on-user-deleted.md) | [appointments](appointments/on-business-deleted.md) |
 | `BusinessEvent.EmployeeInvitationRedeemed` | [Join business](business/join-business.md) | [notifications](notifications/on-employee-invitation-redeemed.md) |
 | `BusinessEvent.EmployeePermissionsChanged` | [Join business](business/join-business.md), [Set employee permissions](business/set-employee-permissions.md), [Set employee suspension](business/set-employee-suspension.md) | [appointments](appointments/on-employee-permissions-changed.md) |
 | `BusinessEvent.ClientLinked` | [Get appointment booking context (internal)](business/get-appointment-booking-context.md), [React to user profile update (business)](business/on-user-updated.md) | [appointments](appointments/on-client-linked.md) |
 | `BusinessEvent.ClientDeleted` | [Delete client](business/delete-client.md), [`business-deleteInactiveClients` job](scheduled-jobs.md), [`business-reapplyErasures` job](scheduled-jobs.md) | [appointments](appointments/on-client-deleted.md) |
-| `AppointmentEvent.ClientVisitBooked` | [Create appointment request](appointments/create-appointment-request.md), [Create appointment from a pending request](appointments/create-appointment-from-request.md), [Create instant appointment](appointments/create-appointment-instant.md), [Update appointment (reschedule)](appointments/update-appointment.md) | [business](business/on-client-visit-booked.md) |
-| `UserEvent.Updated` | [Create user (internal)](user/create-user-internal.md), [Update user](user/update-user.md), [Confirm an email change](authorization/confirm-email-change.md) through [Store a verified email](user/change-user-email-internal.md) | [business](business/on-user-updated.md), [notifications](notifications/on-user-updated.md) |
+| `AppointmentEvent.ClientVisitBooked` | [Create appointment request](appointments/create-appointment-request.md), [Create appointment from a pending request](appointments/create-appointment-from-request.md), [Create instant appointment](appointments/create-appointment-instant.md), [Update appointment (reschedule)](appointments/update-appointment.md), [React to a seeded demo business](appointments/on-demo-business-seeded.md) | [business](business/on-client-visit-booked.md) |
+| `UserEvent.Updated` | [Create user (internal)](user/create-user-internal.md), [Update user](user/update-user.md), [Confirm an email change](authorization/confirm-email-change.md) through [Store a verified email](user/change-user-email-internal.md), [Sign in with Telegram](authorization/telegram-sign-in.md) through [Store the Telegram username](user/change-telegram-username-internal.md), [Upgrade a demo account](authorization/demo-upgrade.md) through [Replace a demo profile](user/upgrade-demo-profile-internal.md) | [business](business/on-user-updated.md), [notifications](notifications/on-user-updated.md) |
 | `BusinessEvent.ExportReady` | [Start business data export](business/start-business-data-export.md) (`business-buildDataExports` job) | [notifications](notifications/on-business-export-ready.md) |
 | `UserEvent.DataExportReady` | [Start personal data export](user/start-personal-data-export.md) (`user-buildDataExports` job) | [notifications](notifications/on-data-export-ready.md) |
 | `AppointmentEvent.RequestCreated` | [Create appointment request](appointments/create-appointment-request.md) | [notifications](notifications/on-appointment-request-created.md) |
 | `AppointmentEvent.RequestApproved` | [Create appointment from a pending request](appointments/create-appointment-from-request.md), [Create appointment request](appointments/create-appointment-request.md) (auto-approval) | [notifications](notifications/on-appointment-request-approved.md) |
 | `AppointmentEvent.RequestRejected` | [Decline appointment request](appointments/decline-appointment-request.md) | [notifications](notifications/on-appointment-request-rejected.md) |
+| `AppointmentEvent.RequestResolved` | [Create appointment from a pending request](appointments/create-appointment-from-request.md), [Decline appointment request](appointments/decline-appointment-request.md), [Withdraw appointment request](appointments/withdraw-appointment-request.md), [`appointments-deleteOutdatedRequests` job](scheduled-jobs.md), [React to client deletion (appointments)](appointments/on-client-deleted.md), [React to user deletion (appointments)](appointments/on-user-deleted.md) | [notifications](notifications/on-appointment-request-resolved.md) |
 | `AppointmentEvent.Cancelled` | [Cancel appointment](appointments/cancel-appointment.md), [React to client deletion (appointments)](appointments/on-client-deleted.md), [React to user deletion (appointments)](appointments/on-user-deleted.md) | [notifications](notifications/on-appointment-cancelled.md) |
-| `AppointmentEvent.CancelledForDeletedClient` | [React to user deletion (appointments)](appointments/on-user-deleted.md), [React to client deletion (appointments)](appointments/on-client-deleted.md), [React to a client getting an account (appointments)](appointments/on-client-linked.md) | [notifications](notifications/on-appointment-cancelled-for-deleted-client.md) |
+| `AppointmentEvent.CancelledForDeletedClient` | [React to user deletion (appointments)](appointments/on-user-deleted.md), [React to a client getting an account (appointments)](appointments/on-client-linked.md) | [notifications](notifications/on-appointment-cancelled-for-deleted-client.md) |
 
 Device identity is `(authId, deviceUuid)` in authorization and notifications. `DeviceDeleted` and `DeviceLanguageUpdated` carry the account; legacy events without it stay parked for manual reconciliation.

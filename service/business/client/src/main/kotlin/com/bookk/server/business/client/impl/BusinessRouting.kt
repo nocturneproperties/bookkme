@@ -30,12 +30,6 @@ object BusinessRouting {
                 }
             }
 
-            @Resource("/client")
-            class Client(val parent: Internal = Internal()) {
-                @Resource("/{userId}/businesses")
-                class Businesses(val parent: Client = Client(), val userId: Uuid)
-            }
-
             @Resource("/export")
             class Export(val parent: Internal = Internal()) {
                 @Resource("/business/{userId}")

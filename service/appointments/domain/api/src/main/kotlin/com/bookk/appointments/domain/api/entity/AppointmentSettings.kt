@@ -41,14 +41,36 @@ data class AppointmentSettings(
     )
 
     fun requireBookable(date: Instant, dateEnd: Instant, employeeSchedule: Schedule?) {
-        if (!schedule.worksOn(date)) throw BookingScheduleError.BusinessDateNotAllowed()
-        if (!schedule.covers(date, dateEnd, timeZone)) throw BookingScheduleError.BusinessTimeNotAllowed()
-        if (employeeSchedule == null) return
-        if (!employeeSchedule.worksOn(date)) throw BookingScheduleError.EmployeeDateNotAllowed()
-        if (!employeeSchedule.covers(date, dateEnd, timeZone)) throw BookingScheduleError.EmployeeTimeNotAllowed()
+        when (violationOf(date, dateEnd, employeeSchedule)) {
+            null -> Unit
+            ScheduleViolation.BUSINESS_DATE -> throw BookingScheduleError.BusinessDateNotAllowed()
+            ScheduleViolation.BUSINESS_TIME -> throw BookingScheduleError.BusinessTimeNotAllowed()
+            ScheduleViolation.EMPLOYEE_DATE -> throw BookingScheduleError.EmployeeDateNotAllowed()
+            ScheduleViolation.EMPLOYEE_TIME -> throw BookingScheduleError.EmployeeTimeNotAllowed()
+        }
+    }
+
+    fun isBookable(date: Instant, dateEnd: Instant, employeeSchedule: Schedule?): Boolean {
+        return violationOf(date, dateEnd, employeeSchedule) == null
+    }
+
+    private fun violationOf(date: Instant, dateEnd: Instant, employeeSchedule: Schedule?): ScheduleViolation? {
+        if (!schedule.worksOn(date)) return ScheduleViolation.BUSINESS_DATE
+        if (!schedule.covers(date, dateEnd, timeZone)) return ScheduleViolation.BUSINESS_TIME
+        if (employeeSchedule == null) return null
+        if (!employeeSchedule.worksOn(date)) return ScheduleViolation.EMPLOYEE_DATE
+        if (!employeeSchedule.covers(date, dateEnd, timeZone)) return ScheduleViolation.EMPLOYEE_TIME
+        return null
     }
 
     private fun Schedule.worksOn(date: Instant): Boolean {
         return isWorkday(date.toLocalDateTime(timeZone).date) || isWorkingAt(date, timeZone)
     }
+}
+
+private enum class ScheduleViolation {
+    BUSINESS_DATE,
+    BUSINESS_TIME,
+    EMPLOYEE_DATE,
+    EMPLOYEE_TIME,
 }

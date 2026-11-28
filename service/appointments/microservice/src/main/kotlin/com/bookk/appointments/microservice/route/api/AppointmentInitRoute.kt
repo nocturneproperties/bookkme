@@ -1,7 +1,6 @@
 package com.bookk.appointments.microservice.route.api
 
 import com.bookk.appointments.domain.api.operation.EnableAppointmentsForBusiness
-import com.bookk.appointments.domain.api.operation.GetClientBusinessesAppointmentsStatus
 import com.bookk.appointments.domain.api.operation.IsAppointmentsEnabled
 import com.bookk.appointments.domain.impl.di.AppointmentsScope
 import com.bookk.appointments.microservice.route.AppointmentsRouting.Api
@@ -62,22 +61,6 @@ fun Routing.appointmentInit() {
                     businessId = it.businessId,
                 ),
             )
-        }
-
-        /**
-         * Check appointments enabled for client businesses
-         *
-         * Summary: Check appointments enabled for client businesses
-         * Description: Appointment-enabled status for every business the calling user has a client relationship with
-         * Tag: appointment
-         * Security: jwt
-         * Response: 200 application/protobuf [com.bookk.appointments.domain.api.entity.BusinessAppointmentsEnabled]+ Appointment-enabled status for each business the user has a client relation to
-         */
-        get<Api.Appointment.EnabledForClientBusinesses> {
-            val principal = requireNotNull(call.principal<AppPrincipal>())
-            val getStatus by application.injectScoped<GetClientBusinessesAppointmentsStatus>(AppointmentsScope)
-
-            call.respondWith(getStatus(userId = principal.userId))
         }
     }
 }

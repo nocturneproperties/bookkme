@@ -5,6 +5,7 @@ import com.bookk.appointments.domain.api.entity.AppointmentRequest
 import com.bookk.appointments.domain.api.entity.ClientSnapshot
 import com.bookk.appointments.domain.api.entity.EmployeeSnapshot
 import com.bookk.appointments.domain.api.entity.ServiceSnapshot
+import com.bookk.appointments.domain.datasource.SavedBusinessDataSource
 import com.bookk.appointments.domain.datasource.UserDataExportDataSource
 import com.bookk.core.domain.datasource.transaction.TransactionManager
 import com.bookk.server.appointments.client.api.export.AppointmentsUserDataExport
@@ -13,26 +14,31 @@ import com.bookk.server.appointments.client.api.export.AppointmentsUserDataExpor
 import com.bookk.server.appointments.client.api.export.AppointmentsUserDataExport.ClientDetailsExport
 import com.bookk.server.appointments.client.api.export.AppointmentsUserDataExport.PriceAdjustmentExport
 import com.bookk.server.appointments.client.api.export.AppointmentsUserDataExport.Role
+import com.bookk.server.appointments.client.api.export.AppointmentsUserDataExport.SavedBusinessExport
 import com.bookk.server.appointments.client.api.export.AppointmentsUserDataExport.ServiceExport
 import com.bookk.server.appointments.client.api.export.ExportUserAppointments
 import kotlin.uuid.Uuid
 
 internal class ExportUserAppointmentsImpl(
     private val dataSource: UserDataExportDataSource,
+    private val savedBusinessDataSource: SavedBusinessDataSource,
     private val transactionManager: TransactionManager,
 ) : ExportUserAppointments {
 
     override suspend fun invoke(userId: Uuid): Result<AppointmentsUserDataExport> = transactionManager.transaction {
         val appointments = dataSource.getAppointmentsOfUser(userId)
         val requests = dataSource.getRequestsOfUser(userId)
-        val businessNames = dataSource.getBusinessNames(
-            appointments.map {
-                it.businessId
-            } + requests.map { it.businessId },
-        )
+        val savedAt = savedBusinessDataSource.getSavedAt(userId)
+        val businessIds = appointments.map { it.businessId } + requests.map { it.businessId } + savedAt.keys
+        val businessNames = dataSource.getBusinessNames(businessIds.distinct())
         AppointmentsUserDataExport(
             appointments = appointments.map { it.toExport(userId, businessNames[it.businessId].orEmpty()) },
             requests = requests.map { it.toExport(userId, businessNames[it.businessId].orEmpty()) },
+            savedBusinesses = savedAt.entries
+                .sortedByDescending { it.value }
+                .map { (businessId, savedAt) ->
+                    SavedBusinessExport(businessId, businessNames[businessId].orEmpty(), savedAt)
+                },
         )
     }
 
@@ -49,16 +55,19 @@ internal class ExportUserAppointmentsImpl(
             status = status.name,
             services = services.map { it.toExport() },
             employeeName = employee.fullName,
-            client = client.detailsIf(isClient, note),
+            client = client.detailsIf(isClient, note, clientNote),
             cancellationReason = cancellationReason.takeIf { isClient }?.ifBlank { null },
             priceAdjustment = priceAdjustment?.let { adjustment ->
                 PriceAdjustmentExport(
                     price = adjustment.price.toString(),
-                    additionalServices = adjustment.additionalServices.map { it.toExport() },
+                    additionalServices = adjustment.additionalServices.flatMap {
+                        List(it.count) { _ -> it.service.toExport() }
+                    },
                     reason = adjustment.reason.takeIf { isClient }?.ifBlank { null },
                 )
             },
             completedBy = completedBy?.name,
+            employeeErased = employee.erased,
         )
     }
 
@@ -76,7 +85,7 @@ internal class ExportUserAppointmentsImpl(
             status = status.name,
             services = services.map { it.toExport() },
             employeeName = employee.fullName,
-            client = client.detailsIf(isClient, note),
+            client = client.detailsIf(isClient, note, clientNote = ""),
             declineReason = declineReason.takeIf { isClient }?.ifBlank { null },
         )
     }
@@ -92,17 +101,16 @@ internal class ExportUserAppointmentsImpl(
         if (initiatorUserId == userId) add(Role.BOOKER)
     }
 
-    private fun ClientSnapshot.detailsIf(
-        isClient: Boolean,
-        note: String,
-    ): ClientDetailsExport? = ClientDetailsExport(
-        name = fullName,
-        phone = phone,
-        email = email,
-        note = note.ifBlank {
-            null
-        },
-    ).takeIf { isClient }
+    private fun ClientSnapshot.detailsIf(isClient: Boolean, note: String, clientNote: String): ClientDetailsExport? {
+        if (!isClient) return null
+        return ClientDetailsExport(
+            name = fullName,
+            phone = phone,
+            email = email,
+            note = note.ifBlank { null },
+            clientNote = clientNote.ifBlank { null },
+        )
+    }
 
     private fun ServiceSnapshot.toExport() = ServiceExport(
         name = name,

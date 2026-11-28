@@ -8,6 +8,7 @@ import com.bookk.auth.domain.datasource.PassKeyDataSource
 import com.bookk.auth.domain.impl.passkey.createRelyingParty
 import com.bookk.auth.domain.repository.CacheableCredentialRepository
 import com.bookk.core.domain.datasource.transaction.TransactionManager
+import com.bookk.core.domain.datasource.transaction.transactionOrThrow
 import com.bookk.core.domain.entity.runSuspendCatching
 import com.bookk.core.toUUID
 import com.yubico.webauthn.AssertionRequest
@@ -20,6 +21,11 @@ import com.yubico.webauthn.exception.AssertionFailedException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlin.jvm.optionals.getOrNull
+import com.yubico.webauthn.data.ByteArray as YubicoByteArray
+
+private typealias AssertionCredential =
+    PublicKeyCredential<AuthenticatorAssertionResponse, ClientAssertionExtensionOutputs>
 
 internal class FinishAssertionImpl(
     private val passKeyDataSource: PassKeyDataSource,
@@ -28,12 +34,13 @@ internal class FinishAssertionImpl(
 ) : FinishAssertion {
     override suspend fun invoke(request: FinishAssertionRequest): Result<PasskeyCredential> = runSuspendCatching {
         val cachedRequest =
-            passKeyDataSource.getCachedChallenge(request.requestId) ?: throw Error.ChallengeWindowExpired()
+            passKeyDataSource.takeCachedChallenge(request.requestId) ?: throw Error.ChallengeWindowExpired()
         val challenge = AssertionRequest.fromJson(cachedRequest)
-        val response = PublicKeyCredential.parseAssertionResponseJson(request.publicKeyCredentialJson)
-        passKeyDataSource.deleteCachedChallenge(request.requestId)
-        return transactionManager.transaction {
-            cacheRepositoryData(response)
+        val response = parseAssertion(request.publicKeyCredentialJson)
+        val userHandle = response.response.userHandle.getOrNull() ?: throw Error.PasskeyOwnerNotFound()
+        transactionManager.transactionOrThrow {
+            cacheRepositoryData(response.id, userHandle)
+            if (!isRegistered(response.id, userHandle)) throw Error.PasskeyUnknown()
             val result: AssertionResult = runCatching {
                 createRelyingParty(credentialRepository)
                     .finishAssertion(
@@ -53,7 +60,7 @@ internal class FinishAssertionImpl(
                     userHandle = result.credential.userHandle.bytes.toUUID(),
                     credentialId = result.credential.credentialId.bytes,
                 )
-                if (credentials == null) throw Error.PasskeyOwnerNotFound()
+                if (credentials == null) throw Error.PasskeyUnknown()
                 passKeyDataSource.markAsUsed(credentials.id)
                 credentials
             } else {
@@ -62,13 +69,21 @@ internal class FinishAssertionImpl(
         }
     }
 
-    private suspend fun cacheRepositoryData(
-        response: PublicKeyCredential<AuthenticatorAssertionResponse, ClientAssertionExtensionOutputs>,
-    ) {
+    private fun isRegistered(credentialId: YubicoByteArray, userHandle: YubicoByteArray): Boolean {
+        return runCatching { credentialRepository.lookup(credentialId, userHandle).isPresent }
+            .getOrElse { throw Error.VerificationFailed() }
+    }
+
+    private fun parseAssertion(json: String): AssertionCredential {
+        return runCatching { PublicKeyCredential.parseAssertionResponseJson(json) }
+            .getOrElse { throw Error.VerificationFailed() }
+    }
+
+    private suspend fun cacheRepositoryData(credentialId: YubicoByteArray, userHandle: YubicoByteArray) {
         coroutineScope {
             listOf(
-                async { credentialRepository.cacheUsername(handle = response.response.userHandle.get()) },
-                async { credentialRepository.lookupCache(response.id, response.response.userHandle.get()) },
+                async { credentialRepository.cacheUsername(handle = userHandle) },
+                async { credentialRepository.lookupCache(credentialId, userHandle) },
             )
         }.awaitAll()
     }

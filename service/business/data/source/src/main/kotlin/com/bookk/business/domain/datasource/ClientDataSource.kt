@@ -4,13 +4,15 @@ import com.bookk.business.domain.api.client.entity.Client
 import com.bookk.business.domain.api.client.entity.ClientMerge
 import com.bookk.business.domain.api.client.entity.ClientUpdateModel
 import com.bookk.business.domain.api.client.entity.ErasedClient
+import com.bookk.core.domain.entity.Page
+import com.bookk.core.domain.entity.PageRequest
 import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
 interface ClientDataSource {
     suspend fun createDetachedClient(businessId: Uuid, client: Client.Detached): Client
     suspend fun createDetachedClients(businessId: Uuid, clients: List<Client.Detached>): List<Client>
-    suspend fun getClients(businessId: Uuid): List<Client>
+    suspend fun getClientsPage(businessId: Uuid, page: PageRequest, query: String?): Page<Client>
     suspend fun countClients(businessId: Uuid): Long
     suspend fun getClientsByEmails(businessId: Uuid, emails: Collection<String>): List<Client>
     suspend fun getClientById(businessId: Uuid, id: Uuid): Client?
@@ -27,12 +29,13 @@ interface ClientDataSource {
         lastName: String,
         email: String,
         phone: String?,
+        telegramUsername: String?,
         updatedAt: Instant,
     ): Int
     suspend fun getClientsOfUserForUpdate(userId: Uuid): List<ErasedClient>
     suspend fun getClientIdsOfBusinessesForUpdate(businessIds: Collection<Uuid>): Set<Uuid>
     suspend fun deleteClients(ids: Collection<Uuid>)
-    suspend fun getBusinessIdsByUserId(userId: Uuid): List<Uuid>
     suspend fun recordVisit(businessId: Uuid, clientId: Uuid, visitEnd: Instant)
     suspend fun getInactiveClientIdsForUpdate(businessId: Uuid, inactiveSince: Instant): List<Uuid>
+    suspend fun indexClientContacts(after: Uuid, limit: Int): Uuid?
 }

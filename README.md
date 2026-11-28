@@ -12,6 +12,8 @@ This repository holds the BookkMe backend. You can run it yourself to take booki
 - [Try it locally](#try-it-locally)
 - [Self-hosting for your business](#self-hosting-for-your-business)
 - [Configuration](#configuration)
+  - [Telegram sign-in](#telegram-sign-in)
+  - [Demo accounts](#demo-accounts)
   - [Creation limits](#creation-limits)
 - [Running as microservices](#running-as-microservices)
 - [How the services communicate](#how-the-services-communicate)
@@ -34,22 +36,27 @@ This repository holds the BookkMe backend. You can run it yourself to take booki
 - Services and service groups, each with its own price and duration
 - Staff accounts with invite codes and separate view, edit and delete permissions for business details, staff, clients, services and appointments, plus suspending access
 - Working hours, days off and schedules for every employee: a booking must fit both the business's hours and the employee's, a range ending before its start (such as 20:00 to 00:00) runs past midnight, a range can't start and end at the same time, and new employees (the owner included) start on the business's working days and hours
-- A client list with import, notes and automatic matching to client accounts
+- A client list with import, notes, search by the start of a first or last name, by email or by phone, and automatic matching to client accounts
 - Booking requests you approve or decline, or instant booking when you prefer; clients can withdraw a request you haven't answered
-- Appointment history, completion and no-show tracking
+- A booking link with a name the owner picks, such as `bookkme.com/my-salon`; a replaced name keeps leading to the business for 90 days and no other business can take it meanwhile
+- Appointment and booking request history, filtered by client, staff member, status and dates, with completion and no-show tracking
 
 **For clients**
 
 - Passwordless sign-in with passkeys, with the email verified by a one-time code
-- Booking, rescheduling and cancelling appointments
-- Push and email notifications, with per-channel settings
+- Sign-in from a Telegram Mini App, which creates the account on first use (see [Telegram sign-in](#telegram-sign-in))
+- 14-day demo accounts with a sample business, started with one tap and kept by adding an email and a passkey (see [Demo accounts](#demo-accounts))
+- Booking, rescheduling and cancelling appointments, with the business's note for clients shown before booking and a choice of staff member showing each one's services, working hours and free time slots; a staff member can't be booked twice for the same time
+- A home screen with the nearest upcoming bookings across every business, and saved businesses to book again with the date of the last visit
+- A client's own history of appointments and booking requests across every business, split into upcoming and past
+- Push, email and Telegram notifications, with per-channel settings
 - Notifications in the language of the client's device
 
 **For operators**
 
 - Runs as a single server process backed by MariaDB and Valkey (or Redis)
 - Database migrations run automatically at startup
-- Limits on how many staff, clients, services, businesses, pending booking requests and passkeys can be created, which you can raise for a single business or person (see [Creation limits](#creation-limits))
+- Limits on how many staff, clients, services, businesses, pending booking requests, saved businesses and passkeys can be created, which you can raise for a single business or person (see [Creation limits](#creation-limits))
 - Personal data encrypted with a key per person, so erasing someone also makes their data unreadable in backups
 - Personal-data tools for GDPR: data export, account and client erasure, dormant account clean-up and retention rules (see [Privacy and GDPR](#privacy-and-gdpr))
 - Draft privacy policy and terms of service templates for self-hosting businesses in English, Polish and Ukrainian (`docs/legal/template`)
@@ -73,7 +80,7 @@ The script starts MariaDB, Valkey and nginx, builds the server image and starts 
 - the API answers on `http://localhost:8085/api/`
 - Swagger UI with every route is at `http://localhost:8085/api/monolith/internal/swagger`
 
-The development setup does not send email. It writes every message to the server log instead, verification codes included, so you can sign up without a mail provider. Push notifications need your own Firebase key in `deployment/dev/security/firebase-private-key.json`.
+The development setup does not send email. It writes every message to the server log instead, verification codes included, so you can sign up without a mail provider. Push notifications need your own Firebase key in `deployment/dev/security/firebase-private-key.json`. Telegram notifications need your bot's token as `APPLICATION_TELEGRAM_BOT_TOKEN=<token>` in `deployment/dev/.env`, which git ignores.
 
 To stop everything:
 
@@ -116,6 +123,8 @@ The server is configured through environment variables. `deployment/dev/service/
 | Variable | Purpose |
 |---|---|
 | `APPLICATION_DOMAIN_NAME` | Your public domain, used for passkeys and links |
+| `APPLICATION_SITE_DOMAIN_NAME` | Optional. A website on another domain whose pages may use the same passkeys (it, its `www.` and the web app on its `app.`); the domain in `APPLICATION_DOMAIN_NAME` must then serve `/.well-known/webauthn` listing those origins. Leave it unset if passkeys are used only in the apps and on your public domain |
+| `APPLICATION_PASSKEY_EXTRA_ORIGINS` | Optional. More `https://` origins, separated by commas, whose pages may use the passkeys, such as a development host under your domain. Leave it unset in production |
 | `APPLICATION_SERVICE_NAME` | `monolith` |
 | `APPLICATION_SERVICE_HOSTNAME`, `APPLICATION_SERVICE_PORT` | Address the server binds to |
 | `APPLICATION_SERVICE_VERSION` | Version shown in the API description |
@@ -128,7 +137,10 @@ The server is configured through environment variables. `deployment/dev/service/
 | `APPLICATION_EMAIL_SENDER_NAME` | Sender name shown next to the mailbox address, such as your business name |
 | `APPLICATION_EMAIL_CODE_SECRET` | Random secret of at least 32 bytes for verification codes |
 | `APPLICATION_SUBJECT_MASTER_KEY` | Base64 of exactly 32 random bytes; wraps every person's encryption key. Keep it outside the database and never lose it: without it no encrypted field or export can be read |
-| `APPLICATION_BLIND_INDEX_KEY` | Base64 of at least 32 random bytes, for the keyed hashes that look up encrypted emails and phones |
+| `APPLICATION_BLIND_INDEX_KEY` | Base64 of at least 32 random bytes, for the keyed hashes that look up encrypted names, emails and phones and Telegram accounts |
+| `APPLICATION_TELEGRAM_BOT_ID` | Optional. The numeric id of the Telegram bot whose Mini App signs users in (the part of its token before the colon). Leave it unset to turn Telegram sign-in off |
+| `APPLICATION_TELEGRAM_BOT_TOKEN` | Optional, a secret. The token of that same bot, used only to send Telegram notifications and confirmation links. Leave it unset and nothing is sent to Telegram. Set it whenever Telegram sign-in is on, or accounts created through Telegram get no warning before a dormant account is deleted and can't delete their account or export their data |
+| `APPLICATION_TELEGRAM_BOT_USERNAME` | Optional. That bot's username, without the `@`, for the confirmation links the bot sends, which open the bot's main Mini App (set BookkMe as it in BotFather). Set it whenever Telegram sign-in is on, or accounts created through Telegram can't delete their account or export their data |
 
 Two secrets are read from files, as Docker secrets:
 
@@ -136,6 +148,22 @@ Two secrets are read from files, as Docker secrets:
 |---|---|
 | `signing_key_encryption_key` | Encrypts the keys the server signs access tokens with |
 | `firebase_key` | Firebase service account key, for push notifications |
+
+### Telegram sign-in
+
+A Telegram Mini App can sign its users in with `POST /api/auth/telegram/sign_in`, sending the Mini App's `initData` as it received it. The server checks Telegram's signature with Telegram's public key and your bot id, so sign-in never needs the bot token, and accepts the data for one hour after Telegram issued it. Set `APPLICATION_TELEGRAM_BOT_ID` to turn it on.
+
+The first sign-in of a Telegram user creates an account with their Telegram first and last name, after they accept the privacy policy and terms like any new user. Telegram doesn't share an email address, so the account gets the placeholder `<telegram user id>@telegramundeliverable.org`. The server never sends email to it: no notification emails or codes. The user can switch to a real address through the usual email change, and can add a passkey. They confirm deleting their account or exporting their data through Telegram, with or without a passkey, since the Mini App can't use one: the bot sends them a one-time button that opens the Mini App, valid for 5 minutes, and the server accepts it only from the Telegram account linked to theirs. Once they confirm, the bot changes that message to say so and removes the button; starting a new confirmation deletes the previous one if it was never confirmed. Deleting a business's client or exporting a business still needs a passkey. Telegram sign-in itself keeps the Telegram user id only as a keyed hash; the account's profile and its notification settings keep it encrypted under the user's own key, as the chat the bot writes notifications to, so deleting the account makes it unreadable. The user's Telegram username, when they have one, is kept encrypted in the profile too and refreshed on every Telegram sign-in, so a changed or removed username replaces the old one. When the user books with a business, the business's client record shows that username, so staff can contact the client on Telegram, and it follows later changes. Nothing else from Telegram is stored except the name.
+
+With `APPLICATION_TELEGRAM_BOT_TOKEN` set, the bot sends notifications to these users' private chats as plain text, in the language of the device they last signed in on. Telegram appears in their notification settings, turned on when the account is created. A bot can only write to someone who allowed it, so the app asks for that permission (the Mini App's `requestWriteAccess()`) right after sign-in and before turning the channel back on; if the user never allows it, the first notification the bot can't deliver turns the channel off. Account notifications, such as the warnings before a dormant account is deleted and a finished data export, go to Telegram even with the channel off while the account has no real email address. If the user blocks the bot, the server turns their Telegram channel off. Telegram receives the text of each notification it delivers, such as a business name and appointment time, so list it among your providers.
+
+### Demo accounts
+
+Someone who isn't ready to sign up can start a demo with `POST /api/auth/demo`: one request creates an account without an email address, signs the device in and, within moments, fills a sample business for it with services, ten fictional clients and about a week of bookings around today. The app can say what kind of business the user runs (beauty, fitness, tutoring or health, otherwise a general one with consultations and sessions), and the sample is written in the app's language (English, Ukrainian or Polish, English for any other) and priced in a matching currency (EUR, UAH or PLN). The demo lasts 14 days. Its business is marked as a demo, so the app can show a badge, and gets a random `demo-…` link; nobody can pick a link starting with `demo-`, and demo accounts can't pick a link at all. Demo accounts can do everything else a business does, invite staff and join other businesses included, but they can't book appointments as a client anywhere, since a demo is for trying BookkMe as a business and only real clients book; this also keeps them from being used to flood real businesses with requests. A demo account can own one business.
+
+The device's sign-in is the demo's only credential: signing out or reinstalling the app ends it for good. To keep the account and everything in it, the user adds an email address, confirmed with a code, and a passkey, while the demo runs or within 7 days after it ended. A demo that was not kept is deleted 7 days after it ended, like a deleted account, and its businesses and bookings with it.
+
+Demos need no setup. Creation is anonymous, so the server allows at most 1,000 demos running at once and refuses more with a 429 error until older ones end. To change that number while the server runs, set it in the database (`UPDATE authorization.demo_settings SET max_active_accounts = 200;`): it applies to the next demo started, `0` turns demos off, and `NULL` returns to 1,000. Separately, the bundled nginx configuration lets each address start one demo a minute (bursts of 3), so keep a similar limit on `POST /api/auth/demo` if you use another reverse proxy.
 
 ### Creation limits
 
@@ -147,8 +175,9 @@ The server caps how much one business or one person can create. A request over a
 | Clients | 20,000 | each business | `business.business.max_clients` |
 | Services | 300 | each business | `business.business.max_services` |
 | Service groups | 50 | each business | `business.business.max_service_groups` |
-| Businesses a person owns (working at others doesn't count) | 20 | each person | `business.user_limits.max_businesses` |
+| Businesses a person owns (working at others doesn't count) | 20, 1 for a demo account | each person | `business.user_limits.max_businesses` (not for demo accounts) |
 | Pending booking requests one person has at a business | 10 | each business | `appointments.appointment_settings.max_pending_requests_per_client` |
+| Saved businesses | 100 | each account | fixed |
 | Passkeys | 10 | each account | fixed |
 
 Every column is empty by default, which means the default value. Set it to raise or lower the limit for one business or person, for example `UPDATE business.business SET max_clients = 50000 WHERE id = UNHEX(REPLACE('<business id>', '-', ''));`, and set it back to `NULL` to return to the default. A person gets their `business.user_limits` row the first time they create a business; for someone who has none yet, insert it (`INSERT INTO business.user_limits (user_id, max_businesses, created_at) VALUES (UNHEX(REPLACE('<user id>', '-', '')), 40, UTC_TIMESTAMP(6));`). Clients who book through the app are never refused, so a business can go past its client limit that way. Reinstating a suspended employee is refused while the business is full, and a client frees a place by withdrawing a pending request.
@@ -161,11 +190,11 @@ BookkMe is made of five services:
 
 | Service | Responsibility |
 |---|---|
-| `auth` | Accounts, sign-up and email changes with email verification, passkey sign-in, access tokens, devices |
+| `auth` | Accounts, sign-up and email changes with email verification, passkey and Telegram sign-in, access tokens, devices |
 | `user` | Profiles, legal document acceptance, data export |
 | `business` | Businesses, services, staff and invitations, permissions, clients, price quotes |
 | `appointments` | Booking requests, approvals, appointments, schedules and history |
-| `notifications` | Push and email notifications, device tokens, notification settings |
+| `notifications` | Push, email and Telegram notifications, device tokens, notification settings |
 
 The same code runs in two ways:
 
@@ -193,7 +222,7 @@ Each service takes the variables from [Configuration](#configuration), with its 
 | `APPLICATION_KAFKA_CLUSTER_ID` | Kafka cluster id |
 | `APPLICATION_<SERVICE>_SERVICE_HOSTNAME` | Where to reach the other services it calls |
 
-Mount `signing_key_encryption_key` into `auth` and `business`, which sign tokens, and `firebase_key` into `notifications`. `auth` and `notifications` also need the email settings.
+Mount `signing_key_encryption_key` into `auth` and `business`, which sign tokens, and `firebase_key` into `notifications`. `auth` and `notifications` also need the email settings, `notifications` needs `APPLICATION_TELEGRAM_BOT_TOKEN` and `APPLICATION_TELEGRAM_BOT_USERNAME` for Telegram notifications and confirmation links, and `auth` needs `APPLICATION_BLIND_INDEX_KEY` (the same value as the other services) for Telegram sign-in and `APPLICATION_NOTIFICATIONS_SERVICE_HOSTNAME` to have the bot send confirmation links.
 
 ### Images
 
@@ -205,7 +234,7 @@ Mount `signing_key_encryption_key` into `auth` and `business`, which sign tokens
 
 Each service owns its data and never reads another service's database. They work together in two ways:
 
-- **Events** for anything that happened. A service announces a change, such as `appointment.request_created`, `business.client_deleted` or `auth.user_deleted`, and every service that cares reacts to it in its own time. Notifications, for example, reacts to booking requests, approvals and cancellations by sending pushes and emails, and every service deletes its own data when it receives `auth.user_deleted`.
+- **Events** for anything that happened. A service announces a change, such as `appointment.request_created`, `business.client_deleted` or `auth.user_deleted`, and every service that cares reacts to it in its own time. Notifications, for example, reacts to booking requests, approvals and cancellations by sending pushes, emails and Telegram messages, and every service deletes its own data when it receives `auth.user_deleted`.
 - **Internal HTTP calls** for data a service needs right away, such as the booking flow asking `business` for a service's price and duration.
 
 Events are reliable:
@@ -223,8 +252,10 @@ The single server uses exactly the same producers, outbox and consumers, with an
 **Sign-in**
 
 - **No passwords.** Accounts sign in with passkeys (WebAuthn), so there is no password to steal, reuse or phish.
-- **Verified email.** An account is created only after its owner enters a 6-digit code sent to the address, and the address changes only through a code sent to the new one. Codes expire after 10 minutes, allow a limited number of attempts and resends, and are stored only as keyed hashes.
+- **Telegram sign-in checked against Telegram's signature.** Only Mini App data signed by Telegram for your bot and less than an hour old signs a user in. Checking it needs no bot token; the token is only used to send notifications and never appears in the logs.
+- **Verified email.** An account is created only after its owner enters a 6-digit code sent to the address, and the address changes only through a code sent to the new one. Accounts created through Telegram have a placeholder address that is never emailed, and nobody can sign up with or switch to an address on that placeholder domain. Codes expire after 10 minutes, allow a limited number of attempts and resends, and are stored only as keyed hashes.
 - **Short-lived tokens.** Access tokens live 5 minutes. Refresh tokens belong to one device and are replaced on every use; an old refresh token that comes back signs its device out and raises a metric for alerts.
+- **No notifications after sign-out.** Signing out, or being signed out by a reused refresh token, removes the device's push token, so a shared or handed-over phone stops showing the previous user's notifications. The app sends its token again after the next sign-in. A session that just runs out, after 7 days without opening the app, keeps its push token until the device is removed 30 days after its last sign-in, so sign out before handing a phone over.
 - **Rotating signing keys.** Token signing keys rotate daily and are published as a JWKS, so old keys stop being trusted on their own. The private keys are stored encrypted. Every token type has its own audience, so one kind of token cannot be used as another.
 - **Confirmation for sensitive actions.** Deleting an account, deleting a client and exporting personal data each need a fresh passkey confirmation, not only a signed-in session.
 
@@ -239,8 +270,8 @@ The single server uses exactly the same producers, outbox and consumers, with an
 
 - **Idempotency keys** on requests, so a retried request never takes effect twice.
 - **Single-use tokens** that are claimed atomically, so two concurrent requests cannot both use one.
-- **Rate limits** in the nginx configuration for sending and checking email codes and for passkey sign-in.
-- **Creation limits** on staff, clients, services, businesses, pending booking requests and passkeys, so one account can't fill the database (see [Creation limits](#creation-limits)).
+- **Rate limits** in the nginx configuration for sending and checking email codes, passkey sign-in and creating demo accounts.
+- **Creation limits** on staff, clients, services, businesses, pending booking requests, saved businesses and passkeys, so one account can't fill the database (see [Creation limits](#creation-limits)).
 
 **Infrastructure** (the production setup in `deployment/`)
 
@@ -259,15 +290,15 @@ Found a vulnerability? See [Support](#support) for how to report it privately.
 BookkMe is built to help whoever runs it meet the GDPR. It handles personal data with these tools:
 
 - **Right of access and portability.** Users can export all their personal data from every service, after confirming with their passkey.
-- **Right to erasure.** Deleting an account erases the user's data in every service, cancels their upcoming appointments and removes their personal details from the appointment history. A business can delete any of its clients in the same way.
-- **Storage limitation.** An account unused for 3 years is deleted after three email warnings. Each business sets how long it keeps inactive clients (12 to 120 months, 36 by default), and older ones are deleted automatically. Booking requests are deleted 60 days after their time slot, and failed events after 30 days.
+- **Right to erasure.** Deleting an account erases the user's data in every service, cancels their upcoming appointments and removes their personal details from the appointment history. The erasure runs 7 days after the request: the account keeps working until then, the user is told at once and reminded 2 days and 1 day before, and can cancel in the app. A business can delete any of its clients in the same way.
+- **Storage limitation.** An account unused for 3 years is deleted after three warnings by email (on Telegram for an account created through Telegram with no real address). A demo account that was not kept is deleted 7 days after its 14 days end. Each business sets how long it keeps inactive clients (12 to 120 months, 36 by default), and older ones are deleted automatically. Booking requests are deleted 60 days after their time slot, and failed events after 30 days.
 - **Encryption per person.** Each person's data is encrypted with a key of their own: profiles, client and staff details, appointment snapshots and notes, stored events and data exports. Erasing a person deletes their key, so every copy of their data left in the database or in a backup can no longer be read once the backups of that key have expired. The keys live in their own schemas, which never enter the binary log, so they can be backed up on a shorter schedule than the data (we keep them 7 days). Back them up: without its key, a person's data cannot be recovered.
 - **Erasure survives backups.** Every erasure is recorded, and restoring an older backup runs the erasures made since then again and deletes the keys erased since then, so a deleted person does not come back.
 - **Recorded acceptance.** The server records which version of the privacy policy and terms each user accepted.
-- **Data minimisation.** Staff see only what their permissions allow, and notification emails go only to verified addresses.
+- **Data minimisation.** Staff see only what their permissions allow, clients see a staff member's name, services and working hours but never their contact details or permissions, and notification emails go only to verified addresses, never to the placeholder of an account created through Telegram.
 - **Policy templates.** `docs/legal/template` contains a draft privacy policy and terms of service for a business running its own copy, in English, Polish and Ukrainian.
 
-The software alone does not make a deployment compliant. When you self-host BookkMe, your business is the data controller: you decide the legal basis, publish your own privacy policy and terms (the templates are drafts that need review for your country), sign data processing agreements with your providers (such as your hosting, email and push notification providers), and answer requests from the people whose data you hold. [`docs/legal/README.md`](docs/legal/README.md) lists what to complete before publishing.
+The software alone does not make a deployment compliant. When you self-host BookkMe, your business is the data controller: you decide the legal basis, publish your own privacy policy and terms (the templates are drafts that need review for your country), sign data processing agreements with your providers (such as your hosting, email, push notification and Telegram providers), and answer requests from the people whose data you hold. [`docs/legal/README.md`](docs/legal/README.md) lists what to complete before publishing.
 
 ---
 

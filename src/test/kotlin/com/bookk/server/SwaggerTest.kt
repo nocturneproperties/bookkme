@@ -56,8 +56,14 @@ internal class SwaggerTest {
                 "post /api/auth/passkey/sign_up/challenge",
                 "post /api/auth/sign_up",
                 "post /api/auth/sign_in",
+                "post /api/auth/telegram/sign_in",
+                "post /api/auth/demo",
+                "post /api/auth/demo/upgrade/challenge",
+                "post /api/auth/demo/upgrade",
                 "post /api/auth/passkey/add/finish",
                 "post /api/auth/passkey/confirm_action",
+                "post /api/auth/telegram/confirm_action/start",
+                "post /api/auth/telegram/confirm_action",
                 "delete /api/auth/account",
                 "post /api/auth/email",
                 "post /api/auth/email/confirm",
@@ -67,6 +73,8 @@ internal class SwaggerTest {
             Routing::userRoute,
             setOf(
                 "post /api/internal/user/{id}/email",
+                "post /api/internal/user/{id}/telegram_username",
+                "post /api/internal/user/{id}/demo_upgrade",
                 "get /api/internal/user/email",
                 "post /api/internal/user",
                 "patch /api/user/me",
@@ -78,7 +86,9 @@ internal class SwaggerTest {
             Routing::businessRoute,
             setOf(
                 "post /api/business",
+                "post /api/business/bulk",
                 "put /api/business/{id}",
+                "put /api/business/{id}/link",
                 "post /api/business/{id}/export",
                 "post /api/business/{businessId}/clients/import",
                 "post /api/business/{businessId}/clients",
@@ -109,6 +119,7 @@ internal class SwaggerTest {
                 "put /api/appointments/settings/{businessId}",
                 "post /api/appointments/request",
                 "post /api/appointments/request/{id}/decline",
+                "post /api/appointments/slots",
             ),
         ),
         NOTIFICATIONS(
@@ -116,6 +127,7 @@ internal class SwaggerTest {
             setOf(
                 "put /api/notifications/{deviceUuid}/token",
                 "put /api/notifications/settings",
+                "post /api/internal/telegram/action_confirmation/{userId}",
             ),
         ),
     }
@@ -145,23 +157,33 @@ internal class SwaggerTest {
     private val listResponses = mapOf(
         Service.APPOINTMENTS to mapOf(
             "get /api/appointments/list/{businessId}" to "Appointment",
-            "get /api/appointments/enabled" to "BusinessAppointmentsEnabled",
-            "get /api/appointments/request/{businessId}" to "AppointmentRequest",
+            "get /api/appointments/businesses" to "SavedBusiness",
+            "post /api/appointments/slots" to "DaySlots",
             "get /api/appointments/request/{businessId}/mine" to "AppointmentRequest",
         ),
         Service.BUSINESS to mapOf(
+            "post /api/business/bulk" to "Business",
             "get /api/business/{businessId}/employee" to "Employee",
+            "get /api/business/{businessId}/employee/bookable" to "BookableEmployee",
             "get /api/business/{businessId}/employee_invitation" to "EmployeeInvitation",
             "get /api/business/{businessId}/service" to "Service",
             "get /api/business/{businessId}/service_group" to "ServiceGroup",
-            "get /api/business/{businessId}/clients" to "ClientRemote",
             "post /api/internal/business/{id}/services" to "Service",
-            "get /api/internal/client/{userId}/businesses" to "Uuid",
             "get /api/internal/owner/{userId}/members" to "Uuid",
         ),
         Service.USER to mapOf(
             "get /api/user/legal" to "LegalDocumentVersion",
             "get /api/user/me/legal" to "LegalDocumentStatus",
+        ),
+    )
+
+    private val pageResponses = mapOf(
+        Service.APPOINTMENTS to mapOf(
+            "get /api/appointments/history/{businessId}" to "AppointmentPage",
+            "get /api/appointments/request/history/{businessId}" to "AppointmentRequestPage",
+        ),
+        Service.BUSINESS to mapOf(
+            "get /api/business/{businessId}/clients" to "ClientPage",
         ),
     )
 
@@ -234,6 +256,15 @@ internal class SwaggerTest {
                 )
             }
         }
+        services.flatMap { pageResponses[it].orEmpty().entries }.forEach { (operation, pageType) ->
+            val responses = operations.getValue(operation).getValue("responses").jsonObject
+            val schema = responses.getValue("200").jsonObject.getValue("content").jsonObject
+                .getValue("application/x-protobuf").jsonObject.getValue("schema").jsonObject
+            assertEquals("#/components/schemas/$pageType", schema.getValue("\$ref").jsonPrimitive.content, operation)
+            val properties = resolveSchema(document, schema).getValue("properties").jsonObject
+            assertTrue(properties.keys.containsAll(setOf("data", "nextCursor")), "$operation must describe the page")
+            assertTrue("422" in responses, "$operation must document the page errors")
+        }
         assertSchemaReferences(document, document)
         if (Service.APPOINTMENTS in services) {
             val appointment = operations.getValue("get /api/appointments/{id}")
@@ -304,7 +335,24 @@ internal class SwaggerTest {
                 setOf("confirmationToken"),
                 resolveSchema(document, deletionSchema).getValue("properties").jsonObject.keys,
             )
-            assertTrue(deletion.getValue("responses").jsonObject.keys.containsAll(setOf("204", "403", "422")))
+            val deletionResponses = deletion.getValue("responses").jsonObject
+            assertTrue(deletionResponses.keys.containsAll(setOf("200", "403", "422")))
+            val scheduledSchema = deletionResponses.getValue("200").jsonObject.getValue("content").jsonObject
+                .getValue("application/x-protobuf").jsonObject.getValue("schema").jsonObject
+            assertEquals(
+                setOf("deletesAt"),
+                resolveSchema(document, scheduledSchema).getValue("properties").jsonObject.keys,
+            )
+            val status = operations.getValue("get /api/auth/account/deletion")
+            val statusSchema = status.getValue("responses").jsonObject.getValue("200").jsonObject
+                .getValue("content").jsonObject.getValue("application/x-protobuf").jsonObject
+                .getValue("schema").jsonObject
+            assertEquals(
+                "#/components/schemas/AccountDeletionStatus",
+                statusSchema.getValue("\$ref").jsonPrimitive.content,
+            )
+            val cancel = operations.getValue("delete /api/auth/account/deletion")
+            assertTrue("204" in cancel.getValue("responses").jsonObject)
         }
     }
 

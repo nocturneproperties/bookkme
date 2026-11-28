@@ -27,6 +27,27 @@ object AuthRouting {
             @Resource("/sign_up")
             class SignUp(val parent: Auth = Auth())
 
+            @Resource("/telegram")
+            class Telegram(val parent: Auth = Auth()) {
+                @Resource("/sign_in")
+                class SignIn(val parent: Telegram = Telegram())
+
+                @Resource("/confirm_action")
+                class ConfirmAction(val parent: Telegram = Telegram()) {
+                    @Resource("/start")
+                    class Start(val parent: ConfirmAction = ConfirmAction())
+                }
+            }
+
+            @Resource("/demo")
+            class Demo(val parent: Auth = Auth()) {
+                @Resource("/upgrade/challenge")
+                class UpgradeChallenge(val parent: Demo = Demo())
+
+                @Resource("/upgrade")
+                class Upgrade(val parent: Demo = Demo())
+            }
+
             @Resource("/email")
             class Email(val parent: Auth = Auth()) {
                 @Resource("/confirm")
@@ -64,7 +85,10 @@ object AuthRouting {
             class SignOut(val parent: Auth = Auth())
 
             @Resource("/account")
-            class Account(val parent: Auth = Auth())
+            class Account(val parent: Auth = Auth()) {
+                @Resource("/deletion")
+                class Deletion(val parent: Account = Account())
+            }
         }
     }
 }

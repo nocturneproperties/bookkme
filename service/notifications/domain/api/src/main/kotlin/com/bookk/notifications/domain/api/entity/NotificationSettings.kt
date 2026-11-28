@@ -15,7 +15,7 @@ data class NotificationSettings(
     constructor(userId: Uuid) : this(
         id = Uuid.random(),
         userId = userId,
-        appointmentEnabled = false,
+        appointmentEnabled = true,
         channels = listOf(
             NotificationChannelSettings(
                 id = Uuid.random(),
@@ -33,7 +33,7 @@ data class NotificationSettings(
                 id = Uuid.random(),
                 channel = CommunicationChannel.TELEGRAM,
                 enabled = false,
-                availableToClients = false,
+                availableToClients = true,
             ),
         ),
     )

@@ -45,11 +45,13 @@ Przetwarzamy dane osobowe zgodnie z {{DATA_PROTECTION_LAW}}, w tym RODO, gdy ma 
 
 ## <a id="section-2"></a>2. Jakie dane zbieramy
 
-**Konto.** Twoje imię i nazwisko, adres e-mail (potwierdzony jednorazowym kodem przed utworzeniem konta) oraz numer telefonu, jeśli go dodasz.
+**Konto.** Twoje imię i nazwisko (przechowujemy je w dwóch osobnych polach), adres e-mail (potwierdzony jednorazowym kodem przed utworzeniem konta) oraz numer telefonu, jeśli go dodasz.[ Z logowaniem przez Telegram: Konto utworzone przez Telegram otrzymuje zamiast tego zastępczy adres e-mail, na który nigdy nie wysyłamy wiadomości, dopóki nie zmienisz go na prawdziwy.]
 
-**Logowanie.** Korzystamy z kluczy dostępu (passkeys) zamiast haseł. Przechowujemy klucz publiczny i identyfikator klucza dostępu, ale nigdy odcisku palca, obrazu twarzy ani kodu PIN urządzenia — pozostają one na urządzeniu. Dla każdego urządzenia, na którym się logujesz, przechowujemy identyfikator tworzony przez aplikację podczas instalacji, nazwę urządzenia podawaną przez system (zwykle model), tokeny logowania i czas ostatniego logowania. Zapisujemy datę ostatniej aktywności, aby usuwać nieużywane konta ([punkt 7](#section-7)).
+**Logowanie.** Korzystamy z kluczy dostępu (passkeys) zamiast haseł[; możesz też logować się przez naszą miniaplikację w Telegramie]. Przechowujemy klucz publiczny i identyfikator klucza dostępu, ale nigdy odcisku palca, obrazu twarzy ani kodu PIN urządzenia — pozostają one na urządzeniu. Dla każdego urządzenia, na którym się logujesz, przechowujemy identyfikator tworzony przez aplikację podczas instalacji, nazwę urządzenia podawaną przez system (zwykle model), tokeny logowania i czas ostatniego logowania. Zapisujemy datę ostatniej aktywności, aby usuwać nieużywane konta ([punkt 7](#section-7)).
 
-**Powiadomienia.** Token powiadomień push i język urządzenia, ustawienia powiadomień oraz informacja, czy włączono powiadomienia e-mail.
+**Powiadomienia.** Token powiadomień push i język urządzenia, ustawienia powiadomień oraz informacja, czy włączono powiadomienia e-mail[ lub w Telegramie].
+
+[Jeśli włączasz logowanie lub powiadomienia przez Telegram: **Telegram, tylko jeśli korzystasz z {{SERVICE_NAME}} w Telegramie.** Gdy logujesz się przez naszą miniaplikację w Telegramie, Telegram przekazuje nam, z podpisem Telegrama, Twój identyfikator użytkownika Telegrama, imię i nazwisko oraz nazwę użytkownika, jeśli ją masz. Na podstawie tego imienia i nazwiska tworzymy konto. Telegram nie przekazuje nam Twojego adresu e-mail ani numeru telefonu. Przechowujemy Twój identyfikator i nazwę użytkownika Telegrama, a nazwę użytkownika aktualizujemy przy każdym logowaniu przez Telegram. Nasi pracownicy widzą Twoją nazwę użytkownika Telegrama w rekordzie klienta, aby mogli się z Tobą skontaktować. Jeśli powiadomienia w Telegramie są włączone, nasz bot wysyła je na Twój prywatny czat z nim. Gdy w miniaplikacji prosisz o usunięcie konta lub eksport danych, nasz bot wysyła Ci wiadomość z prośbą o potwierdzenie; jej przycisk otwiera miniaplikację, która przesyła nam potwierdzenie podpisane przez Telegram. Miniaplikacja korzysta też z języka ustawionego w Telegramie i, jeśli pozwalają na to Twoje ustawienia prywatności w Telegramie, pokazuje Twoje zdjęcie profilowe z Telegrama; pobiera je na Twoim urządzeniu z Telegrama i nie przesyła ich do nas. Nie wykorzystujemy niczego innego z Telegrama, na przykład kontaktów ani czatów.]
 
 **Dokumentacja prawna.** Z którymi wersjami tej polityki się zapoznano, które wersje [Regulaminu]({{TERMS_URL}}) zaakceptowano i kiedy.
 
@@ -59,7 +61,7 @@ Przetwarzamy dane osobowe zgodnie z {{DATA_PROTECTION_LAW}}, w tym RODO, gdy ma 
 
 **Źródła.** Otrzymujemy informacje od Ciebie, pracowników tworzących rekordy klientów lub pracowników, osoby rezerwującej wizytę dla Ciebie oraz z wybranych kontaktów urządzenia zgodnie z prawem importowanych przez pracowników. Osobom bez konta przekazujemy informacje o prywatności przez {{INDIRECT_NOTICE_METHOD}}, w terminach wymaganych prawem.
 
-**Jeśli dla nas pracujesz.** Twój profil pracownika (imię i nazwisko, dane kontaktowe, usługi, godziny pracy, dni wolne, uprawnienia i informacja o zawieszeniu dostępu) i przypisane Ci wizyty.
+**Jeśli dla nas pracujesz.** Twój profil pracownika (imię i nazwisko, dane kontaktowe, usługi, godziny pracy, dni wolne, uprawnienia i informacja o zawieszeniu dostępu) i przypisane Ci wizyty. Dopóki Twój dostęp nie jest zawieszony, każdy zalogowany użytkownik {{SERVICE_NAME}} widzi Twoje imię i nazwisko, usługi, godziny pracy, dni wolne oraz wolne terminy, aby móc się do Ciebie zapisać.
 
 **Eksporty danych**, które zamawiasz, przechowywane do wygaśnięcia ([punkt 7](#section-7)).
 
@@ -67,7 +69,7 @@ Przetwarzamy dane osobowe zgodnie z {{DATA_PROTECTION_LAW}}, w tym RODO, gdy ma 
 
 [Jeśli Twoja wersja aplikacji zawiera Firebase Crashlytics, jak klient BookkMe: **Raporty o awariach.** Gdy aplikacja ulegnie awarii, wysyła do Firebase Crashlytics dane techniczne błędu i urządzenia (model, wersję systemu i aplikacji, identyfikator instalacji i czas awarii), abyśmy mogli naprawić problem. Nie dołączamy celowo identyfikatora konta, imienia i nazwiska, e-maila ani dokumentacji firmy lub klientów. Ślady awarii mogą zawierać komunikaty wyjątków, więc nie gwarantujemy anonimowości raportów. Raporty o awariach są domyślnie wyłączone i są wysyłane tylko wtedy, gdy włączysz je w Ustawienia → Konto → Prywatność. W każdej chwili możesz je tam wyłączyć, co usuwa również raporty jeszcze niewysłane.]
 
-**Na urządzeniu.** Aplikacja przechowuje na urządzeniu kopię wyświetlanych danych, aby szybciej się otwierać. Kopia jest usuwana po wylogowaniu. Jeśli włączysz odblokowanie biometryczne, weryfikacja odbywa się na urządzeniu i nie otrzymujemy jej danych.
+**Na urządzeniu.** Aplikacja przechowuje na urządzeniu kopię wyświetlanych danych, aby szybciej się otwierać. Kopia jest usuwana po wylogowaniu.[ Z Telegramem: W naszej miniaplikacji w Telegramie kopia, tokeny logowania i wybrany język są przechowywane w pamięci, którą wbudowana przeglądarka Telegrama udostępnia naszej aplikacji internetowej; nie ma tam wylogowania, więc pozostają tam, dopóki nie wyczyścisz danych tej przeglądarki w Telegramie.] Jeśli włączysz odblokowanie biometryczne, weryfikacja odbywa się na urządzeniu i nie otrzymujemy jej danych.
 
 **Dane techniczne.** Twój adres IP i szczegóły żądań przechodzą przez nasze serwery w celu kierowania ruchem i ochrony przed nadużyciami. Dzienniki serwera mogą zawierać adres IP, identyfikatory konta i szczegóły błędów.
 
@@ -82,8 +84,8 @@ Nie uzyskujemy przez {{SERVICE_NAME}} dostępu do lokalizacji ani zdjęć; aplik
 | Utworzenie i obsługa konta, logowanie, utrzymanie sesji na urządzeniach | Konto, logowanie | Wykonanie umowy z Tobą (Regulamin) |
 | Rezerwowanie, zmienianie i anulowanie wizyt oraz świadczenie zarezerwowanych usług | Konto, rekord klienta, wizyty | Wykonanie umowy z Tobą |
 | Prowadzenie dokumentacji klientów i wizyt | Rekord klienta, wizyty | Nasz prawnie uzasadniony interes w prowadzeniu firmy [oraz, gdy ma zastosowanie, prawny obowiązek prowadzenia dokumentacji: {{RECORD_KEEPING_LAW}}] |
-| Wysyłanie powiadomień o wizytach i koncie przez push oraz e-mail, jeśli go włączysz | Powiadomienia, wizyty | Wykonanie umowy z Tobą |
-| Wysyłanie e-mailem informacji o koncie (usunięcie nieużywanego konta, gotowy eksport danych) | Konto | Wykonanie umowy z Tobą |
+| Wysyłanie powiadomień o wizytach i koncie przez push oraz e-mail[ lub Telegram], jeśli je włączysz | Powiadomienia, wizyty | Wykonanie umowy z Tobą |
+| Wysyłanie informacji o koncie (usunięcie nieużywanego konta, zlecone przez Ciebie usunięcie konta, przypomnienia o nim i jego anulowanie, gotowy eksport danych) e-mailem[ lub przez Telegram, jeśli konto nie ma prawdziwego adresu e-mail] | Konto | Wykonanie umowy z Tobą |
 | Organizacja pracy personelu: grafiki, usługi, uprawnienia | Profil pracownika | Twoja umowa o pracę lub świadczenie usług z nami |
 | Dokumentowanie akceptacji regulaminu i otrzymania informacji o prywatności | Dokumentacja prawna | Nasz prawnie uzasadniony interes w dokumentowaniu umowy i przekazanych informacji o prywatności |
 | Zapewnienie bezpieczeństwa, zapobieganie nadużyciom, wykrywanie i usuwanie błędów | Dane techniczne, logowanie | Nasz prawnie uzasadniony interes w bezpiecznym i sprawnym działaniu usługi |
@@ -93,7 +95,7 @@ Nie uzyskujemy przez {{SERVICE_NAME}} dostępu do lokalizacji ani zdjęć; aplik
 
 Potwierdzenie zapoznania się z polityką dokumentuje otrzymanie informacji, a nie zgodę na każdą czynność przetwarzania. Gdy wymagana jest zgoda, należy uzyskać ją odrębnie dla konkretnego celu; można ją wycofać przez [{{PRIVACY_EMAIL}}](mailto:{{PRIVACY_EMAIL}}) lub odpowiednie ustawienie bez usuwania konta. Wycofanie nie wpływa na wcześniejsze zgodne z prawem przetwarzanie.
 
-**Dane wymagane.** Do utworzenia konta potrzebujemy imienia i nazwiska, potwierdzenia e-maila i utworzenia klucza dostępu; bez nich nie możemy utworzyć konta. Telefon, notatka do rezerwacji i powiadomienia[ oraz raporty o awariach] są opcjonalne.
+**Dane wymagane.** Do utworzenia konta potrzebujemy imienia i nazwiska, potwierdzenia e-maila i utworzenia klucza dostępu[ albo, zamiast e-maila i klucza dostępu, logowania przez Telegram]; bez nich nie możemy utworzyć konta. Usunięcie konta i eksport danych potwierdza się kluczem dostępu[ albo, w miniaplikacji, przez wiadomość od naszego bota w Telegramie]. Telefon, notatka do rezerwacji i powiadomienia[ oraz raporty o awariach] są opcjonalne.
 
 **Automatyzacja.** Nie profilujemy Cię ani nie stosujemy automatycznej oceny w celu ustalania uprawnień do korzystania z usługi, cen lub reklamy. Usuwanie po upływie okresów przechowywania i z powodu nieaktywności odbywa się automatycznie, jak opisano w [punkcie 7](#section-7), w tym usunięcie nieużywanego konta po trzech ostrzeżeniach. Jeśli uważasz automatyczne usunięcie za błędne, napisz na [{{PRIVACY_EMAIL}}](mailto:{{PRIVACY_EMAIL}}).
 
@@ -110,7 +112,7 @@ Powody anulowania, odrzucenia i zmiany ceny nie mogą zawierać danych osobowych
 ## <a id="section-5"></a>5. Kto ma dostęp do danych
 
 - **Nasi pracownicy** widzą dane wymagane do wykonywania obowiązków: wizyty i rekordy klientów zgodnie z uprawnieniami.
-- **Klienci** widzą profil firmy oraz imię i nazwisko obsługującego ich pracownika.
+- **Każdy zalogowany użytkownik {{SERVICE_NAME}}** widzi profil firmy oraz, dla każdego pracownika bez zawieszonego dostępu, jego imię i nazwisko, usługi, godziny pracy, dni wolne oraz wolne terminy, ale nigdy jego danych kontaktowych ani uprawnień.
 - **Nasi dostawcy usług**, działający jako podmioty przetwarzające dane klientów na nasze polecenie. Niektórzy działają także jako administratorzy określonych danych usługowych lub sieciowych zgodnie z własnymi informacjami o prywatności:
 
 | Dostawca | Zadanie | Lokalizacja |
@@ -120,6 +122,7 @@ Powody anulowania, odrzucenia i zmiany ceny nie mogą zawierać danych osobowych
 | {{EMAIL_PROVIDER}} | Wysyłanie e-maili (kody rejestracyjne, powiadomienia, informacje o koncie) i przechowywanie kopii każdego z nich w naszej skrzynce nadawczej | {{EMAIL_LOCATION}} |
 | [Jeśli korzystasz z Cloudflare przed serwerem] Cloudflare, Inc. | DNS, odwrotne proxy, ochrona przed DDoS i inne zabezpieczenia sieci | Sieć globalna; spółka amerykańska |
 
+- [Z Telegramem] **Telegram**, tylko jeśli korzystasz z {{SERVICE_NAME}} w Telegramie. Telegram nie jest naszym dostawcą usług: obsługuje miniaplikację, potwierdza nam Twoje konto w Telegramie i dostarcza wiadomości naszego bota jako niezależny administrator zgodnie z własną [polityką prywatności](https://telegram.org/privacy). Otrzymuje treść każdego powiadomienia i każdej wiadomości z prośbą o potwierdzenie, które wysyła Ci nasz bot, na przykład termin wizyty.
 - **Organy publiczne**, gdy wymaga tego prawo.
 
 Cloudflare opisuje odrębne przetwarzanie danych sieciowych i usługowych w swojej [polityce prywatności](https://www.cloudflare.com/privacypolicy/). Google opisuje przetwarzanie danych usługowych Firebase w [informacjach o prywatności](https://firebase.google.com/support/privacy).
@@ -128,7 +131,7 @@ Cloudflare opisuje odrębne przetwarzanie danych sieciowych i usługowych w swoj
 
 ## <a id="section-6"></a>6. Przekazywanie danych do innych krajów
 
-Twoje dane są przechowywane w {{HOSTING_LOCATION}}. Google [i Cloudflare] mogą przetwarzać dane w Stanach Zjednoczonych i w swoich sieciach usługowych. Dostęp z innego kraju przez nas lub naszych wykonawców również może stanowić międzynarodowe przekazanie danych.
+Twoje dane są przechowywane w {{HOSTING_LOCATION}}. Google [i Cloudflare] mogą przetwarzać dane w Stanach Zjednoczonych i w swoich sieciach usługowych. [Z Telegramem: Jeśli korzystasz z {{SERVICE_NAME}} w Telegramie, Telegram przetwarza miniaplikację i wiadomości naszego bota w krajach, w których działa, także spoza EOG; przekazujemy dane do Telegrama wyłącznie dlatego, że zdecydowałeś się korzystać tam z {{SERVICE_NAME}}.] Dostęp z innego kraju przez nas lub naszych wykonawców również może stanowić międzynarodowe przekazanie danych.
 
 Kraje, odbiorcy i zabezpieczenia każdego przekazania, w tym dostępu zdalnego, są opisane tutaj: {{TRANSFER_SAFEGUARDS}}. Informacja ta wskazuje właściwe rozwiązania dotyczące przekazania, w tym decyzję stwierdzającą odpowiedni stopień ochrony lub standardowe klauzule umowne i środki uzupełniające, jeśli są stosowane. Aby uzyskać kopię odpowiednich zabezpieczeń, napisz na [{{PRIVACY_EMAIL}}](mailto:{{PRIVACY_EMAIL}}); informacje poufne mogą zostać ukryte.
 
@@ -138,8 +141,9 @@ Kraje, odbiorcy i zabezpieczenia każdego przekazania, w tym dostępu zdalnego, 
 
 | Dane | Okres |
 |---|---|
-| Twoje konto | Do usunięcia przez Ciebie. Konto nieużywane przez 3 lata jest usuwane; ostrzegamy 60, 30 i 7 dni wcześniej. Konto właściciela pozostaje aktywne, jeśli w tym czasie był aktywny inny członek firmy. |
-| Urządzenie, na którym się logowano | Usuwane po 30 dniach bez użycia. |
+| Twoje konto | Do usunięcia przez Ciebie; usunięcie zlecone w aplikacji następuje 7 dni później, a zlecone e-mailem po Twoim potwierdzeniu ([punkt 9](#section-9)). Konto nieużywane przez 3 lata jest usuwane; ostrzegamy 60, 30 i 7 dni wcześniej. Konto właściciela pozostaje aktywne, jeśli w tym czasie był aktywny inny członek firmy. |
+| Urządzenie, na którym się logowano | Usuwane po 30 dniach bez użycia. Jego token powiadomień push jest usuwany po wylogowaniu. |
+| [Z Telegramem] Twój identyfikator i nazwa użytkownika Telegrama | Do usunięcia konta. Zmieniona lub usunięta nazwa użytkownika zastępuje poprzednią przy następnym logowaniu przez Telegram. |
 | Kody potwierdzające e-mail | 10 minut. |
 | Twój rekord klienta | Do {{CLIENT_RETENTION_MONTHS}} miesięcy od ostatniej wizyty lub ostatniej zmiany rekordu, następnie jest automatycznie usuwany. Możemy usunąć go wcześniej. |
 | Wizyty | Przez czas istnienia firmy w {{SERVICE_NAME}}, bez automatycznego usuwania historii wizyt ze względu na wiek rekordu. Dane klienta i notatki są usuwane po usunięciu rekordu klienta, także w wyniku upływu odrębnego okresu przechowywania danych klienta. |
@@ -154,7 +158,9 @@ Kraje, odbiorcy i zabezpieczenia każdego przekazania, w tym dostępu zdalnego, 
 | [Z Crashlytics] Raporty o awariach | Po 90 dniach Google rozpoczyna usuwanie śladów awarii i powiązanych identyfikatorów z systemów aktywnych i kopii zapasowych; nie jest to gwarantowany termin zakończenia usuwania. |
 | Kopie zapasowe | {{BACKUP_RETENTION}}. Imiona i nazwiska, dane kontaktowe, notatki i opisy klientów stają się w nich nieczytelne, gdy upłynie {{KEY_BACKUP_RETENTION}} od usunięcia danej osoby ([sekcja 8](#section-8)). |
 
-Po usunięciu konta usuwamy profil, dane logowania, urządzenia i ustawienia powiadomień, rekord klienta i pracownika, anulujemy przyszłe wizyty oraz usuwamy dane klienta i notatkę z wizyt, a także zastępujemy imię i nazwisko pracownika oraz usuwamy powiązanie pracownika z kontem. Powody anulowania i zmiany ceny oraz inne szczegóły wizyty pozostają; nie mogą zawierać danych osobowych. Pozostałe identyfikatory wizyt, szczegóły usługi i terminu lub tekst identyfikujący w innych polach nadal mogą pozwalać na ustalenie tożsamości osoby. Twoje imię i nazwisko, dane kontaktowe i notatki są szyfrowane Twoim własnym kluczem, który usunięcie niszczy. Kopie tego klucza w kopiach zapasowych usuwamy w ciągu {{KEY_BACKUP_RETENTION}}, więc po tym czasie tych danych nie da się odczytać z żadnej kopii zapasowej; pozostałe dane znikają z kopii zapasowych wraz z ich wygaśnięciem. Jeśli odtworzymy kopię zapasową sprzed usunięcia, ponownie usuniemy dane przed wznowieniem działania usługi.
+Gdy usuwasz konto w aplikacji, usunięcie następuje 7 dni później. Do tego czasu konto działa, a usunięcie możesz anulować w aplikacji; zalogowanie się go nie anuluje. Powiadamiamy Cię o złożeniu żądania, na 2 dni i na 1 dzień przed usunięciem oraz o jego anulowaniu. Jeśli musimy zachować konto z przyczyn prawnych, na przykład z powodu ograniczenia przetwarzania, o które prosiłeś, lub toczącego się roszczenia, aplikacja poinformuje, że nie można go teraz usunąć, a już zlecone usunięcie zaczeka, aż ta przyczyna ustanie. Usunięcie zlecone e-mailem ([punkt 9](#section-9)) następuje po Twoim potwierdzeniu, bez 7-dniowego oczekiwania.
+
+Gdy usunięcie następuje, usuwamy profil, dane logowania, urządzenia i ustawienia powiadomień, rekord klienta i pracownika, anulujemy przyszłe wizyty oraz usuwamy dane klienta i notatkę z wizyt, a także imię i nazwisko pracownika z obsłużonych przez Ciebie wizyt; wizyty te zachowują identyfikator, który nie należy już do żadnego konta. Powody anulowania i zmiany ceny oraz inne szczegóły wizyty pozostają; nie mogą zawierać danych osobowych. Pozostałe identyfikatory wizyt, szczegóły usługi i terminu lub tekst identyfikujący w innych polach nadal mogą pozwalać na ustalenie tożsamości osoby. Twoje imię i nazwisko, dane kontaktowe i notatki są szyfrowane Twoim własnym kluczem, który usunięcie niszczy. Kopie tego klucza w kopiach zapasowych usuwamy w ciągu {{KEY_BACKUP_RETENTION}}, więc po tym czasie tych danych nie da się odczytać z żadnej kopii zapasowej; pozostałe dane znikają z kopii zapasowych wraz z ich wygaśnięciem. Jeśli odtworzymy kopię zapasową sprzed usunięcia, ponownie usuniemy dane przed wznowieniem działania usługi.
 
 Jeśli jesteś właścicielem firmy, usunięcie konta usuwa również firmę, jej pracowników, klientów, usługi i wizyty, także po usunięciu z powodu nieaktywności. Przed usunięciem wyeksportuj dane firmy i spełnij odrębne obowiązki prawne dotyczące przechowywania dokumentacji.
 
@@ -162,7 +168,7 @@ Jeśli jesteś właścicielem firmy, usunięcie konta usuwa również firmę, je
 
 ## <a id="section-8"></a>8. Jak chronimy dane
 
-Logowanie korzysta z kluczy dostępu, więc nie ma hasła, które można wykraść. Połączenia są szyfrowane (TLS). Imię i nazwisko, adres e-mail, numer telefonu, notatki i opis klienta każdej osoby, a także adresy, na które wysyłamy powiadomienia, są szyfrowane kluczem należącym wyłącznie do tej osoby, który sam jest zaszyfrowany kluczem głównym przechowywanym poza bazą danych; usunięcie osoby niszczy jej klucz ([sekcja 7](#section-7)). Aby znaleźć konto lub klienta po adresie e-mail lub numerze telefonu bez ich odszyfrowywania, przechowujemy ich skrót z kluczem (HMAC), usuwany razem z rekordem. Każdy pracownik widzi dane tylko zgodnie z uprawnieniami. [Opisz wyłącznie rzeczywiście stosowane środki, np.: Baza danych i kopie zapasowe są szyfrowane w spoczynku, a kopie znajdują się na oddzielnym serwerze. Dostęp do danych produkcyjnych mają wyłącznie {{WHO_HAS_ACCESS}}.]
+Logowanie korzysta z kluczy dostępu[ lub potwierdzenia podpisanego przez Telegram], więc nie ma hasła, które można wykraść. Połączenia są szyfrowane (TLS). Imię i nazwisko, adres e-mail, numer telefonu,[ identyfikator i nazwa użytkownika Telegrama,] notatki i opis klienta każdej osoby, a także adresy[ i czaty], na które wysyłamy powiadomienia, są szyfrowane kluczem należącym wyłącznie do tej osoby, który sam jest zaszyfrowany kluczem głównym przechowywanym poza bazą danych; usunięcie osoby niszczy jej klucz ([sekcja 7](#section-7)). Aby znaleźć konto lub klienta po adresie e-mail lub numerze telefonu,[ konto po identyfikatorze Telegrama,] klienta po pierwszych literach imienia lub nazwiska, a wizyty po imieniu i nazwisku klienta, bez ich odszyfrowywania, przechowujemy skróty tych wartości z kluczem (HMAC), usuwane razem z rekordem. Każdy pracownik widzi dane tylko zgodnie z uprawnieniami. [Opisz wyłącznie rzeczywiście stosowane środki, np.: Baza danych i kopie zapasowe są szyfrowane w spoczynku, a kopie znajdują się na oddzielnym serwerze. Dostęp do danych produkcyjnych mają wyłącznie {{WHO_HAS_ACCESS}}.]
 
 ---
 
@@ -170,9 +176,9 @@ Logowanie korzysta z kluczy dostępu, więc nie ma hasła, które można wykraś
 
 Masz prawo:
 
-- **uzyskać dostęp do danych i je wyeksportować.** Zamów eksport w aplikacji (raz dziennie); jest przechowywany przez 72 godziny.
+- **uzyskać dostęp do danych i je wyeksportować.** Zamów eksport w aplikacji (raz dziennie); jest przechowywany przez 72 godziny. Zamówienie potwierdzasz kluczem dostępu[ albo, w miniaplikacji, przez wiadomość od naszego bota w Telegramie]. Jeśli nie możesz korzystać z aplikacji, napisz do nas, a prześlemy Ci kopię.
 - **sprostować dane.** Edytuj profil w aplikacji. Zmiana e-maila wymaga kodu wysłanego na nowy adres.
-- **usunąć dane.** Usuń konto w aplikacji, w Ustawienia → Konto, potwierdzając kluczem dostępu. Aby usunąć tylko rekord klienta, skontaktuj się z nami. Jeśli nie możesz korzystać z aplikacji, napisz na [{{PRIVACY_EMAIL}}](mailto:{{PRIVACY_EMAIL}}) z adresu przypisanego do konta. Co usuwamy, co zachowujemy i jak długo, opisuje [punkt 7](#section-7).
+- **usunąć dane.** Usuń konto w aplikacji, w Ustawienia → Konto, potwierdzając kluczem dostępu[ albo, w miniaplikacji, przez wiadomość od naszego bota w Telegramie]. Usunięcie następuje 7 dni później i do tego czasu możesz je anulować w aplikacji. Aby usunąć tylko rekord klienta, skontaktuj się z nami. Jeśli nie możesz korzystać z aplikacji ani potwierdzić w niej usunięcia, napisz na [{{PRIVACY_EMAIL}}](mailto:{{PRIVACY_EMAIL}}) z adresu przypisanego do konta[; jeśli konto zostało utworzone przez Telegram i nie ma prawdziwego adresu e-mail, napisz nam o tym, a ustalimy inny sposób potwierdzenia Twojej tożsamości]. Usunięcie zlecone e-mailem wykonujemy po Twoim potwierdzeniu, bez 7-dniowego oczekiwania. Co usuwamy, co zachowujemy i jak długo, opisuje [punkt 7](#section-7).
 - **wnieść sprzeciw** wobec przetwarzania opartego na naszym prawnie uzasadnionym interesie i żądać **ograniczenia przetwarzania**.
 - **wycofać zgodę** w dowolnym momencie bez wpływu na wcześniejsze przetwarzanie.
 - **złożyć skargę** do {{SUPERVISORY_AUTHORITY}}. Gdy stosuje się RODO, możesz też złożyć skargę do organu nadzorczego w kraju EOG swojego zwykłego pobytu, miejsca pracy lub domniemanego naruszenia.

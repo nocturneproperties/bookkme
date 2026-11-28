@@ -19,6 +19,7 @@ import org.jetbrains.exposed.v1.core.less
 import org.jetbrains.exposed.v1.core.neq
 import org.jetbrains.exposed.v1.core.or
 import org.jetbrains.exposed.v1.dao.with
+import org.jetbrains.exposed.v1.jdbc.SizedIterable
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
 import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.selectAll
@@ -62,17 +63,12 @@ internal class EmployeeDataSourceImpl(private val contactCipher: ContactCipher) 
     }
 
     override suspend fun getEmployees(businessId: Uuid): List<Employee> = dbQuery {
-        EmployeeEntity.find {
-            EmployeeTable.businessId eq businessId
-        }
-            .toList()
-            .with(
-                EmployeeEntity::services,
-                EmployeeEntity::workingHours,
-                EmployeeEntity::dayOffs,
-                EmployeeEntity::grants,
-            )
-            .domains()
+        EmployeeEntity.find { EmployeeTable.businessId eq businessId }.withRelations()
+    }
+
+    override suspend fun getActiveEmployees(businessId: Uuid): List<Employee> = dbQuery {
+        EmployeeEntity.find { (EmployeeTable.businessId eq businessId) and EmployeeTable.suspendedAt.isNull() }
+            .withRelations()
     }
 
     override suspend fun getEmployee(businessId: Uuid, id: Uuid): Employee? = dbQuery {
@@ -153,17 +149,7 @@ internal class EmployeeDataSourceImpl(private val contactCipher: ContactCipher) 
             .select(EmployeeCanProvideServiceTable.employeeId)
             .where { EmployeeCanProvideServiceTable.serviceId eq serviceId }
 
-        EmployeeEntity.find {
-            EmployeeTable.id inSubQuery employeeIds
-        }
-            .toList()
-            .with(
-                EmployeeEntity::services,
-                EmployeeEntity::workingHours,
-                EmployeeEntity::dayOffs,
-                EmployeeEntity::grants,
-            )
-            .domains()
+        EmployeeEntity.find { EmployeeTable.id inSubQuery employeeIds }.withRelations()
     }
 
     override suspend fun getOwnedBusinessMemberUserIds(ownerUserId: Uuid): List<Uuid> = dbQuery {
@@ -180,6 +166,17 @@ internal class EmployeeDataSourceImpl(private val contactCipher: ContactCipher) 
 
     private suspend fun EmployeeEntity.domain(): Employee {
         return toDomain(contactCipher.decrypt(storedContact(), SOURCE))
+    }
+
+    private suspend fun SizedIterable<EmployeeEntity>.withRelations(): List<Employee> {
+        return toList()
+            .with(
+                EmployeeEntity::services,
+                EmployeeEntity::workingHours,
+                EmployeeEntity::dayOffs,
+                EmployeeEntity::grants,
+            )
+            .domains()
     }
 
     private suspend fun List<EmployeeEntity>.domains(): List<Employee> {

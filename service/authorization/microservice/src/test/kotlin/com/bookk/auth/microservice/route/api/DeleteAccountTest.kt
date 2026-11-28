@@ -1,5 +1,6 @@
 package com.bookk.auth.microservice.route.api
 
+import com.bookk.auth.domain.api.delete_account.entity.AccountDeletion
 import com.bookk.auth.domain.api.delete_account.entity.DeleteAccountRequest
 import com.bookk.auth.domain.api.delete_account.operation.DeleteAccount
 import com.bookk.auth.domain.api.error.AuthErrorCodes
@@ -28,11 +29,12 @@ import io.mockk.mockk
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 import org.koin.dsl.module
+import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
 internal class DeleteAccountTest {
 
-    private fun ApplicationTestBuilder.setupDeletion(userId: Uuid, outcome: Result<Unit>): DeleteAccount {
+    private fun ApplicationTestBuilder.setupDeletion(userId: Uuid, outcome: Result<AccountDeletion>): DeleteAccount {
         val useCase: DeleteAccount = mockk()
         coEvery { useCase.invoke(userId, any()) } returns outcome
         setupApplication(
@@ -52,10 +54,11 @@ internal class DeleteAccountTest {
     }
 
     @Test
-    fun `should delete the caller's account with the supplied action confirmation token`() = routeTest {
+    fun `should schedule the caller's account deletion with the supplied action confirmation token`() = routeTest {
         given()
         val userId = Uuid.random()
-        val useCase = setupDeletion(userId, Result.success(Unit))
+        val deletion = AccountDeletion(Instant.parse("2026-12-03T10:00:00Z"))
+        val useCase = setupDeletion(userId, Result.success(deletion))
 
         whenn()
         val response = createTestClient().delete(AuthRouting.Api.Auth.Account()) {
@@ -63,7 +66,8 @@ internal class DeleteAccountTest {
         }
 
         then()
-        assertEquals(HttpStatusCode.NoContent, response.status)
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertEquals(deletion, response.body<AccountDeletion>())
         coVerify(exactly = 1) { useCase(userId, "action-confirmation-token") }
     }
 
@@ -97,6 +101,22 @@ internal class DeleteAccountTest {
         then()
         assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
         assertEquals(AuthErrorCodes.VERIFICATION_FAILED, response.body<SimpleServerError>().errorCode)
+    }
+
+    @Test
+    fun `should return unprocessable entity when the account is on hold`() = routeTest {
+        given()
+        val userId = Uuid.random()
+        setupDeletion(userId, Result.failure(DeleteAccount.Error.DeletionOnHold()))
+
+        whenn()
+        val response = createTestClient().delete(AuthRouting.Api.Auth.Account()) {
+            setBody(DeleteAccountRequest("action-confirmation-token"))
+        }
+
+        then()
+        assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
+        assertEquals(AuthErrorCodes.ACCOUNT_DELETION_ON_HOLD, response.body<SimpleServerError>().errorCode)
     }
 
     @Test

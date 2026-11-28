@@ -5,7 +5,7 @@ ANSIBLE_PYTHON := $(shell head -1 "$$(command -v ansible)" | sed 's/^\#!//')
 TAGS_ARG := $(if $(tags),--tags $(tags))
 BACKUPS := backups
 
-.PHONY: check bootstrap infra deploy deploy-check deploy-site deploy-site-check fetch-backups restore-drill migration-rehearsal vault-import vault-update vault-edit vault-view syntax lint
+.PHONY: check bootstrap infra deploy deploy-check deploy-site deploy-site-check deploy-webapp deploy-webapp-check fetch-backups restore-drill migration-rehearsal vault-import vault-update vault-edit vault-view syntax lint
 
 check:
 	ansible-playbook playbooks/site.yml --check --diff $(TAGS_ARG)
@@ -31,6 +31,14 @@ deploy-site:
 deploy-site-check:
 	@test -n "$(v)" || (echo "usage: make deploy-site-check v=<version>" && exit 1)
 	ansible-playbook playbooks/deploy-site.yml -e version=$(v) --check --diff
+
+deploy-webapp:
+	@test -n "$(v)" || (echo "usage: make deploy-webapp v=<version>" && exit 1)
+	ansible-playbook playbooks/deploy-webapp.yml -e version=$(v) $(if $(first),-e allow_new_stacks=true)
+
+deploy-webapp-check:
+	@test -n "$(v)" || (echo "usage: make deploy-webapp-check v=<version>" && exit 1)
+	ansible-playbook playbooks/deploy-webapp.yml -e version=$(v) --check --diff
 
 fetch-backups:
 	ansible-playbook playbooks/fetch-backups.yml
@@ -59,6 +67,7 @@ syntax:
 	ansible-playbook playbooks/site.yml --syntax-check
 	ansible-playbook playbooks/deploy.yml --syntax-check
 	ansible-playbook playbooks/deploy-site.yml --syntax-check
+	ansible-playbook playbooks/deploy-webapp.yml --syntax-check
 	ansible-playbook playbooks/fetch-backups.yml --syntax-check
 
 lint:

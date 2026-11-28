@@ -2,17 +2,20 @@ package com.bookk.appointments.domain.impl.operation
 
 import com.bookk.appointments.domain.api.entity.Appointment
 import com.bookk.appointments.domain.api.entity.BusinessSnapshot
+import com.bookk.appointments.domain.api.entity.PendingRequestRef
 import com.bookk.appointments.domain.api.operation.DeleteUserAppointmentData
 import com.bookk.appointments.domain.datasource.AppointmentDataSource
 import com.bookk.appointments.domain.datasource.AppointmentPermissionDataSource
 import com.bookk.appointments.domain.datasource.AppointmentRequestDataSource
 import com.bookk.appointments.domain.datasource.AppointmentSubscriptionDataSource
 import com.bookk.appointments.domain.datasource.DeletedUserDataSource
+import com.bookk.appointments.domain.datasource.SavedBusinessDataSource
 import com.bookk.core.data.eventstreaming.StandardEventProducer
 import com.bookk.core.data.eventstreaming.send
 import com.bookk.core.domain.datasource.transaction.TransactionManager
 import com.bookk.library.serializer.moneyFormatter
 import com.bookk.server.appointments.client.api.event.AppointmentEvent
+import com.bookk.server.appointments.client.api.event.CancellationReasonKind
 import library.encryption.SubjectKeys
 import org.slf4j.LoggerFactory
 import kotlin.time.Clock
@@ -26,6 +29,7 @@ internal class DeleteUserAppointmentDataImpl(
     private val requestDataSource: AppointmentRequestDataSource,
     private val appointmentPermissionDataSource: AppointmentPermissionDataSource,
     private val subscriptionDataSource: AppointmentSubscriptionDataSource,
+    private val savedBusinessDataSource: SavedBusinessDataSource,
     private val eventProducer: StandardEventProducer,
     private val subjectKeys: SubjectKeys,
     private val transactionManager: TransactionManager,
@@ -35,6 +39,7 @@ internal class DeleteUserAppointmentDataImpl(
         val erasure = select(userId)
         delete(userId, erasure)
         notifyCancellations(userId, erasure)
+        eventProducer.sendRequestsResolved(erasure.pendingRequests)
         subjectKeys.shredAll(erasure.subjectIds)
     }
 
@@ -42,6 +47,7 @@ internal class DeleteUserAppointmentDataImpl(
         val upcomingIds = appointmentDataSource.getUpcomingIdsOfUserForUpdate(userId, Clock.System.now())
         val clientIds = appointmentDataSource.getClientIdsOfUserForUpdate(userId) +
             requestDataSource.getClientIdsOfUserForUpdate(userId)
+        val pendingRequests = requestDataSource.getPendingOfClientUserForUpdate(userId)
         val ownedBusinessIds = subscriptionDataSource.getBusinessIdsOwnedByForUpdate(userId)
         val ownedBusinessClientIds = subscriptionDataSource.getClientIdsForUpdate(ownedBusinessIds)
         val upcoming = appointmentDataSource.getAllByIds(upcomingIds)
@@ -49,6 +55,7 @@ internal class DeleteUserAppointmentDataImpl(
             upcoming = upcoming,
             businesses = businessesToNotify(userId, upcoming),
             ownedBusinessIds = ownedBusinessIds,
+            pendingRequests = pendingRequests,
             subjectIds = setOf(userId) + clientIds + ownedBusinessClientIds,
         )
     }
@@ -70,10 +77,10 @@ internal class DeleteUserAppointmentDataImpl(
         appointmentDataSource.cancelAll(asClient.map { it.id }, ACCOUNT_DELETED_CANCELLATION_REASON)
         appointmentDataSource.cancelAll(asEmployee.map { it.id }, EMPLOYEE_DELETED_CANCELLATION_REASON)
         appointmentDataSource.anonymizeClientUser(userId)
-        appointmentDataSource.anonymizeEmployee(userId)
         appointmentDataSource.unlinkInitiator(userId)
         requestDataSource.deleteForUser(userId)
         appointmentPermissionDataSource.deleteForUser(userId)
+        savedBusinessDataSource.deleteForUser(userId)
         subscriptionDataSource.detachBusinesses(erasure.ownedBusinessIds)
     }
 
@@ -121,10 +128,10 @@ internal class DeleteUserAppointmentDataImpl(
             from = appointment.date,
             to = appointment.dateEnd,
             timeZone = business.timeZone,
-            address = business.address,
             businessName = business.name,
             price = moneyFormatter.print(appointment.totalAmount),
             reason = EMPLOYEE_DELETED_CANCELLATION_REASON,
+            reasonKind = CancellationReasonKind.EMPLOYEE_DELETED,
         )
     }
 
@@ -132,6 +139,7 @@ internal class DeleteUserAppointmentDataImpl(
         val upcoming: List<Appointment>,
         val businesses: Map<Uuid, BusinessSnapshot>,
         val ownedBusinessIds: List<Uuid>,
+        val pendingRequests: List<PendingRequestRef>,
         val subjectIds: Set<Uuid>,
     )
 

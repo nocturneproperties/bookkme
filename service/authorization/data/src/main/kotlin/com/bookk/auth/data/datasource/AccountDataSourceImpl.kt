@@ -5,14 +5,18 @@ import com.bookk.auth.data.orm.entity.AuthenticationEntity
 import com.bookk.auth.data.orm.table.AuthenticationTable
 import com.bookk.auth.domain.api.authentication.entity.AccountActivity
 import com.bookk.auth.domain.api.authentication.entity.Authentication
+import com.bookk.auth.domain.api.authentication.entity.DemoAccount
 import com.bookk.auth.domain.api.authentication.entity.DormancyStage
 import com.bookk.auth.domain.api.authentication.entity.DormantAccount
+import com.bookk.auth.domain.api.authentication.entity.LockedAccount
 import com.bookk.auth.domain.datasource.AccountDataSource
 import com.bookk.core.data.DataSource
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.greater
 import org.jetbrains.exposed.v1.core.inList
+import org.jetbrains.exposed.v1.core.isNotNull
 import org.jetbrains.exposed.v1.core.less
 import org.jetbrains.exposed.v1.core.neq
 import org.jetbrains.exposed.v1.core.or
@@ -31,6 +35,7 @@ internal class AccountDataSourceImpl : DataSource(), AccountDataSource {
         AuthenticationTable.insertAndGetId {
             it[userId] = info.userId
             it[uuid] = info.uuid
+            it[demoExpiresAt] = info.demoExpiresAt
             it[updatedAt] = Clock.System.now()
         }.let {
             info.copy(id = it.value)
@@ -49,6 +54,14 @@ internal class AccountDataSourceImpl : DataSource(), AccountDataSource {
             .where { AuthenticationTable.id eq id }
             .forUpdate()
             .any()
+    }
+
+    override suspend fun lockAccountOfUser(userId: Uuid): LockedAccount? = dbQuery {
+        AuthenticationTable.select(AuthenticationTable.id, AuthenticationTable.deletionHold)
+            .where { AuthenticationTable.userId eq userId }
+            .forUpdate()
+            .singleOrNull()
+            ?.let { LockedAccount(it[AuthenticationTable.id].value, it[AuthenticationTable.deletionHold]) }
     }
 
     override suspend fun getAuthRecordByUUID(uuid: Uuid): Authentication? = dbQuery {
@@ -127,6 +140,46 @@ internal class AccountDataSourceImpl : DataSource(), AccountDataSource {
         AuthenticationTable.select(AuthenticationTable.userId, AuthenticationTable.lastActiveAt)
             .where { AuthenticationTable.userId inList userIds }
             .associate { it[AuthenticationTable.userId] to it[AuthenticationTable.lastActiveAt] }
+    }
+
+    override suspend fun countDemoAccountsActiveAt(now: Instant): Long = dbQuery {
+        AuthenticationTable.selectAll()
+            .where { AuthenticationTable.demoExpiresAt greater now }
+            .count()
+    }
+
+    override suspend fun getDemoAccountsExpiredBefore(before: Instant): List<DemoAccount> = dbQuery {
+        AuthenticationTable.select(demoAccountColumns)
+            .where { AuthenticationTable.demoExpiresAt less before }
+            .map { it.toDemoAccount() }
+    }
+
+    override suspend fun getDemoAccountForUpdate(authId: Uuid): DemoAccount? = dbQuery {
+        AuthenticationTable.select(demoAccountColumns)
+            .where { (AuthenticationTable.id eq authId) and AuthenticationTable.demoExpiresAt.isNotNull() }
+            .forUpdate()
+            .singleOrNull()
+            ?.toDemoAccount()
+    }
+
+    override suspend fun endDemo(authId: Uuid) = dbQuery<Unit> {
+        AuthenticationEntity.findByIdAndEndDemo(authId)
+    }
+
+    private val demoAccountColumns = listOf(
+        AuthenticationTable.id,
+        AuthenticationTable.userId,
+        AuthenticationTable.demoExpiresAt,
+        AuthenticationTable.deletionHold,
+    )
+
+    private fun ResultRow.toDemoAccount(): DemoAccount {
+        return DemoAccount(
+            authId = this[AuthenticationTable.id].value,
+            userId = this[AuthenticationTable.userId],
+            expiresAt = requireNotNull(this[AuthenticationTable.demoExpiresAt]),
+            deletionHold = this[AuthenticationTable.deletionHold],
+        )
     }
 
     private fun ResultRow.toDormantAccount() = DormantAccount(

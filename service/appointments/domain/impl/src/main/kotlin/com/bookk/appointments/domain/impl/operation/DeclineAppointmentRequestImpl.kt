@@ -37,6 +37,7 @@ internal class DeclineAppointmentRequestImpl(
         appointment.requirePending()
         val declined = requestDataSource.decline(cancellation.id, cancellation.reason)
         sendRequestDeclinedEvent(declined)
+        eventProducer.send(AppointmentEvent.RequestResolved(appointment.id, appointment.employee.userId))
     }
 
     private suspend fun sendRequestDeclinedEvent(appointment: AppointmentRequest) {
@@ -52,7 +53,6 @@ internal class DeclineAppointmentRequestImpl(
                 to = appointment.dateEnd,
                 timeZone = business.timeZone,
                 businessName = business.name,
-                address = business.address,
                 price = moneyFormatter.print(appointment.totalAmount),
                 declineReason = appointment.declineReason,
             ),

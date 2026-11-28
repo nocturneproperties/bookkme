@@ -2,21 +2,19 @@
 
 Kafka topic `AppointmentEvent.CancelledForDeletedClient` → `NotificationEventHandler` → `SendNotification`
 
-Produced once per upcoming appointment cancelled because its client is gone:
+Produced once per upcoming appointment cancelled because its client deleted
+their account:
 
-- by [React to user deletion (appointments)](../appointments/on-user-deleted.md),
-  when the client deleted their account (`cause = ACCOUNT_DELETED`);
-- by [React to client deletion](../appointments/on-client-deleted.md), when
-  the business deleted the client (`cause = REMOVED_BY_BUSINESS`);
+- by [React to user deletion (appointments)](../appointments/on-user-deleted.md);
 - by [React to a client getting an account](../appointments/on-client-linked.md),
-  which runs either erasure when the account or the client turns out to be
-  deleted already.
+  which runs that erasure when the account turns out to be deleted already.
 
 Tells the employee assigned to the appointment that it was cancelled and the
-time is free again. `cause` picks the wording (`appointment.cancelled_for_deleted_client.*`
-or `appointment.cancelled_for_removed_client.*`, English and Ukrainian). The
-event carries no client name: the client's details are already erased when
-it is sent.
+time is free again (`appointment.cancelled_for_deleted_client.*`, in every
+channel). A client the business removes itself is not announced to the
+business ([React to client deletion](../appointments/on-client-deleted.md)
+tells only the client). The event carries no client name: the client's
+details are already erased when it is sent.
 
 ```mermaid
 flowchart TD

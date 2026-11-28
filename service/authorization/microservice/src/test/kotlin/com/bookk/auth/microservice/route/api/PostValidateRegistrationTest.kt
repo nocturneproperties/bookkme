@@ -54,11 +54,7 @@ class PostValidateRegistrationTest {
             deviceUUID = Uuid.random(),
             deviceName = "example_device_name",
         ),
-        userInfo = VerifyAccountCreationRequest.UserInfo(
-            name = "name",
-            lastName = "lastName",
-            email = "email",
-        ),
+        userInfo = VerifyAccountCreationRequest.UserInfo(name = "name lastName", email = "email"),
         publicKeyCredentialJson = "mock",
         acceptedDocuments = acceptedDocuments,
         verificationId = Uuid.random(),

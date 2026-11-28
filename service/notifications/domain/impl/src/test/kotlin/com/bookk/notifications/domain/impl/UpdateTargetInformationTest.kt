@@ -7,7 +7,10 @@ import com.bookk.core.test.runUnitTest
 import com.bookk.core.test.then
 import com.bookk.core.test.whenn
 import com.bookk.notifications.domain.api.GetNotificationSettings
+import com.bookk.notifications.domain.api.entity.CommunicationChannel
+import com.bookk.notifications.domain.api.entity.NotificationChannelSettings
 import com.bookk.notifications.domain.api.entity.NotificationSettings
+import com.bookk.notifications.domain.datasource.NotificationSettingsDataSource
 import com.bookk.notifications.domain.datasource.NotificationTargetDataSource
 import com.bookk.notifications.domain.impl.UpdateTargetInformation.Target
 import io.mockk.Runs
@@ -28,18 +31,32 @@ internal class UpdateTargetInformationTest {
     private class SutFixture {
         val getNotificationSettings = mockk<GetNotificationSettings>()
         val targetDataSource = mockk<NotificationTargetDataSource>()
+        val notificationSettingsDataSource = mockk<NotificationSettingsDataSource>()
         val subjectKeys = spyk(InMemorySubjectKeys())
         val transactionManager = mockk<TransactionManager>()
-        val sut = UpdateTargetInformation(getNotificationSettings, targetDataSource, subjectKeys, transactionManager)
+        val sut = UpdateTargetInformation(
+            getNotificationSettings,
+            targetDataSource,
+            notificationSettingsDataSource,
+            subjectKeys,
+            transactionManager,
+        )
     }
 
     private val userId = Uuid.random()
     private val updatedAt = Instant.fromEpochMilliseconds(1000)
 
-    private fun SutFixture.settingsFound() {
+    private fun SutFixture.settingsFound(telegram: NotificationChannelSettings = offeredTelegram()) {
         transactionManager.mockTransaction()
         coEvery { getNotificationSettings.invoke(userId) } returns
             Result.success(NotificationSettings.stub(userId = userId))
+        coEvery { notificationSettingsDataSource.getByUserId(userId) } returns
+            NotificationSettings.stub(userId = userId, channels = listOf(telegram))
+        coEvery { notificationSettingsDataSource.upsert(any<NotificationChannelSettings>()) } just Runs
+    }
+
+    private fun offeredTelegram(): NotificationChannelSettings {
+        return NotificationChannelSettings.stub(channel = CommunicationChannel.TELEGRAM, availableToClients = true)
     }
 
     @Test
@@ -52,7 +69,7 @@ internal class UpdateTargetInformationTest {
         }
 
         whenn()
-        val result = fixture.sut.invoke(userId, Target.Email("user@example.com"), updatedAt)
+        val result = fixture.sut.invoke(userId, listOf(Target.Email("user@example.com")), updatedAt)
 
         then()
         assertTrue(result.isSuccess)
@@ -72,7 +89,7 @@ internal class UpdateTargetInformationTest {
         }
 
         whenn()
-        val result = fixture.sut.invoke(userId, Target.Email("user@example.com"), updatedAt)
+        val result = fixture.sut.invoke(userId, listOf(Target.Email("user@example.com")), updatedAt)
 
         then()
         assertTrue(result.isSuccess)
@@ -90,7 +107,7 @@ internal class UpdateTargetInformationTest {
         }
 
         whenn()
-        val result = fixture.sut.invoke(userId, Target.Email("stale@example.com"), updatedAt)
+        val result = fixture.sut.invoke(userId, listOf(Target.Email("stale@example.com")), updatedAt)
 
         then()
         assertTrue(result.isSuccess)
@@ -103,11 +120,11 @@ internal class UpdateTargetInformationTest {
         val fixture = SutFixture()
         with(fixture) {
             settingsFound()
-            coEvery { targetDataSource.updateTelegram(userId, "@user_tag") } returns true
+            coEvery { targetDataSource.updateTelegram(userId, "123456789") } returns true
         }
 
         whenn()
-        val result = fixture.sut.invoke(userId, Target.Telegram("@user_tag"), updatedAt)
+        val result = fixture.sut.invoke(userId, listOf(Target.Telegram(123456789)), updatedAt)
 
         then()
         assertTrue(result.isSuccess)
@@ -121,17 +138,17 @@ internal class UpdateTargetInformationTest {
         val fixture = SutFixture()
         with(fixture) {
             settingsFound()
-            coEvery { targetDataSource.updateTelegram(userId, "@user_tag") } returns false
+            coEvery { targetDataSource.updateTelegram(userId, "123456789") } returns false
             coEvery { targetDataSource.hasTelegram(userId) } returns false
-            coEvery { targetDataSource.insertTelegram(userId, "@user_tag") } just Runs
+            coEvery { targetDataSource.insertTelegram(userId, "123456789") } just Runs
         }
 
         whenn()
-        val result = fixture.sut.invoke(userId, Target.Telegram("@user_tag"), updatedAt)
+        val result = fixture.sut.invoke(userId, listOf(Target.Telegram(123456789)), updatedAt)
 
         then()
         assertTrue(result.isSuccess)
-        coVerify(exactly = 1) { fixture.targetDataSource.insertTelegram(userId, "@user_tag") }
+        coVerify(exactly = 1) { fixture.targetDataSource.insertTelegram(userId, "123456789") }
     }
 
     @Test
@@ -140,16 +157,177 @@ internal class UpdateTargetInformationTest {
         val fixture = SutFixture()
         with(fixture) {
             settingsFound()
-            coEvery { targetDataSource.updateTelegram(userId, "@user_tag") } returns false
+            coEvery { targetDataSource.updateTelegram(userId, "123456789") } returns false
             coEvery { targetDataSource.hasTelegram(userId) } returns true
         }
 
         whenn()
-        val result = fixture.sut.invoke(userId, Target.Telegram("@user_tag"), updatedAt)
+        val result = fixture.sut.invoke(userId, listOf(Target.Telegram(123456789)), updatedAt)
 
         then()
         assertTrue(result.isSuccess)
         coVerify(exactly = 0) { fixture.targetDataSource.insertTelegram(any(), any()) }
+    }
+
+    @Test
+    fun `should offer and turn on the Telegram channel when the first Telegram target is saved`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val telegram = NotificationChannelSettings.stub(
+            channel = CommunicationChannel.TELEGRAM,
+            enabled = false,
+            availableToClients = false,
+        )
+        with(fixture) {
+            settingsFound(telegram)
+            coEvery { targetDataSource.updateTelegram(userId, "123456789") } returns false
+            coEvery { targetDataSource.hasTelegram(userId) } returns false
+            coEvery { targetDataSource.insertTelegram(userId, "123456789") } just Runs
+        }
+
+        whenn()
+        val result = fixture.sut.invoke(userId, listOf(Target.Telegram(123456789)), updatedAt)
+
+        then()
+        assertTrue(result.isSuccess) { result.toString() }
+        coVerify(exactly = 1) {
+            fixture.notificationSettingsDataSource.upsert(telegram.copy(enabled = true, availableToClients = true))
+        }
+    }
+
+    @Test
+    fun `should turn on an offered Telegram channel when the first Telegram target is saved`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val telegram = offeredTelegram().copy(enabled = false)
+        with(fixture) {
+            settingsFound(telegram)
+            coEvery { targetDataSource.updateTelegram(userId, "123456789") } returns false
+            coEvery { targetDataSource.hasTelegram(userId) } returns false
+            coEvery { targetDataSource.insertTelegram(userId, "123456789") } just Runs
+        }
+
+        whenn()
+        fixture.sut.invoke(userId, listOf(Target.Telegram(123456789)), updatedAt)
+
+        then()
+        coVerify(exactly = 1) { fixture.notificationSettingsDataSource.upsert(telegram.copy(enabled = true)) }
+    }
+
+    @Test
+    fun `should offer but not turn on the Telegram channel when the Telegram target already existed`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val telegram = NotificationChannelSettings.stub(
+            channel = CommunicationChannel.TELEGRAM,
+            enabled = false,
+            availableToClients = false,
+        )
+        with(fixture) {
+            settingsFound(telegram)
+            coEvery { targetDataSource.updateTelegram(userId, "123456789") } returns true
+        }
+
+        whenn()
+        fixture.sut.invoke(userId, listOf(Target.Telegram(123456789)), updatedAt)
+
+        then()
+        coVerify(exactly = 1) {
+            fixture.notificationSettingsDataSource.upsert(telegram.copy(availableToClients = true))
+        }
+    }
+
+    @Test
+    fun `should not turn the Telegram channel back on when the Telegram target is updated`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        with(fixture) {
+            settingsFound(offeredTelegram().copy(enabled = false))
+            coEvery { targetDataSource.updateTelegram(userId, "123456789") } returns true
+        }
+
+        whenn()
+        fixture.sut.invoke(userId, listOf(Target.Telegram(123456789)), updatedAt)
+
+        then()
+        coVerify(exactly = 0) { fixture.notificationSettingsDataSource.upsert(any<NotificationChannelSettings>()) }
+    }
+
+    @Test
+    fun `should not turn the Telegram channel on when a stored Telegram target was not updated`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        with(fixture) {
+            settingsFound(offeredTelegram().copy(enabled = false))
+            coEvery { targetDataSource.updateTelegram(userId, "123456789") } returns false
+            coEvery { targetDataSource.hasTelegram(userId) } returns true
+        }
+
+        whenn()
+        fixture.sut.invoke(userId, listOf(Target.Telegram(123456789)), updatedAt)
+
+        then()
+        coVerify(exactly = 0) { fixture.notificationSettingsDataSource.upsert(any<NotificationChannelSettings>()) }
+    }
+
+    @Test
+    fun `should not rewrite a Telegram channel that is already turned on`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        with(fixture) {
+            settingsFound(offeredTelegram().copy(enabled = true))
+            coEvery { targetDataSource.updateTelegram(userId, "123456789") } returns false
+            coEvery { targetDataSource.hasTelegram(userId) } returns false
+            coEvery { targetDataSource.insertTelegram(userId, "123456789") } just Runs
+        }
+
+        whenn()
+        fixture.sut.invoke(userId, listOf(Target.Telegram(123456789)), updatedAt)
+
+        then()
+        coVerify(exactly = 0) { fixture.notificationSettingsDataSource.upsert(any<NotificationChannelSettings>()) }
+    }
+
+    @Test
+    fun `should not offer the Telegram channel when only the email target is saved`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        with(fixture) {
+            settingsFound(offeredTelegram().copy(availableToClients = false))
+            coEvery { targetDataSource.updateEmail(userId, "user@example.com", updatedAt) } returns true
+        }
+
+        whenn()
+        fixture.sut.invoke(userId, listOf(Target.Email("user@example.com")), updatedAt)
+
+        then()
+        coVerify(exactly = 0) { fixture.notificationSettingsDataSource.upsert(any<NotificationChannelSettings>()) }
+    }
+
+    @Test
+    fun `should save the email and Telegram targets in one transaction`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        with(fixture) {
+            settingsFound()
+            coEvery { targetDataSource.updateEmail(userId, "user@example.com", updatedAt) } returns true
+            coEvery { targetDataSource.updateTelegram(userId, "123456789") } returns false
+            coEvery { targetDataSource.hasTelegram(userId) } returns false
+            coEvery { targetDataSource.insertTelegram(userId, "123456789") } just Runs
+        }
+
+        whenn()
+        val result = fixture.sut.invoke(
+            userId,
+            listOf(Target.Email("user@example.com"), Target.Telegram(123456789)),
+            updatedAt,
+        )
+
+        then()
+        assertTrue(result.isSuccess) { result.toString() }
+        coVerify(exactly = 1) { fixture.transactionManager.transaction<Unit>(any()) }
+        coVerify(exactly = 1) { fixture.targetDataSource.updateEmail(userId, "user@example.com", updatedAt) }
+        coVerify(exactly = 1) { fixture.targetDataSource.insertTelegram(userId, "123456789") }
     }
 
     @Test
@@ -162,7 +340,7 @@ internal class UpdateTargetInformationTest {
         }
 
         whenn()
-        val result = fixture.sut.invoke(userId, Target.Email("late@example.com"), updatedAt)
+        val result = fixture.sut.invoke(userId, listOf(Target.Email("late@example.com")), updatedAt)
 
         then()
         assertTrue(result.isSuccess) { result.toString() }
@@ -181,7 +359,7 @@ internal class UpdateTargetInformationTest {
         }
 
         whenn()
-        fixture.sut.invoke(userId, Target.Email("user@example.com"), updatedAt)
+        fixture.sut.invoke(userId, listOf(Target.Email("user@example.com")), updatedAt)
 
         then()
         coVerifyOrder {
@@ -200,7 +378,7 @@ internal class UpdateTargetInformationTest {
         }
 
         whenn()
-        val result = fixture.sut.invoke(userId, Target.Email("e@example.com"), updatedAt)
+        val result = fixture.sut.invoke(userId, listOf(Target.Email("e@example.com")), updatedAt)
 
         then()
         assertTrue(result.isFailure)
@@ -217,7 +395,7 @@ internal class UpdateTargetInformationTest {
         }
 
         whenn()
-        val result = fixture.sut.invoke(userId, Target.Email("e@example.com"), updatedAt)
+        val result = fixture.sut.invoke(userId, listOf(Target.Email("e@example.com")), updatedAt)
 
         then()
         assertTrue(result.isFailure)
@@ -233,7 +411,7 @@ internal class UpdateTargetInformationTest {
         }
 
         whenn()
-        val result = fixture.sut.invoke(userId, Target.Telegram("@tag"), updatedAt)
+        val result = fixture.sut.invoke(userId, listOf(Target.Telegram(123456789)), updatedAt)
 
         then()
         assertTrue(result.isFailure)

@@ -14,6 +14,7 @@ import kotlinx.datetime.toInstant
 import library.schedule.DayOffRange
 import library.schedule.Schedule
 import library.schedule.WorkHour
+import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -55,6 +56,43 @@ internal class AppointmentSettingsTest {
 
     private fun AppointmentSettings.rejectionOf(start: Instant, end: Instant, employeeSchedule: Schedule?): Throwable? {
         return runCatching { requireBookable(start, end, employeeSchedule) }.exceptionOrNull()
+    }
+
+    @Test
+    fun `should report a slot inside both schedules as bookable`() = runUnitTest {
+        given()
+        val settings = settingsWith(weekdaySchedule())
+
+        whenn()
+        val bookable = settings.isBookable(settings.at(monday, 10), settings.at(monday, 11), weekdaySchedule())
+
+        then()
+        assertTrue(bookable)
+    }
+
+    @Test
+    fun `should report a slot outside the employee hours as not bookable`() = runUnitTest {
+        given()
+        val settings = settingsWith(weekdaySchedule())
+        val employeeSchedule = mondaySchedule(listOf(WorkHour(LocalTime(12, 0), LocalTime(17, 0))))
+
+        whenn()
+        val bookable = settings.isBookable(settings.at(monday, 10), settings.at(monday, 11), employeeSchedule)
+
+        then()
+        assertFalse(bookable)
+    }
+
+    @Test
+    fun `should report a slot outside the business hours as not bookable`() = runUnitTest {
+        given()
+        val settings = settingsWith(weekdaySchedule())
+
+        whenn()
+        val bookable = settings.isBookable(settings.at(monday, 16), settings.at(monday, 18), weekdaySchedule())
+
+        then()
+        assertFalse(bookable)
     }
 
     @Test

@@ -7,6 +7,7 @@ import com.bookk.appointments.domain.api.entity.AppointmentStatus
 import com.bookk.appointments.domain.api.entity.AppointmentStatusError
 import com.bookk.appointments.domain.api.entity.PriceAdjustment
 import com.bookk.appointments.domain.api.entity.PriceAdjustmentDraft
+import com.bookk.appointments.domain.api.entity.RequestedService
 import com.bookk.appointments.domain.api.operation.CompleteAppointment
 import com.bookk.appointments.microservice.route.AppointmentsRouting.Api
 import com.bookk.core.domain.entity.BusinessError
@@ -266,7 +267,7 @@ internal class CompleteAppointmentTest {
         val useCase: CompleteAppointment = mockk()
         val userId = Uuid.random()
         val draft = PriceAdjustmentDraft.stub(
-            additionalServiceIds = listOf(Uuid.random()),
+            additionalServices = listOf(RequestedService.stub(count = 2)),
             price = Money.parse("USD 80"),
             reason = "Discount",
         )
@@ -346,6 +347,15 @@ internal class CompleteAppointmentTest {
         assertAdjustmentRejected(
             CompleteAppointment.Error.ReasonTooLong(),
             AppointmentErrorCodes.PRICE_ADJUSTMENT_REASON_TOO_LONG,
+        )
+    }
+
+    @Test
+    fun `should return unprocessable entity when additional services are invalid`() = routeTest {
+        given()
+        assertAdjustmentRejected(
+            CompleteAppointment.Error.AdditionalServicesInvalid(),
+            AppointmentErrorCodes.SERVICE_SELECTION_INVALID,
         )
     }
 

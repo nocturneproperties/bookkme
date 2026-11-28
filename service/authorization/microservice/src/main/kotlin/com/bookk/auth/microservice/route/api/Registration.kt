@@ -21,11 +21,11 @@ internal fun Route.registration() {
      * Get sign up challenge
      *
      * Summary: Get sign up challenge
-     * Description: Get sign up challenge for passkey creation and email a 6-digit code to the address, valid for 10 minutes. The code email is written in the language of Accept-Language. Calling it again restarts sign-up with a new challenge and a new code.
+     * Description: Get sign up challenge for passkey creation and email a 6-digit code to the address, valid for 10 minutes. name is the user's full name in one field and becomes the passkey's display name. The code email is written in the language of Accept-Language. Calling it again restarts sign-up with a new challenge and a new code.
      * Tag: auth
      * Body: application/x-protobuf [com.bookk.auth.domain.api.registration.entity.CreateAccountRequest] User parameters
      * Response: 200 application/x-protobuf [com.bookk.auth.domain.api.registration.entity.SignUpChallengeResponse] Passkey challenge and the email verification to finish sign-up with
-     * Response: 422 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Registration errors<br>EMAIL_EXIST (1) This email already exists<br>INVALID_EMAIL_FORMAT (2) Invalid email format<br>EMAIL_UNDELIVERABLE (910005) This address can't receive email
+     * Response: 422 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Registration errors<br>EMAIL_EXIST (1) This email already exists<br>INVALID_EMAIL_FORMAT (2) Invalid email format<br>EMAIL_DOMAIN_UNSUPPORTED (17) Email addresses on this domain are not supported<br>EMAIL_UNDELIVERABLE (910005) This address can't receive email
      * Response: 429 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Code sending limit<br>EMAIL_CODE_RESEND_TOO_SOON (910004) A code was sent to this address too recently
      * See: docs/operations/authorization/sign-up-challenge.md
      */
@@ -40,7 +40,7 @@ internal fun Route.registration() {
      * Validate passkey data
      *
      * Summary: Validate passkey data
-     * Description: Validate passkey data from native credentials API together with the emailed code (verificationId and emailCode from the sign up challenge), and create the account with the verified address. userInfo.email is ignored. acceptedDocuments must name the version in effect of every published legal document (GET /api/user/legal), and is recorded with the new account.
+     * Description: Validate passkey data from native credentials API together with the emailed code (verificationId and emailCode from the sign up challenge), and create the account with the verified address. userInfo.email is ignored. userInfo.name is the user's full name in one field, split at the first space into the first name and the last name, which may be empty or a single letter. acceptedDocuments must name the version in effect of every published legal document (GET /api/user/legal), and is recorded with the new account.
      * Tag: auth
      * Body: application/x-protobuf [com.bookk.auth.domain.api.registration.entity.VerifyAccountCreationRequest] User parameters
      * Response: 200 application/x-protobuf [com.bookk.auth.domain.api.token.entity.AuthTokens] User has been created

@@ -6,6 +6,7 @@ import com.bookk.core.data.eventstreaming.registerResultReceiver
 import com.bookk.notifications.domain.api.CreateDeviceEntry
 import com.bookk.notifications.domain.api.DeleteDeviceByUUID
 import com.bookk.notifications.domain.api.DeleteUserNotificationData
+import com.bookk.notifications.domain.impl.ClearPushNotificationToken
 import com.bookk.notifications.domain.impl.UpdateDeviceLanguage
 import com.bookk.notifications.domain.impl.UpdateTargetInformation
 import com.bookk.notifications.domain.impl.UpdateTargetInformation.Target
@@ -13,7 +14,9 @@ import com.bookk.notifications.domain.impl.notification.NotificationParameters
 import com.bookk.notifications.domain.impl.notification.SendNotification
 import com.bookk.notifications.domain.impl.notification.renderer.account.notification
 import com.bookk.notifications.domain.impl.notification.renderer.appointment.notification
+import com.bookk.notifications.domain.impl.notification.renderer.appointment.push
 import com.bookk.notifications.domain.impl.notification.renderer.employee.notification
+import com.bookk.notifications.domain.impl.telegram.TelegramConfirmationChat
 import com.bookk.server.appointments.client.api.event.AppointmentEvent
 import com.bookk.server.auth.client.AuthEvent
 import com.bookk.server.business.client.api.event.BusinessEvent
@@ -27,8 +30,10 @@ internal class NotificationEventHandler(
     private val deleteDeviceByUUID: DeleteDeviceByUUID,
     private val updateTargetInformation: UpdateTargetInformation,
     private val updateDeviceLanguage: UpdateDeviceLanguage,
+    private val clearPushNotificationToken: ClearPushNotificationToken,
     private val sendNotification: SendNotification,
     private val deleteUserNotificationData: DeleteUserNotificationData,
+    private val telegramConfirmationChat: TelegramConfirmationChat,
 ) : EventHandler {
     override fun start(scope: CoroutineScope) {
         consumer
@@ -46,7 +51,25 @@ internal class NotificationEventHandler(
                 require(event.authId != Uuid.NIL) { "DeviceDeleted requires authId" }
                 deleteDeviceByUUID(event.authId, event.deviceUuid)
             }
+            .registerResultReceiver(AuthEvent.DeviceSignedOut.TOPIC) { event: AuthEvent.DeviceSignedOut ->
+                clearPushNotificationToken(event.authId, event.deviceUuid, event.signedOutAt)
+            }
+            .registerResultReceiver(
+                AuthEvent.TelegramActionConfirmed.TOPIC,
+            ) { event: AuthEvent.TelegramActionConfirmed ->
+                telegramConfirmationChat.markConfirmed(event.userId, event.challengeId)
+            }
             .registerResultReceiver(AuthEvent.AccountDormancyWarning.TOPIC) { event: AuthEvent.AccountDormancyWarning ->
+                sendNotification(event.userId, event.notification)
+            }
+            .registerResultReceiver(
+                AuthEvent.AccountDeletionScheduled.TOPIC,
+            ) { event: AuthEvent.AccountDeletionScheduled ->
+                sendNotification(event.userId, event.notification)
+            }
+            .registerResultReceiver(
+                AuthEvent.AccountDeletionCancelled.TOPIC,
+            ) { event: AuthEvent.AccountDeletionCancelled ->
                 sendNotification(event.userId, event.notification)
             }
             .registerResultReceiver(UserEvent.DataExportReady.TOPIC) { event: UserEvent.DataExportReady ->
@@ -56,10 +79,13 @@ internal class NotificationEventHandler(
                 sendNotification(event.ownerUserId, event.notification)
             }
             .registerResultReceiver(UserEvent.Updated.TOPIC) { event: UserEvent.Updated ->
-                updateTargetInformation(event.userId, Target.Email(event.email), event.updatedAt)
+                updateTargetInformation(event.userId, event.targets(), event.updatedAt)
             }
             .registerResultReceiver(AppointmentEvent.RequestCreated.TOPIC) { event: AppointmentEvent.RequestCreated ->
                 sendNotification(event.employeeUserId, event.notification)
+            }
+            .registerResultReceiver(AppointmentEvent.RequestResolved.TOPIC) { event: AppointmentEvent.RequestResolved ->
+                sendNotification.data(event.employeeUserId, event.push)
             }
             .registerResultReceiver(AppointmentEvent.RequestApproved.TOPIC) { event: AppointmentEvent.RequestApproved ->
                 notifyClient(event.clientUserId, event.notification)
@@ -81,6 +107,10 @@ internal class NotificationEventHandler(
                 sendNotification(event.inviterUserId, event.notification)
             }
             .start(scope)
+    }
+
+    private fun UserEvent.Updated.targets(): List<Target> {
+        return listOfNotNull(Target.Email(email), telegramUserId?.let(Target::Telegram))
     }
 
     private suspend fun notifyClient(clientUserId: Uuid?, notification: NotificationParameters): Result<Unit> =

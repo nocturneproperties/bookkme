@@ -50,7 +50,7 @@ internal class GetOwnAppointmentRequestsTest {
 
         whenn()
         val client = createTestClient()
-        val response = client.get(Api.Appointment.Requests.Own(Api.Appointment.Requests(businessId = businessId)))
+        val response = client.get(Api.Appointment.OwnRequests(businessId = businessId))
 
         then()
         assertEquals(HttpStatusCode.OK, response.status)
@@ -74,7 +74,7 @@ internal class GetOwnAppointmentRequestsTest {
 
         whenn()
         val client = createTestClient()
-        val response = client.get(Api.Appointment.Requests.Own(Api.Appointment.Requests(businessId = Uuid.random())))
+        val response = client.get(Api.Appointment.OwnRequests(businessId = Uuid.random()))
 
         then()
         assertEquals(HttpStatusCode.Unauthorized, response.status)

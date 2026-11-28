@@ -15,6 +15,8 @@ erDiagram
         bytes last_name_encrypted
         bytes email_encrypted
         bytes phone_encrypted "nullable; blank stored as NULL"
+        bytes telegram_user_id_encrypted "nullable; only for accounts created through Telegram sign-in"
+        bytes telegram_username_encrypted "nullable; Telegram username from the signed Mini App data, refreshed on every Telegram sign-in"
         string email_index UK "HMAC of the trimmed, lowercased email"
         string phone_index UK "nullable; HMAC of the trimmed, lowercased phone"
         timestamp created_at
@@ -82,7 +84,7 @@ erDiagram
     }
 ```
 
-`PROFILE` holds the name, last name, email and phone encrypted under the user's own key (`*_encrypted`, `library/encryption`, keyed by `id`), so deleting the account and shredding that key leaves nothing readable in backups. Email and phone stay unique and the email searchable through `email_index` and `phone_index`, keyed HMACs of the trimmed, lowercased value. 0.19.0 dropped the plaintext columns that rows written before 0.18.0 had.
+`PROFILE` holds the name, last name, email, phone and, for an account created through Telegram sign-in, the Telegram user id encrypted under the user's own key (`*_encrypted`, `library/encryption`, keyed by `id`), so deleting the account and shredding that key leaves nothing readable in backups. Email and phone stay unique and the email searchable through `email_index` and `phone_index`, keyed HMACs of the trimmed, lowercased value. 0.19.0 dropped the plaintext columns that rows written before 0.18.0 had.
 
 `LEGAL_DOCUMENT_VERSION` holds the published versions of each legal document; the operator inserts them by hand (see [Legal documents](../legal-documents.md)), and the current version of a document is its row with the latest `effective_at` that has passed. `LEGAL_DOCUMENT_ACCEPTANCE` is append-only: one row per user and version accepted, never updated (a repeat is ignored, keeping the first time), deleted with the profile. A version that someone accepted can't be deleted (`ON DELETE RESTRICT`).
 

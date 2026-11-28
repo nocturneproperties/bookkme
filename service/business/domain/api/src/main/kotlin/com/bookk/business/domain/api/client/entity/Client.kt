@@ -2,6 +2,7 @@ package com.bookk.business.domain.api.client.entity
 
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.protobuf.ProtoNumber
+import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
 @Serializable
@@ -13,6 +14,8 @@ class ClientRemote(
     @ProtoNumber(5) val email: String?,
     @ProtoNumber(6) val userId: Uuid?,
     @ProtoNumber(7) val description: String?,
+    @ProtoNumber(8) val createdAt: Instant?,
+    @ProtoNumber(9) val telegramUsername: String?,
 ) {
     companion object {
         fun stub(
@@ -23,15 +26,21 @@ class ClientRemote(
             email: String? = "stub@client.com",
             userId: Uuid? = null,
             description: String? = null,
-        ) = ClientRemote(
-            id = id,
-            name = name,
-            lastName = lastName,
-            phone = phone,
-            email = email,
-            userId = userId,
-            description = description,
-        )
+            createdAt: Instant? = Instant.fromEpochMilliseconds(0),
+            telegramUsername: String? = null,
+        ): ClientRemote {
+            return ClientRemote(
+                id = id,
+                name = name,
+                lastName = lastName,
+                phone = phone,
+                email = email,
+                userId = userId,
+                description = description,
+                createdAt = createdAt,
+                telegramUsername = telegramUsername,
+            )
+        }
     }
 }
 
@@ -42,6 +51,7 @@ sealed interface Client {
     val phone: String?
     val email: String?
     val description: String?
+    val createdAt: Instant?
 
     data class Detached(
         override val id: Uuid,
@@ -50,6 +60,7 @@ sealed interface Client {
         override val phone: String?,
         override val email: String?,
         override val description: String? = null,
+        override val createdAt: Instant? = null,
     ) : Client {
         companion object {
             fun stub(
@@ -59,14 +70,18 @@ sealed interface Client {
                 phone: String? = "+10000000000",
                 email: String? = "stub@client.com",
                 description: String? = null,
-            ) = Detached(
-                id = id,
-                name = name,
-                lastName = lastName,
-                phone = phone,
-                email = email,
-                description = description,
-            )
+                createdAt: Instant? = null,
+            ): Detached {
+                return Detached(
+                    id = id,
+                    name = name,
+                    lastName = lastName,
+                    phone = phone,
+                    email = email,
+                    description = description,
+                    createdAt = createdAt,
+                )
+            }
         }
     }
 
@@ -78,6 +93,8 @@ sealed interface Client {
         override val email: String?,
         val userId: Uuid,
         override val description: String? = null,
+        override val createdAt: Instant? = null,
+        val telegramUsername: String? = null,
     ) : Client {
         companion object {
             fun stub(
@@ -88,15 +105,21 @@ sealed interface Client {
                 email: String? = "stub@client.com",
                 userId: Uuid = Uuid.random(),
                 description: String? = null,
-            ) = Integrated(
-                id = id,
-                name = name,
-                lastName = lastName,
-                phone = phone,
-                email = email,
-                userId = userId,
-                description = description,
-            )
+                createdAt: Instant? = null,
+                telegramUsername: String? = null,
+            ): Integrated {
+                return Integrated(
+                    id = id,
+                    name = name,
+                    lastName = lastName,
+                    phone = phone,
+                    email = email,
+                    userId = userId,
+                    description = description,
+                    createdAt = createdAt,
+                    telegramUsername = telegramUsername,
+                )
+            }
         }
     }
 
@@ -105,21 +128,27 @@ sealed interface Client {
     }
 }
 
-fun Client.toRemote(): ClientRemote = ClientRemote(
-    id = id,
-    name = name,
-    lastName = lastName,
-    phone = phone,
-    email = email,
-    userId = (this as? Client.Integrated)?.userId,
-    description = description,
-)
+fun Client.toRemote(): ClientRemote {
+    return ClientRemote(
+        id = id,
+        name = name,
+        lastName = lastName,
+        phone = phone,
+        email = email,
+        userId = (this as? Client.Integrated)?.userId,
+        description = description,
+        createdAt = createdAt,
+        telegramUsername = (this as? Client.Integrated)?.telegramUsername,
+    )
+}
 
-fun ClientRemote.toDetachedClient(): Client.Detached = Client.Detached(
-    id = id,
-    name = name,
-    lastName = lastName,
-    phone = phone,
-    email = email,
-    description = description,
-)
+fun ClientRemote.toDetachedClient(): Client.Detached {
+    return Client.Detached(
+        id = id,
+        name = name,
+        lastName = lastName,
+        phone = phone,
+        email = email,
+        description = description,
+    )
+}

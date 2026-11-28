@@ -89,7 +89,7 @@ is keyed by `(userId, businessId)` alone.
 | `CLIENTS` | `delete` | Delete a client (`DeleteClientImpl`) |
 | `SERVICES` | `update` | Create/update a service or service group (`CreateServiceImpl`, `UpdateServiceImpl`, `CreateServiceGroupImpl`) |
 | `SERVICES` | `delete` | Delete a service or service group (`DeleteServiceImpl`, `DeleteServiceGroupImpl`) |
-| appointments (local) | `view` | Get appointment settings/history/requests, check whether appointments are enabled (`GetSettingsImpl`, `GetAppointmentHistoryImpl`, `GetAppointmentsForDataImpl`, `GetPendingAppointmentRequestsImpl`, `IsAppointmentsEnabledImpl`) |
+| appointments (local) | `view` | Get appointment settings/history/requests, check whether appointments are enabled (`GetSettingsImpl`, `GetAppointmentHistoryImpl`, `GetAppointmentsForDataImpl`, `GetAppointmentRequestHistoryImpl`, `IsAppointmentsEnabledImpl`) |
 | appointments (local) | `update` | Edit appointment settings, create/update/cancel/decline **any** employee's appointment (`EditSettingsImpl`, `CreateAppointmentImpl`, `UpdateAppointmentImpl`, `CancelAppointmentImpl`, `DeclineAppointmentRequestImpl`) — an employee with only `view` can still do this for their own, see [above](#managing-your-own-resource-on-a-view-grant) |
 
 ## Granting and revoking permissions

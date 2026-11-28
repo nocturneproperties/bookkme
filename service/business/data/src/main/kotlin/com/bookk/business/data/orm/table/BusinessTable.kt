@@ -34,6 +34,7 @@ object BusinessTable : UuidTable("business") {
     val maxClients = integer("max_clients").nullable()
     val maxServices = integer("max_services").nullable()
     val maxServiceGroups = integer("max_service_groups").nullable()
+    val demo = bool("demo").default(false)
     val createdAt = timestamp("created_at").clientDefault { Clock.System.now() }
     val updatedAt = timestamp("updated_at").clientDefault { Clock.System.now() }
 }

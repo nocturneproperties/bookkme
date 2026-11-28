@@ -31,12 +31,6 @@ object BusinessRouting {
                 }
             }
 
-            @Resource("/client")
-            class Client(val parent: Internal = Internal()) {
-                @Resource("/{userId}/businesses")
-                class Businesses(val parent: Client = Client(), val userId: Uuid)
-            }
-
             @Resource("/export")
             class Export(val parent: Internal = Internal()) {
                 @Resource("/business/{userId}")
@@ -59,10 +53,19 @@ object BusinessRouting {
             @Resource("/mine")
             class Mine(val parent: Business = Business())
 
+            @Resource("/bulk")
+            class Bulk(val parent: Business = Business())
+
+            @Resource("/link/{name}")
+            class LinkName(val parent: Business = Business(), val name: String)
+
             @Resource("/{id}")
             class Id(val parent: Business = Business(), val id: Uuid) {
                 @Resource("/dashboard")
                 class Dashboard(val parent: Id)
+
+                @Resource("/link")
+                class Link(val parent: Id)
 
                 @Resource("/export")
                 class Export(val parent: Id) {
@@ -71,6 +74,15 @@ object BusinessRouting {
                 }
             }
         }
+
+        @Resource("/business/{businessId}/clients")
+        class ClientList(
+            val parent: Api = Api(),
+            val businessId: Uuid,
+            val limit: Int? = null,
+            val cursor: String? = null,
+            val query: String? = null,
+        )
 
         @Resource("/business/{businessId}/clients")
         class Clients(val parent: Api = Api(), val businessId: Uuid) {
@@ -100,7 +112,10 @@ object BusinessRouting {
         class RedeemEmployeeInvitation(val parent: Api = Api())
 
         @Resource("/business/{businessId}/employee")
-        class Employee(val parent: Api = Api(), val businessId: Uuid) {
+        class Employee(val parent: Api = Api(), val businessId: Uuid, val active: Boolean? = null) {
+            @Resource("/bookable")
+            class Bookable(val parent: Employee)
+
             @Resource("/{id}")
             class Id(val parent: Employee, val id: Uuid) {
                 @Resource("/permissions")

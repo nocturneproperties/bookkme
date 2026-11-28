@@ -3,10 +3,14 @@
 `POST /api/internal/user/{id}/email` → `ChangeUserEmail`
 
 Called by auth once the user confirmed the code sent to their new address
-([Confirm an email change](../authorization/confirm-email-change.md)). It is
-the only write of `profile.email` after sign-up, and sign-up itself only
-accepts a verified address, so every stored email has been verified. The
-cached profile is evicted.
+([Confirm an email change](../authorization/confirm-email-change.md)).
+Together with [Replace a demo profile](upgrade-demo-profile-internal.md) it
+is the only write of `profile.email` after sign-up, and sign-up itself only
+accepts a verified address, so every stored email has been verified, except
+the never-mailed placeholder of an account created by Telegram sign-in
+([Sign in with Telegram](../authorization/telegram-sign-in.md)) or by a
+demo ([Start a demo account](../authorization/demo-start.md)). The cached
+profile is evicted.
 
 ```mermaid
 flowchart TD

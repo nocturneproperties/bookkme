@@ -7,6 +7,8 @@ resolver 127.0.0.11 valid=30s;
 limit_req_zone $binary_remote_addr zone=email_code_send:10m rate=2r/m;
 limit_req_zone $binary_remote_addr zone=email_code_redeem:10m rate=10r/m;
 limit_req_zone $binary_remote_addr zone=sign_in_challenge:10m rate=10r/m;
+limit_req_zone $binary_remote_addr zone=business_link_resolve:10m rate=30r/m;
+limit_req_zone $binary_remote_addr zone=auth_demo:10m rate=1r/m;
 limit_req_status 429;
 limit_req_log_level warn;
 
@@ -47,6 +49,28 @@ map "$site_referrer_host $host" $site_referrer {
     "~*^(?:www\.)?([^ ]+) (?:www\.)?\1$" "";
     default $site_referrer_host;
 }
+map $http_origin $site_cors_origin {
+    "https://${SITE_DOMAIN_NAME}" $http_origin;
+    "https://www.${SITE_DOMAIN_NAME}" $http_origin;
+    "https://app.${SITE_DOMAIN_NAME}" $http_origin;
+    default "";
+}
+map $site_cors_origin $site_cors_methods {
+    "" "";
+    default "GET, POST, PUT, PATCH, DELETE, OPTIONS";
+}
+map $site_cors_origin $site_cors_headers {
+    "" "";
+    default "Authorization, Content-Type, Accept, Accept-Language, Idempotency-Key, User-Agent, X-Debug, X-App-Version, X-Platform";
+}
+map $site_cors_origin $site_cors_expose {
+    "" "";
+    default "Content-Disposition";
+}
+map $site_cors_origin $site_cors_max_age {
+    "" "";
+    default "86400";
+}
 log_format site_access escape=json '{"log":"site","host":"$host","remote_addr":"$remote_addr","method":"$request_method","uri":"$uri","status":"$status","bytes":"$body_bytes_sent","request_time":"$request_time","upstream_status":"$upstream_status","kind":"$site_kind","client":"$site_client","referrer":"$site_referrer","country":"$http_cf_ipcountry"}';
 
 upstream authorization.service {
@@ -82,6 +106,12 @@ upstream notifications.service {
 upstream site.service {
     zone site.service 64k;
     server site.service:8080 resolve;
+    keepalive 16;
+    keepalive_timeout 30s;
+}
+upstream webapp.service {
+    zone webapp.service 64k;
+    server webapp.service:8081 resolve;
     keepalive 16;
     keepalive_timeout 30s;
 }
@@ -216,8 +246,46 @@ server {
   allow ${VPN_SUBNET};
   deny all;
 
-  location / {
+  location /api/ {
       proxy_pass http://$remote_addr$request_uri;
+  }
+
+  location / {
+      proxy_pass http://$remote_addr:8080$request_uri;
+  }
+}
+
+server {
+  listen 443 ssl;
+  http2 on;
+  server_name         local-app.${DOMAIN_NAME};
+  access_log  off;
+
+  ssl_certificate     /etc/nginx/ssl/${DOMAIN_NAME}/fullchain.pem;
+  ssl_certificate_key /etc/nginx/ssl/${DOMAIN_NAME}/key.pem;
+
+  ssl_protocols       TLSv1.2 TLSv1.3;
+  ssl_ciphers         ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384;
+  ssl_prefer_server_ciphers off;
+
+  ssl_session_cache   shared:SSL:10m;
+  ssl_session_timeout 1d;
+  ssl_session_tickets off;
+
+  allow ${VPN_SUBNET};
+  deny all;
+
+  proxy_hide_header Cross-Origin-Opener-Policy;
+  proxy_hide_header Cross-Origin-Embedder-Policy;
+  add_header Cross-Origin-Opener-Policy same-origin always;
+  add_header Cross-Origin-Embedder-Policy require-corp always;
+
+  location /api/ {
+      proxy_pass http://$remote_addr$request_uri;
+  }
+
+  location / {
+      proxy_pass http://$remote_addr:8081$request_uri;
   }
 }
 
@@ -299,8 +367,22 @@ server {
      default_type application/json;
      alias /srv/static/android_well_known.json;
   }
+  location = /.well-known/webauthn {
+     default_type application/json;
+     return 200 '{"origins":["https://${SITE_DOMAIN_NAME}","https://www.${SITE_DOMAIN_NAME}","https://app.${SITE_DOMAIN_NAME}"]}';
+  }
   proxy_http_version 1.1;
   proxy_set_header Connection "";
+
+  add_header Access-Control-Allow-Origin $site_cors_origin always;
+  add_header Access-Control-Allow-Methods $site_cors_methods always;
+  add_header Access-Control-Allow-Headers $site_cors_headers always;
+  add_header Access-Control-Expose-Headers $site_cors_expose always;
+  add_header Access-Control-Max-Age $site_cors_max_age always;
+  add_header Vary Origin always;
+  if ($request_method = OPTIONS) {
+      return 204;
+  }
 
   location = /api/auth/passkey/sign_in/challenge {
       limit_req zone=sign_in_challenge burst=20 nodelay;
@@ -322,11 +404,27 @@ server {
       limit_req zone=email_code_redeem burst=10 nodelay;
       proxy_pass http://authorization.service;
   }
+  location = /api/auth/demo {
+      limit_req zone=auth_demo burst=3 nodelay;
+      proxy_pass http://authorization.service;
+  }
+  location = /api/auth/demo/upgrade/challenge {
+      limit_req zone=email_code_send burst=5 nodelay;
+      proxy_pass http://authorization.service;
+  }
+  location = /api/auth/demo/upgrade {
+      limit_req zone=email_code_redeem burst=10 nodelay;
+      proxy_pass http://authorization.service;
+  }
   location /api/auth {
       proxy_pass http://authorization.service;
   }
   location /api/user {
       proxy_pass http://user.service;
+  }
+  location /api/business/link/ {
+      limit_req zone=business_link_resolve burst=30 nodelay;
+      proxy_pass http://business.service;
   }
   location /api/business {
       proxy_pass http://business.service;
@@ -362,5 +460,35 @@ server {
 
   location / {
       proxy_pass http://site.service;
+  }
+}
+
+server {
+  listen 443 ssl;
+  http2 on;
+  server_name         app.${SITE_DOMAIN_NAME};
+  include             /etc/nginx/snippets/cloudflare-real-ip.conf;
+
+  ssl_certificate     /etc/nginx/ssl/${SITE_DOMAIN_NAME}/fullchain.pem;
+  ssl_certificate_key /etc/nginx/ssl/${SITE_DOMAIN_NAME}/key.pem;
+
+  ssl_protocols       TLSv1.2 TLSv1.3;
+  ssl_ciphers         ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384;
+  ssl_prefer_server_ciphers off;
+
+  ssl_session_cache   shared:SSL:10m;
+  ssl_session_timeout 1d;
+  ssl_session_tickets off;
+
+  proxy_http_version 1.1;
+  proxy_set_header Connection "";
+
+  proxy_hide_header Cross-Origin-Opener-Policy;
+  proxy_hide_header Cross-Origin-Embedder-Policy;
+  add_header Cross-Origin-Opener-Policy same-origin always;
+  add_header Cross-Origin-Embedder-Policy require-corp always;
+
+  location / {
+      proxy_pass http://webapp.service;
   }
 }

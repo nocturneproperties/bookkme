@@ -1,19 +1,28 @@
 package com.bookk.auth.data.di
 
 import com.bookk.auth.data.datasource.AccountDataSourceImpl
+import com.bookk.auth.data.datasource.AccountDeletionDataSourceImpl
+import com.bookk.auth.data.datasource.DemoSettingsDataSourceImpl
 import com.bookk.auth.data.datasource.DeviceDataSourceImpl
 import com.bookk.auth.data.datasource.ErasedAccountDataSourceImpl
 import com.bookk.auth.data.datasource.PassKeyDataSourceImpl
+import com.bookk.auth.data.datasource.TelegramConfirmationDataSourceImpl
+import com.bookk.auth.data.datasource.TelegramIdentityDataSourceImpl
 import com.bookk.auth.data.datasource.YubicoCredentialRepository
 import com.bookk.auth.domain.api.AUTH_SCHEMA
 import com.bookk.auth.domain.datasource.AccountDataSource
+import com.bookk.auth.domain.datasource.AccountDeletionDataSource
+import com.bookk.auth.domain.datasource.DemoSettingsDataSource
 import com.bookk.auth.domain.datasource.DeviceDataSource
 import com.bookk.auth.domain.datasource.ErasedAccountDataSource
 import com.bookk.auth.domain.datasource.PassKeyDataSource
+import com.bookk.auth.domain.datasource.TelegramConfirmationDataSource
+import com.bookk.auth.domain.datasource.TelegramIdentityDataSource
 import com.bookk.auth.domain.repository.CacheableCredentialRepository
 import com.bookk.core.data.ExposedTransactionManager
 import com.bookk.core.data.database.createDatabase
 import com.bookk.core.domain.datasource.transaction.TransactionManager
+import library.encryption.impl.di.blindIndex
 import library.outbox.di.exhaustedEventDataSource
 import library.outbox.di.noPersonalDataCipher
 import org.koin.core.module.dsl.scopedOf
@@ -24,14 +33,19 @@ import org.koin.dsl.module
 
 private val AuthScope: Qualifier = named(AUTH_SCHEMA)
 
-fun authDataModule() = module {
+fun authDataModule(environment: (String) -> String? = System::getenv) = module {
     scope(AuthScope) {
         noPersonalDataCipher()
         exhaustedEventDataSource()
         scopedOf(::AccountDataSourceImpl) bind AccountDataSource::class
+        scopedOf(::AccountDeletionDataSourceImpl) bind AccountDeletionDataSource::class
+        scopedOf(::DemoSettingsDataSourceImpl) bind DemoSettingsDataSource::class
         scopedOf(::DeviceDataSourceImpl) bind DeviceDataSource::class
         scopedOf(::ErasedAccountDataSourceImpl) bind ErasedAccountDataSource::class
         scopedOf(::PassKeyDataSourceImpl) bind PassKeyDataSource::class
+        blindIndex(environment)
+        scopedOf(::TelegramIdentityDataSourceImpl) bind TelegramIdentityDataSource::class
+        scopedOf(::TelegramConfirmationDataSourceImpl) bind TelegramConfirmationDataSource::class
         scopedOf(::YubicoCredentialRepository) bind CacheableCredentialRepository::class
         scoped { createDatabase(schemaName = AUTH_SCHEMA) }
         scoped<TransactionManager> { ExposedTransactionManager(get()) }

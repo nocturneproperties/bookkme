@@ -7,6 +7,7 @@ import com.bookk.business.domain.api.business.operation.CreateBusiness
 import com.bookk.business.domain.api.employee.entity.Employee
 import com.bookk.business.domain.api.user.entity.UserLimits
 import com.bookk.business.domain.datasource.BusinessDataSource
+import com.bookk.business.domain.datasource.BusinessLinkDataSource
 import com.bookk.business.domain.datasource.EmployeeDataSource
 import com.bookk.business.domain.datasource.UserLimitsDataSource
 import com.bookk.core.domain.datasource.transaction.TransactionManager
@@ -38,12 +39,15 @@ internal class CreateBusinessImplTest {
         val userLimitsDataSource = mockk<UserLimitsDataSource> {
             coEvery { lockForUser(any()) } answers { UserLimits.stub(userId = firstArg()) }
         }
+        val businessLinkDataSource = mockk<BusinessLinkDataSource>(relaxUnitFun = true) {
+            coEvery { getLinkByNameForUpdate(any()) } returns null
+        }
         val userClient = mockk<UserClient>()
         val transactionManager = mockk<TransactionManager>()
         val sut = CreateBusinessImpl(
             businessDataSource,
-            employeeDataSource,
             userLimitsDataSource,
+            BusinessFounder(businessDataSource, employeeDataSource, businessLinkDataSource),
             userClient,
             transactionManager,
         )
@@ -64,6 +68,7 @@ internal class CreateBusinessImplTest {
         val result = fixture.sut(
             userId,
             BusinessCreateRequest(name = "Name", currencyCode = "USD", timeZone = TimeZone.UTC),
+            isDemo = false,
         )
 
         then()
@@ -90,6 +95,7 @@ internal class CreateBusinessImplTest {
         val result = fixture.sut(
             userId,
             BusinessCreateRequest(name = "Name", currencyCode = "USD", timeZone = TimeZone.UTC),
+            isDemo = false,
         )
 
         then()
@@ -126,6 +132,7 @@ internal class CreateBusinessImplTest {
         val result = fixture.sut(
             userId,
             BusinessCreateRequest(name = "Name", currencyCode = "USD", timeZone = TimeZone.UTC),
+            isDemo = false,
         )
 
         then()
@@ -165,7 +172,7 @@ internal class CreateBusinessImplTest {
         }
 
         whenn()
-        fixture.sut(userId, BusinessCreateRequest(name = "Name", currencyCode = "USD", timeZone = TimeZone.UTC))
+        fixture.sut(userId, BusinessCreateRequest(name = "Name", currencyCode = "USD", timeZone = TimeZone.UTC), false)
 
         then()
         coVerify(exactly = 1) {
@@ -183,6 +190,7 @@ internal class CreateBusinessImplTest {
         val result = fixture.sut(
             Uuid.random(),
             BusinessCreateRequest(name = "A", currencyCode = "USD", timeZone = TimeZone.UTC),
+            isDemo = false,
         )
 
         then()
@@ -200,6 +208,7 @@ internal class CreateBusinessImplTest {
         val result = fixture.sut(
             Uuid.random(),
             BusinessCreateRequest(name = "A".repeat(513), currencyCode = "USD", timeZone = TimeZone.UTC),
+            isDemo = false,
         )
 
         then()
@@ -225,6 +234,7 @@ internal class CreateBusinessImplTest {
         val result = fixture.sut(
             userId,
             BusinessCreateRequest(name = "Name", currencyCode = "USD", timeZone = TimeZone.UTC),
+            isDemo = false,
         )
 
         then()
@@ -242,10 +252,86 @@ internal class CreateBusinessImplTest {
         val result = fixture.sut(
             userId,
             BusinessCreateRequest(name = "Name", currencyCode = "ABC", timeZone = TimeZone.UTC),
+            isDemo = false,
         )
 
         then()
         assertTrue(result.exceptionOrNull() is CreateBusiness.Error.InvalidCurrency)
         coVerify(exactly = 0) { fixture.businessDataSource.createBusiness(any(), any(), any(), any()) }
+    }
+
+    @Test
+    fun `should mark a demo account's business as demo and give it a demo link`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val business = Business.stub(ownerId = userId, demo = true)
+        with(fixture) {
+            transactionManager.mockTransaction()
+            coEvery { businessDataSource.createBusiness(userId, "Name", "USD", TimeZone.UTC, true) } returns business
+            coEvery { userClient.getUserById(userId) } returns Result.success(UserSnapshot.stub(id = userId))
+            coEvery { employeeDataSource.createEmployee(any()) } returns Employee.stub(businessId = business.id)
+        }
+
+        whenn()
+        val result = fixture.sut(userId, BusinessCreateRequest("Name", "USD", TimeZone.UTC), isDemo = true)
+
+        then()
+        assertTrue(result.getOrThrow().demo)
+        coVerify(exactly = 1) {
+            fixture.businessLinkDataSource.createLink(business.id, match { BusinessLinkPolicy.isDemoName(it) })
+        }
+    }
+
+    @Test
+    fun `should not give a regular business a link`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val business = Business.stub(ownerId = userId)
+        with(fixture) {
+            transactionManager.mockTransaction()
+            coEvery { businessDataSource.createBusiness(userId, "Name", "USD", TimeZone.UTC, false) } returns business
+            coEvery { userClient.getUserById(userId) } returns Result.success(UserSnapshot.stub(id = userId))
+            coEvery { employeeDataSource.createEmployee(any()) } returns Employee.stub(businessId = business.id)
+        }
+
+        whenn()
+        fixture.sut(userId, BusinessCreateRequest("Name", "USD", TimeZone.UTC), isDemo = false)
+
+        then()
+        coVerify(exactly = 0) { fixture.businessLinkDataSource.createLink(any(), any()) }
+    }
+
+    @Test
+    fun `should let a demo account own only one business`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        with(fixture) {
+            transactionManager.mockTransaction()
+            coEvery { businessDataSource.countBusinessesOwnedBy(userId) } returns
+                UserLimits.DEMO_MAX_BUSINESSES.toLong()
+        }
+
+        whenn()
+        val result = fixture.sut(userId, BusinessCreateRequest("Name", "USD", TimeZone.UTC), isDemo = true)
+
+        then()
+        assertTrue(result.exceptionOrNull() is CreateBusiness.Error.OwnedBusinessesLimitReached) { result.toString() }
+        coVerify(exactly = 0) { fixture.businessDataSource.createBusiness(any(), any(), any(), any(), any()) }
+    }
+
+    @Test
+    fun `should reject an invalid name without opening a transaction`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+
+        whenn()
+        val result = fixture.sut(Uuid.random(), BusinessCreateRequest("A", "USD", TimeZone.UTC), isDemo = false)
+
+        then()
+        assertTrue(result.exceptionOrNull() is CreateBusiness.Error.BusinessValidationError) { result.toString() }
+        coVerify(exactly = 0) { fixture.transactionManager.transaction<Any>(any()) }
     }
 }

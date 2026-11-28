@@ -7,10 +7,13 @@ Largest schema — a business, its staff, services and clients.
 ```mermaid
 erDiagram
     BUSINESS ||--o{ BUSINESS_DASHBOARD : "has"
+    BUSINESS ||--o{ BUSINESS_LINK : "is opened by (cascade delete)"
+    BUSINESS ||--o{ BUSINESS_LINK_CHANGE : "counts link changes (cascade delete)"
     BUSINESS ||--o{ BUSINESS_DAY_OFFS : "has"
     BUSINESS ||--o{ BUSINESS_PERMISSION_GRANTS : "grants"
     BUSINESS ||--o{ BUSINESS_WORKING_HOURS : "has"
     BUSINESS ||--o{ CLIENT : "has"
+    CLIENT ||--o{ CLIENT_NAME_TOKEN : "is found by"
     BUSINESS ||--o{ EMPLOYEE : "employs"
     BUSINESS ||--o{ EMPLOYEE_INVITATION : "sends"
     BUSINESS ||--o{ SERVICE_GROUP : "defines"
@@ -39,6 +42,7 @@ erDiagram
         int max_clients "nullable; operator override of the client limit, NULL means 20000"
         int max_services "nullable; operator override of the service limit, NULL means 300"
         int max_service_groups "nullable; operator override of the service group limit, NULL means 50"
+        boolean demo "default false; set when a demo account creates the business (or business seeds the sample one), cleared on AuthEvent.DemoUpgraded; exposed as Business.demo for a Demo badge"
         string instagram
         string telegram
         string viber
@@ -54,6 +58,20 @@ erDiagram
         uuid business_id FK
         timestamp created_at
         timestamp updated_at
+    }
+
+    BUSINESS_LINK {
+        uuid id PK
+        uuid business_id FK "indexed with released_at"
+        string name UK "lowercase link name, bookkme.com/name"
+        timestamp released_at "null = the business's current link; set = replaced name held for 90 days; indexed"
+        timestamp created_at
+    }
+
+    BUSINESS_LINK_CHANGE {
+        uuid id PK
+        uuid business_id FK "indexed with changed_at"
+        timestamp changed_at "one row per replaced link, at most 3 within 90 days; deleted after 90 days; indexed"
     }
 
     USER_LIMITS {
@@ -100,13 +118,21 @@ erDiagram
         bytes phone_encrypted "nullable; not unique, several clients of a business may share it"
         bytes email_encrypted "nullable; at least one of phone/email required on create"
         bytes description_encrypted "nullable; business owner's notes about the client"
+        bytes telegram_username_encrypted "nullable; integrated clients only, copied from the user's profile and kept in sync"
         string email_index "nullable; HMAC of the trimmed, lowercased email; UK with business_id"
+        string phone_index "nullable; HMAC of the phone's digits; indexed with business_id (search)"
         uuid user_id "logical FK -> user.profile.id, nullable; UK with business_id"
         timestamp last_activity_at "latest booked visit end, or create/edit/takeover time; indexed with business_id; the business-deleteInactiveClients job deletes the row once it is older than the business retention period"
         boolean deletion_hold "default false; set by staff on the owner's instruction, business-deleteInactiveClients skips the row"
         timestamp source_updated_at
-        timestamp created_at
+        timestamp created_at "indexed with business_id; sort key of the paged client list, newest first"
         timestamp updated_at
+    }
+
+    CLIENT_NAME_TOKEN {
+        uuid business_id PK "logical; the client's business, first column of the search lookup"
+        bytes token PK "first 16 bytes of the HMAC of the field, business id and a 2 to 4 letter prefix of one word of the first or last name"
+        uuid client_id PK,FK "ON DELETE CASCADE, indexed"
     }
 
     EMPLOYEE {
@@ -242,9 +268,9 @@ erDiagram
 
 `OUTBOX_EVENT` is not part of the business domain model either — it's the shared transactional outbox (`library/outbox`, one instance per service schema). `eventProducer.send` inserts the encoded event in the same transaction as the business write, so an event exists exactly when its write committed; `OutboxRelay` then locks the oldest rows (`SELECT … FOR UPDATE`), publishes them to Kafka (or the embedded transport in the monolith) and deletes them. Delivery is at-least-once, deduplicated by consumers through the event's idempotency key. See [Transactional outbox](../transactional-outbox.md).
 
-`USER_LIMITS` holds a person's own creation limits inside the business service. Creating a business creates the row if it is missing and locks it (`SELECT … FOR UPDATE`) before counting the businesses the person owns, so their creations run one at a time without a cross-service call; businesses they only work at don't count; deleting the account deletes the row. Only an operator sets `max_businesses`.
+`USER_LIMITS` holds a person's own creation limits inside the business service. Creating a business creates the row if it is missing and locks it (`SELECT … FOR UPDATE`) before counting the businesses the person owns, so their creations run one at a time without a cross-service call; businesses they only work at don't count; deleting the account deletes the row. Only an operator sets `max_businesses`, with SQL or in NocoDB, which can read the table and edit only that column; NocoDB can't insert a row for someone who has none yet.
 
-`CLIENT` holds each client's name, last name, phone, email and notes encrypted under the client's own key (`*_encrypted`, `library/encryption`, keyed by `id`), and `EMPLOYEE` an employee's name, last name, phone and email under their user's key (keyed by `user_id`), so deleting the row and shredding that key leaves nothing readable in backups. A client's email stays unique within the business and searchable (booking takeover, imports, profile merges) through `email_index`, a keyed HMAC of the trimmed, lowercased email; employees are never looked up by contact, so they get no index. 0.19.0 dropped the plaintext columns that rows written before 0.18.0 had.
+`CLIENT` holds each client's name, last name, phone, email and notes encrypted under the client's own key (`*_encrypted`, `library/encryption`, keyed by `id`), and `EMPLOYEE` an employee's name, last name, phone and email under their user's key (keyed by `user_id`), so deleting the row and shredding that key leaves nothing readable in backups. A client's email stays unique within the business and searchable (booking takeover, imports, profile merges) through `email_index`, a keyed HMAC of the trimmed, lowercased email. The client list's search finds a client by the start of their first or last name through `CLIENT_NAME_TOKEN`, and by a whole email or phone through `email_index` or `phone_index` (digits only). Each word of the first and last name, lowercased with accents and apostrophes removed and split at spaces and dashes, gets one token per prefix of 2, 3 and 4 letters, so a client has about 6 rows. A token hashes the field and the business id with the prefix, so the same prefix differs between the two fields and between businesses. A query word longer than 4 letters is looked up by its first 4, and the server drops the candidates whose decrypted names don't start with the whole word, reading at most 10 batches of candidates per page. Only those candidates are ever decrypted. Tokens are replaced whenever a name changes and go with the client row through the foreign key. Rows stored before 0.21.0 get their tokens and phone hash from the `business-indexClientContacts` job. The table holds only keyed hashes, so it stays hidden from NocoDB. Employees are never looked up by contact, so they get no index. 0.19.0 dropped the plaintext columns that rows written before 0.18.0 had.
 
 `ERASED_CLIENT` records every client a business deleted (`DeleteClient` and the `business-deleteInactiveClients` retention job), in the same transaction as the deletion. Clients deleted with their user's account aren't recorded here: `authorization.erased_account` covers them. Like `ERASED_ACCOUNT`, the restore tool re-inserts the records from the latest backup with `reapply_requested`, and `business-reapplyErasures` deletes those clients again and sends `BusinessEvent.ClientDeleted`. Keyed by the client id alone, inserted once (`INSERT IGNORE`), kept 60 days, hidden from NocoDB.
 

@@ -12,6 +12,7 @@ import com.bookk.appointments.domain.datasource.AppointmentSubscriptionDataSourc
 import com.bookk.core.data.eventstreaming.StandardEventProducer
 import com.bookk.core.domain.datasource.transaction.TransactionManager
 import com.bookk.core.domain.datasource.transaction.mockTransaction
+import com.bookk.core.domain.entity.Error
 import com.bookk.core.test.given
 import com.bookk.core.test.runUnitTest
 import com.bookk.core.test.then
@@ -22,6 +23,7 @@ import io.mockk.coVerify
 import io.mockk.mockk
 import io.mockk.slot
 import kotlinx.datetime.TimeZone
+import library.permissions.EmployeeAccessSuspended
 import library.permissions.ResourcePermission
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -93,6 +95,7 @@ internal class DeclineAppointmentRequestImplTest {
         then()
         assertTrue(result.isFailure)
         assertTrue(result.exceptionOrNull() is com.bookk.core.domain.entity.Error.OperationNotAllowed)
+        coVerify(exactly = 0) { fixture.eventProducer.send(any(), any()) }
     }
 
     @Test
@@ -135,6 +138,7 @@ internal class DeclineAppointmentRequestImplTest {
         then()
         assertTrue(result.isFailure)
         assertTrue(result.exceptionOrNull() is AppointmentRequestStatusError.AlreadyDeclined)
+        coVerify(exactly = 0) { fixture.eventProducer.send(any(), any()) }
     }
 
     @Test
@@ -155,6 +159,7 @@ internal class DeclineAppointmentRequestImplTest {
         then()
         assertTrue(result.isFailure)
         assertTrue(result.exceptionOrNull() is AppointmentRequestStatusError.AlreadyApproved)
+        coVerify(exactly = 0) { fixture.eventProducer.send(any(), any()) }
     }
 
     @Test
@@ -177,6 +182,42 @@ internal class DeclineAppointmentRequestImplTest {
 
         then()
         coVerify(exactly = 1) { fixture.eventProducer.send(any(AppointmentEvent.RequestRejected::class), any()) }
+    }
+
+    @Test
+    fun `should tell the assigned employee that the request is resolved`() = runUnitTest {
+        val fixture = SutFixture()
+        given()
+        fixture.transactionManager.mockTransaction()
+        val employee = EmployeeSnapshot.stub()
+        val request = AppointmentRequest.stub(
+            id = testCancellation.id,
+            businessId = testBusinessId,
+            employee = employee,
+        )
+        val sentEvents = mutableListOf<AppointmentEvent>()
+        val sentInTransaction = mutableListOf<Boolean>()
+
+        coEvery { fixture.appointmentPermissionDataSource.getPermission(testUserId, testBusinessId) } returns
+            ResourcePermission(view = false, update = true, delete = false)
+        coEvery { fixture.requestDataSource.getForUpdate(testCancellation.id) } returns request
+        coEvery { fixture.requestDataSource.decline(testCancellation.id, testCancellation.reason) } returns
+            request.copy(status = AppointmentRequestStatus.DECLINED)
+        coEvery { fixture.subscriptionDataSource.getBusinessSnapshot(testBusinessId) } returns BusinessSnapshot.stub()
+        coEvery { fixture.eventProducer.send(any<AppointmentEvent>(), any()) } coAnswers {
+            sentEvents += firstArg<AppointmentEvent>()
+            sentInTransaction += fixture.transactionManager.isInTransaction()
+        }
+
+        whenn()
+        val result = fixture.sut.invoke(testUserId, testCancellation)
+
+        then()
+        assertTrue(result.isSuccess)
+        val resolved = sentEvents.filterIsInstance<AppointmentEvent.RequestResolved>().single()
+        assertEquals(request.id, resolved.requestId)
+        assertEquals(employee.userId, resolved.employeeUserId)
+        assertEquals(listOf(true, true), sentInTransaction)
     }
 
     @Test
@@ -286,5 +327,47 @@ internal class DeclineAppointmentRequestImplTest {
         then()
         assertTrue(result.exceptionOrNull() is com.bookk.core.domain.entity.Error.NotFound)
         coVerify(exactly = 0) { fixture.requestDataSource.decline(any(), any()) }
+    }
+
+    @Test
+    fun `should refuse a suspended employee declining`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.transactionManager.mockTransaction()
+        val request = AppointmentRequest.stub(id = testCancellation.id, businessId = testBusinessId)
+        coEvery { fixture.requestDataSource.getForUpdate(testCancellation.id) } returns request
+        coEvery { fixture.appointmentPermissionDataSource.getPermission(testUserId, testBusinessId) } throws
+            EmployeeAccessSuspended()
+
+        whenn()
+        val result = fixture.sut.invoke(testUserId, testCancellation)
+
+        then()
+        assertTrue(result.exceptionOrNull() is EmployeeAccessSuspended)
+        coVerify(exactly = 0) { fixture.requestDataSource.decline(any(), any()) }
+        coVerify(exactly = 0) { fixture.eventProducer.send(any(), any()) }
+    }
+
+    @Test
+    fun `should roll the decline back when the business snapshot is missing`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        var rolledBack = false
+        fixture.transactionManager.mockTransaction(onRollback = { rolledBack = true })
+        val request = AppointmentRequest.stub(id = testCancellation.id, businessId = testBusinessId)
+        coEvery { fixture.requestDataSource.getForUpdate(testCancellation.id) } returns request
+        coEvery { fixture.appointmentPermissionDataSource.getPermission(testUserId, testBusinessId) } returns
+            ResourcePermission(view = false, update = true, delete = false)
+        coEvery { fixture.requestDataSource.decline(testCancellation.id, testCancellation.reason) } returns
+            request.copy(status = AppointmentRequestStatus.DECLINED)
+        coEvery { fixture.subscriptionDataSource.getBusinessSnapshot(testBusinessId) } returns null
+
+        whenn()
+        val result = fixture.sut.invoke(testUserId, testCancellation)
+
+        then()
+        assertTrue(result.exceptionOrNull() is Error.NotFound)
+        assertTrue(rolledBack)
+        coVerify(exactly = 0) { fixture.eventProducer.send(any(), any()) }
     }
 }

@@ -27,6 +27,8 @@ import io.ktor.server.testing.ApplicationTestBuilder
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.protobuf.ProtoNumber
 import library.email.EmailCodeError
 import library.email.EmailErrorCodes
 import library.email.EmailSendError
@@ -41,7 +43,7 @@ class PostStartRegistrationTest {
         given()
         val useCase: StartRegistration = mockk()
         val client = createTestClient()
-        val request = CreateAccountRequest("firstName", "lastName", "email")
+        val request = CreateAccountRequest("firstName lastName", "email")
         coEvery { useCase.invoke(any(), any()) } returns Result.failure(InvalidEmailFormat())
         setupApplication(
             diModule = module {
@@ -68,7 +70,7 @@ class PostStartRegistrationTest {
         given()
         val useCase: StartRegistration = mockk()
         val client = createTestClient()
-        val request = CreateAccountRequest("firstName", "lastName", "email")
+        val request = CreateAccountRequest("firstName lastName", "email")
         coEvery { useCase.invoke(any(), any()) } returns Result.failure(EmailAlreadyExist())
         setupApplication(
             diModule = module {
@@ -93,7 +95,7 @@ class PostStartRegistrationTest {
         given()
         val useCase: StartRegistration = mockk()
         val client = createTestClient()
-        val request = CreateAccountRequest("firstName", "lastName", "email")
+        val request = CreateAccountRequest("firstName lastName", "email")
         val expected = SignUpChallengeResponse.stub()
         coEvery { useCase.invoke(any(), any()) } returns Result.success(expected)
         setupApplication(
@@ -121,7 +123,7 @@ class PostStartRegistrationTest {
             routeUnderTest = { registration() },
         )
         return createTestClient().post(AuthRouting.Api.Auth.PassKey.SignUpChallenge()) {
-            setBody(CreateAccountRequest("firstName", "lastName", "email@example.com"))
+            setBody(CreateAccountRequest("firstName lastName", "email@example.com"))
         }
     }
 
@@ -152,6 +154,19 @@ class PostStartRegistrationTest {
     }
 
     @Test
+    fun `should return unprocessable entity when the email domain is unsupported`() = routeTest {
+        given()
+        val response = rejectedWith(StartRegistration.Error.EmailDomainUnsupported())
+
+        whenn()
+        val body = response.body<SimpleServerError>()
+
+        then()
+        assertEquals(HttpStatusCode.UnprocessableEntity, response.status)
+        assertEquals(AuthErrorCodes.EMAIL_DOMAIN_UNSUPPORTED, body.errorCode)
+    }
+
+    @Test
     fun `should write the code email in the language from Accept-Language`() = routeTest {
         given()
         val useCase: StartRegistration = mockk()
@@ -164,10 +179,37 @@ class PostStartRegistrationTest {
         whenn()
         createTestClient().post(AuthRouting.Api.Auth.PassKey.SignUpChallenge()) {
             header(HttpHeaders.AcceptLanguage, "pl-PL")
-            setBody(CreateAccountRequest("firstName", "lastName", "email@example.com"))
+            setBody(CreateAccountRequest("firstName lastName", "email@example.com"))
         }
 
         then()
         coVerify(exactly = 1) { useCase.invoke(any(), Language.PL) }
     }
+
+    @Test
+    fun `should read only the first name from an older app that still sends the last name separately`() = routeTest {
+        given()
+        val useCase: StartRegistration = mockk()
+        coEvery { useCase.invoke(any(), any()) } returns Result.success(SignUpChallengeResponse.stub())
+        setupApplication(
+            diModule = module { single<StartRegistration> { useCase } },
+            routeUnderTest = { registration() },
+        )
+
+        whenn()
+        val response = createTestClient().post(AuthRouting.Api.Auth.PassKey.SignUpChallenge()) {
+            setBody(LegacyCreateAccountRequest("John", "Doe", "email@example.com"))
+        }
+
+        then()
+        assertEquals(HttpStatusCode.OK, response.status)
+        coVerify(exactly = 1) { useCase.invoke(CreateAccountRequest("John", "email@example.com"), any()) }
+    }
 }
+
+@Serializable
+private class LegacyCreateAccountRequest(
+    @ProtoNumber(1) val firstName: String,
+    @ProtoNumber(2) val lastName: String,
+    @ProtoNumber(3) val email: String,
+)

@@ -7,6 +7,7 @@ import com.bookk.appointments.data.orm.table.AppointmentTable
 import com.bookk.appointments.domain.api.entity.BusinessSnapshot
 import com.bookk.appointments.domain.datasource.AppointmentSubscriptionDataSource
 import com.bookk.core.data.DataSource
+import com.bookk.core.data.forShare
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
@@ -71,6 +72,14 @@ internal class AppointmentSubscriptionDataSourceImpl : DataSource(), Appointment
     override suspend fun isBusinessEnabled(businessId: Uuid): Boolean = dbQuery {
         AppointmentBusinessTable.select(AppointmentBusinessTable.enabled)
             .where { AppointmentBusinessTable.id eq businessId }
+            .map { it[AppointmentBusinessTable.enabled] }
+            .singleOrNull() ?: false
+    }
+
+    override suspend fun isBusinessEnabledForShare(businessId: Uuid): Boolean = dbQuery {
+        AppointmentBusinessTable.select(AppointmentBusinessTable.enabled)
+            .where { AppointmentBusinessTable.id eq businessId }
+            .forShare()
             .map { it[AppointmentBusinessTable.enabled] }
             .singleOrNull() ?: false
     }

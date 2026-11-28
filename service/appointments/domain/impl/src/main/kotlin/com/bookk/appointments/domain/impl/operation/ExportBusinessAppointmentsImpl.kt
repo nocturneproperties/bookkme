@@ -58,11 +58,14 @@ internal class ExportBusinessAppointmentsImpl(
         priceAdjustment = priceAdjustment?.let { adjustment ->
             PriceAdjustmentExport(
                 price = adjustment.price.toString(),
-                additionalServices = adjustment.additionalServices.map { it.toExport() },
+                additionalServices = adjustment.additionalServices.flatMap {
+                    List(it.count) { _ -> it.service.toExport() }
+                },
                 reason = adjustment.reason?.ifBlank { null },
             )
         },
         completedBy = completedBy?.name,
+        clientNote = clientNote.ifBlank { null },
     )
 
     private fun AppointmentRequest.toExport() = RequestExport(
@@ -75,15 +78,17 @@ internal class ExportBusinessAppointmentsImpl(
         note = note.ifBlank { null },
     )
 
-    private fun EmployeeSnapshot.toExport() = EmployeeExport(id = id, name = fullName)
+    private fun EmployeeSnapshot.toExport(): EmployeeExport {
+        return EmployeeExport(id = id, name = fullName, erased = erased)
+    }
 
     private fun ClientSnapshot.toExport() = ClientExport(
         id = id,
         name = fullName,
         phone = phone,
         email = email,
-        hasAccount =
-        userId != null,
+        hasAccount = userId != null,
+        erased = erased,
     )
 
     private fun ServiceSnapshot.toExport() = ServiceExport(

@@ -9,24 +9,54 @@ import com.bookk.notifications.domain.impl.notification.renderer.formatLocalized
 import com.bookk.server.appointments.client.api.event.AppointmentEvent
 import kotlinx.datetime.TimeZone
 import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
 internal class AppointmentRequestCreatedNotificationTest {
 
-    private fun event() = AppointmentEvent.RequestCreated(
-        clientUserId = Uuid.random(),
-        clientName = "Alice",
-        employeeUserId = Uuid.random(),
-        from = Instant.parse("2026-03-05T14:30:00Z"),
-        to = Instant.parse("2026-03-05T15:00:00Z"),
-        timeZone = TimeZone.UTC,
-        businessName = "Barbershop",
-        address = "1 Main St",
-        price = "USD 20.00",
-    )
+    private fun event(
+        serviceNames: List<String> = listOf("Haircut", "Beard trim", "Beard trim"),
+        requestId: Uuid? = Uuid.random(),
+    ): AppointmentEvent.RequestCreated {
+        return AppointmentEvent.RequestCreated(
+            clientUserId = Uuid.random(),
+            employeeUserId = Uuid.random(),
+            from = Instant.parse("2026-03-05T14:30:00Z"),
+            to = Instant.parse("2026-03-05T15:00:00Z"),
+            timeZone = TimeZone.UTC,
+            price = "USD 20.00",
+            requestId = requestId,
+            serviceNames = serviceNames,
+        )
+    }
+
+    @Test
+    fun `should identify the push by the request id`() = runUnitTest {
+        given()
+        val requestId = Uuid.parse("0c2b6c1e-6f3a-4d0e-9a52-7a1f0b6d8e44")
+        val event = event(requestId = requestId)
+
+        whenn()
+        val subject = event.notification.push(Language.EN).subject
+
+        then()
+        assertEquals("appointment_request:0c2b6c1e-6f3a-4d0e-9a52-7a1f0b6d8e44", subject?.key)
+        assertEquals(mapOf("appointmentRequestId" to "0c2b6c1e-6f3a-4d0e-9a52-7a1f0b6d8e44"), subject?.data)
+    }
+
+    @Test
+    fun `should leave the push unidentified for an event without a request id`() = runUnitTest {
+        given()
+        val event = event(requestId = null)
+
+        whenn()
+        val subject = event.notification.push(Language.EN).subject
+
+        then()
+        assertNull(subject)
+    }
 
     @Test
     fun `should render English push content`() = runUnitTest {
@@ -39,7 +69,7 @@ internal class AppointmentRequestCreatedNotificationTest {
 
         then()
         assertEquals("New appointment request", push.title)
-        assertEquals("Alice wants to book Barbershop on $whenText", push.body)
+        assertEquals("You have a new appointment request on $whenText", push.body)
     }
 
     @Test
@@ -53,11 +83,11 @@ internal class AppointmentRequestCreatedNotificationTest {
 
         then()
         assertEquals("Новий запит на запис", push.title)
-        assertEquals("Alice хоче записатися до Barbershop на $whenText", push.body)
+        assertEquals("У вас новий запит на $whenText", push.body)
     }
 
     @Test
-    fun `should render English email content with the price but not the employee's business address`() = runUnitTest {
+    fun `should render English email content with the services and the price`() = runUnitTest {
         given()
         val event = event()
         val whenText = event.from.formatLocalized(event.timeZone, Language.EN)
@@ -66,16 +96,15 @@ internal class AppointmentRequestCreatedNotificationTest {
         val email = event.notification.email(Language.EN)
 
         then()
-        assertTrue(email.subject.contains("New appointment request"))
-        assertTrue(email.subject.contains("Alice"))
+        assertEquals("New appointment request", email.subject)
         assertEquals(
-            "Alice has requested an appointment at Barbershop on $whenText. Price: ${event.price}.",
+            "You have a new appointment request on $whenText.\nServices: Haircut, Beard trim ×2\nPrice: USD 20.00.",
             email.body,
         )
     }
 
     @Test
-    fun `should render Ukrainian email content with the price but not the employee's business address`() = runUnitTest {
+    fun `should render Ukrainian email content with the services and the price`() = runUnitTest {
         given()
         val event = event()
         val whenText = event.from.formatLocalized(event.timeZone, Language.UK)
@@ -84,10 +113,42 @@ internal class AppointmentRequestCreatedNotificationTest {
         val email = event.notification.email(Language.UK)
 
         then()
-        assertTrue(email.subject.contains("Новий запит на запис"))
-        assertTrue(email.subject.contains("Alice"))
+        assertEquals("Новий запит на запис", email.subject)
         assertEquals(
-            "Alice залишив(ла) запит на запис до Barbershop на $whenText. Вартість: ${event.price}.",
+            "У вас новий запит на $whenText.\nПослуги: Haircut, Beard trim ×2\nВартість: USD 20.00.",
+            email.body,
+        )
+    }
+
+    @Test
+    fun `should render Polish email content with the services and the price`() = runUnitTest {
+        given()
+        val event = event()
+        val whenText = event.from.formatLocalized(event.timeZone, Language.PL)
+
+        whenn()
+        val email = event.notification.email(Language.PL)
+
+        then()
+        assertEquals("Nowa prośba o wizytę", email.subject)
+        assertEquals(
+            "Masz nową prośbę o wizytę na $whenText.\nUsługi: Haircut, Beard trim ×2\nCena: USD 20.00.",
+            email.body,
+        )
+    }
+
+    @Test
+    fun `should list a service booked once without a count`() = runUnitTest {
+        given()
+        val event = event(serviceNames = listOf("Haircut"))
+        val whenText = event.from.formatLocalized(event.timeZone, Language.EN)
+
+        whenn()
+        val email = event.notification.email(Language.EN)
+
+        then()
+        assertEquals(
+            "You have a new appointment request on $whenText.\nServices: Haircut\nPrice: USD 20.00.",
             email.body,
         )
     }
@@ -102,7 +163,7 @@ internal class AppointmentRequestCreatedNotificationTest {
         val text = event.notification.text(Language.EN)
 
         then()
-        assertEquals("Alice requested an appointment at Barbershop on $whenText.", text.text)
+        assertEquals("You have a new appointment request on $whenText.", text.text)
     }
 
     @Test
@@ -115,6 +176,6 @@ internal class AppointmentRequestCreatedNotificationTest {
         val text = event.notification.text(Language.UK)
 
         then()
-        assertEquals("Alice запросив(ла) запис до Barbershop на $whenText.", text.text)
+        assertEquals("У вас новий запит на $whenText.", text.text)
     }
 }

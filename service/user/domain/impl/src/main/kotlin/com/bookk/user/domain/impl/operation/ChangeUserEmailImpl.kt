@@ -26,11 +26,15 @@ internal class ChangeUserEmailImpl(
     }.onConstraintFailure { throw Error.EmailTaken() }
 }
 
-internal fun User.updatedEvent(updatedAt: Instant) = UserEvent.Updated(
-    userId = id,
-    name = name,
-    lastName = lastName,
-    email = email,
-    phone = phone,
-    updatedAt = updatedAt,
-)
+internal fun User.updatedEvent(updatedAt: Instant): UserEvent.Updated {
+    return UserEvent.Updated(
+        userId = id,
+        name = name,
+        lastName = lastName,
+        email = email,
+        phone = phone,
+        updatedAt = updatedAt,
+        telegramUserId = telegramUserId,
+        telegramUsername = telegramUsername,
+    )
+}

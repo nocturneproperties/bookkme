@@ -1,6 +1,12 @@
 package com.bookk.appointments.domain.datasource
 
 import com.bookk.appointments.domain.api.entity.AppointmentRequest
+import com.bookk.appointments.domain.api.entity.AppointmentRequestHistoryFilter
+import com.bookk.appointments.domain.api.entity.OwnAppointmentRequestFilter
+import com.bookk.appointments.domain.api.entity.PendingRequestRef
+import com.bookk.appointments.domain.api.entity.StartBounds
+import com.bookk.core.domain.entity.Page
+import com.bookk.core.domain.entity.PageRequest
 import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
@@ -10,6 +16,19 @@ interface AppointmentRequestDataSource {
     suspend fun getForUpdate(id: Uuid): AppointmentRequest?
     suspend fun getPending(businessId: Uuid): List<AppointmentRequest>
     suspend fun getPendingByUser(userId: Uuid, businessId: Uuid): List<AppointmentRequest>
+    suspend fun getHistoryPage(
+        businessId: Uuid,
+        filter: AppointmentRequestHistoryFilter,
+        starts: StartBounds,
+        page: PageRequest,
+    ): Page<AppointmentRequest>
+    suspend fun getPageOfInitiator(
+        initiatorUserId: Uuid,
+        filter: OwnAppointmentRequestFilter,
+        now: Instant,
+        page: PageRequest,
+    ): Page<AppointmentRequest>
+    suspend fun getUpcomingPendingOfUser(userId: Uuid, startingAfter: Instant, limit: Int): List<AppointmentRequest>
     suspend fun countPendingByUser(userId: Uuid, businessId: Uuid): Long
     suspend fun create(request: AppointmentRequest): AppointmentRequest
     suspend fun update(request: AppointmentRequest): AppointmentRequest
@@ -18,9 +37,10 @@ interface AppointmentRequestDataSource {
     suspend fun decline(id: Uuid, reason: String): AppointmentRequest
     suspend fun withdraw(id: Uuid)
 
-    suspend fun hasOverlapsWith(request: AppointmentRequest): Boolean
-    suspend fun cancelOutdated(before: Instant)
+    suspend fun cancelOutdated(before: Instant): List<PendingRequestRef>
     suspend fun getClientIdsOfUserForUpdate(clientUserId: Uuid): Set<Uuid>
+    suspend fun getPendingOfClientUserForUpdate(clientUserId: Uuid): List<PendingRequestRef>
+    suspend fun getPendingOfClientForUpdate(businessId: Uuid, clientId: Uuid): List<PendingRequestRef>
     suspend fun deleteForUser(userId: Uuid)
     suspend fun deleteForClient(businessId: Uuid, clientId: Uuid)
     suspend fun reassignClients(businessId: Uuid, fromClientIds: Collection<Uuid>, toClientId: Uuid)

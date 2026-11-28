@@ -4,6 +4,7 @@ import com.bookk.business.domain.api.business.entity.BusinessCreateRequest
 import com.bookk.business.domain.api.business.entity.BusinessUpdateModel
 import com.bookk.business.domain.api.business.operation.CreateBusiness
 import com.bookk.business.domain.api.business.operation.GetBusinessById
+import com.bookk.business.domain.api.business.operation.GetBusinessesByIds
 import com.bookk.business.domain.api.business.operation.GetUserBusinesses
 import com.bookk.business.domain.api.business.operation.SetDashboardBusiness
 import com.bookk.business.domain.api.business.operation.UpdateBusiness
@@ -22,6 +23,12 @@ import io.ktor.server.resources.put
 import io.ktor.server.response.respond
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.application
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.protobuf.ProtoNumber
+import kotlin.uuid.Uuid
+
+@Serializable
+internal class BusinessesByIdsRequest(@ProtoNumber(1) val ids: List<Uuid> = emptyList())
 
 fun Route.businessCrud() {
     authenticate {
@@ -29,10 +36,11 @@ fun Route.businessCrud() {
          * Create business
          *
          * Summary: Create business
-         * Description: Create new business with specific name. A user can own several businesses, up to their limit (20 by default)
+         * Description: Create new business with specific name. A user can own several businesses, up to their limit (20 by default). A demo account can own one business, which is marked demo and gets an automatic demo- link
          * Tag: business
          * Security: jwt
          * Body: application/x-protobuf [com.bookk.business.domain.api.business.entity.BusinessCreateRequest]
+         * Response: 200 application/x-protobuf [com.bookk.business.domain.api.business.entity.Business] The created business
          * Response: 422 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Create business errors<br>BUSINESS_NAME_VALIDATION_ERROR (200002) Business name invalid<br>BUSINESS_INVALID_CURRENCY (200035) Currency code is not a supported ISO 4217 currency<br>BUSINESS_OWNED_BUSINESSES_LIMIT_REACHED (200045) You already own the maximum number of businesses
          * See: docs/operations/business/create-business.md
          */
@@ -41,7 +49,7 @@ fun Route.businessCrud() {
             val body = call.receive<BusinessCreateRequest>()
             val createBusiness by application.injectScoped<CreateBusiness>(BusinessScope)
 
-            call.respondWith(createBusiness(userId = principal.userId, request = body))
+            call.respondWith(createBusiness(userId = principal.userId, request = body, isDemo = principal.isDemo))
         }
         /**
          * Update business
@@ -83,6 +91,24 @@ fun Route.businessCrud() {
             val principal = requireNotNull(call.principal<AppPrincipal>())
 
             call.respondWith(getUserBusinesses(userId = principal.userId))
+        }
+        /**
+         * Get businesses by ids
+         *
+         * Summary: Get businesses by ids
+         * Description: Get the info of up to 100 businesses at once, each with the caller's permissions, employee id and client id in it, like the single business read. Ids with no business are left out, a repeated id is returned once, and businesses keep the order of their ids in the request
+         * Tag: business
+         * Security: jwt
+         * Body: application/x-protobuf [com.bookk.business.microservice.route.api.BusinessesByIdsRequest]
+         * Response: 200 application/protobuf [com.bookk.business.domain.api.business.entity.Business]+ Businesses found
+         * Response: 422 application/x-protobuf [com.bookk.core.domain.entity.SimpleServerError] Get businesses by ids errors<br>BUSINESS_BULK_READ_TOO_LARGE (200054) At most 100 businesses can be read at once
+         */
+        post<Api.Business.Bulk> {
+            val principal = requireNotNull(call.principal<AppPrincipal>())
+            val body = call.receive<BusinessesByIdsRequest>()
+            val getBusinessesByIds by application.injectScoped<GetBusinessesByIds>(BusinessScope)
+
+            call.respondWith(getBusinessesByIds(ids = body.ids, requestingUserId = principal.userId))
         }
         /**
          * Get business by id

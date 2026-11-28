@@ -1,5 +1,6 @@
 plugins {
     alias(libs.plugins.bookk.domain.impl)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 dependencies {
@@ -17,9 +18,15 @@ dependencies {
     implementation(projects.library.email.api)
     implementation(projects.library.encryption.api)
     implementation(libs.firebase.admin)
+    implementation(libs.ktor.client.core)
+    implementation(libs.ktor.client.cio)
+    implementation(libs.ktor.client.negotiation)
+    implementation(libs.ktor.json)
+    implementation(libs.kotlin.serialization.json)
     testImplementation(testFixtures(projects.core))
     testImplementation(projects.core.data.eventstreaming.impl)
     testImplementation(testFixtures(projects.core.data.eventstreaming.impl))
     testImplementation(testFixtures(projects.core.domain.datasource))
     testImplementation(testFixtures(projects.library.encryption.api))
+    testImplementation(libs.ktor.client.mock)
 }

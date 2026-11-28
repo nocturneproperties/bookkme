@@ -7,6 +7,7 @@ import com.bookk.core.test.whenn
 import library.encryption.test.InMemorySubjectKeys
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertSame
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
@@ -18,8 +19,12 @@ internal class TextEncryptionTest {
         val subjectKeys = InMemorySubjectKeys()
         val subjectId = Uuid.random()
 
+        suspend fun encryptor(): Encryptor {
+            return subjectKeys.encryptor(subjectId)!!
+        }
+
         suspend fun encrypt(text: String): ByteArray {
-            return subjectKeys.encryptor(subjectId)!!.encryptText(text)
+            return encryptor().encryptText(text)
         }
 
         suspend fun decrypt(ciphertext: ByteArray): Decrypted<String> {
@@ -175,5 +180,76 @@ internal class TextEncryptionTest {
         then()
         assertEquals(listOf(Decrypted.Shredded, Decrypted.Missing), mapped)
         assertFalse(transformed)
+    }
+
+    @Test
+    fun `should keep the stored ciphertext of text that did not change`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val stored = fixture.encrypt("Alice")
+
+        whenn()
+        val ciphertext = fixture.encryptor().encryptTextIfChanged(stored, current = "Alice", edited = "Alice")
+
+        then()
+        assertSame(stored, ciphertext)
+    }
+
+    @Test
+    fun `should encrypt text that changed`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val stored = fixture.encrypt("Alice")
+
+        whenn()
+        val ciphertext = fixture.encryptor().encryptTextIfChanged(stored, current = "Alice", edited = "Alicia")
+
+        then()
+        assertEquals("Alicia", fixture.decrypt(ciphertext).valueOrNull())
+    }
+
+    @Test
+    fun `should keep the stored ciphertext of optional text that did not change`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val stored = fixture.encrypt("alice@example.com")
+        val encryptor = fixture.encryptor()
+
+        whenn()
+        val kept = encryptor.encryptOptionalTextIfChanged(stored, "alice@example.com", "alice@example.com")
+        val stillAbsent = encryptor.encryptOptionalTextIfChanged(stored = null, current = null, edited = null)
+
+        then()
+        assertSame(stored, kept)
+        assertNull(stillAbsent)
+    }
+
+    @Test
+    fun `should encrypt optional text that was added or changed`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val stored = fixture.encrypt("alice@example.com")
+        val encryptor = fixture.encryptor()
+
+        whenn()
+        val added = encryptor.encryptOptionalTextIfChanged(stored = null, current = null, edited = "alice@example.com")
+        val changed = encryptor.encryptOptionalTextIfChanged(stored, "alice@example.com", "alicia@example.com")
+
+        then()
+        assertEquals("alice@example.com", fixture.decrypt(added!!).valueOrNull())
+        assertEquals("alicia@example.com", fixture.decrypt(changed!!).valueOrNull())
+    }
+
+    @Test
+    fun `should drop the ciphertext of optional text that was cleared`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val stored = fixture.encrypt("alice@example.com")
+
+        whenn()
+        val ciphertext = fixture.encryptor().encryptOptionalTextIfChanged(stored, "alice@example.com", edited = null)
+
+        then()
+        assertNull(ciphertext)
     }
 }

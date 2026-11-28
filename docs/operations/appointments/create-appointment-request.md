@@ -4,6 +4,17 @@
 
 `BookingQuoteVerifier` validates the offer with `ValidationType.SERVICE_QUOTE`, fetching the business signing key by the token's `kid` from `/jwks.json`. In the monolith this endpoint publishes auth and business verification keys together, including retiring keys; standalone business publishes its own keys.
 
+A [demo account](../authorization/demo-start.md) (the access token's `demo`
+claim) can't make appointment requests at all, not even at its own sample
+business: demo accounts exist only for trying BookkMe as a business, and only
+real clients book. The request is refused with `APPOINTMENTS_DEMO_RESTRICTED`
+before any transaction opens or the offer is used, since a demo takes one
+anonymous tap to create and would otherwise let anyone flood real businesses
+with requests from throwaway clients. Real clients may still book into a demo
+business through its link. Staff bookings (`POST /api/appointments`,
+`POST /api/appointments/instant`) already require a grant, so a demo account
+can only make them at a business it belongs to.
+
 A client submits an `AppointmentRequestDraft` carrying the signed
 `offerToken` produced earlier by the business service's
 `POST /api/service/quote` (`IssueServiceQuote`, read-only — not diagrammed
@@ -99,11 +110,15 @@ that is wrong anyway reports that error. The client frees a place by
 withdrawing a request ([Withdraw appointment
 request](withdraw-appointment-request.md)).
 
+The employee can hold only one appointment at a time. `EmployeeBookings.requireFree` reads the employee's `SCHEDULED` appointments in the business, whoever booked them, around the slot widened by `inBetweenBreakInMinutes` on both sides, and rejects the booking with 422 `EMPLOYEE_BUSY` (300032) when one other than the booking itself is found. It runs after the settings lock, which serializes every booking of the business, so two bookings can't both take the same employee's time. Pending requests don't block anyone: several clients may request the same time, and once staff approve one, approving another answers `EMPLOYEE_BUSY`. The client's own other bookings are not checked: a client may take two services with two employees at once. `POST /api/appointments/slots` offers only starts that pass the same check.
+
 ```mermaid
 flowchart TD
     Start([POST /api/appointments/request]) --> Auth{JWT valid?}
     Auth -- No --> R401([401 Unauthorized])
-    Auth -- Yes --> Reserve{requestDataSource.reserveOfferToken offerToken - atomic SET NX EX 10m}
+    Auth -- Yes --> Demo{AppPrincipal.isDemo?}
+    Demo -- Yes --> R422demo([422 APPOINTMENTS_DEMO_RESTRICTED 300035 - no transaction, offer token untouched])
+    Demo -- No --> Reserve{requestDataSource.reserveOfferToken offerToken - atomic SET NX EX 10m}
     Reserve -- already reserved --> R422a([422 TOKEN_ALREADY_USED 300016 - reservation left untouched])
     Reserve -- reserved --> CountCheck{every RequestedService.count > 0?}
     CountCheck -- No --> R422i([422 SERVICES_VALIDATION_FAILED 300014])
@@ -152,17 +167,15 @@ flowchart TD
     EmpDay -- No --> R422ed([422 EMPLOYEE_DATE_NOT_ALLOWED 300027])
     EmpDay -- Yes --> EmpTime{context.employee.schedule ranges cover date to dateEnd?}
     EmpTime -- No --> R422et([422 EMPLOYEE_TIME_NOT_ALLOWED 300028])
-    EmpTime -- Yes --> OverlapRequests{AppointmentRequestDataSource.hasOverlapsWith<br/>overlaps a PENDING request of the client?}
-    OverlapRequests -- Yes --> R422f([422 REQUEST_EXISTS 300001])
-    OverlapRequests -- No --> OverlapAppointments{AppointmentDataSource.hasOverlapsWith<br/>overlaps a SCHEDULED appointment of the client?}
-    OverlapAppointments -- Yes --> R422f
-    OverlapAppointments -- No --> Pending{AppointmentRequestDataSource.countPendingByUser userId businessId >= settings.maxPendingRequestsPerClient?}
+    EmpTime -- Yes --> EmployeeBusy{"EmployeeBookings.requireFree - AppointmentDataSource.getEmployeeBookings businessId employee.id date - break until dateEnd + break: any SCHEDULED appointment of the employee, whoever booked it, other than this booking?"}
+    EmployeeBusy -- Yes --> R422busy([422 EMPLOYEE_BUSY 300032])
+    EmployeeBusy -- No --> Pending{AppointmentRequestDataSource.countPendingByUser userId businessId >= settings.maxPendingRequestsPerClient?}
     Pending -- Yes --> R422p([422 PENDING_REQUESTS_LIMIT_REACHED 300029])
     Pending -- No --> Create[AppointmentRequestDataSource.create request]
     Create --> Snapshot[AppointmentSubscriptionDataSource.getBusinessSnapshot businessId]
     Snapshot -- missing --> R404d([404 Error.NotFound - logged as data inconsistency])
     Snapshot -- found --> Visit[eventProducer.send AppointmentEvent.ClientVisitBooked businessId client.id dateEnd]
-    Visit --> Event["eventProducer.send AppointmentEvent.RequestCreated - clientId = request.client.id, clientUserId = request.client.userId; stored sealed under the key of clientId"]
+    Visit --> Event["eventProducer.send AppointmentEvent.RequestCreated - clientUserId = request.client.userId, employeeUserId, date, price, requestId, serviceNames one per booked unit; no names, so stored unencrypted"]
     Event --> Commit[[Commit transaction]]
     Commit --> R204([204 No Content - offerToken stays reserved])
 ```

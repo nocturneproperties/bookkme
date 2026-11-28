@@ -9,6 +9,7 @@ import kotlin.uuid.Uuid
 data class AppointmentsUserDataExport(
     @ProtoNumber(1) val appointments: List<AppointmentExport>,
     @ProtoNumber(2) val requests: List<AppointmentRequestExport>,
+    @ProtoNumber(3) val savedBusinesses: List<SavedBusinessExport> = emptyList(),
 ) {
     @Serializable
     enum class Role {
@@ -37,6 +38,7 @@ data class AppointmentsUserDataExport(
         @ProtoNumber(11) val cancellationReason: String?,
         @ProtoNumber(12) val priceAdjustment: PriceAdjustmentExport?,
         @ProtoNumber(13) val completedBy: String?,
+        @ProtoNumber(14) val employeeErased: Boolean = false,
     ) {
         companion object {
             fun stub(
@@ -131,6 +133,14 @@ data class AppointmentsUserDataExport(
         @ProtoNumber(2) val phone: String?,
         @ProtoNumber(3) val email: String?,
         @ProtoNumber(4) val note: String?,
+        @ProtoNumber(5) val clientNote: String?,
+    )
+
+    @Serializable
+    data class SavedBusinessExport(
+        @ProtoNumber(1) val businessId: Uuid,
+        @ProtoNumber(2) val businessName: String,
+        @ProtoNumber(3) val savedAt: Instant,
     )
 
     @Serializable
@@ -144,6 +154,7 @@ data class AppointmentsUserDataExport(
         fun stub(
             appointments: List<AppointmentExport> = emptyList(),
             requests: List<AppointmentRequestExport> = emptyList(),
-        ) = AppointmentsUserDataExport(appointments, requests)
+            savedBusinesses: List<SavedBusinessExport> = emptyList(),
+        ) = AppointmentsUserDataExport(appointments, requests, savedBusinesses)
     }
 }
