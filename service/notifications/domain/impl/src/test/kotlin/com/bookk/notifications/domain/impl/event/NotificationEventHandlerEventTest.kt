@@ -210,6 +210,7 @@ internal class NotificationEventHandlerEventTest {
         to = to,
         timeZone = TimeZone.UTC,
         price = "10 USD",
+        requestId = Uuid.random(),
     )
 
     private fun requestApproved(clientUserId: Uuid, employeeUserId: Uuid) = AppointmentEvent.RequestApproved(

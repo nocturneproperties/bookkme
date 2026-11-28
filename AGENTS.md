@@ -35,7 +35,7 @@ The details of each area live in `docs/agents/`. Open the matching file before w
 | Business currency, client uniqueness/takeover/merges, creation limits, device identity | `docs/agents/domain-rules.md` |
 | Data export, legal documents, `client_id` vs users, account and client erasure, dormancy, retention, erasure records | `docs/agents/personal-data.md` |
 | OpenAPI plugin details, Swagger tests | `docs/agents/openapi.md` |
-| H2 datasource tests, scheduled job tests, virtual time, `runUnitTest` timeout | `docs/agents/testing-advanced.md` |
+| H2 datasource tests, scheduled job tests, virtual time, `runUnitTest` timeout, Firebase push messages and the push contract | `docs/agents/testing-advanced.md` |
 
 ## Always
 

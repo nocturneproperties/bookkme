@@ -15,6 +15,7 @@ import com.bookk.appointments.domain.api.entity.BusinessSnapshot
 import com.bookk.appointments.domain.api.entity.EmployeeSnapshot
 import com.bookk.appointments.domain.api.entity.HistoryOrder
 import com.bookk.appointments.domain.api.entity.OwnAppointmentRequestFilter
+import com.bookk.appointments.domain.api.entity.PendingRequestRef
 import com.bookk.appointments.domain.api.entity.StartBounds
 import com.bookk.core.data.cache.test.InMemoryCacheClient
 import com.bookk.core.data.test.createTestDatabase
@@ -482,6 +483,38 @@ internal class AppointmentRequestDataSourceImplTest {
     }
 
     @Test
+    fun `should return the pending requests it cancelled as outdated with their employees`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val outdated = suspendTransaction { fixture.sut.create(fixture.buildRequest()) }
+        val declined = suspendTransaction { fixture.sut.create(fixture.buildRequest()) }
+        suspendTransaction { fixture.sut.decline(declined.id, "Busy") }
+        suspendTransaction { fixture.sut.create(fixture.buildRequest(date = Clock.System.now() + 24.hours)) }
+
+        whenn()
+        val cancelled = suspendTransaction { fixture.sut.cancelOutdated(Clock.System.now()) }
+
+        then()
+        assertEquals(listOf(PendingRequestRef(outdated.id, outdated.employee.userId)), cancelled)
+        assertEquals(DECLINED, suspendTransaction { fixture.sut.get(declined.id) }?.status)
+    }
+
+    @Test
+    fun `should return nothing when no pending request is outdated`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        suspendTransaction { fixture.sut.create(fixture.buildRequest(date = Clock.System.now() + 24.hours)) }
+
+        whenn()
+        val cancelled = suspendTransaction { fixture.sut.cancelOutdated(Clock.System.now()) }
+
+        then()
+        assertTrue(cancelled.isEmpty())
+    }
+
+    @Test
     fun `should not cancel future pending requests`() = runUnitTest {
         given()
         val fixture = SutFixture()
@@ -630,6 +663,29 @@ internal class AppointmentRequestDataSourceImplTest {
     }
 
     @Test
+    fun `should give the pending requests the user made as the client with another employee`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val userId = Uuid.random()
+        val pending = suspendTransaction { fixture.sut.create(fixture.buildRequest(userId = userId)) }
+        val declined = suspendTransaction { fixture.sut.create(fixture.buildRequest(userId = userId)) }
+        suspendTransaction { fixture.sut.decline(declined.id, "Busy") }
+        suspendTransaction {
+            fixture.sut.create(fixture.buildRequest(userId = userId, employee = EmployeeSnapshot.stub(userId = userId)))
+        }
+        suspendTransaction {
+            fixture.sut.create(fixture.buildRequest(employee = EmployeeSnapshot.stub(userId = userId)))
+        }
+
+        whenn()
+        val found = suspendTransaction { fixture.sut.getPendingOfClientUserForUpdate(userId) }
+
+        then()
+        assertEquals(listOf(PendingRequestRef(pending.id, pending.employee.userId)), found)
+    }
+
+    @Test
     fun `should not delete requests belonging to other users`() = runUnitTest {
         given()
         val fixture = SutFixture()
@@ -768,6 +824,29 @@ internal class AppointmentRequestDataSourceImplTest {
         assertEquals(toClientId, suspendTransaction { fixture.sut.get(merged.id) }?.client?.id)
         assertEquals(unrelated.client.id, suspendTransaction { fixture.sut.get(unrelated.id) }?.client?.id)
         assertEquals(fromClientId, suspendTransaction { fixture.sut.get(inOtherBusiness.id) }?.client?.id)
+    }
+
+    @Test
+    fun `should give the deleted client's pending requests in the business with their employees`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        fixture.setup()
+        val pending = suspendTransaction { fixture.sut.create(fixture.buildRequest()) }
+        val declined = suspendTransaction { fixture.sut.create(fixture.buildRequest().copy(client = pending.client)) }
+        suspendTransaction { fixture.sut.decline(declined.id, "Busy") }
+        suspendTransaction { fixture.sut.create(fixture.buildRequest()) }
+        val otherBusiness = BusinessSnapshot.stub()
+        suspendTransaction { fixture.subscriptionSut.attachBusiness(otherBusiness) }
+        suspendTransaction {
+            fixture.sut.create(fixture.buildRequest().copy(businessId = otherBusiness.id, client = pending.client))
+        }
+
+        whenn()
+        val found =
+            suspendTransaction { fixture.sut.getPendingOfClientForUpdate(fixture.businessId, pending.client.id) }
+
+        then()
+        assertEquals(listOf(PendingRequestRef(pending.id, pending.employee.userId)), found)
     }
 
     @Test

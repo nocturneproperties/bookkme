@@ -95,6 +95,7 @@ internal class DeclineAppointmentRequestImplTest {
         then()
         assertTrue(result.isFailure)
         assertTrue(result.exceptionOrNull() is com.bookk.core.domain.entity.Error.OperationNotAllowed)
+        coVerify(exactly = 0) { fixture.eventProducer.send(any(), any()) }
     }
 
     @Test
@@ -137,6 +138,7 @@ internal class DeclineAppointmentRequestImplTest {
         then()
         assertTrue(result.isFailure)
         assertTrue(result.exceptionOrNull() is AppointmentRequestStatusError.AlreadyDeclined)
+        coVerify(exactly = 0) { fixture.eventProducer.send(any(), any()) }
     }
 
     @Test
@@ -157,6 +159,7 @@ internal class DeclineAppointmentRequestImplTest {
         then()
         assertTrue(result.isFailure)
         assertTrue(result.exceptionOrNull() is AppointmentRequestStatusError.AlreadyApproved)
+        coVerify(exactly = 0) { fixture.eventProducer.send(any(), any()) }
     }
 
     @Test
@@ -179,6 +182,42 @@ internal class DeclineAppointmentRequestImplTest {
 
         then()
         coVerify(exactly = 1) { fixture.eventProducer.send(any(AppointmentEvent.RequestRejected::class), any()) }
+    }
+
+    @Test
+    fun `should tell the assigned employee that the request is resolved`() = runUnitTest {
+        val fixture = SutFixture()
+        given()
+        fixture.transactionManager.mockTransaction()
+        val employee = EmployeeSnapshot.stub()
+        val request = AppointmentRequest.stub(
+            id = testCancellation.id,
+            businessId = testBusinessId,
+            employee = employee,
+        )
+        val sentEvents = mutableListOf<AppointmentEvent>()
+        val sentInTransaction = mutableListOf<Boolean>()
+
+        coEvery { fixture.appointmentPermissionDataSource.getPermission(testUserId, testBusinessId) } returns
+            ResourcePermission(view = false, update = true, delete = false)
+        coEvery { fixture.requestDataSource.getForUpdate(testCancellation.id) } returns request
+        coEvery { fixture.requestDataSource.decline(testCancellation.id, testCancellation.reason) } returns
+            request.copy(status = AppointmentRequestStatus.DECLINED)
+        coEvery { fixture.subscriptionDataSource.getBusinessSnapshot(testBusinessId) } returns BusinessSnapshot.stub()
+        coEvery { fixture.eventProducer.send(any<AppointmentEvent>(), any()) } coAnswers {
+            sentEvents += firstArg<AppointmentEvent>()
+            sentInTransaction += fixture.transactionManager.isInTransaction()
+        }
+
+        whenn()
+        val result = fixture.sut.invoke(testUserId, testCancellation)
+
+        then()
+        assertTrue(result.isSuccess)
+        val resolved = sentEvents.filterIsInstance<AppointmentEvent.RequestResolved>().single()
+        assertEquals(request.id, resolved.requestId)
+        assertEquals(employee.userId, resolved.employeeUserId)
+        assertEquals(listOf(true, true), sentInTransaction)
     }
 
     @Test

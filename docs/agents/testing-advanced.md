@@ -80,3 +80,7 @@ Because the budget is real time, it also has to cover a test JVM's cold start, w
 ## MockK answers and value classes
 
 Inside `coAnswers { }`/`answers { }`, an argument whose type is a Kotlin value class (`kotlin.time.Duration`, …) arrives unboxed, so `firstArg<Duration>()` throws `ClassCastException: java.lang.Long cannot be cast to kotlin.time.Duration`. Use the known value instead (`ActionConfirmationTokenIssuer.ACTION_CONFIRMATION_TTL` in `ConfirmActionWithTelegramImplTest`), or match it with `eq(...)` in the stub.
+
+## Firebase push messages
+
+`com.google.firebase.messaging.Message` and its configs have package-private getters, so a test can't read what `FirebaseNotificationSender` built. Capture it with `slot<Message>()` and read Firebase's own JSON form, `GsonFactory.getDefaultInstance().toString(message)` parsed with kotlinx `Json`, keyed as on the FCM wire (`android.notification.tag`, `apns.headers`, `data`) (`FirebaseNotificationSenderTest`). `ApnsConfig.builder().build()` throws without an `Aps`, so a push that only sets APNs headers still passes `setAps(Aps.builder().build())`. The tag, collapse id and data keys a push carries are a contract with the apps, written down in `docs/push-notifications.md`; change them there and in the apps together.

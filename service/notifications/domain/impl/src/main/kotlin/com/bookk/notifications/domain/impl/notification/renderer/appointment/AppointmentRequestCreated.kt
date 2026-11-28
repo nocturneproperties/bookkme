@@ -4,12 +4,15 @@ import com.bookk.notifications.domain.impl.notification.EmailNotification
 import com.bookk.notifications.domain.impl.notification.NotificationParameters
 import com.bookk.notifications.domain.impl.notification.NotificationType
 import com.bookk.notifications.domain.impl.notification.PushNotification
+import com.bookk.notifications.domain.impl.notification.PushSubject
 import com.bookk.notifications.domain.impl.notification.TextNotification
 import com.bookk.notifications.domain.impl.notification.renderer.formatLocalized
 import com.bookk.notifications.domain.impl.notification.renderer.message
 import com.bookk.server.appointments.client.api.event.AppointmentEvent
+import kotlin.uuid.Uuid
 
 private const val KEY_PREFIX = "appointment.request_created"
+private const val PUSH_SUBJECT_PREFIX = "appointment_request:"
 
 internal val AppointmentEvent.RequestCreated.notification: NotificationParameters
     get() = NotificationParameters(
@@ -19,6 +22,7 @@ internal val AppointmentEvent.RequestCreated.notification: NotificationParameter
             PushNotification(
                 title = message(language, "$KEY_PREFIX.push.title"),
                 body = message(language, "$KEY_PREFIX.push.body", whenText),
+                subject = requestId?.let(::requestPushSubject),
             )
         },
         email = { language ->
@@ -38,4 +42,11 @@ private fun List<String>.servicesText(): String {
     return groupingBy { it }.eachCount().entries.joinToString(", ") { (name, count) ->
         if (count == 1) name else "$name ×$count"
     }
+}
+
+private fun requestPushSubject(requestId: Uuid): PushSubject {
+    return PushSubject(
+        key = "$PUSH_SUBJECT_PREFIX$requestId",
+        data = mapOf(APPOINTMENT_REQUEST_ID_DATA_KEY to requestId.toString()),
+    )
 }

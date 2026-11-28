@@ -14,6 +14,7 @@ import com.bookk.notifications.domain.impl.notification.NotificationParameters
 import com.bookk.notifications.domain.impl.notification.SendNotification
 import com.bookk.notifications.domain.impl.notification.renderer.account.notification
 import com.bookk.notifications.domain.impl.notification.renderer.appointment.notification
+import com.bookk.notifications.domain.impl.notification.renderer.appointment.push
 import com.bookk.notifications.domain.impl.notification.renderer.employee.notification
 import com.bookk.notifications.domain.impl.telegram.TelegramConfirmationChat
 import com.bookk.server.appointments.client.api.event.AppointmentEvent
@@ -82,6 +83,9 @@ internal class NotificationEventHandler(
             }
             .registerResultReceiver(AppointmentEvent.RequestCreated.TOPIC) { event: AppointmentEvent.RequestCreated ->
                 sendNotification(event.employeeUserId, event.notification)
+            }
+            .registerResultReceiver(AppointmentEvent.RequestResolved.TOPIC) { event: AppointmentEvent.RequestResolved ->
+                sendNotification.data(event.employeeUserId, event.push)
             }
             .registerResultReceiver(AppointmentEvent.RequestApproved.TOPIC) { event: AppointmentEvent.RequestApproved ->
                 notifyClient(event.clientUserId, event.notification)

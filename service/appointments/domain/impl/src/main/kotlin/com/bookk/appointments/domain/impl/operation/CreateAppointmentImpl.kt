@@ -54,7 +54,9 @@ internal class CreateAppointmentImpl(
             val request = requestDataSource.getForUpdate(appointmentRequestId) ?: throw Error.NotFound()
             val settings = lockSettings(request.businessId)
             requireApprovable(userId, request)
-            createAppointment(request, settings, employeeSchedule)
+            createAppointment(request, settings, employeeSchedule).also {
+                eventProducer.send(AppointmentEvent.RequestResolved(request.id, request.employee.userId))
+            }
         }
     }
 

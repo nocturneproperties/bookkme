@@ -175,7 +175,7 @@ flowchart TD
     Create --> Snapshot[AppointmentSubscriptionDataSource.getBusinessSnapshot businessId]
     Snapshot -- missing --> R404d([404 Error.NotFound - logged as data inconsistency])
     Snapshot -- found --> Visit[eventProducer.send AppointmentEvent.ClientVisitBooked businessId client.id dateEnd]
-    Visit --> Event["eventProducer.send AppointmentEvent.RequestCreated - clientUserId = request.client.userId, employeeUserId, date, price, serviceNames one per booked unit; no names, so stored unencrypted"]
+    Visit --> Event["eventProducer.send AppointmentEvent.RequestCreated - clientUserId = request.client.userId, employeeUserId, date, price, requestId, serviceNames one per booked unit; no names, so stored unencrypted"]
     Event --> Commit[[Commit transaction]]
     Commit --> R204([204 No Content - offerToken stays reserved])
 ```

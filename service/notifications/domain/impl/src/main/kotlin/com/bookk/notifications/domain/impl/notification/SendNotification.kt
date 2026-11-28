@@ -7,6 +7,7 @@ import com.bookk.notifications.domain.api.entity.CommunicationChannel
 import com.bookk.notifications.domain.api.entity.NotificationSettings
 import com.bookk.notifications.domain.datasource.NotificationSettingsDataSource
 import com.bookk.notifications.domain.datasource.NotificationTargetDataSource
+import com.bookk.notifications.domain.impl.channel.DataPushSender
 import com.bookk.notifications.domain.impl.channel.NotificationSender
 import library.email.PlaceholderEmail
 import kotlin.uuid.Uuid
@@ -15,11 +16,17 @@ internal class SendNotification(
     private val settingsDataSource: NotificationSettingsDataSource,
     private val targetDataSource: NotificationTargetDataSource,
     private val senders: Map<CommunicationChannel, NotificationSender>,
+    private val dataPushSender: DataPushSender,
     private val transactionManager: TransactionManager,
 ) {
     suspend operator fun invoke(to: Uuid, notification: NotificationParameters): Result<Unit> = runSuspendCatching {
         val channels = transactionManager.transactionOrThrow { channelsFor(to, notification.type) }
         channels.forEach { channel -> senders[channel]?.send(to, notification) }
+    }
+
+    suspend fun data(to: Uuid, push: DataPush): Result<Unit> = runSuspendCatching {
+        val channels = transactionManager.transactionOrThrow { channelsFor(to, push.type) }
+        if (CommunicationChannel.PUSH_NOTIFICATIONS in channels) dataPushSender.sendData(to, push).getOrThrow()
     }
 
     private suspend fun channelsFor(userId: Uuid, type: NotificationType): Set<CommunicationChannel> {

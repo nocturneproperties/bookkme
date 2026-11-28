@@ -11,7 +11,8 @@ request](create-appointment-request.md)). Only the initiator
 (`initiator_user_id`) can withdraw; for anyone else, or an unknown id, the
 answer is 404, so the route doesn't reveal which ids exist. The request row is
 locked first, so a withdrawal and the business's approval or decline can't both
-succeed. No event is sent: the business is not notified.
+succeed. Nobody is notified, but `AppointmentEvent.RequestResolved` tells the
+assigned employee's devices to remove the request's push.
 
 ```mermaid
 flowchart TD
@@ -26,5 +27,8 @@ flowchart TD
     Pending -- APPROVED --> R422a([422 REQUEST_ALREADY_APPROVED 300008])
     Pending -- DECLINED or CANCELLED --> R422d([422 REQUEST_ALREADY_DECLINED 300007])
     Pending -- PENDING --> Withdraw[AppointmentRequestDataSource.withdraw id - status CANCELLED]
-    Withdraw --> R204([204 No Content])
+    Withdraw --> Resolved[eventProducer.send AppointmentEvent.RequestResolved requestId employeeUserId]
+    Resolved --> R204([204 No Content])
 ```
+
+**Consumed by:** `AppointmentEvent.RequestResolved` → [notifications: data-only push to the employee](../notifications/on-appointment-request-resolved.md).

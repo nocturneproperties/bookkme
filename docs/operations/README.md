@@ -143,6 +143,7 @@ Reactions to cross-service events (all handled by the same
 | `AppointmentEvent.RequestCreated` | [React to appointment request creation](notifications/on-appointment-request-created.md) |
 | `AppointmentEvent.RequestApproved` | [React to appointment request approval](notifications/on-appointment-request-approved.md) |
 | `AppointmentEvent.RequestRejected` | [React to appointment request decline](notifications/on-appointment-request-rejected.md) |
+| `AppointmentEvent.RequestResolved` | [React to a resolved appointment request](notifications/on-appointment-request-resolved.md) |
 | `AppointmentEvent.Cancelled` | [React to appointment cancellation](notifications/on-appointment-cancelled.md) |
 | `AppointmentEvent.CancelledForDeletedClient` | [React to an appointment cancelled by a client's account deletion](notifications/on-appointment-cancelled-for-deleted-client.md) |
 | `BusinessEvent.EmployeeInvitationRedeemed` | [React to an employee joining the business](notifications/on-employee-invitation-redeemed.md) |
@@ -206,6 +207,7 @@ the operation committed, and reaches its consumers at least once. See
 | `AppointmentEvent.RequestCreated` | [Create appointment request](appointments/create-appointment-request.md) | [notifications](notifications/on-appointment-request-created.md) |
 | `AppointmentEvent.RequestApproved` | [Create appointment from a pending request](appointments/create-appointment-from-request.md), [Create appointment request](appointments/create-appointment-request.md) (auto-approval) | [notifications](notifications/on-appointment-request-approved.md) |
 | `AppointmentEvent.RequestRejected` | [Decline appointment request](appointments/decline-appointment-request.md) | [notifications](notifications/on-appointment-request-rejected.md) |
+| `AppointmentEvent.RequestResolved` | [Create appointment from a pending request](appointments/create-appointment-from-request.md), [Decline appointment request](appointments/decline-appointment-request.md), [Withdraw appointment request](appointments/withdraw-appointment-request.md), [`appointments-deleteOutdatedRequests` job](scheduled-jobs.md), [React to client deletion (appointments)](appointments/on-client-deleted.md), [React to user deletion (appointments)](appointments/on-user-deleted.md) | [notifications](notifications/on-appointment-request-resolved.md) |
 | `AppointmentEvent.Cancelled` | [Cancel appointment](appointments/cancel-appointment.md), [React to client deletion (appointments)](appointments/on-client-deleted.md), [React to user deletion (appointments)](appointments/on-user-deleted.md) | [notifications](notifications/on-appointment-cancelled.md) |
 | `AppointmentEvent.CancelledForDeletedClient` | [React to user deletion (appointments)](appointments/on-user-deleted.md), [React to a client getting an account (appointments)](appointments/on-client-linked.md) | [notifications](notifications/on-appointment-cancelled-for-deleted-client.md) |
 

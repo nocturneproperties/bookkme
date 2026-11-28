@@ -10,6 +10,7 @@ import com.bookk.notifications.domain.api.entity.NotificationChannelSettings
 import com.bookk.notifications.domain.api.entity.NotificationSettings
 import com.bookk.notifications.domain.datasource.NotificationSettingsDataSource
 import com.bookk.notifications.domain.datasource.NotificationTargetDataSource
+import com.bookk.notifications.domain.impl.channel.DataPushSender
 import com.bookk.notifications.domain.impl.channel.NotificationSender
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -33,8 +34,10 @@ internal class SendNotificationTest {
             CommunicationChannel.TELEGRAM to telegramSender,
             CommunicationChannel.PUSH_NOTIFICATIONS to pushSender,
         )
+        val dataPushSender = mockk<DataPushSender>()
         val transactionManager = mockedTransactionManager()
-        val sut = SendNotification(notificationDataSource, targetDataSource, senderMap, transactionManager)
+        val sut =
+            SendNotification(notificationDataSource, targetDataSource, senderMap, dataPushSender, transactionManager)
     }
 
     private fun notificationParams() = NotificationParameters(
@@ -532,6 +535,105 @@ internal class SendNotificationTest {
 
         whenn()
         fixture.sut.invoke(userId, notification)
+
+        then()
+        assertFalse(sentInTransaction)
+    }
+
+    @Test
+    fun `should send a data push when push notifications are on for its type`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val push = DataPush(type = NotificationType.APPOINTMENT, data = mapOf("type" to "resolved"))
+        val settings = NotificationSettings.stub(
+            userId = userId,
+            channels = listOf(
+                NotificationChannelSettings.stub(channel = CommunicationChannel.PUSH_NOTIFICATIONS, enabled = true),
+            ),
+        )
+        with(fixture) {
+            coEvery { notificationDataSource.getByUserId(userId) } returns settings
+            coEvery { dataPushSender.sendData(userId, push) } returns Result.success(Unit)
+        }
+
+        whenn()
+        val result = fixture.sut.data(userId, push)
+
+        then()
+        assertTrue(result.isSuccess)
+        coVerify(exactly = 1) { fixture.dataPushSender.sendData(userId, push) }
+    }
+
+    @Test
+    fun `should not send a data push when its notification type is off`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val push = DataPush(type = NotificationType.APPOINTMENT, data = mapOf("type" to "resolved"))
+        val settings = NotificationSettings.stub(
+            userId = userId,
+            appointmentEnabled = false,
+            channels = listOf(
+                NotificationChannelSettings.stub(channel = CommunicationChannel.PUSH_NOTIFICATIONS, enabled = true),
+            ),
+        )
+        coEvery { fixture.notificationDataSource.getByUserId(userId) } returns settings
+
+        whenn()
+        val result = fixture.sut.data(userId, push)
+
+        then()
+        assertTrue(result.isSuccess)
+        coVerify(exactly = 0) { fixture.dataPushSender.sendData(any(), any()) }
+    }
+
+    @Test
+    fun `should not send a data push when the push channel is off`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val push = DataPush(type = NotificationType.APPOINTMENT, data = mapOf("type" to "resolved"))
+        val settings = NotificationSettings.stub(
+            userId = userId,
+            channels = listOf(
+                NotificationChannelSettings.stub(channel = CommunicationChannel.EMAIL, enabled = true),
+                NotificationChannelSettings.stub(channel = CommunicationChannel.PUSH_NOTIFICATIONS, enabled = false),
+            ),
+        )
+        coEvery { fixture.notificationDataSource.getByUserId(userId) } returns settings
+
+        whenn()
+        val result = fixture.sut.data(userId, push)
+
+        then()
+        assertTrue(result.isSuccess)
+        coVerify(exactly = 0) { fixture.dataPushSender.sendData(any(), any()) }
+    }
+
+    @Test
+    fun `should send a data push outside the settings read transaction`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val push = DataPush(type = NotificationType.APPOINTMENT, data = mapOf("type" to "resolved"))
+        val settings = NotificationSettings.stub(
+            userId = userId,
+            channels = listOf(
+                NotificationChannelSettings.stub(channel = CommunicationChannel.PUSH_NOTIFICATIONS, enabled = true),
+            ),
+        )
+        var sentInTransaction = true
+        with(fixture) {
+            coEvery { notificationDataSource.getByUserId(userId) } returns settings
+            coEvery { dataPushSender.sendData(userId, push) } coAnswers {
+                sentInTransaction = transactionManager.isInTransaction()
+                Result.success(Unit)
+            }
+        }
+
+        whenn()
+        fixture.sut.data(userId, push)
 
         then()
         assertFalse(sentInTransaction)

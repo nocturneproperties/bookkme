@@ -106,7 +106,7 @@ internal class CreateAppointmentRequestImpl(
             eventProducer.send(
                 AppointmentEvent.ClientVisitBooked(request.businessId, request.client.id, request.dateEnd),
             )
-            sendRequestCreatedNotification(request)
+            sendRequestCreatedNotification(it)
         }
     }
 
@@ -148,6 +148,7 @@ internal class CreateAppointmentRequestImpl(
                 to = request.dateEnd,
                 timeZone = business.timeZone,
                 price = moneyFormatter.print(request.totalAmount),
+                requestId = request.id,
                 serviceNames = request.services.map { it.name },
             ),
         )

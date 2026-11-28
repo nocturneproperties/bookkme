@@ -102,6 +102,7 @@ internal class AppointmentEventTest {
             to = Instant.parse("2099-03-05T15:00:00Z"),
             timeZone = TimeZone.of("Europe/Kyiv"),
             price = "100 UAH",
+            requestId = null,
             serviceNames = listOf("Haircut", "Beard trim", "Beard trim"),
         )
 
@@ -242,9 +243,33 @@ internal class AppointmentEventTest {
             to = pinned.to,
             timeZone = pinned.timeZone,
             price = pinned.price,
+            requestId = null,
             idempotencyKey = "key",
         )
         assertEquals(expected, decoded)
+    }
+
+    @Test
+    fun `should carry the request id in the request created event`() = runUnitTest {
+        given()
+        val event = AppointmentEvent.RequestCreated(
+            clientUserId = Uuid.random(),
+            employeeUserId = Uuid.random(),
+            from = Instant.parse("2099-03-05T14:30:00Z"),
+            to = Instant.parse("2099-03-05T15:00:00Z"),
+            timeZone = TimeZone.of("Europe/Kyiv"),
+            price = "100 UAH",
+            requestId = Uuid.random(),
+        )
+
+        whenn()
+        val decoded = protoBuf.decodeFromByteArray(
+            AppointmentEvent.RequestCreated.serializer(),
+            protoBuf.encodeToByteArray(AppointmentEvent.RequestCreated.serializer(), event),
+        )
+
+        then()
+        assertEquals(event, decoded)
     }
 
     @Test
@@ -329,6 +354,37 @@ internal class AppointmentEventTest {
     }
 
     @Test
+    fun `should carry the request and its employee in the request resolved event`() = runUnitTest {
+        given()
+        val event = AppointmentEvent.RequestResolved(requestId = Uuid.random(), employeeUserId = Uuid.random())
+
+        whenn()
+        val decoded = protoBuf.decodeFromByteArray(
+            AppointmentEvent.RequestResolved.serializer(),
+            protoBuf.encodeToByteArray(AppointmentEvent.RequestResolved.serializer(), event),
+        )
+
+        then()
+        assertEquals(event, decoded)
+        assertEquals("appointment.request_resolved", decoded.topic)
+    }
+
+    @Test
+    fun `should not treat a resolved request as personal data`() = runUnitTest {
+        given()
+        val event: AppointmentEvent = AppointmentEvent.RequestResolved(
+            requestId = Uuid.random(),
+            employeeUserId = Uuid.random(),
+        )
+
+        whenn()
+        val personal = event is PersonalEvent
+
+        then()
+        assertFalse(personal)
+    }
+
+    @Test
     fun `should not treat a new request as personal data`() = runUnitTest {
         given()
         val event: AppointmentEvent = AppointmentEvent.RequestCreated(
@@ -338,6 +394,7 @@ internal class AppointmentEventTest {
             to = Instant.parse("2099-03-05T15:00:00Z"),
             timeZone = TimeZone.of("Europe/Kyiv"),
             price = "100 UAH",
+            requestId = Uuid.random(),
         )
 
         whenn()

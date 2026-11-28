@@ -35,8 +35,10 @@ flowchart TD
     Decline --> Snapshot[AppointmentSubscriptionDataSource.getBusinessSnapshot businessId]
     Snapshot -- missing --> R404c([404 Error.NotFound - logged as data inconsistency])
     Snapshot -- found --> Event["eventProducer.send AppointmentEvent.RequestRejected - clientUserId = request.client.userId"]
-    Event --> R204([204 No Content])
+    Event --> Resolved[eventProducer.send AppointmentEvent.RequestResolved requestId employeeUserId]
+    Resolved --> R204([204 No Content])
 ```
 
 **Consumed by:** `AppointmentEvent.RequestRejected` → [notifications: notify
-the client](../notifications/on-appointment-request-rejected.md).
+the client](../notifications/on-appointment-request-rejected.md);
+`AppointmentEvent.RequestResolved` → [notifications: data-only push to the employee](../notifications/on-appointment-request-resolved.md).

@@ -21,6 +21,7 @@ import com.bookk.notifications.domain.impl.UpdateDeviceLanguage
 import com.bookk.notifications.domain.impl.UpdateNotificationSettingsImpl
 import com.bookk.notifications.domain.impl.UpdatePushNotificationTokenImpl
 import com.bookk.notifications.domain.impl.UpdateTargetInformation
+import com.bookk.notifications.domain.impl.channel.DataPushSender
 import com.bookk.notifications.domain.impl.channel.EmailNotificationSender
 import com.bookk.notifications.domain.impl.channel.FirebaseNotificationSender
 import com.bookk.notifications.domain.impl.channel.NotificationSender
@@ -38,6 +39,7 @@ import org.koin.core.module.dsl.scopedOf
 import org.koin.core.qualifier.Qualifier
 import org.koin.core.qualifier.named
 import org.koin.dsl.bind
+import org.koin.dsl.binds
 import org.koin.dsl.module
 
 val NotificationsScope: Qualifier = named(NOTIFICATIONS_SCHEMA)
@@ -60,7 +62,7 @@ private fun notificationsDomainModule(
         scopedOf(::UpdateNotificationSettingsImpl) bind UpdateNotificationSettings::class
         scopedOf(::GetNotificationSettingsImpl) bind GetNotificationSettings::class
         scopedOf(::ExportUserNotificationDataImpl) bind ExportUserNotificationData::class
-        scopedOf(::FirebaseNotificationSender) bind NotificationSender::class
+        scopedOf(::FirebaseNotificationSender) binds arrayOf(NotificationSender::class, DataPushSender::class)
         scopedOf(::EmailNotificationSender) bind NotificationSender::class
         scopedOf(::TelegramNotificationSender) bind NotificationSender::class
         scopedOf(::SendNotification)
