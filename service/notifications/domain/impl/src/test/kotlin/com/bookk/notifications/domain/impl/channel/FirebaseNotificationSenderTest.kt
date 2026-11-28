@@ -13,16 +13,26 @@ import com.bookk.notifications.domain.impl.notification.EmailNotification
 import com.bookk.notifications.domain.impl.notification.NotificationParameters
 import com.bookk.notifications.domain.impl.notification.NotificationType
 import com.bookk.notifications.domain.impl.notification.PushNotification
+import com.bookk.notifications.domain.impl.notification.PushSubject
 import com.bookk.notifications.domain.impl.notification.TextNotification
+import com.google.api.client.json.gson.GsonFactory
 import com.google.firebase.messaging.FirebaseMessaging
 import com.google.firebase.messaging.FirebaseMessagingException
+import com.google.firebase.messaging.Message
 import com.google.firebase.messaging.MessagingErrorCode
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.slot
 import io.mockk.verify
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import kotlin.uuid.Uuid
@@ -36,12 +46,78 @@ internal class FirebaseNotificationSenderTest {
         val sut = FirebaseNotificationSender(transactionManager, deviceDataSource, firebaseMessaging)
     }
 
-    private fun notificationParams() = NotificationParameters(
-        type = NotificationType.APPOINTMENT,
-        push = { language -> PushNotification(title = "Title-${language.name}", body = "Subtitle-${language.name}") },
-        email = { EmailNotification(subject = "Subject", body = "Body") },
-        text = { TextNotification(text = "Text") },
-    )
+    private fun notificationParams(subject: PushSubject? = null): NotificationParameters {
+        return NotificationParameters(
+            type = NotificationType.APPOINTMENT,
+            push = { language ->
+                PushNotification(
+                    title = "Title-${language.name}",
+                    body = "Subtitle-${language.name}",
+                    subject = subject,
+                )
+            },
+            email = { EmailNotification(subject = "Subject", body = "Body") },
+            text = { TextNotification(text = "Text") },
+        )
+    }
+
+    private fun Message.json(): JsonObject {
+        return Json.parseToJsonElement(GsonFactory.getDefaultInstance().toString(this)).jsonObject
+    }
+
+    @Test
+    fun `should tag the push with its subject key and data`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val device = Device.stub(userId = userId, notificationToken = "fcm-token-abc")
+        val subject = PushSubject(key = "appointment_request:42", data = mapOf("appointmentRequestId" to "42"))
+        val sent = slot<Message>()
+        with(fixture) {
+            transactionManager.mockTransaction()
+            coEvery { deviceDataSource.getByUserId(userId) } returns listOf(device)
+            every { firebaseMessaging.send(capture(sent)) } returns "message-id"
+        }
+
+        whenn()
+        val result = fixture.sut.send(userId, notificationParams(subject))
+
+        then()
+        assertTrue(result.isSuccess)
+        val message = sent.captured.json()
+        val androidTag = message["android"]?.jsonObject?.get("notification")?.jsonObject?.get("tag")
+        val collapseId = message["apns"]?.jsonObject?.get("headers")?.jsonObject?.get("apns-collapse-id")
+        val requestId = message["data"]?.jsonObject?.get("appointmentRequestId")
+        assertEquals("appointment_request:42", androidTag?.jsonPrimitive?.content)
+        assertEquals("appointment_request:42", collapseId?.jsonPrimitive?.content)
+        assertEquals("42", requestId?.jsonPrimitive?.content)
+        assertEquals("Title-EN", message["notification"]?.jsonObject?.get("title")?.jsonPrimitive?.content)
+    }
+
+    @Test
+    fun `should send a push without a subject with only its title and body`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val device = Device.stub(userId = userId, notificationToken = "fcm-token-abc")
+        val sent = slot<Message>()
+        with(fixture) {
+            transactionManager.mockTransaction()
+            coEvery { deviceDataSource.getByUserId(userId) } returns listOf(device)
+            every { firebaseMessaging.send(capture(sent)) } returns "message-id"
+        }
+
+        whenn()
+        val result = fixture.sut.send(userId, notificationParams())
+
+        then()
+        assertTrue(result.isSuccess)
+        val message = sent.captured.json()
+        assertNull(message["android"])
+        assertNull(message["apns"])
+        assertNull(message["data"])
+        assertEquals("Subtitle-EN", message["notification"]?.jsonObject?.get("body")?.jsonPrimitive?.content)
+    }
 
     @Test
     fun `should send push notification to all devices with tokens`() = runUnitTest {

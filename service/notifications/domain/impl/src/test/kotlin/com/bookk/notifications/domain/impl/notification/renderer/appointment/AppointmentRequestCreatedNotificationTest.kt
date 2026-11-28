@@ -9,22 +9,54 @@ import com.bookk.notifications.domain.impl.notification.renderer.formatLocalized
 import com.bookk.server.appointments.client.api.event.AppointmentEvent
 import kotlinx.datetime.TimeZone
 import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
 internal class AppointmentRequestCreatedNotificationTest {
 
-    private fun event(serviceNames: List<String> = listOf("Haircut", "Beard trim", "Beard trim")) =
-        AppointmentEvent.RequestCreated(
+    private fun event(
+        serviceNames: List<String> = listOf("Haircut", "Beard trim", "Beard trim"),
+        requestId: Uuid? = Uuid.random(),
+    ): AppointmentEvent.RequestCreated {
+        return AppointmentEvent.RequestCreated(
             clientUserId = Uuid.random(),
             employeeUserId = Uuid.random(),
             from = Instant.parse("2026-03-05T14:30:00Z"),
             to = Instant.parse("2026-03-05T15:00:00Z"),
             timeZone = TimeZone.UTC,
             price = "USD 20.00",
+            requestId = requestId,
             serviceNames = serviceNames,
         )
+    }
+
+    @Test
+    fun `should identify the push by the request id`() = runUnitTest {
+        given()
+        val requestId = Uuid.parse("0c2b6c1e-6f3a-4d0e-9a52-7a1f0b6d8e44")
+        val event = event(requestId = requestId)
+
+        whenn()
+        val subject = event.notification.push(Language.EN).subject
+
+        then()
+        assertEquals("appointment_request:0c2b6c1e-6f3a-4d0e-9a52-7a1f0b6d8e44", subject?.key)
+        assertEquals(mapOf("appointmentRequestId" to "0c2b6c1e-6f3a-4d0e-9a52-7a1f0b6d8e44"), subject?.data)
+    }
+
+    @Test
+    fun `should leave the push unidentified for an event without a request id`() = runUnitTest {
+        given()
+        val event = event(requestId = null)
+
+        whenn()
+        val subject = event.notification.push(Language.EN).subject
+
+        then()
+        assertNull(subject)
+    }
 
     @Test
     fun `should render English push content`() = runUnitTest {

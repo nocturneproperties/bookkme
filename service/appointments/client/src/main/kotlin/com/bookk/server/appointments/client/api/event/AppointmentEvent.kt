@@ -17,6 +17,7 @@ interface AppointmentEvent : EventStreaming.Event<String> {
         @ProtoNumber(6) val to: Instant,
         @ProtoNumber(7) val timeZone: TimeZone,
         @ProtoNumber(10) val price: String,
+        @ProtoNumber(15) val requestId: Uuid?,
         @ProtoNumber(11) override val idempotencyKey: String = Uuid.random().toString(),
         @ProtoNumber(14) val serviceNames: List<String> = emptyList(),
     ) : AppointmentEvent {

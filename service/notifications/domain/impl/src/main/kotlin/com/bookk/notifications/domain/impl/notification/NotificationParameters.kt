@@ -12,6 +12,12 @@ internal class NotificationParameters(
 internal class PushNotification(
     val title: String,
     val body: String,
+    val subject: PushSubject? = null,
+)
+
+internal class PushSubject(
+    val key: String,
+    val data: Map<String, String>,
 )
 
 internal class EmailNotification(

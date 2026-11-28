@@ -924,6 +924,42 @@ internal class CreateAppointmentRequestImplTest {
     }
 
     @Test
+    fun `should carry the stored request id in the request created event`() = runUnitTest {
+        given()
+        val fixture = SutFixture()
+        val userId = Uuid.random()
+        val businessId = Uuid.random()
+        val context = bookingContext(businessId, Uuid.random(), Uuid.random(), Uuid.random())
+        val draft = draftFor(context, businessId, futureDate)
+        val settings = mockk<AppointmentSettings> { every { inBetweenBreakInMinutes } returns 0 }
+        val created = slot<AppointmentRequest>()
+        val eventSlot = slot<AppointmentEvent.RequestCreated>()
+
+        with(fixture) {
+            coEvery {
+                businessClient.getAppointmentBookingContext(businessId, draft.employeeId, userId, distinctIds(draft))
+            } returns Result.success(context)
+            coEvery { settingsDataSource.getForUpdate(businessId) } returns settings
+            coEvery { settings.automaticApproval } returns false
+            every { settings.maxPendingRequestsPerClient } returns 10
+            every { settings.requireBookable(any(), any(), any()) } just Runs
+            coEvery { requestDataSource.create(capture(created)) } answers { firstArg() }
+            coEvery { subscriptionDataSource.getBusinessSnapshot(any()) } returns BusinessSnapshot.stub()
+            coEvery { eventProducer.send(capture(eventSlot), any()) } returns Unit
+            coEvery { eventProducer.send(any<AppointmentEvent.ClientVisitBooked>(), any()) } returns Unit
+            mockValidToken(draft, totalOf(expand(context, draft)), durationOf(expand(context, draft)))
+            transactionManager.mockTransaction()
+        }
+
+        whenn()
+        val result = fixture.sut.invoke(userId, draft, isDemo = false)
+
+        then()
+        assertTrue(result.isSuccess)
+        assertEquals(created.captured.id, eventSlot.captured.requestId)
+    }
+
+    @Test
     fun `should announce the name of every requested service once per booked unit`() = runUnitTest {
         given()
         val fixture = SutFixture()
